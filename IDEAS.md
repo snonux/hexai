@@ -3,13 +3,14 @@
 * LSP server to be used with the Helix text editor
 * Code completion using LLMs
 * Code generation using LLMs text
+* Be a replacement for 'github copilot cli'
 
 Be able to select code blocks and perform code actions on them
 
 * Commenting exiting code
 * Code refactoring
 
-Be able to cht with the LLM
+Be able to chat with the LLM
 
 * Have a dialog with the LLM, like in lsp-ai
 
@@ -20,4 +21,5 @@ Be able to switch LLMs.
 * Claude models
 * Gemini models
 
-LCP integration? Can't think of a specic use case right now but it may be interesting!
+MSPintegration? Can't think of a specic use case right now but it may be interesting!
+
