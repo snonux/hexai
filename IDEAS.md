@@ -1,4 +1,10 @@
-# Ideas
+# Hexai
+
+![HexAI Small Logo](hexai-small.png)
+
+Hexai, the AI LSP for the Helix editor.
+
+## Ideas
 
 * LSP server to be used with the Helix text editor
 * Code completion using LLMs
@@ -23,3 +29,7 @@ Be able to switch LLMs.
 
 MSPintegration? Can't think of a specic use case right now but it may be interesting!
 
+## More
+
+* Use of different LLM based on usage/use case
+* Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol
