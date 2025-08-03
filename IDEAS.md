@@ -1,10 +1,4 @@
-# Hexai
-
-![HexAI Small Logo](hexai-small.png)
-
-Hexai, the AI LSP for the Helix editor.
-
-## Ideas
+# Ideas
 
 * LSP server to be used with the Helix text editor
 * Code completion using LLMs
