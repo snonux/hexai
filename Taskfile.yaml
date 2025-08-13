@@ -1,0 +1,44 @@
+version: '3'
+
+vars:
+  BIN_NAME: hexai
+  BIN_DIR: bin
+  BIN_PATH: "{{.BIN_DIR}}/{{.BIN_NAME}}"
+
+tasks:
+  build:
+    desc: Build the hexai LSP binary to ./bin
+    cmds:
+      - mkdir -p {{.BIN_DIR}} .gocache .gomodcache
+      - CGO_ENABLED=0 GOCACHE=$(pwd)/.gocache GOMODCACHE=$(pwd)/.gomodcache go build -o {{.BIN_PATH}} ./cmd/hexai
+
+  install:
+    desc: Install the hexai LSP binary into your Go bin directory
+    cmds:
+      - mkdir -p .gocache .gomodcache
+      - CGO_ENABLED=0 GOCACHE=$(pwd)/.gocache GOMODCACHE=$(pwd)/.gomodcache go install ./cmd/hexai
+      - |
+        DEST="${GOBIN:-$(go env GOBIN)}"
+        if [ -z "$DEST" ]; then DEST="$(go env GOPATH)/bin"; fi
+        if [ -z "$DEST" ]; then DEST="$HOME/.local/bin"; fi
+        echo "Installed to: $DEST (ensure it is on your PATH)"
+
+  install-local:
+    desc: Copy the built binary to ~/.local/bin (no go install)
+    deps: [build]
+    cmds:
+      - mkdir -p "$HOME/.local/bin"
+      - cp -f {{.BIN_PATH}} "$HOME/.local/bin/{{.BIN_NAME}}"
+      - echo "Installed to: $HOME/.local/bin (ensure it is on your PATH)"
+
+  run:
+    desc: Build and run the server on stdio
+    deps: [build]
+    cmds:
+      - ./{{.BIN_PATH}} -stdio
+
+  clean:
+    desc: Remove build artifacts and local Go caches
+    cmds:
+      - rm -rf {{.BIN_DIR}} .gocache .gomodcache
+

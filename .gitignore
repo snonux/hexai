@@ -1,0 +1,17 @@
+# Build artifacts and caches
+bin/
+.gocache/
+.gomodcache/
+
+# Local binaries and logs
+hexai
+*.log
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
