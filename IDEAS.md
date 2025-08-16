@@ -1,5 +1,11 @@
 # Ideas
 
+## Refactor
+
+* Refactor existing code in a more modular way, especially ./internal/lsp/server.go
+
+## Features
+
 * LSP server to be used with the Helix text editor
 * Code completion using LLMs
 * Code generation using LLMs text

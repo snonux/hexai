@@ -2,9 +2,11 @@ package lsp
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"hexai/internal"
+	"hexai/internal/llm"
 	"io"
 	"log"
 	"net/textproto"
@@ -12,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // JSON-RPC 2.0 structures (minimal)
@@ -61,27 +64,39 @@ type CompletionList struct {
 }
 
 type CompletionItem struct {
-	Label         string `json:"label"`
-	Kind          int    `json:"kind,omitempty"`
-	Detail        string `json:"detail,omitempty"`
-	InsertText    string `json:"insertText,omitempty"`
-	SortText      string `json:"sortText,omitempty"`
-	Documentation string `json:"documentation,omitempty"`
+	Label            string    `json:"label"`
+	Kind             int       `json:"kind,omitempty"`
+	Detail           string    `json:"detail,omitempty"`
+	InsertText       string    `json:"insertText,omitempty"`
+	InsertTextFormat int       `json:"insertTextFormat,omitempty"`
+	FilterText       string    `json:"filterText,omitempty"`
+	TextEdit         *TextEdit `json:"textEdit,omitempty"`
+	SortText         string    `json:"sortText,omitempty"`
+	Documentation    string    `json:"documentation,omitempty"`
 }
 
 // Server implements a minimal LSP over stdio.
 type Server struct {
-    in     *bufio.Reader
-    out    io.Writer
-    logger *log.Logger
-    exited bool
-    mu     sync.RWMutex
-    docs   map[string]*document
-    logContext bool
+	in         *bufio.Reader
+	out        io.Writer
+	logger     *log.Logger
+	exited     bool
+	mu         sync.RWMutex
+	docs       map[string]*document
+	logContext bool
+	llmClient  llm.Client
+	lastInput  time.Time
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool) *Server {
-    return &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: logContext}
+	s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: logContext}
+	if c, err := llm.NewDefault(logger); err != nil {
+		// Keep running without LLM; completions will be basic.
+		s.logger.Printf("llm disabled: %v", err)
+	} else {
+		s.llmClient = c
+	}
+	return s
 }
 
 func (s *Server) Run() error {
@@ -137,6 +152,7 @@ func (s *Server) handle(req Request) {
 		var p DidOpenTextDocumentParams
 		if err := json.Unmarshal(req.Params, &p); err == nil {
 			s.setDocument(p.TextDocument.URI, p.TextDocument.Text)
+			s.markActivity()
 		}
 	case "textDocument/didChange":
 		var p DidChangeTextDocumentParams
@@ -144,32 +160,123 @@ func (s *Server) handle(req Request) {
 			if len(p.ContentChanges) > 0 {
 				s.setDocument(p.TextDocument.URI, p.ContentChanges[len(p.ContentChanges)-1].Text)
 			}
+			s.markActivity()
 		}
 	case "textDocument/didClose":
 		var p DidCloseTextDocumentParams
 		if err := json.Unmarshal(req.Params, &p); err == nil {
 			s.deleteDocument(p.TextDocument.URI)
+			s.markActivity()
 		}
-    case "textDocument/completion":
-        var p CompletionParams
-        var docStr string
-        if err := json.Unmarshal(req.Params, &p); err == nil {
-            above, current, below, funcCtx := s.lineContext(p.TextDocument.URI, p.Position)
-            docStr = fmt.Sprintf("file: %s\nline: %d\nabove: %s\ncurrent: %s\nbelow: %s\nfunction: %s", p.TextDocument.URI, p.Position.Line, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
-            if s.logContext {
-                s.logger.Printf("completion ctx uri=%s line=%d char=%d above=%q current=%q below=%q function=%q",
-                    p.TextDocument.URI, p.Position.Line, p.Position.Character, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
-            }
-        }
-        items := []CompletionItem{{
-            Label:         "hexai-complete",
-            Kind:          14,
-            Detail:        "dummy completion",
-            InsertText:    "hexai",
-            SortText:      "0000",
-            Documentation: docStr,
-        }}
-        s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
+	case "textDocument/completion":
+		var p CompletionParams
+		var docStr string
+		if err := json.Unmarshal(req.Params, &p); err == nil {
+			above, current, below, funcCtx := s.lineContext(p.TextDocument.URI, p.Position)
+			docStr = fmt.Sprintf("file: %s\nline: %d\nabove: %s\ncurrent: %s\nbelow: %s\nfunction: %s", p.TextDocument.URI, p.Position.Line, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
+			if s.logContext {
+				s.logger.Printf("completion ctx uri=%s line=%d char=%d above=%q current=%q below=%q function=%q",
+					p.TextDocument.URI, p.Position.Line, p.Position.Character, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
+			}
+			// Previously: gated LLM calls until 1s idle. Removed to complete as you type.
+			// Try LLM-backed suggestion if available (always, no idle gating)
+			if s.llmClient != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+				defer cancel()
+				// Tailor prompt if inside a Go function parameter list
+				inParams := false
+				if strings.Contains(current, "func ") {
+					open := strings.Index(current, "(")
+					close := strings.Index(current, ")")
+					if open >= 0 && p.Position.Character > open && (close == -1 || p.Position.Character <= close) {
+						inParams = true
+					}
+				}
+				sysPrompt := "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks."
+				userPrompt := fmt.Sprintf("Provide the next likely code to insert at the cursor.\nFile: %s\nFunction/context: %s\nAbove line: %s\nCurrent line (cursor at character %d): %s\nBelow line: %s\nOnly return the completion snippet.", p.TextDocument.URI, funcCtx, above, p.Position.Character, current, below)
+				if inParams {
+					sysPrompt = "You are a terse Go code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."
+					userPrompt = fmt.Sprintf("Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: %s\nCurrent line (cursor at %d): %s", funcCtx, p.Position.Character, current)
+				}
+				messages := []llm.Message{
+					{Role: "system", Content: sysPrompt},
+					{Role: "user", Content: userPrompt},
+				}
+				// keep completions small by default
+				text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(96), llm.WithTemperature(0.2))
+				if err == nil && strings.TrimSpace(text) != "" {
+					cleaned := strings.TrimSpace(text)
+					var te *TextEdit
+					var filter string
+					if inParams {
+						// Replace inside the parentheses
+						open := strings.Index(current, "(")
+						close := strings.Index(current, ")")
+						if open >= 0 {
+							left := open + 1
+							right := len(current)
+							if close >= 0 && close >= left {
+								right = close
+							}
+							if p.Position.Character < right {
+								right = p.Position.Character
+							}
+							te = &TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: left}, End: Position{Line: p.Position.Line, Character: right}}, NewText: cleaned}
+							if left >= 0 && right >= left && right <= len(current) {
+								filter = strings.TrimLeft(current[left:right], " \t")
+							}
+						}
+					}
+					if te == nil {
+						// compute word start for replacement
+						startChar := p.Position.Character
+						if startChar > len(current) {
+							startChar = len(current)
+						}
+						for startChar > 0 {
+							ch := current[startChar-1]
+							if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' {
+								startChar--
+								continue
+							}
+							break
+						}
+						te = &TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: startChar}, End: Position{Line: p.Position.Line, Character: p.Position.Character}}, NewText: cleaned}
+						filter = strings.TrimLeft(current[startChar:p.Position.Character], " \t")
+					}
+					// Choose a label that starts with the current prefix when possible so the client doesn't filter it out.
+					label := trimLen(firstLine(cleaned))
+					if filter != "" && !strings.HasPrefix(strings.ToLower(label), strings.ToLower(filter)) {
+						label = filter
+					}
+					items := []CompletionItem{{
+						Label:            label,
+						Kind:             1,
+						Detail:           "OpenAI completion",
+						InsertTextFormat: 1,
+						FilterText:       strings.TrimLeft(filter, " \t"),
+						TextEdit:         te,
+						SortText:         "0000",
+						Documentation:    docStr,
+					}}
+					s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
+					return
+				}
+				if err != nil {
+					s.logger.Printf("llm completion error: %v", err)
+				}
+			}
+		}
+		// Fallback basic/dummy completion
+		items := []CompletionItem{{
+			Label:         "hexai-complete",
+			Kind:          1,
+			Detail:        "dummy completion",
+			InsertText:    "hexai",
+			SortText:      "9999",
+			Documentation: docStr,
+		}}
+		s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
 	default:
 		// Unknown method; reply with Method Not Found for requests that have an ID.
 		if len(req.ID) != 0 {
@@ -256,6 +363,12 @@ func (s *Server) deleteDocument(uri string) {
 	delete(s.docs, uri)
 }
 
+func (s *Server) markActivity() {
+	s.mu.Lock()
+	s.lastInput = time.Now()
+	s.mu.Unlock()
+}
+
 func (s *Server) getDocument(uri string) *document {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -314,6 +427,18 @@ type CompletionParams struct {
 	Context      any                    `json:"context,omitempty"`
 }
 
+// Range defines a text range in a document.
+type Range struct {
+	Start Position `json:"start"`
+	End   Position `json:"end"`
+}
+
+// TextEdit represents a textual edit applicable to a document.
+type TextEdit struct {
+	Range   Range  `json:"range"`
+	NewText string `json:"newText"`
+}
+
 func (s *Server) lineContext(uri string, pos Position) (above, current, below, funcCtx string) {
 	d := s.getDocument(uri)
 	if d == nil || len(d.lines) == 0 {
@@ -356,6 +481,14 @@ func trimLen(s string) string {
 	s = strings.TrimSpace(s)
 	if len(s) > 200 {
 		return s[:200] + "…"
+	}
+	return s
+}
+
+func firstLine(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	if idx := strings.IndexByte(s, '\n'); idx >= 0 {
+		return s[:idx]
 	}
 	return s
 }
