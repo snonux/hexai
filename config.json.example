@@ -1,0 +1,17 @@
+{
+  "max_tokens": 4000,
+  "context_mode": "file-on-new-func",
+  "context_window_lines": 120,
+  "max_context_tokens": 4000,
+  "log_preview_limit": 100,
+  "no_disk_io": true,
+
+  "provider": "openai",
+
+  "openai_model": "gpt-4.1",
+  "openai_base_url": "https://api.openai.com/v1",
+
+  "ollama_model": "qwen2.5-coder:latest",
+  "ollama_base_url": "http://localhost:11434"
+}
+

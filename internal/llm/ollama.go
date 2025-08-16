@@ -7,7 +7,6 @@ import (
     "errors"
     "fmt"
     "net/http"
-    "os"
     "strings"
     "time"
 
@@ -21,22 +20,16 @@ type ollamaClient struct {
     defaultModel string
 }
 
-func newOllamaFromEnv() Client {
-    // Prefer OLLAMA_BASE_URL, fall back to OLLAMA_HOST, then default.
-    base := strings.TrimSpace(os.Getenv("OLLAMA_BASE_URL"))
-    if base == "" {
-        base = strings.TrimSpace(os.Getenv("OLLAMA_HOST"))
+func newOllama(baseURL, model string) Client {
+    if strings.TrimSpace(baseURL) == "" {
+        baseURL = "http://localhost:11434"
     }
-    if base == "" {
-        base = "http://localhost:11434"
-    }
-    model := strings.TrimSpace(os.Getenv("OLLAMA_MODEL"))
-    if model == "" {
+    if strings.TrimSpace(model) == "" {
         model = "qwen2.5-coder:latest"
     }
     return &ollamaClient{
         httpClient:   &http.Client{Timeout: 30 * time.Second},
-        baseURL:      strings.TrimRight(base, "/"),
+        baseURL:      strings.TrimRight(baseURL, "/"),
         defaultModel: model,
     }
 }

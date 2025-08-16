@@ -4,38 +4,36 @@
 
 Hexai, the AI LSP for the Helix editor.
 
-At the moment this project is only in the proof of concept phase.
+At the moment this project is only in the proof of PoC phase.
 
 ## LLM provider
 
 Hexai exposes a simple LLM provider interface. It supports OpenAI and a local
-Ollama server. Provider selection and models are configured via environment
-variables.
+Ollama server. Provider selection and models are configured via a JSON
+configuration file.
 
 ### Selecting a provider
 
-- Set `HEXAI_LLM_PROVIDER` to `openai` or `ollama` to force a provider.
-- If not set, Hexai auto‑detects:
-  - Uses OpenAI when `OPENAI_API_KEY` is present.
-  - Uses Ollama when any `OLLAMA_*` variables are present.
-  - Otherwise, Hexai falls back to a basic, local completion.
+- Set `provider` in the config file to `openai` or `ollama`.
+- If omitted, Hexai defaults to `openai`.
 
 ### OpenAI configuration
 
-- Required: `OPENAI_API_KEY` — your OpenAI API key.
-- Optional: `OPENAI_MODEL` — model name (default: `gpt-4o-mini`).
-- Optional: `OPENAI_BASE_URL` — override the API base (e.g., a compatible endpoint).
+- Required: `OPENAI_API_KEY` — provided via environment variable only.
+- In config file:
+  - `openai_model` — model name (default: `gpt-4o-mini`).
+  - `openai_base_url` — API base (default: `https://api.openai.com/v1`).
 
 ### Ollama configuration (local)
 
-- Optional: `OLLAMA_MODEL` — model name/tag (default: `qwen2.5-coder:latest`).
-- Optional: `OLLAMA_BASE_URL` or `OLLAMA_HOST` — base URL to Ollama
-  (default: `http://localhost:11434`).
+- In config file:
+  - `ollama_model` — model name/tag (default: `qwen2.5-coder:latest`).
+  - `ollama_base_url` — base URL to Ollama (default: `http://localhost:11434`).
 
 Notes:
 - For Ollama, ensure the model is available locally (e.g., `ollama pull qwen2.5-coder:latest`).
 - If you run Ollama in OpenAI‑compatible mode, you may alternatively use the
-  OpenAI provider with `OPENAI_BASE_URL` pointing to your local endpoint.
+  OpenAI provider with `openai_base_url` in the config pointing to your local endpoint.
 
 ## CLI usage and configuration
 
@@ -52,12 +50,13 @@ Notes:
 
 ### Flags quick reference
 
-| Flag                    | Env override               | Description                                        |
-|-------------------------|----------------------------|----------------------------------------------------|
-| `-log`      | —                 | Path to log file (optional).            |
-| `-version`  | —                 | Print version and exit.                 |
+| Flag       | Description                          |
+|------------|--------------------------------------|
+| `-log`     | Path to log file (optional).         |
+| `-version` | Print version and exit.              |
 
-Configuration is via JSON file and environment variables (env has precedence).
+Configuration is via a JSON file only. Environment variables are not used
+except for `OPENAI_API_KEY`.
 
 ### JSON config file
 
@@ -72,18 +71,24 @@ Configuration is via JSON file and environment variables (env has precedence).
   "max_context_tokens": 4000,
   "log_preview_limit": 100,
   "no_disk_io": true,
-  "provider": "ollama" // or "openai"
+  "provider": "ollama", // or "openai"
+  // OpenAI-only options
+  "openai_model": "gpt-4.1",
+  "openai_base_url": "https://api.openai.com/v1",
+  // Ollama-only options
+  "ollama_model": "qwen2.5-coder:latest",
+  "ollama_base_url": "http://localhost:11434"
 }
 ```
 
-### Environment overrides (take precedence)
+Minimal config (defaults to OpenAI):
 
-- `HEXAI_MAX_TOKENS`, `HEXAI_CONTEXT_MODE`, `HEXAI_CONTEXT_WINDOW_LINES`, `HEXAI_MAX_CONTEXT_TOKENS`
-- `HEXAI_LOG_PREVIEW_LIMIT`, `HEXAI_NO_DISK_IO`
-- `HEXAI_LLM_PROVIDER` (forces provider)
+```
+{}
+```
 
-### Environment quick reference (providers)
+Ensure `OPENAI_API_KEY` is set in your environment.
 
-- `HEXAI_LLM_PROVIDER`: `openai` | `ollama` (optional; otherwise auto‑detect).
-- OpenAI: `OPENAI_API_KEY` (required), `OPENAI_MODEL`, `OPENAI_BASE_URL`.
-- Ollama: `OLLAMA_MODEL`, `OLLAMA_BASE_URL` or `OLLAMA_HOST`.
+### Environment
+
+- Only `OPENAI_API_KEY` is read from the environment when `provider` is `openai`.
