@@ -46,40 +46,30 @@ Notes:
 - Token estimation for truncation uses a simple 4 chars/token heuristic.
 - Full-file context is only included by default when defining a new function to balance quality, latency, and cost.
 
-### Flags quick reference
-
-| Flag       | Description                          |
-|------------|--------------------------------------|
-| `-log`     | Path to log file (optional).         |
-| `-version` | Print version and exit.              |
-
-Configuration is via a JSON file only. Environment variables are not used
-except for `OPENAI_API_KEY`.
-
-### JSON config file
-
 - Location: `~/.config/hexai/config.json`
 - Example:
 
 ```
 {
   "max_tokens": 4000,
-  "context_mode": "always-full", // minimal | window | file-on-new-func | always-full
+  "context_mode": "always-full",
   "context_window_lines": 120,
   "max_context_tokens": 4000,
   "log_preview_limit": 100,
   "no_disk_io": true,
-  "trigger_characters": [".", ":", "/", "_", ";"],
-  "provider": "ollama", // or "openai"
-  // OpenAI-only options
+  "trigger_characters": [".", ":", "/", "_", ";", "?"],
+  "provider": "ollama",
   "openai_model": "gpt-4.1",
   "openai_base_url": "https://api.openai.com/v1",
-  // Ollama-only options
   "ollama_model": "qwen2.5-coder:latest",
   "ollama_base_url": "http://localhost:11434"
 }
 ```
 
+* context_mode: minimal | window | file-on-new-func | always-full
+* provider: ollama or openai
+* openai_model, openai_base_url: OpenAI-only options
+* ollama_model, ollama_base_url: Ollama-only options
 Minimal config (defaults to OpenAI):
 
 ```
@@ -88,30 +78,17 @@ Minimal config (defaults to OpenAI):
 
 Ensure `OPENAI_API_KEY` is set in your environment.
 
-### Environment
-
-- Only `OPENAI_API_KEY` is read from the environment when `provider` is `openai`.
-
 ## Inline triggers
 
 Hexai supports inline trigger tags you can type in your code to request an
 action from the LLM and then clean up the tag automatically.
 
-- `;text;`: Do what is written in `text`, then remove just the `;text;` marker.
-  - Strict form: no space after the first `;` and no space before the last `;`.
+- ``: Do what is written in `text`, then remove just the `` marker.
+  - Strict form: no space after the first ``.
   - An optional single space immediately after the closing `;` is also removed.
   - Multiple markers per line are supported.
-  - Example: `// TODO ;rename this function to add;` removes only the marker.
-
-- `;;text;`: Do what is written in `text`, then remove the entire line.
-  - Strict form: no space after `;;` and no space before the closing `;`.
-  - Any line containing such a marker is deleted after processing.
-  - Example:
-    ```
-    some() ;;extract helper;  // this entire line is removed
-    ```
-
-- Spaced variants such as `; text ;` or `;; spaced ;` are ignored.
+  - Example: `// TODO ` removes only the marker.
+- Spaced variants such as `; text ; spaced ;` are ignored.
 
 ## Code actions
 
@@ -124,12 +101,12 @@ Hexai provides code actions that operate only on the current selection in Helix:
   Diagnostics outside the selection are not modified.
 
 Instruction sources (first one found wins):
-- Strict marker: `;text;` (no space after first `;`, none before last `;`).
+
+- Strict marker: `` (no space after first ``).
 - Line comments: `// text`, `# text`, `-- text`.
 - Single-line block comments: `/* text */`, `<!-- text -->`.
 
 Notes:
-- Only the earliest instruction in the selection is used; Hexai removes that
-  marker/comment from the selection before sending it to the LLM.
-- The action returns only the transformed code and replaces exactly the
-  selected range.
+
+- Only the earliest instruction in the selection is used; Hexai removes that marker/comment from the selection before sending it to the LLM.
+- The action returns only the transformed code and replaces exactly the selected range.

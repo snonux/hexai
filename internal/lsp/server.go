@@ -74,7 +74,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.startTime = time.Now()
 	s.llmClient = opts.Client
 	if len(opts.TriggerCharacters) == 0 {
-		s.triggerChars = []string{".", ":", "/", "_"}
+		s.triggerChars = []string{".", ":", "/", "_", ";", "?"}
 	} else {
 		s.triggerChars = append([]string{}, opts.TriggerCharacters...)
 	}
