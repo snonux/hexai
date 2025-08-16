@@ -44,5 +44,5 @@ Notes:
 | `-log`                  | `/tmp/hexai.log`   | —                          | Path to log file (optional).                       |
 | `-max-tokens`           | `500`              | `HEXAI_MAX_TOKENS`         | Max tokens for LLM completions.                    |
 | `-context-mode`         | `file-on-new-func` | `HEXAI_CONTEXT_MODE`       | `minimal` `window` `file-on-new-func` `always-full` |
-| `-context-window-lines` | `120`              | —                          | Lines around cursor when using `window` mode.      |
+| `-context-window-lines` | `120`              | `HEXAI_CONTEXT_WINDOW_LINES` | Lines around cursor when using `window` mode.      |
 | `-max-context-tokens`   | `2000`             | `HEXAI_MAX_CONTEXT_TOKENS` | Token budget for additional context.               |
