@@ -47,17 +47,3 @@ func NewDefault(logger *log.Logger) (Client, error) {
     }
     return newOpenAIFromEnv(apiKey, logger), nil
 }
-
-// Logging configuration for previews
-var logPreviewLimit int // 0 means unlimited
-
-// SetLogPreviewLimit sets the maximum number of characters to log for
-// request/response previews. Set to 0 for unlimited.
-func SetLogPreviewLimit(n int) { logPreviewLimit = n }
-
-func previewForLog(s string) string {
-    if logPreviewLimit > 0 {
-        return trimPreview(s, logPreviewLimit)
-    }
-    return s
-}
