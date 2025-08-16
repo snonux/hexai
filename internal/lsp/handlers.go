@@ -38,18 +38,22 @@ func (s *Server) handle(req Request) {
 }
 
 func (s *Server) handleInitialize(req Request) {
-	res := InitializeResult{
-		Capabilities: ServerCapabilities{
-			TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
-			CompletionProvider: &CompletionOptions{
-				ResolveProvider: false,
-				// TODO: Make the trigger characters configurable
-				TriggerCharacters: []string{".", ":", "/", "_"},
-			},
-		},
-		ServerInfo: &ServerInfo{Name: "hexai", Version: internal.Version},
-	}
-	s.reply(req.ID, res, nil)
+    version := internal.Version
+    if s.llmClient != nil {
+        version = version + " [" + s.llmClient.Name() + ":" + s.llmClient.DefaultModel() + "]"
+    }
+    res := InitializeResult{
+        Capabilities: ServerCapabilities{
+            TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
+            CompletionProvider: &CompletionOptions{
+                ResolveProvider: false,
+                // TODO: Make the trigger characters configurable
+                TriggerCharacters: []string{".", ":", "/", "_"},
+            },
+        },
+        ServerInfo: &ServerInfo{Name: "hexai", Version: version},
+    }
+    s.reply(req.ID, res, nil)
 }
 
 func (s *Server) handleInitialized() {
@@ -158,10 +162,15 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
     te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
     rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
     label := labelForCompletion(cleaned, filter)
+    // Detail shows provider/model for visibility in client UI
+    detail := "Hexai LLM completion"
+    if s.llmClient != nil {
+        detail = "Hexai " + s.llmClient.Name() + ":" + s.llmClient.DefaultModel()
+    }
     items := []CompletionItem{{
         Label:            label,
         Kind:             1,
-        Detail:           "OpenAI through Hexai completion",
+        Detail:           detail,
         InsertTextFormat: 1,
         FilterText:       strings.TrimLeft(filter, " \t"),
         TextEdit:         te,

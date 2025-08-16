@@ -15,10 +15,10 @@ import (
 
 // openAIClient implements Client against OpenAI's Chat Completions API.
 type openAIClient struct {
-	httpClient   *http.Client
-	apiKey       string
-	baseURL      string
-	defaultModel string
+    httpClient   *http.Client
+    apiKey       string
+    baseURL      string
+    defaultModel string
 }
 
 // Colors and base styling are provided by logging.go
@@ -159,3 +159,7 @@ func trimPreview(s string, n int) string {
 	}
 	return s[:n] + "…"
 }
+
+// Provider metadata
+func (c *openAIClient) Name() string          { return "openai" }
+func (c *openAIClient) DefaultModel() string  { return c.defaultModel }

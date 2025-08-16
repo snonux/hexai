@@ -52,6 +52,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool, ma
         logging.Logf("lsp ", "llm disabled: %v", err)
     } else {
         s.llmClient = c
+        logging.Logf("lsp ", "llm enabled provider=%s model=%s", c.Name(), c.DefaultModel())
     }
     return s
 }
