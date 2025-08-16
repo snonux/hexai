@@ -278,10 +278,9 @@ func inParamList(current string, cursor int) bool {
 	return open >= 0 && cursor > open && (close == -1 || cursor <= close)
 }
 
-// TODO: Not just be a Go code completion engine, make this flexible.
 func buildPrompts(inParams bool, p CompletionParams, above, current, below, funcCtx string) (string, string) {
 	if inParams {
-		sys := "You are a terse Go code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."
+		sys := "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."
 		user := fmt.Sprintf("Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: %s\nCurrent line (cursor at %d): %s", funcCtx, p.Position.Character, current)
 		return sys, user
 	}

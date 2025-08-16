@@ -64,5 +64,15 @@ command = "hexai"
 
 ## Prompting
 
-* Write a new function: `;Implement a function counting the number of files in a directory;`
-* In-place code add: `;Get number of files in a directory;`
+* Write a new function: ``
+* In-place code add: ``
+
+# Summary:
+# - Refactor and modularize code, add unit tests
+# - Address TODOs and improve diagnostics/code actions
+# - Integrate LLM-based code/text completion, code generation, and inline chat
+# - Support multiple LLMs (Ollama, OpenAI, Claude, Gemini)
+# - Enable code block actions (commenting, refactoring)
+# - Provide Helix LSP server integration and usage notes
+# - Facilitate prompting for code generation and actions:w
+
