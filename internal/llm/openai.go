@@ -22,11 +22,16 @@ type openAIClient struct {
 }
 
 const (
-    ansiBlue  = "\x1b[34m"
-    ansiGreen = "\x1b[32m"
-    ansiRed   = "\x1b[31m"
-    ansiReset = "\x1b[0m"
+    ansiBgBlack = "\x1b[40m"
+    ansiGrey    = "\x1b[90m"
+    ansiCyan    = "\x1b[36m"
+    ansiGreen   = "\x1b[32m"
+    ansiRed     = "\x1b[31m"
+    ansiReset   = "\x1b[0m"
 )
+
+// Base style: black background + grey foreground
+const ansiNormal = ansiBgBlack + ansiGrey
 
 func newOpenAIFromEnv(apiKey string, logger *log.Logger) Client {
 	base := os.Getenv("OPENAI_BASE_URL")
@@ -90,8 +95,8 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 	start := time.Now()
 	c.logf("chat start model=%s temp=%.2f max_tokens=%d stop=%d messages=%d", o.Model, o.Temperature, o.MaxTokens, len(o.Stop), len(messages))
     for i, m := range messages {
-        // Sending context (blue)
-        c.logf("msg[%d] role=%s size=%d preview=%s%s%s", i, m.Role, len(m.Content), ansiBlue, trimPreview(m.Content, 200), ansiReset)
+        // Sending context (cyan)
+        c.logf("msg[%d] role=%s size=%d preview=%s%s%s", i, m.Role, len(m.Content), ansiCyan, trimPreview(m.Content, 200), ansiNormal)
     }
 	req := oaChatRequest{Model: o.Model}
 	req.Messages = make([]oaMessage, len(messages))
@@ -125,7 +130,7 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 
 	resp, err := c.httpClient.Do(httpReq)
     if err != nil {
-        c.logf("%shttp error after %s: %v%s", ansiRed, time.Since(start), err, ansiReset)
+        c.logf("%shttp error after %s: %v%s", ansiRed, time.Since(start), err, ansiNormal)
         return "", err
     }
 	defer resp.Body.Close()
@@ -133,24 +138,24 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 		var apiErr oaChatResponse
 		_ = json.NewDecoder(resp.Body).Decode(&apiErr)
         if apiErr.Error != nil && apiErr.Error.Message != "" {
-            c.logf("%sapi error status=%d type=%s msg=%s duration=%s%s", ansiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), ansiReset)
+            c.logf("%sapi error status=%d type=%s msg=%s duration=%s%s", ansiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), ansiNormal)
             return "", fmt.Errorf("openai error: %s (status %d)", apiErr.Error.Message, resp.StatusCode)
         }
-        c.logf("%shttp non-2xx status=%d duration=%s%s", ansiRed, resp.StatusCode, time.Since(start), ansiReset)
+        c.logf("%shttp non-2xx status=%d duration=%s%s", ansiRed, resp.StatusCode, time.Since(start), ansiNormal)
         return "", fmt.Errorf("openai http error: status %d", resp.StatusCode)
     }
 	var out oaChatResponse
     if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-        c.logf("%sdecode error after %s: %v%s", ansiRed, time.Since(start), err, ansiReset)
+        c.logf("%sdecode error after %s: %v%s", ansiRed, time.Since(start), err, ansiNormal)
         return "", err
     }
     if len(out.Choices) == 0 {
-        c.logf("%sno choices returned duration=%s%s", ansiRed, time.Since(start), ansiReset)
+        c.logf("%sno choices returned duration=%s%s", ansiRed, time.Since(start), ansiNormal)
         return "", errors.New("openai: no choices returned")
     }
     content := out.Choices[0].Message.Content
     // Received context (green)
-    c.logf("success choice=0 finish=%s size=%d preview=%s%s%s duration=%s", out.Choices[0].FinishReason, len(content), ansiGreen, trimPreview(content, 200), ansiReset, time.Since(start))
+    c.logf("success choice=0 finish=%s size=%d preview=%s%s%s duration=%s", out.Choices[0].FinishReason, len(content), ansiGreen, trimPreview(content, 200), ansiNormal, time.Since(start))
     return content, nil
 }
 
@@ -158,9 +163,12 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 func nilStringErr(msg string) (string, error) { return "", errors.New(msg) }
 
 func (c *openAIClient) logf(format string, args ...any) {
-    if c.logger != nil {
-        c.logger.Printf("llm/openai "+format, args...)
+    if c.logger == nil {
+        return
     }
+    msg := fmt.Sprintf(format, args...)
+    // Wrap each message with black background + grey base color.
+    c.logger.Print(ansiNormal + "llm/openai " + msg + ansiReset)
 }
 
 func trimPreview(s string, n int) string {
