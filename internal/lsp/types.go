@@ -113,7 +113,7 @@ type CompletionParams struct {
 type CodeActionParams struct {
     TextDocument TextDocumentIdentifier `json:"textDocument"`
     Range        Range                  `json:"range"`
-    Context      any                    `json:"context,omitempty"`
+    Context      json.RawMessage        `json:"context,omitempty"`
 }
 
 type WorkspaceEdit struct {
@@ -124,6 +124,19 @@ type CodeAction struct {
     Title string         `json:"title"`
     Kind  string         `json:"kind,omitempty"`
     Edit  *WorkspaceEdit `json:"edit,omitempty"`
+}
+
+// Diagnostics (subset needed for code action context)
+type Diagnostic struct {
+    Range    Range       `json:"range"`
+    Message  string      `json:"message"`
+    Severity int         `json:"severity,omitempty"`
+    Code     interface{} `json:"code,omitempty"`
+    Source   string      `json:"source,omitempty"`
+}
+
+type CodeActionContext struct {
+    Diagnostics []Diagnostic `json:"diagnostics"`
 }
 
 // Range defines a text range in a document.
