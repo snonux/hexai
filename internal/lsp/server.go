@@ -35,7 +35,7 @@ type Server struct {
     startTime          time.Time
 }
 
-func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool, maxTokens int, contextMode string, windowLines int, maxContextTokens int, noDiskIO bool) *Server {
+func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool, maxTokens int, contextMode string, windowLines int, maxContextTokens int, noDiskIO bool, client llm.Client) *Server {
     s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: logContext}
     if maxTokens <= 0 {
         maxTokens = 500
@@ -55,12 +55,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool, ma
     s.maxContextTokens = maxContextTokens
     s.noDiskIO = noDiskIO
     s.startTime = time.Now()
-    if c, err := llm.NewDefault(); err != nil {
-        logging.Logf("lsp ", "llm disabled: %v", err)
-    } else {
-        s.llmClient = c
-        logging.Logf("lsp ", "llm enabled provider=%s model=%s", c.Name(), c.DefaultModel())
-    }
+    s.llmClient = client
     return s
 }
 

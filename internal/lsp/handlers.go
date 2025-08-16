@@ -237,36 +237,86 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 
 // collectPromptRemovalEdits returns edits to remove all inline prompt markers.
 // Supported form (inclusive):
-// - ";...;"   (optional single space after trailing ';')
+// - ";...;" where there is no space immediately after the first ';'
+//   and no space immediately before the last ';'. An optional single space
+//   after the trailing ';' is also removed for cleanliness.
 // Multiple markers per line are supported.
 func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit {
-	d := s.getDocument(uri)
-	if d == nil || len(d.lines) == 0 {
-		return nil
-	}
-	var edits []TextEdit
-	for i, line := range d.lines {
-		// Scan for ;...; markers
-		startSemi := 0
-		for startSemi < len(line) {
-			j := strings.Index(line[startSemi:], ";")
-			if j < 0 {
-				break
-			}
-			j += startSemi
-			k := strings.Index(line[j+1:], ";")
-			if k < 0 {
-				break
-			}
-			endChar := j + 1 + k + 1 // include trailing ';'
-			if endChar < len(line) && line[endChar] == ' ' {
-				endChar++
-			}
-			edits = append(edits, TextEdit{Range: Range{Start: Position{Line: i, Character: j}, End: Position{Line: i, Character: endChar}}, NewText: ""})
-			startSemi = endChar
-		}
-	}
-	return edits
+    d := s.getDocument(uri)
+    if d == nil || len(d.lines) == 0 {
+        return nil
+    }
+    var edits []TextEdit
+    for i, line := range d.lines {
+        // If the line contains a double-semicolon trigger of the form
+        // ";;text;" (no space after the ";;" and no space before the closing ';'),
+        // remove the entire line.
+        removeWholeLine := false
+        {
+            pos := 0
+            for pos < len(line) {
+                j := strings.Index(line[pos:], ";;")
+                if j < 0 { break }
+                j += pos
+                // ensure there's a non-space after the two semicolons
+                if j+2 >= len(line) || line[j+2] == ' ' { pos = j + 2; continue }
+                // find closing ';' after the content
+                k := strings.Index(line[j+2:], ";")
+                if k < 0 { break }
+                closeIdx := j + 2 + k
+                // ensure char before closing ';' is not a space
+                if closeIdx-1 < 0 || line[closeIdx-1] == ' ' { pos = closeIdx + 1; continue }
+                removeWholeLine = true
+                break
+            }
+        }
+        if removeWholeLine {
+            edits = append(edits, TextEdit{Range: Range{Start: Position{Line: i, Character: 0}, End: Position{Line: i, Character: len(line)}}, NewText: ""})
+            continue
+        }
+        // Scan for ;...; markers that have no spaces directly inside the semicolons
+        startSemi := 0
+        for startSemi < len(line) {
+            j := strings.Index(line[startSemi:], ";")
+            if j < 0 {
+                break
+            }
+            j += startSemi
+            k := strings.Index(line[j+1:], ";")
+            if k < 0 {
+                break
+            }
+            // Require no space immediately after the first ';'
+            if j+1 >= len(line) || line[j+1] == ' ' {
+                startSemi = j + 1
+                continue
+            }
+            // Ignore patterns that start with double semicolon here; handled above
+            if line[j+1] == ';' {
+                startSemi = j + 2
+                continue
+            }
+            // Index of the closing ';'
+            closeIdx := j + 1 + k
+            // Require no space immediately before the closing ';'
+            if closeIdx-1 < 0 || line[closeIdx-1] == ' ' {
+                startSemi = closeIdx + 1
+                continue
+            }
+            // Require at least one character between the semicolons
+            if closeIdx-(j+1) < 1 {
+                startSemi = closeIdx + 1
+                continue
+            }
+            endChar := closeIdx + 1 // include trailing ';'
+            if endChar < len(line) && line[endChar] == ' ' {
+                endChar++
+            }
+            edits = append(edits, TextEdit{Range: Range{Start: Position{Line: i, Character: j}, End: Position{Line: i, Character: endChar}}, NewText: ""})
+            startSemi = endChar
+        }
+    }
+    return edits
 }
 
 func inParamList(current string, cursor int) bool {

@@ -15,6 +15,7 @@
 
 ### New features
 
+* [ ] Use hexai as a gh copilot... CLI replacemant for command line questions
 * [ ] Resolve diagnostics code action feature
 * [X] LSP server to be used with the Helix text editor
 * [X] Code completion using LLMs
@@ -64,15 +65,5 @@ command = "hexai"
 
 ## Prompting
 
-* Write a new function: ``
-* In-place code add: ``
-
-# Summary:
-# - Refactor and modularize code, add unit tests
-# - Address TODOs and improve diagnostics/code actions
-# - Integrate LLM-based code/text completion, code generation, and inline chat
-# - Support multiple LLMs (Ollama, OpenAI, Claude, Gemini)
-# - Enable code block actions (commenting, refactoring)
-# - Provide Helix LSP server integration and usage notes
-# - Facilitate prompting for code generation and actions:w
-
+* Write a new function: `;Implement a function that adds two numbers;`
+* Replace a whole line: `some other text here ;Implement a function that adds two numbers;`

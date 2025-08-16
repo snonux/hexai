@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
+	"strings"
 	"time"
 
 	"hexai/internal/logging"
@@ -15,27 +15,27 @@ import (
 
 // openAIClient implements Client against OpenAI's Chat Completions API.
 type openAIClient struct {
-    httpClient   *http.Client
-    apiKey       string
-    baseURL      string
-    defaultModel string
+	httpClient   *http.Client
+	apiKey       string
+	baseURL      string
+	defaultModel string
 }
 
 // Colors and base styling are provided by logging.go
 
-func newOpenAIFromEnv(apiKey string) Client {
-	base := os.Getenv("OPENAI_BASE_URL")
-	if base == "" {
-		base = "https://api.openai.com/v1"
+// newOpenAI constructs an OpenAI client using explicit configuration values.
+// The apiKey may be empty; calls will fail until a valid key is supplied.
+func newOpenAI(baseURL, model, apiKey string) Client {
+	if strings.TrimSpace(baseURL) == "" {
+		baseURL = "https://api.openai.com/v1"
 	}
-	model := os.Getenv("OPENAI_MODEL")
-	if model == "" {
-		model = "gpt-4o-mini"
+	if strings.TrimSpace(model) == "" {
+		model = "gpt-4.1"
 	}
 	return &openAIClient{
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
 		apiKey:       apiKey,
-		baseURL:      base,
+		baseURL:      baseURL,
 		defaultModel: model,
 	}
 }
@@ -82,10 +82,10 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 		o.Model = c.defaultModel
 	}
 	start := time.Now()
-    logging.Logf("llm/openai ", "chat start model=%s temp=%.2f max_tokens=%d stop=%d messages=%d", o.Model, o.Temperature, o.MaxTokens, len(o.Stop), len(messages))
+	logging.Logf("llm/openai ", "chat start model=%s temp=%.2f max_tokens=%d stop=%d messages=%d", o.Model, o.Temperature, o.MaxTokens, len(o.Stop), len(messages))
 	for i, m := range messages {
-        // Sending context (cyan)
-        logging.Logf("llm/openai ", "msg[%d] role=%s size=%d preview=%s%s%s", i, m.Role, len(m.Content), logging.AnsiCyan, logging.PreviewForLog(m.Content), logging.AnsiBase)
+		// Sending context (cyan)
+		logging.Logf("llm/openai ", "msg[%d] role=%s size=%d preview=%s%s%s", i, m.Role, len(m.Content), logging.AnsiCyan, logging.PreviewForLog(m.Content), logging.AnsiBase)
 	}
 	req := oaChatRequest{Model: o.Model}
 	req.Messages = make([]oaMessage, len(messages))
@@ -108,7 +108,7 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 		return "", err
 	}
 	endpoint := c.baseURL + "/chat/completions"
-    logging.Logf("llm/openai ", "POST %s", endpoint)
+	logging.Logf("llm/openai ", "POST %s", endpoint)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		c.logf("new request error: %v", err)
@@ -118,34 +118,34 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
 	resp, err := c.httpClient.Do(httpReq)
-    if err != nil {
-        logging.Logf("llm/openai ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
-        return "", err
-    }
+	if err != nil {
+		logging.Logf("llm/openai ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
+		return "", err
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var apiErr oaChatResponse
 		_ = json.NewDecoder(resp.Body).Decode(&apiErr)
-        if apiErr.Error != nil && apiErr.Error.Message != "" {
-            logging.Logf("llm/openai ", "%sapi error status=%d type=%s msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), logging.AnsiBase)
-            return "", fmt.Errorf("openai error: %s (status %d)", apiErr.Error.Message, resp.StatusCode)
-        }
-        logging.Logf("llm/openai ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
-        return "", fmt.Errorf("openai http error: status %d", resp.StatusCode)
-    }
+		if apiErr.Error != nil && apiErr.Error.Message != "" {
+			logging.Logf("llm/openai ", "%sapi error status=%d type=%s msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), logging.AnsiBase)
+			return "", fmt.Errorf("openai error: %s (status %d)", apiErr.Error.Message, resp.StatusCode)
+		}
+		logging.Logf("llm/openai ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
+		return "", fmt.Errorf("openai http error: status %d", resp.StatusCode)
+	}
 	var out oaChatResponse
-    if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-        logging.Logf("llm/openai ", "%sdecode error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
-        return "", err
-    }
-    if len(out.Choices) == 0 {
-        logging.Logf("llm/openai ", "%sno choices returned duration=%s%s", logging.AnsiRed, time.Since(start), logging.AnsiBase)
-        return "", errors.New("openai: no choices returned")
-    }
-    content := out.Choices[0].Message.Content
-    // Received context (green)
-    logging.Logf("llm/openai ", "success choice=0 finish=%s size=%d preview=%s%s%s duration=%s", out.Choices[0].FinishReason, len(content), logging.AnsiGreen, logging.PreviewForLog(content), logging.AnsiBase, time.Since(start))
-    return content, nil
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		logging.Logf("llm/openai ", "%sdecode error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
+		return "", err
+	}
+	if len(out.Choices) == 0 {
+		logging.Logf("llm/openai ", "%sno choices returned duration=%s%s", logging.AnsiRed, time.Since(start), logging.AnsiBase)
+		return "", errors.New("openai: no choices returned")
+	}
+	content := out.Choices[0].Message.Content
+	// Received context (green)
+	logging.Logf("llm/openai ", "success choice=0 finish=%s size=%d preview=%s%s%s duration=%s", out.Choices[0].FinishReason, len(content), logging.AnsiGreen, logging.PreviewForLog(content), logging.AnsiBase, time.Since(start))
+	return content, nil
 }
 
 // small helper to keep return type consistent
@@ -161,5 +161,5 @@ func trimPreview(s string, n int) string {
 }
 
 // Provider metadata
-func (c *openAIClient) Name() string          { return "openai" }
-func (c *openAIClient) DefaultModel() string  { return c.defaultModel }
+func (c *openAIClient) Name() string         { return "openai" }
+func (c *openAIClient) DefaultModel() string { return c.defaultModel }

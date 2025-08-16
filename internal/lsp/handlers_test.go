@@ -147,3 +147,60 @@ no markers here`
         t.Fatalf("e0 start not at ;")
     }
 }
+
+func TestCollectPromptRemovalEdits_SkipSpacedMarkers(t *testing.T) {
+    s := newTestServer()
+    uri := "file:///y.go"
+    // Only ;ok; should be removed; "; spaced ;" must be ignored
+    src := `prefix ;ok; middle ; spaced ; suffix`
+    s.setDocument(uri, src)
+    edits := s.collectPromptRemovalEdits(uri)
+    if len(edits) != 1 {
+        t.Fatalf("expected 1 edit (only ;ok;), got %d", len(edits))
+    }
+    // Ensure the removed region starts at the first ';' of ;ok;
+    line := s.getDocument(uri).lines[0]
+    wantStart := strings.Index(line, ";ok;")
+    if wantStart < 0 {
+        t.Fatalf("test setup: could not find ;ok; in %q", line)
+    }
+    if edits[0].Range.Start.Line != 0 || edits[0].Range.Start.Character != wantStart {
+        t.Fatalf("unexpected first edit start: got line=%d char=%d want line=0 char=%d", edits[0].Range.Start.Line, edits[0].Range.Start.Character, wantStart)
+    }
+}
+
+func TestCollectPromptRemovalEdits_DoubleSemicolonRemovesWholeLine(t *testing.T) {
+    s := newTestServer()
+    uri := "file:///z.go"
+    line0 := "keep"
+    line1 := ";;todo; remove this whole line"
+    line2 := "keep ;ok; end"
+    src := strings.Join([]string{line0, line1, line2}, "\n")
+    s.setDocument(uri, src)
+    edits := s.collectPromptRemovalEdits(uri)
+    if len(edits) != 2 {
+        t.Fatalf("expected 2 edits (whole line + ;ok;), got %d", len(edits))
+    }
+    // Find the whole-line removal for line1
+    found := false
+    for _, e := range edits {
+        if e.Range.Start.Line == 1 && e.Range.Start.Character == 0 && e.Range.End.Line == 1 && e.Range.End.Character == len(line1) {
+            found = true
+            break
+        }
+    }
+    if !found {
+        t.Fatalf("did not find whole-line removal edit for line 1")
+    }
+}
+
+func TestCollectPromptRemovalEdits_SkipSpacedDouble(t *testing.T) {
+    s := newTestServer()
+    uri := "file:///w.go"
+    src := "prefix ;; spaced ; suffix"
+    s.setDocument(uri, src)
+    edits := s.collectPromptRemovalEdits(uri)
+    if len(edits) != 0 {
+        t.Fatalf("expected 0 edits for spaced double-semicolon trigger, got %d", len(edits))
+    }
+}
