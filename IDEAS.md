@@ -19,6 +19,8 @@
 * [X] Text completion in general
 * [/] Code generation using LLMs text
 * [ ] Be a replacement for 'github copilot cli'
+* [ ] Be able to perform inline chats (keeping history in the document)
+* [ ] Be able to switch the underlying model via a prompt
 
 Be able to select code blocks and perform code actions on them
 
@@ -40,7 +42,7 @@ Be able to switch LLMs.
 
 * [ ] Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol` 
 
-## Internal usage notes
+## Usage notes
 
 Helix' `languages.toml`
 
@@ -57,7 +59,7 @@ language-servers = [ "gopls", "golangci-lint-lsp", "hexai" ]
 command = "hexai"
 `
 
+## Prompting
 
-### Write a new function prompt
-
-// Implement a function counting the number of files in a directory <<==prompt
+* Write a new function: `;Implement a function counting the number of files in a directory;`
+* In-place code add: `;Get number of files in a directory;`

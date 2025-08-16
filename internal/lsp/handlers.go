@@ -156,18 +156,48 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	}
 
     te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
-	label := labelForCompletion(cleaned, filter)
-	items := []CompletionItem{{
-		Label:            label,
-		Kind:             1,
-		Detail:           "OpenAI through Hexai completion",
-		InsertTextFormat: 1,
-		FilterText:       strings.TrimLeft(filter, " \t"),
-		TextEdit:         te,
-		SortText:         "0000",
-		Documentation:    docStr,
-	}}
-	return items, true
+    rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
+    label := labelForCompletion(cleaned, filter)
+    items := []CompletionItem{{
+        Label:            label,
+        Kind:             1,
+        Detail:           "OpenAI through Hexai completion",
+        InsertTextFormat: 1,
+        FilterText:       strings.TrimLeft(filter, " \t"),
+        TextEdit:         te,
+        AdditionalTextEdits: rm,
+        SortText:         "0000",
+        Documentation:    docStr,
+    }}
+    return items, true
+}
+
+// collectPromptRemovalEdits returns edits to remove all inline prompt markers.
+// Supported form (inclusive):
+// - ";...;"   (optional single space after trailing ';')
+// Multiple markers per line are supported.
+func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit {
+    d := s.getDocument(uri)
+    if d == nil || len(d.lines) == 0 {
+        return nil
+    }
+    var edits []TextEdit
+    for i, line := range d.lines {
+        // Scan for ;...; markers
+        startSemi := 0
+        for startSemi < len(line) {
+            j := strings.Index(line[startSemi:], ";")
+            if j < 0 { break }
+            j += startSemi
+            k := strings.Index(line[j+1:], ";")
+            if k < 0 { break }
+            endChar := j + 1 + k + 1 // include trailing ';'
+            if endChar < len(line) && line[endChar] == ' ' { endChar++ }
+            edits = append(edits, TextEdit{Range: Range{Start: Position{Line: i, Character: j}, End: Position{Line: i, Character: endChar}}, NewText: ""})
+            startSemi = endChar
+        }
+    }
+    return edits
 }
 
 func inParamList(current string, cursor int) bool {

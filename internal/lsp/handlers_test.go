@@ -126,3 +126,24 @@ func TestComputeTextEditAndFilter_NoParensFallback(t *testing.T) {
 func contains(s, sub string) bool { return len(s) >= len(sub) && (func() bool { i := 0; for i+len(sub) <= len(s) { if s[i:i+len(sub)] == sub { return true }; i++ }; return false })() }
 
 
+
+
+func TestCollectPromptRemovalEdits(t *testing.T) {
+    s := newTestServer()
+    uri := "file:///x.go"
+    src := `keep ;tag; this and ;another; that
+no markers here`
+    s.setDocument(uri, src)
+    edits := s.collectPromptRemovalEdits(uri)
+    if len(edits) != 2 {
+        t.Fatalf("expected 2 edits, got %d", len(edits))
+    }
+    // First occurrence ;tag;
+    e0 := edits[0]
+    if e0.Range.Start.Line != 0 {
+        t.Fatalf("e0 start line=%d want 0", e0.Range.Start.Line)
+    }
+    if s.getDocument(uri).lines[0][e0.Range.Start.Character:e0.Range.Start.Character+1] != ";" {
+        t.Fatalf("e0 start not at ;")
+    }
+}

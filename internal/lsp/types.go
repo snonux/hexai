@@ -49,15 +49,16 @@ type CompletionList struct {
 }
 
 type CompletionItem struct {
-	Label            string    `json:"label"`
-	Kind             int       `json:"kind,omitempty"`
-	Detail           string    `json:"detail,omitempty"`
-	InsertText       string    `json:"insertText,omitempty"`
-	InsertTextFormat int       `json:"insertTextFormat,omitempty"`
-	FilterText       string    `json:"filterText,omitempty"`
-	TextEdit         *TextEdit `json:"textEdit,omitempty"`
-	SortText         string    `json:"sortText,omitempty"`
-	Documentation    string    `json:"documentation,omitempty"`
+    Label            string    `json:"label"`
+    Kind             int       `json:"kind,omitempty"`
+    Detail           string    `json:"detail,omitempty"`
+    InsertText       string    `json:"insertText,omitempty"`
+    InsertTextFormat int       `json:"insertTextFormat,omitempty"`
+    FilterText       string    `json:"filterText,omitempty"`
+    TextEdit         *TextEdit `json:"textEdit,omitempty"`
+    AdditionalTextEdits []TextEdit `json:"additionalTextEdits,omitempty"`
+    SortText         string    `json:"sortText,omitempty"`
+    Documentation    string    `json:"documentation,omitempty"`
 }
 
 // LSP param types (subset)
