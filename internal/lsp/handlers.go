@@ -65,10 +65,6 @@ func (s *Server) handleCodeAction(req Request) {
         if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
         return
     }
-    if s.llmClient == nil {
-        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
-        return
-    }
     // Extract selected text
     d := s.getDocument(p.TextDocument.URI)
     if d == nil || len(d.lines) == 0 {
@@ -76,37 +72,62 @@ func (s *Server) handleCodeAction(req Request) {
         return
     }
     sel := extractRangeText(d, p.Range)
-    if strings.TrimSpace(sel) == "" {
+    if strings.TrimSpace(sel) == "" || s.llmClient == nil {
         if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
         return
     }
-    // Derive instruction from selection comments (prefer first), including ;text; marker
-    instr, cleaned := instructionFromSelection(sel)
-    if strings.TrimSpace(instr) == "" {
-        // No instruction; do not offer an action
-        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
-        return
+
+    actions := make([]CodeAction, 0, 2)
+
+    // Action 1: Rewrite selection based on first instruction in selection
+    if instr, cleaned := instructionFromSelection(sel); strings.TrimSpace(instr) != "" {
+        sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
+        user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", instr, cleaned)
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+        if text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.1)); err == nil {
+            out := strings.TrimSpace(text)
+            if out != "" {
+                edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
+                actions = append(actions, CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Edit: &edit})
+            }
+        } else {
+            logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
+        }
     }
-    // Build prompt for rewrite of cleaned selection according to instruction
-    sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
-    user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", instr, cleaned)
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-    messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-    text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.1))
-    if err != nil {
-        logging.Logf("lsp ", "codeAction llm error: %v", err)
-        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
-        return
+
+    // Action 2: Resolve diagnostics within selection
+    if diags := s.diagnosticsInRange(p.Context, p.Range); len(diags) > 0 {
+        // Compose a prompt listing diagnostics relevant to the selected code
+        sys := "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes."
+        var b strings.Builder
+        b.WriteString("Diagnostics to resolve (selection only):\n")
+        for i, dgn := range diags {
+            // Minimal, user-facing summary; include source if present
+            if dgn.Source != "" {
+                fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
+            } else {
+                fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
+            }
+        }
+        b.WriteString("\nSelected code:\n")
+        b.WriteString(sel)
+        ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: b.String()}}
+        if text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.1)); err == nil {
+            out := strings.TrimSpace(text)
+            if out != "" {
+                edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
+                actions = append(actions, CodeAction{Title: "Hexai: resolve diagnostics", Kind: "quickfix", Edit: &edit})
+            }
+        } else {
+            logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
+        }
     }
-    out := strings.TrimSpace(text)
-    if out == "" {
-        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
-        return
-    }
-    edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
-    action := CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Edit: &edit}
-    if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{action}, nil) }
+
+    if len(req.ID) != 0 { s.reply(req.ID, actions, nil) }
 }
 
 // instructionFromSelection extracts the first instruction from selection text.
@@ -192,6 +213,45 @@ func findStrictSemicolonTag(line string) (string, int, int, bool) {
         return inner, j, end, true
     }
     return "", 0, 0, false
+}
+
+// diagnosticsInRange parses the CodeAction context and returns diagnostics
+// that overlap the given selection range. If the context is missing or does
+// not contain diagnostics, returns an empty slice.
+func (s *Server) diagnosticsInRange(ctxRaw json.RawMessage, sel Range) []Diagnostic {
+    if len(ctxRaw) == 0 { return nil }
+    var ctx CodeActionContext
+    if err := json.Unmarshal(ctxRaw, &ctx); err != nil { return nil }
+    if len(ctx.Diagnostics) == 0 { return nil }
+    out := make([]Diagnostic, 0, len(ctx.Diagnostics))
+    for _, d := range ctx.Diagnostics {
+        if rangesOverlap(d.Range, sel) {
+            out = append(out, d)
+        }
+    }
+    return out
+}
+
+// rangesOverlap reports whether two LSP ranges overlap at all.
+func rangesOverlap(a, b Range) bool {
+    // Normalize ordering
+    if greaterPos(a.Start, a.End) { a.Start, a.End = a.End, a.Start }
+    if greaterPos(b.Start, b.End) { b.Start, b.End = b.End, b.Start }
+    // a ends before b starts
+    if lessPos(a.End, b.Start) { return false }
+    // b ends before a starts
+    if lessPos(b.End, a.Start) { return false }
+    return true
+}
+
+func lessPos(p, q Position) bool {
+    if p.Line != q.Line { return p.Line < q.Line }
+    return p.Character < q.Character
+}
+
+func greaterPos(p, q Position) bool {
+    if p.Line != q.Line { return p.Line > q.Line }
+    return p.Character > q.Character
 }
 
 // extractRangeText returns the exact text within the given document range.

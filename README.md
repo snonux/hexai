@@ -116,10 +116,13 @@ action from the LLM and then clean up the tag automatically.
 
 ## Code actions
 
-Hexai provides a code action for working with the current selection in Helix:
+Hexai provides code actions that operate only on the current selection in Helix:
 
-- Rewrite selection: Select code and invoke code actions. Hexai looks for the
-  first instruction inside the selection and rewrites the selection accordingly.
+- Rewrite selection: Hexai looks for the first instruction inside the selection
+  and rewrites the selection accordingly.
+- Resolve diagnostics: With a selection active, Hexai gathers only diagnostics
+  that overlap your selection and fixes them by editing only the selected code.
+  Diagnostics outside the selection are not modified.
 
 Instruction sources (first one found wins):
 - Strict marker: `;text;` (no space after first `;`, none before last `;`).

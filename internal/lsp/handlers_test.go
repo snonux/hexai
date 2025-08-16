@@ -1,6 +1,7 @@
 package lsp
 
 import (
+    "encoding/json"
     "strings"
     "testing"
 )
@@ -252,5 +253,34 @@ func TestStripDuplicateAssignmentPrefix(t *testing.T) {
     got2 := stripDuplicateAssignmentPrefix(prefix2, sug2)
     if got2 != "y + 1" {
         t.Fatalf("dup strip '=' failed: got %q", got2)
+    }
+}
+
+func TestRangesOverlap(t *testing.T) {
+    a := Range{Start: Position{Line: 1, Character: 2}, End: Position{Line: 3, Character: 0}}
+    b := Range{Start: Position{Line: 2, Character: 0}, End: Position{Line: 4, Character: 1}}
+    if !rangesOverlap(a, b) { t.Fatalf("expected overlap") }
+    c := Range{Start: Position{Line: 4, Character: 1}, End: Position{Line: 5, Character: 0}}
+    if rangesOverlap(a, c) { t.Fatalf("expected no overlap") }
+}
+
+func TestDiagnosticsInRange_Filtering(t *testing.T) {
+    s := newTestServer()
+    sel := Range{Start: Position{Line: 10, Character: 0}, End: Position{Line: 12, Character: 5}}
+    // Build a fake context payload with three diagnostics: one inside, one outside, one touching boundary
+    ctx := CodeActionContext{Diagnostics: []Diagnostic{
+        {Range: Range{Start: Position{Line: 11, Character: 0}, End: Position{Line: 11, Character: 10}}, Message: "inside"},
+        {Range: Range{Start: Position{Line: 2, Character: 0}, End: Position{Line: 3, Character: 0}}, Message: "outside"},
+        {Range: Range{Start: Position{Line: 12, Character: 5}, End: Position{Line: 12, Character: 8}}, Message: "touch"},
+    }}
+    data, _ := json.Marshal(ctx)
+    got := s.diagnosticsInRange(json.RawMessage(data), sel)
+    if len(got) != 2 {
+        t.Fatalf("expected 2 diagnostics in range, got %d", len(got))
+    }
+    msgs := []string{got[0].Message, got[1].Message}
+    joined := strings.Join(msgs, ",")
+    if !strings.Contains(joined, "inside") || !strings.Contains(joined, "touch") {
+        t.Fatalf("unexpected diagnostics: %v", msgs)
     }
 }

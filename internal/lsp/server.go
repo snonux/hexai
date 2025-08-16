@@ -1,62 +1,62 @@
 package lsp
 
 import (
-    "bufio"
-    "encoding/json"
-    "hexai/internal/llm"
-    "hexai/internal/logging"
-    "io"
-    "log"
-    "sync"
-    "time"
+	"bufio"
+	"encoding/json"
+	"hexai/internal/llm"
+	"hexai/internal/logging"
+	"io"
+	"log"
+	"sync"
+	"time"
 )
 
 // Server implements a minimal LSP over stdio.
 type Server struct {
-	in         *bufio.Reader
-	out        io.Writer
-	logger     *log.Logger
-	exited     bool
-	mu         sync.RWMutex
-	docs       map[string]*document
-	logContext bool
-    llmClient  llm.Client
-    lastInput  time.Time
-    maxTokens  int
-    contextMode      string
-    windowLines      int
-    maxContextTokens int
-    noDiskIO         bool
-    // LLM request stats
-    llmReqTotal        int64
-    llmSentBytesTotal  int64
-    llmRespTotal       int64
-    llmRespBytesTotal  int64
-    startTime          time.Time
+	in               *bufio.Reader
+	out              io.Writer
+	logger           *log.Logger
+	exited           bool
+	mu               sync.RWMutex
+	docs             map[string]*document
+	logContext       bool
+	llmClient        llm.Client
+	lastInput        time.Time
+	maxTokens        int
+	contextMode      string
+	windowLines      int
+	maxContextTokens int
+	noDiskIO         bool
+	// LLM request stats
+	llmReqTotal       int64
+	llmSentBytesTotal int64
+	llmRespTotal      int64
+	llmRespBytesTotal int64
+	startTime         time.Time
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool, maxTokens int, contextMode string, windowLines int, maxContextTokens int, noDiskIO bool, client llm.Client) *Server {
-    s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: logContext}
-    if maxTokens <= 0 {
-        maxTokens = 500
-    }
-    s.maxTokens = maxTokens
-    if contextMode == "" {
-        contextMode = "file-on-new-func"
-    }
-    if windowLines <= 0 {
-        windowLines = 120
-    }
-    if maxContextTokens <= 0 {
-        maxContextTokens = 2000
-    }
-    s.contextMode = contextMode
-    s.windowLines = windowLines
-    s.maxContextTokens = maxContextTokens
-    s.noDiskIO = noDiskIO
-    s.startTime = time.Now()
-    s.llmClient = client
-    return s
+	s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: logContext}
+	if maxTokens <= 0 {
+		maxTokens = 500
+	}
+	s.maxTokens = maxTokens
+	if contextMode == "" {
+		contextMode = "file-on-new-func"
+	}
+	if windowLines <= 0 {
+		windowLines = 120
+	}
+	if maxContextTokens <= 0 {
+		maxContextTokens = 2000
+	}
+	s.contextMode = contextMode
+	s.windowLines = windowLines
+	s.maxContextTokens = maxContextTokens
+	s.noDiskIO = noDiskIO
+	s.startTime = time.Now()
+	s.llmClient = client
+	return s
 }
 
 func (s *Server) Run() error {
@@ -70,9 +70,9 @@ func (s *Server) Run() error {
 		}
 		var req Request
 		if err := json.Unmarshal(body, &req); err != nil {
-            logging.Logf("lsp ", "invalid JSON: %v", err)
-            continue
-        }
+			logging.Logf("lsp ", "invalid JSON: %v", err)
+			continue
+		}
 		if req.Method == "" {
 			// A response from client; ignore
 			continue
