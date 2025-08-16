@@ -1,8 +1,8 @@
 package lsp
 
 import (
-    "strings"
-    "time"
+	"strings"
+	"time"
 )
 
 // --- Document store and helpers ---
@@ -76,47 +76,47 @@ func (s *Server) lineContext(uri string, pos Position) (above, current, below, f
 // Heuristic: find nearest preceding line containing "func "; ensure no '{'
 // appears before the cursor across those lines.
 func (s *Server) isDefiningNewFunction(uri string, pos Position) bool {
-    d := s.getDocument(uri)
-    if d == nil || len(d.lines) == 0 {
-        return false
-    }
-    idx := pos.Line
-    if idx < 0 {
-        idx = 0
-    }
-    if idx >= len(d.lines) {
-        idx = len(d.lines) - 1
-    }
-    // Find signature start
-    sigStart := -1
-    for i := idx; i >= 0; i-- {
-        if strings.Contains(d.lines[i], "func ") {
-            sigStart = i
-            break
-        }
-        // stop if we hit a closing brace which likely ends a previous block
-        if strings.Contains(d.lines[i], "}") {
-            break
-        }
-    }
-    if sigStart == -1 {
-        return false
-    }
-    // Scan for '{' from sigStart up to cursor position; if found before or at cursor, we're in body
-    for i := sigStart; i <= idx; i++ {
-        line := d.lines[i]
-        brace := strings.Index(line, "{")
-        if brace >= 0 {
-            if i < idx {
-                return false // body started on a previous line
-            }
-            // same line as cursor: if brace position < cursor character, then already in body
-            if pos.Character > brace {
-                return false
-            }
-        }
-    }
-    return true
+	d := s.getDocument(uri)
+	if d == nil || len(d.lines) == 0 {
+		return false
+	}
+	idx := pos.Line
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(d.lines) {
+		idx = len(d.lines) - 1
+	}
+	// Find signature start
+	sigStart := -1
+	for i := idx; i >= 0; i-- {
+		if strings.Contains(d.lines[i], "func ") {
+			sigStart = i
+			break
+		}
+		// stop if we hit a closing brace which likely ends a previous block
+		if strings.Contains(d.lines[i], "}") {
+			break
+		}
+	}
+	if sigStart == -1 {
+		return false
+	}
+	// Scan for '{' from sigStart up to cursor position; if found before or at cursor, we're in body
+	for i := sigStart; i <= idx; i++ {
+		line := d.lines[i]
+		brace := strings.Index(line, "{")
+		if brace >= 0 {
+			if i < idx {
+				return false // body started on a previous line
+			}
+			// same line as cursor: if brace position < cursor character, then already in body
+			if pos.Character > brace {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func hasAny(s string, needles []string) bool {
