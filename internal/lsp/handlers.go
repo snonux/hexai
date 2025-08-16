@@ -1,15 +1,15 @@
 package lsp
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "hexai/internal"
-    "hexai/internal/llm"
-    "hexai/internal/logging"
-    "os"
-    "strings"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"hexai/internal"
+	"hexai/internal/llm"
+	"hexai/internal/logging"
+	"os"
+	"strings"
+	"time"
 )
 
 func (s *Server) handle(req Request) {
@@ -38,26 +38,26 @@ func (s *Server) handle(req Request) {
 }
 
 func (s *Server) handleInitialize(req Request) {
-    version := internal.Version
-    if s.llmClient != nil {
-        version = version + " [" + s.llmClient.Name() + ":" + s.llmClient.DefaultModel() + "]"
-    }
-    res := InitializeResult{
-        Capabilities: ServerCapabilities{
-            TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
-            CompletionProvider: &CompletionOptions{
-                ResolveProvider: false,
-                // TODO: Make the trigger characters configurable
-                TriggerCharacters: []string{".", ":", "/", "_"},
-            },
-        },
-        ServerInfo: &ServerInfo{Name: "hexai", Version: version},
-    }
-    s.reply(req.ID, res, nil)
+	version := internal.Version
+	if s.llmClient != nil {
+		version = version + " [" + s.llmClient.Name() + ":" + s.llmClient.DefaultModel() + "]"
+	}
+	res := InitializeResult{
+		Capabilities: ServerCapabilities{
+			TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
+			CompletionProvider: &CompletionOptions{
+				ResolveProvider: false,
+				// TODO: Make the trigger characters configurable
+				TriggerCharacters: []string{".", ":", "/", "_"},
+			},
+		},
+		ServerInfo: &ServerInfo{Name: "hexai", Version: version},
+	}
+	s.reply(req.ID, res, nil)
 }
 
 func (s *Server) handleInitialized() {
-    logging.Logf("lsp ", "client initialized")
+	logging.Logf("lsp ", "client initialized")
 }
 
 func (s *Server) handleShutdown(req Request) {
@@ -98,22 +98,22 @@ func (s *Server) handleDidClose(req Request) {
 func (s *Server) handleCompletion(req Request) {
 	var p CompletionParams
 	var docStr string
-    if err := json.Unmarshal(req.Params, &p); err == nil {
-        above, current, below, funcCtx := s.lineContext(p.TextDocument.URI, p.Position)
-        docStr = s.buildDocString(p, above, current, below, funcCtx)
-        if s.logContext {
-            s.logCompletionContext(p, above, current, below, funcCtx)
-        }
-        if s.llmClient != nil {
-            newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
-            extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
-            items, ok := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
-            if ok {
-                s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
-                return
-            }
-        }
-    }
+	if err := json.Unmarshal(req.Params, &p); err == nil {
+		above, current, below, funcCtx := s.lineContext(p.TextDocument.URI, p.Position)
+		docStr = s.buildDocString(p, above, current, below, funcCtx)
+		if s.logContext {
+			s.logCompletionContext(p, above, current, below, funcCtx)
+		}
+		if s.llmClient != nil {
+			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
+			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
+			items, ok := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
+			if ok {
+				s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
+				return
+			}
+		}
+	}
 	items := s.fallbackCompletionItems(docStr)
 	s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
 }
@@ -136,49 +136,103 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 }
 
 func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) {
-    ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
 
-    inParams := inParamList(current, p.Position.Character)
-    sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
-    messages := []llm.Message{
-        {Role: "system", Content: sysPrompt},
-        {Role: "user", Content: userPrompt},
-    }
-    if hasExtra && extraText != "" {
-        messages = append(messages, llm.Message{Role: "user", Content: "Additional context:\n" + extraText})
-    }
+	inParams := inParamList(current, p.Position.Character)
+	sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
+	messages := []llm.Message{
+		{Role: "system", Content: sysPrompt},
+		{Role: "user", Content: userPrompt},
+	}
+	if hasExtra && extraText != "" {
+		messages = append(messages, llm.Message{Role: "user", Content: "Additional context:\n" + extraText})
+	}
 
-    text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.2))
-    if err != nil {
-        logging.Logf("lsp ", "llm completion error: %v", err)
-        return nil, false
-    }
+	// Compute total sent context size (sum of message contents)
+	var sentSize int
+	for _, m := range messages {
+		sentSize += len(m.Content)
+	}
+	// Update request counters (sent)
+	s.mu.Lock()
+	s.llmReqTotal++
+	s.llmSentBytesTotal += int64(sentSize)
+	s.mu.Unlock()
+
+	text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.2))
+	if err != nil {
+		logging.Logf("lsp ", "llm completion error: %v", err)
+		// Log updated averages after this request (even if failed)
+		s.mu.RLock()
+		avgSent := int64(0)
+		if s.llmReqTotal > 0 {
+			avgSent = s.llmSentBytesTotal / s.llmReqTotal
+		}
+		avgRecv := int64(0)
+		if s.llmRespTotal > 0 {
+			avgRecv = s.llmRespBytesTotal / s.llmRespTotal
+		}
+		reqs, sentTot, recvTot := s.llmReqTotal, s.llmSentBytesTotal, s.llmRespBytesTotal
+		s.mu.RUnlock()
+		mins := time.Since(s.startTime).Minutes()
+		if mins <= 0 {
+			mins = 0.001
+		}
+		rpm := float64(reqs) / mins
+		sentPerMin := float64(sentTot) / mins
+		recvPerMin := float64(recvTot) / mins
+		logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)
+		return nil, false
+	}
+	// Update response counters (received)
+	recvSize := len(text)
+	s.mu.Lock()
+	s.llmRespTotal++
+	s.llmRespBytesTotal += int64(recvSize)
+	avgSent := int64(0)
+	if s.llmReqTotal > 0 {
+		avgSent = s.llmSentBytesTotal / s.llmReqTotal
+	}
+	avgRecv := int64(0)
+	if s.llmRespTotal > 0 {
+		avgRecv = s.llmRespBytesTotal / s.llmRespTotal
+	}
+	reqs, sentTot, recvTot := s.llmReqTotal, s.llmSentBytesTotal, s.llmRespBytesTotal
+	s.mu.Unlock()
+	mins := time.Since(s.startTime).Minutes()
+	if mins <= 0 {
+		mins = 0.001
+	}
+	rpm := float64(reqs) / mins
+	sentPerMin := float64(sentTot) / mins
+	recvPerMin := float64(recvTot) / mins
+	logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)
 	cleaned := strings.TrimSpace(text)
 	if cleaned == "" {
 		return nil, false
 	}
 
-    te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
-    rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
-    label := labelForCompletion(cleaned, filter)
-    // Detail shows provider/model for visibility in client UI
-    detail := "Hexai LLM completion"
-    if s.llmClient != nil {
-        detail = "Hexai " + s.llmClient.Name() + ":" + s.llmClient.DefaultModel()
-    }
-    items := []CompletionItem{{
-        Label:            label,
-        Kind:             1,
-        Detail:           detail,
-        InsertTextFormat: 1,
-        FilterText:       strings.TrimLeft(filter, " \t"),
-        TextEdit:         te,
-        AdditionalTextEdits: rm,
-        SortText:         "0000",
-        Documentation:    docStr,
-    }}
-    return items, true
+	te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
+	rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
+	label := labelForCompletion(cleaned, filter)
+	// Detail shows provider/model for visibility in client UI
+	detail := "Hexai LLM completion"
+	if s.llmClient != nil {
+		detail = "Hexai " + s.llmClient.Name() + ":" + s.llmClient.DefaultModel()
+	}
+	items := []CompletionItem{{
+		Label:               label,
+		Kind:                1,
+		Detail:              detail,
+		InsertTextFormat:    1,
+		FilterText:          strings.TrimLeft(filter, " \t"),
+		TextEdit:            te,
+		AdditionalTextEdits: rm,
+		SortText:            "0000",
+		Documentation:       docStr,
+	}}
+	return items, true
 }
 
 // collectPromptRemovalEdits returns edits to remove all inline prompt markers.
@@ -186,27 +240,33 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 // - ";...;"   (optional single space after trailing ';')
 // Multiple markers per line are supported.
 func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit {
-    d := s.getDocument(uri)
-    if d == nil || len(d.lines) == 0 {
-        return nil
-    }
-    var edits []TextEdit
-    for i, line := range d.lines {
-        // Scan for ;...; markers
-        startSemi := 0
-        for startSemi < len(line) {
-            j := strings.Index(line[startSemi:], ";")
-            if j < 0 { break }
-            j += startSemi
-            k := strings.Index(line[j+1:], ";")
-            if k < 0 { break }
-            endChar := j + 1 + k + 1 // include trailing ';'
-            if endChar < len(line) && line[endChar] == ' ' { endChar++ }
-            edits = append(edits, TextEdit{Range: Range{Start: Position{Line: i, Character: j}, End: Position{Line: i, Character: endChar}}, NewText: ""})
-            startSemi = endChar
-        }
-    }
-    return edits
+	d := s.getDocument(uri)
+	if d == nil || len(d.lines) == 0 {
+		return nil
+	}
+	var edits []TextEdit
+	for i, line := range d.lines {
+		// Scan for ;...; markers
+		startSemi := 0
+		for startSemi < len(line) {
+			j := strings.Index(line[startSemi:], ";")
+			if j < 0 {
+				break
+			}
+			j += startSemi
+			k := strings.Index(line[j+1:], ";")
+			if k < 0 {
+				break
+			}
+			endChar := j + 1 + k + 1 // include trailing ';'
+			if endChar < len(line) && line[endChar] == ' ' {
+				endChar++
+			}
+			edits = append(edits, TextEdit{Range: Range{Start: Position{Line: i, Character: j}, End: Position{Line: i, Character: endChar}}, NewText: ""})
+			startSemi = endChar
+		}
+	}
+	return edits
 }
 
 func inParamList(current string, cursor int) bool {
@@ -218,6 +278,7 @@ func inParamList(current string, cursor int) bool {
 	return open >= 0 && cursor > open && (close == -1 || cursor <= close)
 }
 
+// TODO: Not just be a Go code completion engine, make this flexible.
 func buildPrompts(inParams bool, p CompletionParams, above, current, below, funcCtx string) (string, string) {
 	if inParams {
 		sys := "You are a terse Go code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."

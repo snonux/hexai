@@ -11,6 +11,8 @@
 
 ### Improvements
 
+* [ ] TODO's in the code to be addressed
+
 ### New features
 
 * [ ] Resolve diagnostics code action feature

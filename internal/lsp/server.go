@@ -27,6 +27,12 @@ type Server struct {
     windowLines      int
     maxContextTokens int
     noDiskIO         bool
+    // LLM request stats
+    llmReqTotal        int64
+    llmSentBytesTotal  int64
+    llmRespTotal       int64
+    llmRespBytesTotal  int64
+    startTime          time.Time
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool, maxTokens int, contextMode string, windowLines int, maxContextTokens int, noDiskIO bool) *Server {
@@ -48,6 +54,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool, ma
     s.windowLines = windowLines
     s.maxContextTokens = maxContextTokens
     s.noDiskIO = noDiskIO
+    s.startTime = time.Now()
     if c, err := llm.NewDefault(); err != nil {
         logging.Logf("lsp ", "llm disabled: %v", err)
     } else {
