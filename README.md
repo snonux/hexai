@@ -8,9 +8,7 @@ At the moment this project is only in the proof of PoC phase.
 
 ## LLM provider
 
-Hexai exposes a simple LLM provider interface. It supports OpenAI and a local
-Ollama server. Provider selection and models are configured via a JSON
-configuration file.
+Hexai exposes a simple LLM provider interface. It supports OpenAI and a local Ollama server. Provider selection and models are configured via a JSON configuration file.
 
 ### Selecting a provider
 
@@ -71,6 +69,7 @@ except for `OPENAI_API_KEY`.
   "max_context_tokens": 4000,
   "log_preview_limit": 100,
   "no_disk_io": true,
+  "trigger_characters": [".", ":", "/", "_", ";"],
   "provider": "ollama", // or "openai"
   // OpenAI-only options
   "openai_model": "gpt-4.1",

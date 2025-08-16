@@ -34,9 +34,9 @@ type ServerInfo struct {
 }
 
 type ServerCapabilities struct {
-    TextDocumentSync   any                `json:"textDocumentSync,omitempty"`
-    CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
-    CodeActionProvider bool               `json:"codeActionProvider,omitempty"`
+	TextDocumentSync   any                `json:"textDocumentSync,omitempty"`
+	CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
+	CodeActionProvider bool               `json:"codeActionProvider,omitempty"`
 }
 
 type CompletionOptions struct {
@@ -50,16 +50,16 @@ type CompletionList struct {
 }
 
 type CompletionItem struct {
-    Label            string    `json:"label"`
-    Kind             int       `json:"kind,omitempty"`
-    Detail           string    `json:"detail,omitempty"`
-    InsertText       string    `json:"insertText,omitempty"`
-    InsertTextFormat int       `json:"insertTextFormat,omitempty"`
-    FilterText       string    `json:"filterText,omitempty"`
-    TextEdit         *TextEdit `json:"textEdit,omitempty"`
-    AdditionalTextEdits []TextEdit `json:"additionalTextEdits,omitempty"`
-    SortText         string    `json:"sortText,omitempty"`
-    Documentation    string    `json:"documentation,omitempty"`
+	Label               string     `json:"label"`
+	Kind                int        `json:"kind,omitempty"`
+	Detail              string     `json:"detail,omitempty"`
+	InsertText          string     `json:"insertText,omitempty"`
+	InsertTextFormat    int        `json:"insertTextFormat,omitempty"`
+	FilterText          string     `json:"filterText,omitempty"`
+	TextEdit            *TextEdit  `json:"textEdit,omitempty"`
+	AdditionalTextEdits []TextEdit `json:"additionalTextEdits,omitempty"`
+	SortText            string     `json:"sortText,omitempty"`
+	Documentation       string     `json:"documentation,omitempty"`
 }
 
 // LSP param types (subset)
@@ -104,39 +104,39 @@ type Position struct {
 }
 
 type CompletionParams struct {
-    TextDocument TextDocumentIdentifier `json:"textDocument"`
-    Position     Position               `json:"position"`
-    Context      any                    `json:"context,omitempty"`
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Position     Position               `json:"position"`
+	Context      any                    `json:"context,omitempty"`
 }
 
 // Code actions
 type CodeActionParams struct {
-    TextDocument TextDocumentIdentifier `json:"textDocument"`
-    Range        Range                  `json:"range"`
-    Context      json.RawMessage        `json:"context,omitempty"`
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Range        Range                  `json:"range"`
+	Context      json.RawMessage        `json:"context,omitempty"`
 }
 
 type WorkspaceEdit struct {
-    Changes map[string][]TextEdit `json:"changes,omitempty"`
+	Changes map[string][]TextEdit `json:"changes,omitempty"`
 }
 
 type CodeAction struct {
-    Title string         `json:"title"`
-    Kind  string         `json:"kind,omitempty"`
-    Edit  *WorkspaceEdit `json:"edit,omitempty"`
+	Title string         `json:"title"`
+	Kind  string         `json:"kind,omitempty"`
+	Edit  *WorkspaceEdit `json:"edit,omitempty"`
 }
 
 // Diagnostics (subset needed for code action context)
 type Diagnostic struct {
-    Range    Range       `json:"range"`
-    Message  string      `json:"message"`
-    Severity int         `json:"severity,omitempty"`
-    Code     interface{} `json:"code,omitempty"`
-    Source   string      `json:"source,omitempty"`
+	Range    Range       `json:"range"`
+	Message  string      `json:"message"`
+	Severity int         `json:"severity,omitempty"`
+	Code     interface{} `json:"code,omitempty"`
+	Source   string      `json:"source,omitempty"`
 }
 
 type CodeActionContext struct {
-    Diagnostics []Diagnostic `json:"diagnostics"`
+	Diagnostics []Diagnostic `json:"diagnostics"`
 }
 
 // Range defines a text range in a document.

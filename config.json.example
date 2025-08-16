@@ -5,6 +5,7 @@
   "max_context_tokens": 4000,
   "log_preview_limit": 100,
   "no_disk_io": true,
+  "trigger_characters": [".", ":", "/", "_", ";"],
 
   "provider": "openai",
 
@@ -14,4 +15,3 @@
   "ollama_model": "qwen2.5-coder:latest",
   "ollama_base_url": "http://localhost:11434"
 }
-

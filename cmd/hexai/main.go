@@ -64,13 +64,14 @@ func main() {
 	}
 
 	server := lsp.NewServer(os.Stdin, os.Stdout, logger, lsp.ServerOptions{
-		LogContext:       *logPath != "",
-		MaxTokens:        cfg.MaxTokens,
-		ContextMode:      cfg.ContextMode,
-		WindowLines:      cfg.ContextWindowLines,
-		MaxContextTokens: cfg.MaxContextTokens,
-		NoDiskIO:         cfg.NoDiskIO,
-		Client:           client,
+		LogContext:        *logPath != "",
+		MaxTokens:         cfg.MaxTokens,
+		ContextMode:       cfg.ContextMode,
+		WindowLines:       cfg.ContextWindowLines,
+		MaxContextTokens:  cfg.MaxContextTokens,
+		NoDiskIO:          cfg.NoDiskIO,
+		Client:            client,
+		TriggerCharacters: cfg.TriggerCharacters,
 	})
 	if err := server.Run(); err != nil {
 		logger.Fatalf("server error: %v", err)
@@ -79,13 +80,14 @@ func main() {
 
 // appConfig holds user-configurable settings.
 type appConfig struct {
-	MaxTokens          int    `json:"max_tokens"`
-	ContextMode        string `json:"context_mode"`
-	ContextWindowLines int    `json:"context_window_lines"`
-	MaxContextTokens   int    `json:"max_context_tokens"`
-	LogPreviewLimit    int    `json:"log_preview_limit"`
-	NoDiskIO           bool   `json:"no_disk_io"`
-	Provider           string `json:"provider"`
+	MaxTokens          int      `json:"max_tokens"`
+	ContextMode        string   `json:"context_mode"`
+	ContextWindowLines int      `json:"context_window_lines"`
+	MaxContextTokens   int      `json:"max_context_tokens"`
+	LogPreviewLimit    int      `json:"log_preview_limit"`
+	NoDiskIO           bool     `json:"no_disk_io"`
+	TriggerCharacters  []string `json:"trigger_characters"`
+	Provider           string   `json:"provider"`
 	// Provider-specific options
 	OpenAIBaseURL string `json:"openai_base_url"`
 	OpenAIModel   string `json:"openai_model"`
@@ -136,6 +138,9 @@ func loadConfig(logger *log.Logger) appConfig {
 		cfg.LogPreviewLimit = fileCfg.LogPreviewLimit
 	}
 	cfg.NoDiskIO = fileCfg.NoDiskIO
+	if len(fileCfg.TriggerCharacters) > 0 {
+		cfg.TriggerCharacters = append([]string{}, fileCfg.TriggerCharacters...)
+	}
 	if strings.TrimSpace(fileCfg.Provider) != "" {
 		cfg.Provider = fileCfg.Provider
 	}
