@@ -38,4 +38,26 @@ Be able to switch LLMs.
 
 ## More
 
-* [ ] Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol
+* [ ] Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol` 
+
+## Internal usage notes
+
+Helix' `languages.toml`
+
+```toml
+[[language]]
+name = "go"
+auto-format= true
+diagnostic-severity = "hint"
+formatter = { command = "goimports" }
+language-servers = [ "gopls", "golangci-lint-lsp", "hexai" ]
+# language-servers = [ "gopls", "golangci-lint-lsp", "lsp-ai", "gpt", "hexai" ]
+
+[language-server.hexai]
+command = "hexai"
+`
+
+
+### Write a new function prompt
+
+// Implement a function counting the number of files in a directory <<==prompt

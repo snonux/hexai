@@ -155,7 +155,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		return nil, false
 	}
 
-	te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
+    te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
 	label := labelForCompletion(cleaned, filter)
 	items := []CompletionItem{{
 		Label:            label,

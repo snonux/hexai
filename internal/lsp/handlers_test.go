@@ -124,3 +124,5 @@ func TestComputeTextEditAndFilter_NoParensFallback(t *testing.T) {
 
 // small helper to avoid importing strings
 func contains(s, sub string) bool { return len(s) >= len(sub) && (func() bool { i := 0; for i+len(sub) <= len(s) { if s[i:i+len(sub)] == sub { return true }; i++ }; return false })() }
+
+
