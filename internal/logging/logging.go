@@ -1,11 +1,11 @@
-package llm
+package logging
 
 import (
     "fmt"
     "log"
 )
 
-// ANSI color utilities shared across LLM providers.
+// ANSI color utilities shared across Hexai.
 const (
     AnsiBgBlack = "\x1b[40m"
     AnsiGrey    = "\x1b[90m"
@@ -18,13 +18,19 @@ const (
 // AnsiBase is the default style: black background + grey foreground.
 const AnsiBase = AnsiBgBlack + AnsiGrey
 
-// LogPrintf wraps a formatted message with a base style and prints with a prefix.
-func LogPrintf(logger *log.Logger, prefix, format string, args ...any) {
-    if logger == nil {
+// singleton logger used across the codebase
+var std *log.Logger
+
+// Bind sets the underlying standard logger to use for Logf.
+func Bind(l *log.Logger) { std = l }
+
+// Logf prints a formatted message with a module prefix and base ANSI style.
+func Logf(prefix, format string, args ...any) {
+    if std == nil {
         return
     }
     msg := fmt.Sprintf(format, args...)
-    logger.Print(AnsiBase + prefix + msg + AnsiReset)
+    std.Print(AnsiBase + prefix + msg + AnsiReset)
 }
 
 // Logging configuration for previews (shared)
@@ -34,9 +40,13 @@ var logPreviewLimit int // 0 means unlimited
 // request/response previews. Set to 0 for unlimited.
 func SetLogPreviewLimit(n int) { logPreviewLimit = n }
 
-func previewForLog(s string) string {
+// PreviewForLog returns the string truncated to the configured preview limit.
+func PreviewForLog(s string) string {
     if logPreviewLimit > 0 {
-        return trimPreview(s, logPreviewLimit)
+        if len(s) <= logPreviewLimit {
+            return s
+        }
+        return s[:logPreviewLimit] + "…"
     }
     return s
 }

@@ -1,14 +1,15 @@
 package lsp
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"hexai/internal"
-	"hexai/internal/llm"
-	"os"
-	"strings"
-	"time"
+    "context"
+    "encoding/json"
+    "fmt"
+    "hexai/internal"
+    "hexai/internal/llm"
+    "hexai/internal/logging"
+    "os"
+    "strings"
+    "time"
 )
 
 func (s *Server) handle(req Request) {
@@ -52,7 +53,7 @@ func (s *Server) handleInitialize(req Request) {
 }
 
 func (s *Server) handleInitialized() {
-	s.logger.Println("client initialized")
+    logging.Logf("lsp ", "client initialized")
 }
 
 func (s *Server) handleShutdown(req Request) {
@@ -126,7 +127,7 @@ func (s *Server) buildDocString(p CompletionParams, above, current, below, funcC
 }
 
 func (s *Server) logCompletionContext(p CompletionParams, above, current, below, funcCtx string) {
-	s.logger.Printf("completion ctx uri=%s line=%d char=%d above=%q current=%q below=%q function=%q",
+	logging.Logf("lsp ", "completion ctx uri=%s line=%d char=%d above=%q current=%q below=%q function=%q",
 		p.TextDocument.URI, p.Position.Line, p.Position.Character, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
 }
 
@@ -145,10 +146,10 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
     }
 
     text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.2))
-	if err != nil {
-		s.logger.Printf("llm completion error: %v", err)
-		return nil, false
-	}
+    if err != nil {
+        logging.Logf("lsp ", "llm completion error: %v", err)
+        return nil, false
+    }
 	cleaned := strings.TrimSpace(text)
 	if cleaned == "" {
 		return nil, false

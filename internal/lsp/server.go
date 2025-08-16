@@ -1,13 +1,14 @@
 package lsp
 
 import (
-	"bufio"
-	"encoding/json"
-	"hexai/internal/llm"
-	"io"
-	"log"
-	"sync"
-	"time"
+    "bufio"
+    "encoding/json"
+    "hexai/internal/llm"
+    "hexai/internal/logging"
+    "io"
+    "log"
+    "sync"
+    "time"
 )
 
 // Server implements a minimal LSP over stdio.
@@ -47,8 +48,8 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool, ma
     s.windowLines = windowLines
     s.maxContextTokens = maxContextTokens
     s.noDiskIO = noDiskIO
-    if c, err := llm.NewDefault(logger); err != nil {
-        s.logger.Printf("llm disabled: %v", err)
+    if c, err := llm.NewDefault(); err != nil {
+        logging.Logf("lsp ", "llm disabled: %v", err)
     } else {
         s.llmClient = c
     }
@@ -66,9 +67,9 @@ func (s *Server) Run() error {
 		}
 		var req Request
 		if err := json.Unmarshal(body, &req); err != nil {
-			s.logger.Printf("invalid JSON: %v", err)
-			continue
-		}
+            logging.Logf("lsp ", "invalid JSON: %v", err)
+            continue
+        }
 		if req.Method == "" {
 			// A response from client; ignore
 			continue

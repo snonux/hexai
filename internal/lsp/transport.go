@@ -1,12 +1,13 @@
 package lsp
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/textproto"
-	"strconv"
-	"strings"
+    "encoding/json"
+    "fmt"
+    "hexai/internal/logging"
+    "io"
+    "net/textproto"
+    "strconv"
+    "strings"
 )
 
 func (s *Server) readMessage() ([]byte, error) {
@@ -47,17 +48,17 @@ func (s *Server) readMessage() ([]byte, error) {
 
 func (s *Server) writeMessage(v any) {
 	data, err := json.Marshal(v)
-	if err != nil {
-		s.logger.Printf("marshal error: %v", err)
-		return
-	}
+    if err != nil {
+        logging.Logf("lsp ", "marshal error: %v", err)
+        return
+    }
 	header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(data))
-	if _, err := io.WriteString(s.out, header); err != nil {
-		s.logger.Printf("write header error: %v", err)
-		return
-	}
-	if _, err := s.out.Write(data); err != nil {
-		s.logger.Printf("write body error: %v", err)
-		return
-	}
+    if _, err := io.WriteString(s.out, header); err != nil {
+        logging.Logf("lsp ", "write header error: %v", err)
+        return
+    }
+    if _, err := s.out.Write(data); err != nil {
+        logging.Logf("lsp ", "write body error: %v", err)
+        return
+    }
 }

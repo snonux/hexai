@@ -3,8 +3,7 @@ package llm
 import (
     "context"
     "errors"
-    "log"
-    "os"
+        "os"
 )
 
 // Message represents a chat-style prompt message.
@@ -40,10 +39,10 @@ func WithStop(stop ...string) RequestOption {
 
 // NewDefault returns the default provider using environment configuration.
 // Currently this is the OpenAI provider using OPENAI_API_KEY.
-func NewDefault(logger *log.Logger) (Client, error) {
+func NewDefault() (Client, error) {
     apiKey := os.Getenv("OPENAI_API_KEY")
     if apiKey == "" {
         return nil, errors.New("OPENAI_API_KEY is not set")
     }
-    return newOpenAIFromEnv(apiKey, logger), nil
+    return newOpenAIFromEnv(apiKey), nil
 }
