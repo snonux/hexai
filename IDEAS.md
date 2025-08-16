@@ -24,7 +24,9 @@
 * [ ] Be a replacement for 'github copilot cli'
 * [ ] Be able to perform inline chats (keeping history in the document)
 * [ ] Be able to switch the underlying model via a prompt
-* [ ] Fine tune when LLM completions are triggered, as it seems that there are some cases where the LLM is asked but Helix is not suggesting any completions
+* [ ] Fine tune when Large Language Model (LLM) completions trigger, as it seems that there are some cases where the Large Language Model (LLM) receives a request but Helix isn't suggesting any completions. There seems to be something odd with the in logic. Investigate the TriggerChar logic and make sure it matches Helix's expectations.
+* [ ] Only one code completion should run at a time, even if multiple triggers occur simultaneously
+* [ ] Create "generate unit test" code action for selected code block
 
 Be able to select code blocks and perform code actions on them
 
