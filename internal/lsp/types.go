@@ -34,8 +34,9 @@ type ServerInfo struct {
 }
 
 type ServerCapabilities struct {
-	TextDocumentSync   any                `json:"textDocumentSync,omitempty"`
-	CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
+    TextDocumentSync   any                `json:"textDocumentSync,omitempty"`
+    CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
+    CodeActionProvider bool               `json:"codeActionProvider,omitempty"`
 }
 
 type CompletionOptions struct {
@@ -103,9 +104,26 @@ type Position struct {
 }
 
 type CompletionParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
-	Position     Position               `json:"position"`
-	Context      any                    `json:"context,omitempty"`
+    TextDocument TextDocumentIdentifier `json:"textDocument"`
+    Position     Position               `json:"position"`
+    Context      any                    `json:"context,omitempty"`
+}
+
+// Code actions
+type CodeActionParams struct {
+    TextDocument TextDocumentIdentifier `json:"textDocument"`
+    Range        Range                  `json:"range"`
+    Context      any                    `json:"context,omitempty"`
+}
+
+type WorkspaceEdit struct {
+    Changes map[string][]TextEdit `json:"changes,omitempty"`
+}
+
+type CodeAction struct {
+    Title string         `json:"title"`
+    Kind  string         `json:"kind,omitempty"`
+    Edit  *WorkspaceEdit `json:"edit,omitempty"`
 }
 
 // Range defines a text range in a document.

@@ -204,3 +204,37 @@ func TestCollectPromptRemovalEdits_SkipSpacedDouble(t *testing.T) {
         t.Fatalf("expected 0 edits for spaced double-semicolon trigger, got %d", len(edits))
     }
 }
+
+func TestInstructionFromSelection_OrderPreference(t *testing.T) {
+    // Earliest wins within a line
+    line := "code /*block first*/ // later ;tag;"
+    instr, cleaned := instructionFromSelection(line)
+    if instr != "block first" {
+        t.Fatalf("want block comment instr, got %q", instr)
+    }
+    if strings.Contains(cleaned, "block first") {
+        t.Fatalf("cleaned should not contain the block comment")
+    }
+}
+
+func TestInstructionFromSelection_SemicolonBeatsCommentIfEarlier(t *testing.T) {
+    line := ";do this;// later"
+    instr, cleaned := instructionFromSelection(line)
+    if instr != "do this" {
+        t.Fatalf("want semicolon instr, got %q", instr)
+    }
+    if strings.Contains(cleaned, ";do this;") {
+        t.Fatalf("cleaned should have semicolon tag removed")
+    }
+}
+
+func TestInstructionFromSelection_HTMLAndLineComments(t *testing.T) {
+    line := "prefix <!-- html note --> suffix"
+    instr, cleaned := instructionFromSelection(line)
+    if instr != "html note" {
+        t.Fatalf("want html note, got %q", instr)
+    }
+    if strings.Contains(cleaned, "<!--") || strings.Contains(cleaned, "-->") {
+        t.Fatalf("cleaned should remove html comment markers")
+    }
+}

@@ -61,9 +61,5 @@ language-servers = [ "gopls", "golangci-lint-lsp", "hexai" ]
 
 [language-server.hexai]
 command = "hexai"
-`
+```
 
-## Prompting
-
-* Write a new function: `;Implement a function that adds two numbers;`
-* Replace a whole line: `some other text here ;Implement a function that adds two numbers;`
