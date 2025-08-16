@@ -83,7 +83,7 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 	start := time.Now()
 	c.logf("chat start model=%s temp=%.2f max_tokens=%d stop=%d messages=%d", o.Model, o.Temperature, o.MaxTokens, len(o.Stop), len(messages))
 	for i, m := range messages {
-		c.logf("msg[%d] role=%s size=%d preview=%q", i, m.Role, len(m.Content), trimPreview(m.Content, 200))
+		c.logf("msg[%d] role=%s size=%d preview=%s", i, m.Role, len(m.Content), trimPreview(m.Content, 200))
 	}
 	req := oaChatRequest{Model: o.Model}
 	req.Messages = make([]oaMessage, len(messages))
@@ -141,7 +141,7 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 		return "", errors.New("openai: no choices returned")
 	}
 	content := out.Choices[0].Message.Content
-	c.logf("success choice=0 finish=%s size=%d preview=%q duration=%s", out.Choices[0].FinishReason, len(content), trimPreview(content, 200), time.Since(start))
+	c.logf("success choice=0 finish=%s size=%d preview=%s duration=%s", out.Choices[0].FinishReason, len(content), trimPreview(content, 200), time.Since(start))
 	return content, nil
 }
 
