@@ -33,6 +33,9 @@ func (s *Server) buildAdditionalContext(newFunc bool, uri string, pos Position) 
 func (s *Server) windowContext(uri string, pos Position) string {
     d := s.getDocument(uri)
     if d == nil || len(d.lines) == 0 {
+        if s.logger != nil {
+            s.logger.Printf("context: window requested but document not open; skipping uri=%s", uri)
+        }
         return ""
     }
     n := len(d.lines)
@@ -52,6 +55,9 @@ func (s *Server) windowContext(uri string, pos Position) string {
 func (s *Server) fullFileContext(uri string) string {
     d := s.getDocument(uri)
     if d == nil {
+        if s.logger != nil {
+            s.logger.Printf("context: full-file requested but document not open; skipping uri=%s", uri)
+        }
         return ""
     }
     return truncateToApproxTokens(d.text, s.maxContextTokens)
@@ -77,4 +83,3 @@ func truncateToApproxTokens(text string, maxTokens int) string {
     }
     return text[:cut]
 }
-
