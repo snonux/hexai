@@ -24,7 +24,7 @@ If no key is configured, Hexai will fall back to a basic, local completion.
 
 - Completion settings:
   - `-max-tokens`: maximum tokens for LLM completions (default `500`). If the flag isn’t provided, `HEXAI_MAX_TOKENS` is used when set.
-  - `-context-mode`: how much additional context to include with completion prompts. One of:
+  - `-context-mode`: how much additional context to include with completion prompts (If the flag isn’t provided, `HEXAI_CONTEXT_MODE` is used when set). One of:
     - `minimal`: no extra context
     - `window`: include a sliding window around the cursor
     - `file-on-new-func` (default): include the full file only when defining a new function (cursor before the opening `{`)
@@ -43,6 +43,6 @@ Notes:
 | `-stdio`                | `true`             | —                          | Run as LSP over stdio (only supported mode).       |
 | `-log`                  | `/tmp/hexai.log`   | —                          | Path to log file (optional).                       |
 | `-max-tokens`           | `500`              | `HEXAI_MAX_TOKENS`         | Max tokens for LLM completions.                    |
-| `-context-mode`         | `file-on-new-func` | —                          | `minimal` `window` `file-on-new-func` `always-full` |
+| `-context-mode`         | `file-on-new-func` | `HEXAI_CONTEXT_MODE`       | `minimal` `window` `file-on-new-func` `always-full` |
 | `-context-window-lines` | `120`              | —                          | Lines around cursor when using `window` mode.      |
 | `-max-context-tokens`   | `2000`             | `HEXAI_MAX_CONTEXT_TOKENS` | Token budget for additional context.               |
