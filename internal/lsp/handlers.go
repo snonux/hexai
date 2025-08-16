@@ -375,10 +375,13 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	sentPerMin := float64(sentTot) / mins
 	recvPerMin := float64(recvTot) / mins
 	logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)
-	cleaned := strings.TrimSpace(text)
-	if cleaned == "" {
-		return nil, false
-	}
+    cleaned := strings.TrimSpace(text)
+    if cleaned != "" {
+        cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
+    }
+    if cleaned == "" {
+        return nil, false
+    }
 
 	te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
 	rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
@@ -496,14 +499,14 @@ func inParamList(current string, cursor int) bool {
 }
 
 func buildPrompts(inParams bool, p CompletionParams, above, current, below, funcCtx string) (string, string) {
-	if inParams {
-		sys := "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."
-		user := fmt.Sprintf("Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: %s\nCurrent line (cursor at %d): %s", funcCtx, p.Position.Character, current)
-		return sys, user
-	}
-	sys := "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks."
-	user := fmt.Sprintf("Provide the next likely code to insert at the cursor.\nFile: %s\nFunction/context: %s\nAbove line: %s\nCurrent line (cursor at character %d): %s\nBelow line: %s\nOnly return the completion snippet.", p.TextDocument.URI, funcCtx, above, p.Position.Character, current, below)
-	return sys, user
+    if inParams {
+        sys := "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."
+        user := fmt.Sprintf("Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: %s\nCurrent line (cursor at %d): %s", funcCtx, p.Position.Character, current)
+        return sys, user
+    }
+    sys := "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks. Only continue from the cursor; never repeat characters already present to the left of the cursor on the current line (e.g., if 'name :=' is already typed, only return the right-hand side expression)."
+    user := fmt.Sprintf("Provide the next likely code to insert at the cursor.\nFile: %s\nFunction/context: %s\nAbove line: %s\nCurrent line (cursor at character %d): %s\nBelow line: %s\nOnly return the completion snippet.", p.TextDocument.URI, funcCtx, above, p.Position.Character, current, below)
+    return sys, user
 }
 
 func computeTextEditAndFilter(cleaned string, inParams bool, current string, p CompletionParams) (*TextEdit, string) {
@@ -546,6 +549,53 @@ func computeWordStart(current string, at int) int {
 		break
 	}
 	return at
+}
+
+func isIdentChar(ch byte) bool {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
+}
+
+// stripDuplicateAssignmentPrefix removes a duplicated assignment prefix (e.g.,
+// "name :=") from the beginning of the model suggestion when that same prefix
+// already appears immediately to the left of the cursor on the current line.
+// Also handles simple '=' assignments.
+func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) string {
+    s2 := strings.TrimLeft(suggestion, " \t")
+    // Prefer := if present at end of prefix
+    if idx := strings.LastIndex(prefixBeforeCursor, ":="); idx >= 0 && idx+2 <= len(prefixBeforeCursor) {
+        // Ensure only spaces follow in prefix (cursor at end of prefix segment)
+        tail := prefixBeforeCursor[idx+2:]
+        if strings.TrimSpace(tail) == "" {
+            // Move left to include identifier and spaces
+            start := idx - 1
+            for start >= 0 && (isIdentChar(prefixBeforeCursor[start]) || prefixBeforeCursor[start] == ' ' || prefixBeforeCursor[start] == '\t') {
+                start--
+            }
+            start++
+            seg := strings.TrimRight(prefixBeforeCursor[start:idx+2], " \t")
+            if strings.HasPrefix(s2, seg) {
+                return strings.TrimLeft(s2[len(seg):], " \t")
+            }
+        }
+    }
+    // Fallback to plain '=' if present
+    if idx := strings.LastIndex(prefixBeforeCursor, "="); idx >= 0 {
+        if !(idx > 0 && prefixBeforeCursor[idx-1] == ':') { // not := (handled above)
+            tail := prefixBeforeCursor[idx+1:]
+            if strings.TrimSpace(tail) == "" {
+                start := idx - 1
+                for start >= 0 && (isIdentChar(prefixBeforeCursor[start]) || prefixBeforeCursor[start] == ' ' || prefixBeforeCursor[start] == '\t') {
+                    start--
+                }
+                start++
+                seg := strings.TrimRight(prefixBeforeCursor[start:idx+1], " \t")
+                if strings.HasPrefix(s2, seg) {
+                    return strings.TrimLeft(s2[len(seg):], " \t")
+                }
+            }
+        }
+    }
+    return suggestion
 }
 
 func labelForCompletion(cleaned, filter string) string {
