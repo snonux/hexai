@@ -95,8 +95,8 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 	start := time.Now()
 	c.logf("chat start model=%s temp=%.2f max_tokens=%d stop=%d messages=%d", o.Model, o.Temperature, o.MaxTokens, len(o.Stop), len(messages))
     for i, m := range messages {
-        // Sending context (cyan) — log full content with real newlines
-        c.logf("msg[%d] role=%s size=%d preview=%s%s%s", i, m.Role, len(m.Content), ansiCyan, m.Content, ansiNormal)
+        // Sending context (cyan)
+        c.logf("msg[%d] role=%s size=%d preview=%s%s%s", i, m.Role, len(m.Content), ansiCyan, previewForLog(m.Content), ansiNormal)
     }
 	req := oaChatRequest{Model: o.Model}
 	req.Messages = make([]oaMessage, len(messages))
@@ -154,8 +154,8 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
         return "", errors.New("openai: no choices returned")
     }
     content := out.Choices[0].Message.Content
-    // Received context (green) — log full content with real newlines
-    c.logf("success choice=0 finish=%s size=%d preview=%s%s%s duration=%s", out.Choices[0].FinishReason, len(content), ansiGreen, content, ansiNormal, time.Since(start))
+    // Received context (green)
+    c.logf("success choice=0 finish=%s size=%d preview=%s%s%s duration=%s", out.Choices[0].FinishReason, len(content), ansiGreen, previewForLog(content), ansiNormal, time.Since(start))
     return content, nil
 }
 

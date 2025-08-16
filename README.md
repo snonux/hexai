@@ -46,3 +46,4 @@ Notes:
 | `-context-mode`         | `file-on-new-func` | `HEXAI_CONTEXT_MODE`       | `minimal` `window` `file-on-new-func` `always-full` |
 | `-context-window-lines` | `120`              | `HEXAI_CONTEXT_WINDOW_LINES` | Lines around cursor when using `window` mode.      |
 | `-max-context-tokens`   | `2000`             | `HEXAI_MAX_CONTEXT_TOKENS` | Token budget for additional context.               |
+| `-log-preview-limit`    | `0` (unlimited)    | `HEXAI_LOG_PREVIEW_LIMIT`  | Limit characters shown in LLM preview logs.        |
