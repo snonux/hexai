@@ -238,3 +238,19 @@ func TestInstructionFromSelection_HTMLAndLineComments(t *testing.T) {
         t.Fatalf("cleaned should remove html comment markers")
     }
 }
+
+func TestStripDuplicateAssignmentPrefix(t *testing.T) {
+    prefix := "matrix := "
+    sug := "matrix := NewMatrix(2,2)"
+    got := stripDuplicateAssignmentPrefix(prefix, sug)
+    if got != "NewMatrix(2,2)" {
+        t.Fatalf("dup strip failed: got %q", got)
+    }
+    // '=' variant
+    prefix2 := "x = "
+    sug2 := "x = y + 1"
+    got2 := stripDuplicateAssignmentPrefix(prefix2, sug2)
+    if got2 != "y + 1" {
+        t.Fatalf("dup strip '=' failed: got %q", got2)
+    }
+}
