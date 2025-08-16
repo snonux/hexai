@@ -35,28 +35,35 @@ type Server struct {
 	startTime         time.Time
 }
 
-func NewServer(r io.Reader, w io.Writer, logger *log.Logger, logContext bool, maxTokens int, contextMode string, windowLines int, maxContextTokens int, noDiskIO bool, client llm.Client) *Server {
-	s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: logContext}
-	if maxTokens <= 0 {
-		maxTokens = 500
-	}
-	s.maxTokens = maxTokens
-	if contextMode == "" {
-		contextMode = "file-on-new-func"
-	}
-	if windowLines <= 0 {
-		windowLines = 120
-	}
-	if maxContextTokens <= 0 {
-		maxContextTokens = 2000
-	}
-	s.contextMode = contextMode
-	s.windowLines = windowLines
-	s.maxContextTokens = maxContextTokens
-	s.noDiskIO = noDiskIO
-	s.startTime = time.Now()
-	s.llmClient = client
-	return s
+// ServerOptions collects configuration for NewServer to avoid long parameter lists.
+type ServerOptions struct {
+    LogContext       bool
+    MaxTokens        int
+    ContextMode      string
+    WindowLines      int
+    MaxContextTokens int
+    NoDiskIO         bool
+    Client           llm.Client
+}
+
+func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
+    s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: opts.LogContext}
+    maxTokens := opts.MaxTokens
+    if maxTokens <= 0 { maxTokens = 500 }
+    s.maxTokens = maxTokens
+    contextMode := opts.ContextMode
+    if contextMode == "" { contextMode = "file-on-new-func" }
+    windowLines := opts.WindowLines
+    if windowLines <= 0 { windowLines = 120 }
+    maxContextTokens := opts.MaxContextTokens
+    if maxContextTokens <= 0 { maxContextTokens = 2000 }
+    s.contextMode = contextMode
+    s.windowLines = windowLines
+    s.maxContextTokens = maxContextTokens
+    s.noDiskIO = opts.NoDiskIO
+    s.startTime = time.Now()
+    s.llmClient = opts.Client
+    return s
 }
 
 func (s *Server) Run() error {
