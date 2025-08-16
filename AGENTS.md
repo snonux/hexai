@@ -20,6 +20,7 @@
 
 ## Coding Style & Naming Conventions
 
+- If possible, construct individual methods so that they can be unit tested. But only if it doesn't add too much boilerplate to the code base.
 - There should be no source code file larger than 1000 lines. If so, split it up into multiple.
 - There should be no function larger then 50 lines. If so, refactor or split up into multiple smaller functions.
 - Markdown: ATX `#` headings, sentence‑case titles, wrap lines ~100 chars,
