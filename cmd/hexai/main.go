@@ -63,7 +63,15 @@ func main() {
 		}
 	}
 
-	server := lsp.NewServer(os.Stdin, os.Stdout, logger, *logPath != "", cfg.MaxTokens, cfg.ContextMode, cfg.ContextWindowLines, cfg.MaxContextTokens, cfg.NoDiskIO, client)
+	server := lsp.NewServer(os.Stdin, os.Stdout, logger, lsp.ServerOptions{
+		LogContext:       *logPath != "",
+		MaxTokens:        cfg.MaxTokens,
+		ContextMode:      cfg.ContextMode,
+		WindowLines:      cfg.ContextWindowLines,
+		MaxContextTokens: cfg.MaxContextTokens,
+		NoDiskIO:         cfg.NoDiskIO,
+		Client:           client,
+	})
 	if err := server.Run(); err != nil {
 		logger.Fatalf("server error: %v", err)
 	}
