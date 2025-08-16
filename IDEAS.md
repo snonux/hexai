@@ -21,6 +21,7 @@
 * [ ] Be a replacement for 'github copilot cli'
 * [ ] Be able to perform inline chats (keeping history in the document)
 * [ ] Be able to switch the underlying model via a prompt
+* [ ] Fine tune when LLM completions are triggered, as it seems that there are some cases where the LLM is asked but Helix is not suggesting any completions
 
 Be able to select code blocks and perform code actions on them
 

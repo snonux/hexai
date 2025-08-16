@@ -42,16 +42,9 @@ Notes:
 - Run LSP server over stdio:
   - `hexai`
 
-- Completion settings:
-  - `-max-tokens`: maximum tokens for LLM completions. If the flag isn’t provided, `HEXAI_MAX_TOKENS` is used when set.
-  - `-context-mode`: how much additional context to include with completion prompts (If the flag isn’t provided, `HEXAI_CONTEXT_MODE` is used when set). One of:
-    - `minimal`: no extra context
-    - `window`: include a sliding window around the cursor
-    - `file-on-new-func`ude the full file only when defining a new function (cursor before the opening `{`)
-    - `always-full`: always include the full file (may be slower/costly)
-  - `-context-window-lines`: line count for the sliding window when `context-mode=window`.
-  - `-max-context-tokens`: budget for additional context tokens. If the flag isn’t provided, `HEXAI_MAX_CONTEXT_TOKENS` is used when set.
-  - `-provider`: LLM provider override: `openai` or `ollama` (overrides `HEXAI_LLM_PROVIDER`).
+- Flags (minimal):
+  - `-version`: print the Hexai version and exit.
+  - `-log`: path to log file (optional; default `/tmp/hexai.log`).
 
 Notes:
 - Token estimation for truncation uses a simple 4 chars/token heuristic.
@@ -61,15 +54,33 @@ Notes:
 
 | Flag                    | Env override               | Description                                        |
 |-------------------------|----------------------------|----------------------------------------------------|
-| `-stdio`                | —                          | Run as LSP over stdio (only supported mode).       |
-| `-log`                  | —                          | Path to log file (optional).                       |
-| `-max-tokens`           | `HEXAI_MAX_TOKENS`         | Max tokens for LLM completions.                    |
-| `-context-mode`         | `HEXAI_CONTEXT_MODE`       | `minimal` `window` `file-on-new-func` `always-full` |
-| `-context-window-lines` | `HEXAI_CONTEXT_WINDOW_LINES` | Lines around cursor when using `window` mode.      |
-| `-max-context-tokens`   | `HEXAI_MAX_CONTEXT_TOKENS` | Token budget for additional context.               |
-| `-log-preview-limit`    | `HEXAI_LOG_PREVIEW_LIMIT`  | Limit characters shown in LLM preview logs.        |
-| `-no-disk-io`           | `HEXAI_NO_DISK_IO`         | Disallow any disk reads for context.               |
-| `-provider`             | `HEXAI_LLM_PROVIDER`       | Force LLM provider: `openai` or `ollama`.          |
+| `-log`      | —                 | Path to log file (optional).            |
+| `-version`  | —                 | Print version and exit.                 |
+
+Configuration is via JSON file and environment variables (env has precedence).
+
+### JSON config file
+
+- Location: `~/.config/hexai/config.json`
+- Example:
+
+```
+{
+  "max_tokens": 4000,
+  "context_mode": "always-full", // minimal | window | file-on-new-func | always-full
+  "context_window_lines": 120,
+  "max_context_tokens": 4000,
+  "log_preview_limit": 100,
+  "no_disk_io": true,
+  "provider": "ollama" // or "openai"
+}
+```
+
+### Environment overrides (take precedence)
+
+- `HEXAI_MAX_TOKENS`, `HEXAI_CONTEXT_MODE`, `HEXAI_CONTEXT_WINDOW_LINES`, `HEXAI_MAX_CONTEXT_TOKENS`
+- `HEXAI_LOG_PREVIEW_LIMIT`, `HEXAI_NO_DISK_IO`
+- `HEXAI_LLM_PROVIDER` (forces provider)
 
 ### Environment quick reference (providers)
 
