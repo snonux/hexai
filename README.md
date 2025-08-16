@@ -92,3 +92,42 @@ Ensure `OPENAI_API_KEY` is set in your environment.
 ### Environment
 
 - Only `OPENAI_API_KEY` is read from the environment when `provider` is `openai`.
+
+## Inline triggers
+
+Hexai supports inline trigger tags you can type in your code to request an
+action from the LLM and then clean up the tag automatically.
+
+- `;text;`: Do what is written in `text`, then remove just the `;text;` marker.
+  - Strict form: no space after the first `;` and no space before the last `;`.
+  - An optional single space immediately after the closing `;` is also removed.
+  - Multiple markers per line are supported.
+  - Example: `// TODO ;rename this function to add;` removes only the marker.
+
+- `;;text;`: Do what is written in `text`, then remove the entire line.
+  - Strict form: no space after `;;` and no space before the closing `;`.
+  - Any line containing such a marker is deleted after processing.
+  - Example:
+    ```
+    some() ;;extract helper;  // this entire line is removed
+    ```
+
+- Spaced variants such as `; text ;` or `;; spaced ;` are ignored.
+
+## Code actions
+
+Hexai provides a code action for working with the current selection in Helix:
+
+- Rewrite selection: Select code and invoke code actions. Hexai looks for the
+  first instruction inside the selection and rewrites the selection accordingly.
+
+Instruction sources (first one found wins):
+- Strict marker: `;text;` (no space after first `;`, none before last `;`).
+- Line comments: `// text`, `# text`, `-- text`.
+- Single-line block comments: `/* text */`, `<!-- text -->`.
+
+Notes:
+- Only the earliest instruction in the selection is used; Hexai removes that
+  marker/comment from the selection before sending it to the LLM.
+- The action returns only the transformed code and replaces exactly the
+  selected range.

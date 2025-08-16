@@ -13,11 +13,11 @@ import (
 )
 
 func (s *Server) handle(req Request) {
-	switch req.Method {
-	case "initialize":
-		s.handleInitialize(req)
-	case "initialized":
-		s.handleInitialized()
+    switch req.Method {
+    case "initialize":
+        s.handleInitialize(req)
+    case "initialized":
+        s.handleInitialized()
 	case "shutdown":
 		s.handleShutdown(req)
 	case "exit":
@@ -28,13 +28,15 @@ func (s *Server) handle(req Request) {
 		s.handleDidChange(req)
 	case "textDocument/didClose":
 		s.handleDidClose(req)
-	case "textDocument/completion":
-		s.handleCompletion(req)
-	default:
-		if len(req.ID) != 0 {
-			s.reply(req.ID, nil, &RespError{Code: -32601, Message: fmt.Sprintf("method not found: %s", req.Method)})
-		}
-	}
+    case "textDocument/completion":
+        s.handleCompletion(req)
+    case "textDocument/codeAction":
+        s.handleCodeAction(req)
+    default:
+        if len(req.ID) != 0 {
+            s.reply(req.ID, nil, &RespError{Code: -32601, Message: fmt.Sprintf("method not found: %s", req.Method)})
+        }
+    }
 }
 
 func (s *Server) handleInitialize(req Request) {
@@ -42,18 +44,183 @@ func (s *Server) handleInitialize(req Request) {
 	if s.llmClient != nil {
 		version = version + " [" + s.llmClient.Name() + ":" + s.llmClient.DefaultModel() + "]"
 	}
-	res := InitializeResult{
-		Capabilities: ServerCapabilities{
-			TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
-			CompletionProvider: &CompletionOptions{
-				ResolveProvider: false,
-				// TODO: Make the trigger characters configurable
-				TriggerCharacters: []string{".", ":", "/", "_"},
-			},
-		},
-		ServerInfo: &ServerInfo{Name: "hexai", Version: version},
-	}
-	s.reply(req.ID, res, nil)
+    res := InitializeResult{
+        Capabilities: ServerCapabilities{
+            TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
+            CompletionProvider: &CompletionOptions{
+                ResolveProvider: false,
+                // TODO: Make the trigger characters configurable
+                TriggerCharacters: []string{".", ":", "/", "_"},
+            },
+            CodeActionProvider: true,
+        },
+        ServerInfo: &ServerInfo{Name: "hexai", Version: version},
+    }
+    s.reply(req.ID, res, nil)
+}
+
+func (s *Server) handleCodeAction(req Request) {
+    var p CodeActionParams
+    if err := json.Unmarshal(req.Params, &p); err != nil {
+        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
+        return
+    }
+    if s.llmClient == nil {
+        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
+        return
+    }
+    // Extract selected text
+    d := s.getDocument(p.TextDocument.URI)
+    if d == nil || len(d.lines) == 0 {
+        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
+        return
+    }
+    sel := extractRangeText(d, p.Range)
+    if strings.TrimSpace(sel) == "" {
+        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
+        return
+    }
+    // Derive instruction from selection comments (prefer first), including ;text; marker
+    instr, cleaned := instructionFromSelection(sel)
+    if strings.TrimSpace(instr) == "" {
+        // No instruction; do not offer an action
+        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
+        return
+    }
+    // Build prompt for rewrite of cleaned selection according to instruction
+    sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
+    user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", instr, cleaned)
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+    messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+    text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.1))
+    if err != nil {
+        logging.Logf("lsp ", "codeAction llm error: %v", err)
+        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
+        return
+    }
+    out := strings.TrimSpace(text)
+    if out == "" {
+        if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{}, nil) }
+        return
+    }
+    edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
+    action := CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Edit: &edit}
+    if len(req.ID) != 0 { s.reply(req.ID, []CodeAction{action}, nil) }
+}
+
+// instructionFromSelection extracts the first instruction from selection text.
+// Preference order on each line: strict ;text; marker (no inner spaces), then
+// a line comment (//, #, --). Returns the instruction string and the selection
+// text cleaned of the matched instruction marker or comment.
+func instructionFromSelection(sel string) (string, string) {
+    lines := splitLines(sel)
+    for idx, line := range lines {
+        if instr, cleaned, ok := findFirstInstructionInLine(line); ok && strings.TrimSpace(instr) != "" {
+            lines[idx] = cleaned
+            return instr, strings.Join(lines, "\n")
+        }
+    }
+    return "", sel
+}
+
+// findFirstInstructionInLine returns the earliest instruction marker on the
+// line and the line with that marker removed. Supported markers, ordered by
+// earliest byte offset in the line:
+// - ;text; (strict, no space after first ';' or before last ';')
+// - /* text */ (single-line only)
+// - <!-- text --> (single-line only)
+// - // text
+// - # text
+// - -- text
+func findFirstInstructionInLine(line string) (instr string, cleaned string, ok bool) {
+    type cand struct{ start, end int; text string }
+    cands := []cand{}
+    if t, l, r, ok := findStrictSemicolonTag(line); ok {
+        cands = append(cands, cand{start: l, end: r, text: t})
+    }
+    if i := strings.Index(line, "/*"); i >= 0 {
+        if j := strings.Index(line[i+2:], "*/"); j >= 0 {
+            start := i
+            end := i + 2 + j + 2
+            text := strings.TrimSpace(line[i+2 : i+2+j])
+            cands = append(cands, cand{start: start, end: end, text: text})
+        }
+    }
+    if i := strings.Index(line, "<!--"); i >= 0 {
+        if j := strings.Index(line[i+4:], "-->"); j >= 0 {
+            start := i
+            end := i + 4 + j + 3
+            text := strings.TrimSpace(line[i+4 : i+4+j])
+            cands = append(cands, cand{start: start, end: end, text: text})
+        }
+    }
+    if i := strings.Index(line, "//"); i >= 0 { cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+2:])}) }
+    if i := strings.Index(line, "#"); i >= 0 { cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+1:])}) }
+    if i := strings.Index(line, "--"); i >= 0 { cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+2:])}) }
+    if len(cands) == 0 { return "", line, false }
+    // pick earliest start index
+    best := cands[0]
+    for _, c := range cands[1:] {
+        if c.start >= 0 && (best.start < 0 || c.start < best.start) {
+            best = c
+        }
+    }
+    cleaned = strings.TrimRight(line[:best.start]+line[best.end:], " \t")
+    return best.text, cleaned, true
+}
+
+// findStrictSemicolonTag finds ;text; with no space after first ';' and no space
+// before the last ';' on the given line. Returns the text between semicolons,
+// the start index of the opening ';', the end index just after the closing ';',
+// and whether it was found.
+func findStrictSemicolonTag(line string) (string, int, int, bool) {
+    pos := 0
+    for pos < len(line) {
+        j := strings.Index(line[pos:], ";")
+        if j < 0 { return "", 0, 0, false }
+        j += pos
+        // ensure single ';' (not ';;') and non-space after
+        if j+1 >= len(line) || line[j+1] == ';' || line[j+1] == ' ' { pos = j + 1; continue }
+        k := strings.Index(line[j+1:], ";")
+        if k < 0 { return "", 0, 0, false }
+        closeIdx := j + 1 + k
+        if closeIdx-1 < 0 || line[closeIdx-1] == ' ' { pos = closeIdx + 1; continue }
+        inner := strings.TrimSpace(line[j+1 : closeIdx])
+        if inner == "" { pos = closeIdx + 1; continue }
+        end := closeIdx + 1
+        return inner, j, end, true
+    }
+    return "", 0, 0, false
+}
+
+// extractRangeText returns the exact text within the given document range.
+func extractRangeText(d *document, r Range) string {
+    if r.Start.Line == r.End.Line {
+        line := d.lines[r.Start.Line]
+        if r.Start.Character < 0 { r.Start.Character = 0 }
+        if r.End.Character > len(line) { r.End.Character = len(line) }
+        if r.Start.Character > r.End.Character { return "" }
+        return line[r.Start.Character:r.End.Character]
+    }
+    var b strings.Builder
+    // first line
+    first := d.lines[r.Start.Line]
+    if r.Start.Character < 0 { r.Start.Character = 0 }
+    if r.Start.Character > len(first) { r.Start.Character = len(first) }
+    b.WriteString(first[r.Start.Character:])
+    b.WriteString("\n")
+    // middle lines
+    for i := r.Start.Line + 1; i < r.End.Line; i++ {
+        b.WriteString(d.lines[i])
+        if i+1 <= r.End.Line { b.WriteString("\n") }
+    }
+    // last line
+    last := d.lines[r.End.Line]
+    if r.End.Character < 0 { r.End.Character = 0 }
+    if r.End.Character > len(last) { r.End.Character = len(last) }
+    b.WriteString(last[:r.End.Character])
+    return b.String()
 }
 
 func (s *Server) handleInitialized() {
