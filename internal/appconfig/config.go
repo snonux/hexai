@@ -18,7 +18,7 @@ type App struct {
 	ContextWindowLines int      `json:"context_window_lines"`
 	MaxContextTokens   int      `json:"max_context_tokens"`
 	LogPreviewLimit    int      `json:"log_preview_limit"`
-	NoDiskIO           bool     `json:"no_disk_io"`
+	
 	TriggerCharacters  []string `json:"trigger_characters"`
 	Provider           string   `json:"provider"`
 
@@ -40,7 +40,7 @@ func Load(logger *log.Logger) App {
 		ContextWindowLines: 120,
 		MaxContextTokens:   4000,
 		LogPreviewLimit:    100,
-		NoDiskIO:           true,
+		
 	}
 	if logger == nil {
 		return cfg // Return defaults if no logger is provided (e.g. in tests)
@@ -86,7 +86,7 @@ func Load(logger *log.Logger) App {
 	if fileCfg.LogPreviewLimit >= 0 {
 		cfg.LogPreviewLimit = fileCfg.LogPreviewLimit
 	}
-	cfg.NoDiskIO = fileCfg.NoDiskIO
+	
 	if len(fileCfg.TriggerCharacters) > 0 {
 		cfg.TriggerCharacters = slices.Clone(fileCfg.TriggerCharacters)
 	}
