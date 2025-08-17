@@ -29,75 +29,95 @@ type App struct {
     CopilotModel   string `json:"copilot_model"`
 }
 
-// Load reads configuration from ~/.config/hexai/config.json and merges with defaults.
+// Load reads configuration from a file and merges with defaults.
+// It respects the XDG Base Directory Specification.
 func Load(logger *log.Logger) App {
-    cfg := App{
-        MaxTokens:          4000,
-        ContextMode:        "always-full",
-        ContextWindowLines: 120,
-        MaxContextTokens:   4000,
-        LogPreviewLimit:    100,
-        NoDiskIO:           true,
-    }
-    home, err := os.UserHomeDir()
-    if err != nil {
-        return cfg
-    }
-    path := filepath.Join(home, ".config", "hexai", "config.json")
-    f, err := os.Open(path)
-    if err != nil {
-        return cfg
-    }
-    defer f.Close()
-    dec := json.NewDecoder(f)
-    var fileCfg App
-    if err := dec.Decode(&fileCfg); err != nil {
-        if logger != nil {
-            logger.Printf("invalid config file %s: %v", path, err)
-        }
-        return cfg
-    }
-    // Merge: file overrides defaults when provided
-    if fileCfg.MaxTokens > 0 {
-        cfg.MaxTokens = fileCfg.MaxTokens
-    }
-    if strings.TrimSpace(fileCfg.ContextMode) != "" {
-        cfg.ContextMode = fileCfg.ContextMode
-    }
-    if fileCfg.ContextWindowLines > 0 {
-        cfg.ContextWindowLines = fileCfg.ContextWindowLines
-    }
-    if fileCfg.MaxContextTokens > 0 {
-        cfg.MaxContextTokens = fileCfg.MaxContextTokens
-    }
-    if fileCfg.LogPreviewLimit >= 0 {
-        cfg.LogPreviewLimit = fileCfg.LogPreviewLimit
-    }
-    cfg.NoDiskIO = fileCfg.NoDiskIO
-    if len(fileCfg.TriggerCharacters) > 0 {
-        cfg.TriggerCharacters = append([]string{}, fileCfg.TriggerCharacters...)
-    }
-    if strings.TrimSpace(fileCfg.Provider) != "" {
-        cfg.Provider = fileCfg.Provider
-    }
-    // Provider-specific options
-    if strings.TrimSpace(fileCfg.OpenAIBaseURL) != "" {
-        cfg.OpenAIBaseURL = fileCfg.OpenAIBaseURL
-    }
-    if strings.TrimSpace(fileCfg.OpenAIModel) != "" {
-        cfg.OpenAIModel = fileCfg.OpenAIModel
-    }
-    if strings.TrimSpace(fileCfg.OllamaBaseURL) != "" {
-        cfg.OllamaBaseURL = fileCfg.OllamaBaseURL
-    }
-    if strings.TrimSpace(fileCfg.OllamaModel) != "" {
-        cfg.OllamaModel = fileCfg.OllamaModel
-    }
-    if strings.TrimSpace(fileCfg.CopilotBaseURL) != "" {
-        cfg.CopilotBaseURL = fileCfg.CopilotBaseURL
-    }
-    if strings.TrimSpace(fileCfg.CopilotModel) != "" {
-        cfg.CopilotModel = fileCfg.CopilotModel
-    }
-    return cfg
+	cfg := App{
+		MaxTokens:          4000,
+		ContextMode:        "always-full",
+		ContextWindowLines: 120,
+		MaxContextTokens:   4000,
+		LogPreviewLimit:    100,
+		NoDiskIO:           true,
+	}
+
+	if logger == nil {
+		return cfg // Return defaults if no logger is provided (e.g. in tests)
+	}
+
+	var configPath string
+	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+		configPath = filepath.Join(xdgConfigHome, "hexai", "config.json")
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+				if logger != nil {
+					logger.Printf("cannot find user home directory: %v", err)
+				}
+			return cfg // Return defaults if home dir is not found
+		}
+		configPath = filepath.Join(home, ".config", "hexai", "config.json")
+	}
+
+	f, err := os.Open(configPath)
+	if err != nil {
+		if !os.IsNotExist(err) && logger != nil {
+			logger.Printf("cannot open config file %s: %v", configPath, err)
+		}
+		return cfg // Return defaults if file doesn't exist or can't be opened
+	}
+	defer f.Close()
+
+	dec := json.NewDecoder(f)
+	var fileCfg App
+	if err := dec.Decode(&fileCfg); err != nil {
+		if logger != nil {
+			logger.Printf("invalid config file %s: %v", configPath, err)
+		}
+		return cfg // Return defaults on decoding error
+	}
+
+	// Merge: file overrides defaults when provided
+	if fileCfg.MaxTokens > 0 {
+		cfg.MaxTokens = fileCfg.MaxTokens
+	}
+	if strings.TrimSpace(fileCfg.ContextMode) != "" {
+		cfg.ContextMode = fileCfg.ContextMode
+	}
+	if fileCfg.ContextWindowLines > 0 {
+		cfg.ContextWindowLines = fileCfg.ContextWindowLines
+	}
+	if fileCfg.MaxContextTokens > 0 {
+		cfg.MaxContextTokens = fileCfg.MaxContextTokens
+	}
+	if fileCfg.LogPreviewLimit >= 0 {
+		cfg.LogPreviewLimit = fileCfg.LogPreviewLimit
+	}
+	cfg.NoDiskIO = fileCfg.NoDiskIO
+	if len(fileCfg.TriggerCharacters) > 0 {
+		cfg.TriggerCharacters = append([]string{}, fileCfg.TriggerCharacters...)
+	}
+	if strings.TrimSpace(fileCfg.Provider) != "" {
+		cfg.Provider = fileCfg.Provider
+	}
+	// Provider-specific options
+	if strings.TrimSpace(fileCfg.OpenAIBaseURL) != "" {
+		cfg.OpenAIBaseURL = fileCfg.OpenAIBaseURL
+	}
+	if strings.TrimSpace(fileCfg.OpenAIModel) != "" {
+		cfg.OpenAIModel = fileCfg.OpenAIModel
+	}
+	if strings.TrimSpace(fileCfg.OllamaBaseURL) != "" {
+		cfg.OllamaBaseURL = fileCfg.OllamaBaseURL
+	}
+	if strings.TrimSpace(fileCfg.OllamaModel) != "" {
+		cfg.OllamaModel = fileCfg.OllamaModel
+	}
+	if strings.TrimSpace(fileCfg.CopilotBaseURL) != "" {
+		cfg.CopilotBaseURL = fileCfg.CopilotBaseURL
+	}
+	if strings.TrimSpace(fileCfg.CopilotModel) != "" {
+		cfg.CopilotModel = fileCfg.CopilotModel
+	}
+	return cfg
 }

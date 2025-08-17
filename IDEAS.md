@@ -50,18 +50,3 @@ Be able to switch LLMs.
 
 ## Usage notes
 
-Helix' `languages.toml`
-
-```toml
-[[language]]
-name = "go"
-auto-format= true
-diagnostic-severity = "hint"
-formatter = { command = "goimports" }
-language-servers = [ "gopls", "golangci-lint-lsp", "hexai" ]
-# language-servers = [ "gopls", "golangci-lint-lsp", "lsp-ai", "gpt", "hexai" ]
-
-[language-server.hexai]
-command = "hexai"
-```
-

@@ -4,11 +4,41 @@
 
 Hexai, the AI LSP for the Helix editor and also a simple command line tool to interact with LLMs in general.
 
-At the moment this project is in the alpha state.
-
-## LLM provider
-
 Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilot, and a local Ollama server. Provider selection and models are configured via a JSON configuration file.
+
+## Configuration
+
+### Example configuration file
+
+- Location: `$XDG_CONFIG_HOME/hexai/config.json` (usually `~/.config/hexai/config.json`)
+- Example:
+
+```
+{
+  "max_tokens": 4000,
+  "context_mode": "always-full",
+  "context_window_lines": 120,
+  "max_context_tokens": 4000,
+  "log_preview_limit": 100,
+  "no_disk_io": true,
+  "trigger_characters": [".", ":", "/", "_", ";", "?"],
+  "provider": "ollama",
+  "copilot_model": "gpt-4.1",
+  "copilot_base_url": "https://api.githubcopilot.com",
+  "openai_model": "gpt-4.1",
+  "openai_base_url": "https://api.openai.com/v1",
+  "ollama_model": "qwen2.5-coder:latest",
+  "ollama_base_url": "http://localhost:11434"
+}
+```
+
+* context_mode: minimal | window | file-on-new-func | always-full
+* provider: openai | copilot | ollama
+* openai_model, openai_base_url: OpenAI-only options
+* copilot_model, copilot_base_url: Copilot-only options
+* ollama_model, ollama_base_url: Ollama-only options
+
+Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment according to your chosen provider.
 
 ### Selecting a provider
 
@@ -40,7 +70,9 @@ Notes:
 - If you run Ollama in OpenAI‑compatible mode, you may alternatively use the
   OpenAI provider with `openai_base_url` in the config pointing to your local endpoint.
 
-## CLI usage and configuration
+## Usage
+
+### Hexai LSP Server
 
 - Run LSP server over stdio:
   - `hexai-lsp`
@@ -49,46 +81,62 @@ Notes:
   - `-version`: print the Hexai version and exit.
   - `-log`: path to log file (optional; default `/tmp/hexai-lsp.log`).
 
+### Configure in Helix
+ 
+In Helix'  `~/.config/helix/languages.toml`, configure for example the following:
+
+```toml
+[[language]]
+name = "go"
+auto-format= true
+diagnostic-severity = "hint"
+formatter = { command = "goimports" }
+language-servers = [ "gopls", "golangci-lint-lsp", "hexai" ]
+
+[language-server.hexai]
+command = "hexai"
+```
+
+Note, that we have also configured other LSPs here (for Go, `gopls` and `golangci-lint-lsp`, along with `hexai` for AI completions - they aren't required for `hexai` to work, though)
+
+## Inline triggers
+
+Hexai LSP supports inline trigger tags you can type in your code to request an
+action from the LLM and then clean up the tag automatically.
+
+- `;some prompt here;`: Do what is written in `some prompt text here`, then remove just the prompt.
+  - Strict form: no space after the first ``.
+  - An optional single space immediately after the closing `;` is also removed.
+- Spaced variants such as `; text ; spaced ;` are ignored.
+- `some text here ;;some prompt;`
+
+## Code actions
+
+Hexai provides code actions that operate only on the current selection in Helix:
+
+- Rewrite selection: Hexai looks for the first instruction inside the selection
+  and rewrites the selection accordingly.
+- Resolve diagnostics: With a selection active, Hexai gathers only diagnostics
+  that overlap your selection and fixes them by editing only the selected code.
+  Diagnostics outside the selection are not modified.
+
+Instruction sources (first one found wins):
+
+- Strict marker: `` (no space after first ``).
+- Line comments: `// text`, `# text`, `-- text`.
+- Single-line block comments: `/* text */`, `<!-- text -->`.
+
+## Hexai CLI tool
+
 - Run command-line tool (processes text via configured LLM):
   - `cat SOMEFILE.txt | hexai`
   - `hexai 'some prompt text here'`
   - `cat SOMEFILE.txt | hexai 'some prompt text here'` (stdin and arg are concatenated)
 
-Notes for `hexai` (CLI):
-- Prints LLM output to stdout.
-- Prints provider/model immediately to stderr, and a summary to stderr at the end (time, input bytes, output bytes, provider/model).
-- Default response style: short answers. If the prompt asks for commands, outputs only the commands with no explanation. Include the word `explain` anywhere in the prompt to request a verbose explanation.
-- Streams output: when supported by the provider (OpenAI, Ollama), `hexai` streams tokens and prints them to stdout as they arrive. Copilot falls back to non-streaming.
-
-### Hexai CLI behavior
-
-- Inputs: reads from stdin, from a single argument, or both.
-  - If both are provided, Hexai concatenates them with a blank line in between.
-- Output routing:
-  - Stdout: the LLM response only (no decorations).
-  - Stderr: metadata and progress in grey on black (styled via ANSI):
-    - Provider/model printed immediately when the request starts.
-    - A final stats line on a new line: `done provider=… model=… time=… in_bytes=… out_bytes=…`.
 - Default style: concise answers.
   - If the prompt asks for commands, outputs only the commands with no commentary.
   - Add the word `explain` in your prompt to request a verbose explanation.
 - Exit codes: `0` success, `1` provider/config error, `2` no input.
-
-### Internal CLI package
-
-- Package `internal/hexaicli` contains the CLI logic extracted from `cmd/hexai`.
-- Entry points:
-- `Run(ctx, args, stdin, stdout, stderr)`: Full CLI flow; parses input and builds the LLM client from config/env.
-- `RunWithClient(ctx, args, stdin, stdout, stderr, client)`: Same flow using a provided `llm.Client` (useful for tests and embedding).
-- Behavior is identical to the `hexai` binary: provider/model banner on stderr, streamed output when available, and a final summary line.
-
-### Internal LSP package
-
-- Package `internal/hexailsp` contains the LSP binary logic extracted from `cmd/hexai-lsp`.
-- Entry points:
-- `Run(logPath, stdin, stdout, stderr)`: Configures logging, loads config, builds the LLM client, and runs the LSP server over stdio.
-- `RunWithFactory(logPath, stdin, stdout, logger, cfg, client, factory)`: Testable entry that accepts a prebuilt `llm.Client` and a factory for `lsp.Server` creation.
-- Mirrors the behavior of the `hexai-lsp` binary while enabling unit tests without invoking the full server loop.
 
 Examples:
 
@@ -109,74 +157,3 @@ hexai 'install ripgrep on macOS'
 hexai 'install ripgrep on macOS and explain'
 ```
 
-Notes:
-- Token estimation for truncation uses a simple 4 chars/token heuristic.
-- Full-file context is only included by default when defining a new function to balance quality, latency, and cost.
-
-- Location: `~/.config/hexai/config.json`
-- Example:
-
-```
-{
-  "max_tokens": 4000,
-  "context_mode": "always-full",
-  "context_window_lines": 120,
-  "max_context_tokens": 4000,
-  "log_preview_limit": 100,
-  "no_disk_io": true,
-  "trigger_characters": [".", ":", "/", "_", ";", "?"],
-  "provider": "ollama",
-  "copilot_model": "gpt-4.1",
-  "copilot_base_url": "https://api.githubcopilot.com",
-  "openai_model": "gpt-4.1",
-  "openai_base_url": "https://api.openai.com/v1",
-  "ollama_model": "qwen2.5-coder:latest",
-  "ollama_base_url": "http://localhost:11434"
-}
-```
-
-* context_mode: minimal | window | file-on-new-func | always-full
-* provider: openai | copilot | ollama
-* openai_model, openai_base_url: OpenAI-only options
-* copilot_model, copilot_base_url: Copilot-only options
-* ollama_model, ollama_base_url: Ollama-only options
-Minimal config (defaults to OpenAI):
-
-```
-{}
-```
-
-Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment according to your chosen provider.
-
-## Inline triggers
-
-Hexai supports inline trigger tags you can type in your code to request an
-action from the LLM and then clean up the tag automatically.
-
-- ``: Do what is written in `text`, then remove just the `` marker.
-  - Strict form: no space after the first ``.
-  - An optional single space immediately after the closing `;` is also removed.
-  - Multiple markers per line are supported.
-  - Example: `// TODO ` removes only the marker.
-- Spaced variants such as `; text ; spaced ;` are ignored.
-
-## Code actions
-
-Hexai provides code actions that operate only on the current selection in Helix:
-
-- Rewrite selection: Hexai looks for the first instruction inside the selection
-  and rewrites the selection accordingly.
-- Resolve diagnostics: With a selection active, Hexai gathers only diagnostics
-  that overlap your selection and fixes them by editing only the selected code.
-  Diagnostics outside the selection are not modified.
-
-Instruction sources (first one found wins):
-
-- Strict marker: `` (no space after first ``).
-- Line comments: `// text`, `# text`, `-- text`.
-- Single-line block comments: `/* text */`, `<!-- text -->`.
-
-Notes:
-
-- Only the earliest instruction in the selection is used; Hexai removes that marker/comment from the selection before sending it to the LLM.
-- The action returns only the transformed code and replaces exactly the selected range.
