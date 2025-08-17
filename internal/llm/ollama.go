@@ -21,7 +21,7 @@ type ollamaClient struct {
 	httpClient   *http.Client
 	baseURL      string
 	defaultModel string
-	chatLogger   *logging.ChatLogger
+	chatLogger   logging.ChatLogger
 }
 
 func newOllama(baseURL, model string) Client {
@@ -31,7 +31,7 @@ func newOllama(baseURL, model string) Client {
 	if strings.TrimSpace(model) == "" {
 		model = "qwen2.5-coder:latest"
 	}
-	return &ollamaClient{
+	return ollamaClient{
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
 		baseURL:      strings.TrimRight(baseURL, "/"),
 		defaultModel: model,
@@ -55,7 +55,7 @@ type ollamaChatResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
-func (c *ollamaClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
+func (c ollamaClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	o := Options{Model: c.defaultModel}
 	for _, opt := range opts {
 		opt(&o)
@@ -143,11 +143,11 @@ func (c *ollamaClient) Chat(ctx context.Context, messages []Message, opts ...Req
 }
 
 // Provider metadata
-func (c *ollamaClient) Name() string         { return "ollama" }
-func (c *ollamaClient) DefaultModel() string { return c.defaultModel }
+func (c ollamaClient) Name() string         { return "ollama" }
+func (c ollamaClient) DefaultModel() string { return c.defaultModel }
 
 // Streaming support (optional)
-func (c *ollamaClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
+func (c ollamaClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
 	o := Options{Model: c.defaultModel}
 	for _, opt := range opts {
 		opt(&o)
