@@ -21,7 +21,7 @@ type copilotClient struct {
 	apiKey       string
 	baseURL      string
 	defaultModel string
-	chatLogger   *logging.ChatLogger
+    chatLogger   logging.ChatLogger
 }
 
 func newCopilot(baseURL, model, apiKey string) Client {
@@ -31,13 +31,13 @@ func newCopilot(baseURL, model, apiKey string) Client {
 	if strings.TrimSpace(model) == "" {
 		model = "gpt-4.1"
 	}
-	return &copilotClient{
-		httpClient:   &http.Client{Timeout: 30 * time.Second},
-		apiKey:       apiKey,
-		baseURL:      strings.TrimRight(baseURL, "/"),
-		defaultModel: model,
-		chatLogger:   logging.NewChatLogger("copilot"),
-	}
+    return copilotClient{
+        httpClient:   &http.Client{Timeout: 30 * time.Second},
+        apiKey:       apiKey,
+        baseURL:      strings.TrimRight(baseURL, "/"),
+        defaultModel: model,
+        chatLogger:   logging.NewChatLogger("copilot"),
+    }
 }
 
 type copilotChatRequest struct {
@@ -70,7 +70,7 @@ type copilotChatResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func (c *copilotClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
+func (c copilotClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	if strings.TrimSpace(c.apiKey) == "" {
 		return nilStringErr("missing Copilot API key")
 	}
@@ -158,5 +158,5 @@ func (c *copilotClient) Chat(ctx context.Context, messages []Message, opts ...Re
 }
 
 // Provider metadata
-func (c *copilotClient) Name() string         { return "copilot" }
-func (c *copilotClient) DefaultModel() string { return c.defaultModel }
+func (c copilotClient) Name() string         { return "copilot" }
+func (c copilotClient) DefaultModel() string { return c.defaultModel }

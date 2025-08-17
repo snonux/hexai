@@ -6,12 +6,12 @@ type ChatLogger struct {
 }
 
 // NewChatLogger creates a new ChatLogger for a given provider.
-func NewChatLogger(provider string) *ChatLogger {
-	return &ChatLogger{Provider: provider}
+func NewChatLogger(provider string) ChatLogger {
+	return ChatLogger{Provider: provider}
 }
 
 // LogStart logs the beginning of a chat or stream interaction.
-func (cl *ChatLogger) LogStart(stream bool, model string, temp float64, maxTokens int, stop []string, messages []struct {
+func (cl ChatLogger) LogStart(stream bool, model string, temp float64, maxTokens int, stop []string, messages []struct {
 	Role    string
 	Content string
 }) {

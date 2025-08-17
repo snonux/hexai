@@ -22,7 +22,7 @@ type openAIClient struct {
 	apiKey       string
 	baseURL      string
 	defaultModel string
-	chatLogger   *logging.ChatLogger
+    chatLogger   logging.ChatLogger
 }
 
 // newOpenAI constructs an OpenAI client using explicit configuration values.
@@ -34,13 +34,13 @@ func newOpenAI(baseURL, model, apiKey string) Client {
 	if strings.TrimSpace(model) == "" {
 		model = "gpt-4.1"
 	}
-	return &openAIClient{
-		httpClient:   &http.Client{Timeout: 30 * time.Second},
-		apiKey:       apiKey,
-		baseURL:      baseURL,
-		defaultModel: model,
-		chatLogger:   logging.NewChatLogger("openai"),
-	}
+    return openAIClient{
+        httpClient:   &http.Client{Timeout: 30 * time.Second},
+        apiKey:       apiKey,
+        baseURL:      baseURL,
+        defaultModel: model,
+        chatLogger:   logging.NewChatLogger("openai"),
+    }
 }
 
 type oaChatRequest struct {
@@ -74,7 +74,7 @@ type oaChatResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
+func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	if c.apiKey == "" {
 		return nilStringErr("missing OpenAI API key")
 	}
@@ -159,11 +159,11 @@ func (c *openAIClient) Chat(ctx context.Context, messages []Message, opts ...Req
 	return content, nil
 }
 
-func (c *openAIClient) logf(format string, args ...any) { logging.Logf("llm/openai ", format, args...) }
+func (c openAIClient) logf(format string, args ...any) { logging.Logf("llm/openai ", format, args...) }
 
 // Provider metadata
-func (c *openAIClient) Name() string         { return "openai" }
-func (c *openAIClient) DefaultModel() string { return c.defaultModel }
+func (c openAIClient) Name() string         { return "openai" }
+func (c openAIClient) DefaultModel() string { return c.defaultModel }
 
 // Streaming support (optional)
 type oaStreamChunk struct {
@@ -181,7 +181,7 @@ type oaStreamChunk struct {
 	} `json:"error,omitempty"`
 }
 
-func (c *openAIClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
+func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
 	if c.apiKey == "" {
 		return errors.New("missing OpenAI API key")
 	}
