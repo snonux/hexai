@@ -2,7 +2,7 @@
 
 ![HexAI Small Logo](hexai-small.png)
 
-Hexai, the AI LSP for the Helix editor.
+Hexai, the AI LSP for the Helix editor and also a simple command line tool to interact with LLMs in general.
 
 At the moment this project is only in the proof of PoC phase.
 
