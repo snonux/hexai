@@ -24,6 +24,10 @@ type fakeServer struct{
 func (f *fakeServer) Run() error { f.ran = true; return nil }
 
 func TestRunWithFactory_UsesDefaultsAndCallsServer(t *testing.T) {
+    old := os.Getenv("OPENAI_API_KEY")
+    t.Cleanup(func(){ _ = os.Setenv("OPENAI_API_KEY", old) })
+    _ = os.Setenv("OPENAI_API_KEY", "")
+
     var stderr bytes.Buffer
     logger := log.New(&stderr, "hexai-lsp ", 0)
     cfg := appconfig.Load(nil) // defaults

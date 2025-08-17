@@ -1,5 +1,4 @@
 // Summary: Hexai CLI entrypoint; parses flags and delegates to internal/hexaicli.
-// Not yet reviewed by a human
 package main
 
 import (
