@@ -13,6 +13,7 @@ import (
     "hexai/internal"
     "hexai/internal/appconfig"
     "hexai/internal/llm"
+    "hexai/internal/logging"
 )
 
 func main() {
@@ -43,7 +44,7 @@ func main() {
     case argData != "":
         input = argData
     default:
-        fmt.Fprintln(os.Stderr, "hexai: no input provided; pass text as an argument or via stdin")
+        fmt.Fprintln(os.Stderr, logging.AnsiBase+"hexai: no input provided; pass text as an argument or via stdin"+logging.AnsiReset)
         os.Exit(2)
     }
 
@@ -64,20 +65,28 @@ func main() {
     cpKey := os.Getenv("COPILOT_API_KEY")
     client, err := llm.NewFromConfig(llmCfg, oaKey, cpKey)
     if err != nil {
-        fmt.Fprintf(os.Stderr, "hexai: LLM disabled: %v\n", err)
+        fmt.Fprintf(os.Stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
         os.Exit(1)
     }
 
     // Print provider/model immediately to stderr
-    fmt.Fprintf(os.Stderr, "provider=%s model=%s\n", client.Name(), client.DefaultModel())
+    fmt.Fprintf(os.Stderr, logging.AnsiBase+"provider=%s model=%s"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel())
 
     // Prepare and send request
     start := time.Now()
-    msgs := []llm.Message{{Role: "user", Content: input}}
+    lower := strings.ToLower(input)
+    system := "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation."
+    if strings.Contains(lower, "explain") {
+        system = "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context."
+    }
+    msgs := []llm.Message{
+        {Role: "system", Content: system},
+        {Role: "user", Content: input},
+    }
     out, err := client.Chat(context.Background(), msgs)
     dur := time.Since(start)
     if err != nil {
-        fmt.Fprintf(os.Stderr, "hexai: error: %v\n", err)
+        fmt.Fprintf(os.Stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
         os.Exit(1)
     }
 
@@ -87,5 +96,5 @@ func main() {
     // Summary to stderr (preceded by a blank line)
     inSize := len(input)
     outSize := len(out)
-    fmt.Fprintf(os.Stderr, "\ndone provider=%s model=%s time=%s in_bytes=%d out_bytes=%d\n", client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), inSize, outSize)
+    fmt.Fprintf(os.Stderr, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), inSize, outSize)
 }
