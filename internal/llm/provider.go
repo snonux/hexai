@@ -15,12 +15,22 @@ type Message struct {
 // Client is a minimal LLM provider interface.
 // Future providers (Ollama, etc.) should implement this.
 type Client interface {
-	// Chat sends chat messages and returns the assistant text.
-	Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error)
-	// Name returns the provider's short name (e.g., "openai", "ollama").
-	Name() string
-	// DefaultModel returns the configured default model name.
-	DefaultModel() string
+    // Chat sends chat messages and returns the assistant text.
+    Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error)
+    // Name returns the provider's short name (e.g., "openai", "ollama").
+    Name() string
+    // DefaultModel returns the configured default model name.
+    DefaultModel() string
+}
+
+// Streamer is an optional interface that providers may implement to support
+// token-by-token streaming responses. Callers can type-assert to Streamer and
+// fall back to Client.Chat when not implemented.
+type Streamer interface {
+    // ChatStream sends chat messages and invokes onDelta with incremental text
+    // chunks as they are produced by the model. Implementations should call
+    // onDelta with empty strings sparingly (prefer only non-empty chunks).
+    ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error
 }
 
 // Options for a request. Providers may ignore unsupported fields.

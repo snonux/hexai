@@ -83,18 +83,34 @@ func main() {
         {Role: "system", Content: system},
         {Role: "user", Content: input},
     }
-    out, err := client.Chat(context.Background(), msgs)
-    dur := time.Since(start)
-    if err != nil {
-        fmt.Fprintf(os.Stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
-        os.Exit(1)
+    var out string
+    if s, ok := client.(llm.Streamer); ok {
+        var b strings.Builder
+        err := s.ChatStream(context.Background(), msgs, func(chunk string) {
+            b.WriteString(chunk)
+            fmt.Fprint(os.Stdout, chunk)
+        })
+        dur := time.Since(start)
+        if err != nil {
+            fmt.Fprintf(os.Stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
+            os.Exit(1)
+        }
+        out = b.String()
+        // Summary
+        inSize := len(input)
+        outSize := len(out)
+        fmt.Fprintf(os.Stderr, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), inSize, outSize)
+    } else {
+        outText, err := client.Chat(context.Background(), msgs)
+        dur := time.Since(start)
+        if err != nil {
+            fmt.Fprintf(os.Stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
+            os.Exit(1)
+        }
+        out = outText
+        fmt.Fprint(os.Stdout, out)
+        inSize := len(input)
+        outSize := len(out)
+        fmt.Fprintf(os.Stderr, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), inSize, outSize)
     }
-
-    // Write assistant output to stdout
-    fmt.Fprint(os.Stdout, out)
-
-    // Summary to stderr (preceded by a blank line)
-    inSize := len(input)
-    outSize := len(out)
-    fmt.Fprintf(os.Stderr, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), inSize, outSize)
 }

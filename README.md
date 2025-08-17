@@ -58,6 +58,7 @@ Notes for `hexai` (CLI):
 - Prints LLM output to stdout.
 - Prints provider/model immediately to stderr, and a summary to stderr at the end (time, input bytes, output bytes, provider/model).
 - Default response style: short answers. If the prompt asks for commands, outputs only the commands with no explanation. Include the word `explain` anywhere in the prompt to request a verbose explanation.
+- Streams output: when supported by the provider (OpenAI, Ollama), `hexai` streams tokens and prints them to stdout as they arrive. Copilot falls back to non-streaming.
 
 ### Hexai CLI behavior
 
