@@ -84,8 +84,8 @@ func main() {
     // Write assistant output to stdout
     fmt.Fprint(os.Stdout, out)
 
-    // Summary to stderr
+    // Summary to stderr (preceded by a blank line)
     inSize := len(input)
     outSize := len(out)
-    fmt.Fprintf(os.Stderr, "done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d\n", client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), inSize, outSize)
+    fmt.Fprintf(os.Stderr, "\ndone provider=%s model=%s time=%s in_bytes=%d out_bytes=%d\n", client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), inSize, outSize)
 }
