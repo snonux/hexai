@@ -72,6 +72,25 @@ type oaStreamChunk struct {
     } `json:"error,omitempty"`
 }
 
+// Constructor (kept among the first functions by convention)
+// newOpenAI constructs an OpenAI client using explicit configuration values.
+// The apiKey may be empty; calls will fail until a valid key is supplied.
+func newOpenAI(baseURL, model, apiKey string) Client {
+    if strings.TrimSpace(baseURL) == "" {
+        baseURL = "https://api.openai.com/v1"
+    }
+    if strings.TrimSpace(model) == "" {
+        model = "gpt-4.1"
+    }
+    return openAIClient{
+        httpClient:   &http.Client{Timeout: 30 * time.Second},
+        apiKey:       apiKey,
+        baseURL:      baseURL,
+        defaultModel: model,
+        chatLogger:   logging.NewChatLogger("openai"),
+    }
+}
+
 func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	if c.apiKey == "" {
 		return nilStringErr("missing OpenAI API key")
@@ -277,21 +296,3 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 
 // Private helpers
 func (c openAIClient) logf(format string, args ...any) { logging.Logf("llm/openai ", format, args...) }
-
-// newOpenAI constructs an OpenAI client using explicit configuration values.
-// The apiKey may be empty; calls will fail until a valid key is supplied.
-func newOpenAI(baseURL, model, apiKey string) Client {
-    if strings.TrimSpace(baseURL) == "" {
-        baseURL = "https://api.openai.com/v1"
-    }
-    if strings.TrimSpace(model) == "" {
-        model = "gpt-4.1"
-    }
-    return openAIClient{
-        httpClient:   &http.Client{Timeout: 30 * time.Second},
-        apiKey:       apiKey,
-        baseURL:      baseURL,
-        defaultModel: model,
-        chatLogger:   logging.NewChatLogger("openai"),
-    }
-}

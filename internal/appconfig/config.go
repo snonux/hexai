@@ -31,6 +31,17 @@ type App struct {
 	CopilotModel   string `json:"copilot_model"`
 }
 
+// Constructor: defaults for App (kept first among functions)
+func newDefaultConfig() App {
+    return App{
+        MaxTokens:          4000,
+        ContextMode:        "always-full",
+        ContextWindowLines: 120,
+        MaxContextTokens:   4000,
+        LogPreviewLimit:    100,
+    }
+}
+
 // Load reads configuration from a file and merges with defaults.
 // It respects the XDG Base Directory Specification.
 func Load(logger *log.Logger) App {
@@ -55,16 +66,6 @@ func Load(logger *log.Logger) App {
 }
 
 // Private helpers
-func newDefaultConfig() App {
-    return App{
-        MaxTokens:          4000,
-        ContextMode:        "always-full",
-        ContextWindowLines: 120,
-        MaxContextTokens:   4000,
-        LogPreviewLimit:    100,
-    }
-}
-
 func loadFromFile(path string, logger *log.Logger) (*App, error) {
     f, err := os.Open(path)
     if err != nil {

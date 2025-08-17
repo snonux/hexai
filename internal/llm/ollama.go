@@ -40,6 +40,22 @@ type ollamaChatResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
+// Constructor (kept among the first functions by convention)
+func newOllama(baseURL, model string) Client {
+    if strings.TrimSpace(baseURL) == "" {
+        baseURL = "http://localhost:11434"
+    }
+    if strings.TrimSpace(model) == "" {
+        model = "qwen2.5-coder:latest"
+    }
+    return ollamaClient{
+        httpClient:   &http.Client{Timeout: 30 * time.Second},
+        baseURL:      strings.TrimRight(baseURL, "/"),
+        defaultModel: model,
+        chatLogger:   logging.NewChatLogger("ollama"),
+    }
+}
+
 func (c ollamaClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	o := Options{Model: c.defaultModel}
 	for _, opt := range opts {
@@ -227,20 +243,4 @@ func (c ollamaClient) ChatStream(ctx context.Context, messages []Message, onDelt
 	}
     logging.Logf("llm/ollama ", "stream end duration=%s", time.Since(start))
     return nil
-}
-
-// Private constructor
-func newOllama(baseURL, model string) Client {
-    if strings.TrimSpace(baseURL) == "" {
-        baseURL = "http://localhost:11434"
-    }
-    if strings.TrimSpace(model) == "" {
-        model = "qwen2.5-coder:latest"
-    }
-    return ollamaClient{
-        httpClient:   &http.Client{Timeout: 30 * time.Second},
-        baseURL:      strings.TrimRight(baseURL, "/"),
-        defaultModel: model,
-        chatLogger:   logging.NewChatLogger("ollama"),
-    }
 }
