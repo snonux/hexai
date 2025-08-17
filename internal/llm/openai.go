@@ -13,43 +13,25 @@ import (
 	"strings"
 	"time"
 
-	"hexai/internal/logging"
+    "hexai/internal/logging"
 )
 
 // openAIClient implements Client against OpenAI's Chat Completions API.
 type openAIClient struct {
-	httpClient   *http.Client
-	apiKey       string
-	baseURL      string
-	defaultModel string
+    httpClient   *http.Client
+    apiKey       string
+    baseURL      string
+    defaultModel string
     chatLogger   logging.ChatLogger
 }
 
-// newOpenAI constructs an OpenAI client using explicit configuration values.
-// The apiKey may be empty; calls will fail until a valid key is supplied.
-func newOpenAI(baseURL, model, apiKey string) Client {
-	if strings.TrimSpace(baseURL) == "" {
-		baseURL = "https://api.openai.com/v1"
-	}
-	if strings.TrimSpace(model) == "" {
-		model = "gpt-4.1"
-	}
-    return openAIClient{
-        httpClient:   &http.Client{Timeout: 30 * time.Second},
-        apiKey:       apiKey,
-        baseURL:      baseURL,
-        defaultModel: model,
-        chatLogger:   logging.NewChatLogger("openai"),
-    }
-}
-
 type oaChatRequest struct {
-	Model       string      `json:"model"`
-	Messages    []oaMessage `json:"messages"`
-	Temperature *float64    `json:"temperature,omitempty"`
-	MaxTokens   *int        `json:"max_tokens,omitempty"`
-	Stop        []string    `json:"stop,omitempty"`
-	Stream      bool        `json:"stream,omitempty"`
+    Model       string      `json:"model"`
+    Messages    []oaMessage `json:"messages"`
+    Temperature *float64    `json:"temperature,omitempty"`
+    MaxTokens   *int        `json:"max_tokens,omitempty"`
+    Stop        []string    `json:"stop,omitempty"`
+    Stream      bool        `json:"stream,omitempty"`
 }
 
 type oaMessage struct {
@@ -71,7 +53,23 @@ type oaChatResponse struct {
 		Type    string `json:"type"`
 		Param   any    `json:"param"`
 		Code    any    `json:"code"`
-	} `json:"error,omitempty"`
+    } `json:"error,omitempty"`
+}
+
+// Streaming response chunk type (SSE)
+type oaStreamChunk struct {
+    Choices []struct {
+        Delta struct {
+            Content string `json:"content"`
+        } `json:"delta"`
+        FinishReason string `json:"finish_reason"`
+    } `json:"choices"`
+    Error *struct {
+        Message string `json:"message"`
+        Type    string `json:"type"`
+        Param   any    `json:"param"`
+        Code    any    `json:"code"`
+    } `json:"error,omitempty"`
 }
 
 func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
@@ -159,27 +157,12 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 	return content, nil
 }
 
-func (c openAIClient) logf(format string, args ...any) { logging.Logf("llm/openai ", format, args...) }
-
 // Provider metadata
 func (c openAIClient) Name() string         { return "openai" }
 func (c openAIClient) DefaultModel() string { return c.defaultModel }
 
 // Streaming support (optional)
-type oaStreamChunk struct {
-	Choices []struct {
-		Delta struct {
-			Content string `json:"content"`
-		} `json:"delta"`
-		FinishReason string `json:"finish_reason"`
-	} `json:"choices"`
-	Error *struct {
-		Message string `json:"message"`
-		Type    string `json:"type"`
-		Param   any    `json:"param"`
-		Code    any    `json:"code"`
-	} `json:"error,omitempty"`
-}
+ 
 
 func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
 	if c.apiKey == "" {
@@ -290,4 +273,25 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 	}
 	logging.Logf("llm/openai ", "stream end duration=%s", time.Since(start))
 	return nil
+}
+
+// Private helpers
+func (c openAIClient) logf(format string, args ...any) { logging.Logf("llm/openai ", format, args...) }
+
+// newOpenAI constructs an OpenAI client using explicit configuration values.
+// The apiKey may be empty; calls will fail until a valid key is supplied.
+func newOpenAI(baseURL, model, apiKey string) Client {
+    if strings.TrimSpace(baseURL) == "" {
+        baseURL = "https://api.openai.com/v1"
+    }
+    if strings.TrimSpace(model) == "" {
+        model = "gpt-4.1"
+    }
+    return openAIClient{
+        httpClient:   &http.Client{Timeout: 30 * time.Second},
+        apiKey:       apiKey,
+        baseURL:      baseURL,
+        defaultModel: model,
+        chatLogger:   logging.NewChatLogger("openai"),
+    }
 }
