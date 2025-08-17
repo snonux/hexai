@@ -54,6 +54,23 @@ type copilotChatResponse struct {
 	} `json:"error,omitempty"`
 }
 
+// Constructor (kept among the first functions by convention)
+func newCopilot(baseURL, model, apiKey string) Client {
+    if strings.TrimSpace(baseURL) == "" {
+        baseURL = "https://api.githubcopilot.com"
+    }
+    if strings.TrimSpace(model) == "" {
+        model = "gpt-4.1"
+    }
+    return copilotClient{
+        httpClient:   &http.Client{Timeout: 30 * time.Second},
+        apiKey:       apiKey,
+        baseURL:      strings.TrimRight(baseURL, "/"),
+        defaultModel: model,
+        chatLogger:   logging.NewChatLogger("copilot"),
+    }
+}
+
 func (c copilotClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	if strings.TrimSpace(c.apiKey) == "" {
 		return nilStringErr("missing Copilot API key")
@@ -144,20 +161,3 @@ func (c copilotClient) Chat(ctx context.Context, messages []Message, opts ...Req
 // Provider metadata
 func (c copilotClient) Name() string         { return "copilot" }
 func (c copilotClient) DefaultModel() string { return c.defaultModel }
-
-// Private constructor
-func newCopilot(baseURL, model, apiKey string) Client {
-    if strings.TrimSpace(baseURL) == "" {
-        baseURL = "https://api.githubcopilot.com"
-    }
-    if strings.TrimSpace(model) == "" {
-        model = "gpt-4.1"
-    }
-    return copilotClient{
-        httpClient:   &http.Client{Timeout: 30 * time.Second},
-        apiKey:       apiKey,
-        baseURL:      strings.TrimRight(baseURL, "/"),
-        defaultModel: model,
-        chatLogger:   logging.NewChatLogger("copilot"),
-    }
-}
