@@ -43,11 +43,20 @@ Notes:
 ## CLI usage and configuration
 
 - Run LSP server over stdio:
-  - `hexai`
+  - `hexai-lsp`
 
-- Flags (minimal):
+- LSP flags (minimal):
   - `-version`: print the Hexai version and exit.
-  - `-log`: path to log file (optional; default `/tmp/hexai.log`).
+  - `-log`: path to log file (optional; default `/tmp/hexai-lsp.log`).
+
+- Run command-line tool (processes text via configured LLM):
+  - `cat SOMEFILE.txt | hexai`
+  - `hexai 'some prompt text here'`
+  - `cat SOMEFILE.txt | hexai 'some prompt text here'` (stdin and arg are concatenated)
+
+Notes for `hexai` (CLI):
+- Prints LLM output to stdout.
+- Prints provider/model immediately to stderr, and a summary to stderr at the end (time, input bytes, output bytes, provider/model).
 
 Notes:
 - Token estimation for truncation uses a simple 4 chars/token heuristic.
