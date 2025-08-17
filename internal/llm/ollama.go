@@ -3,15 +3,15 @@
 package llm
 
 import (
-    "bytes"
-    "context"
-    "encoding/json"
-    "errors"
-    "fmt"
-    "io"
-    "net/http"
-    "strings"
-    "time"
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
 
 	"hexai/internal/logging"
 )
@@ -21,6 +21,7 @@ type ollamaClient struct {
 	httpClient   *http.Client
 	baseURL      string
 	defaultModel string
+	chatLogger   *logging.ChatLogger
 }
 
 func newOllama(baseURL, model string) Client {
@@ -34,14 +35,15 @@ func newOllama(baseURL, model string) Client {
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
 		baseURL:      strings.TrimRight(baseURL, "/"),
 		defaultModel: model,
+		chatLogger:   logging.NewChatLogger("ollama"),
 	}
 }
 
 type ollamaChatRequest struct {
-    Model    string      `json:"model"`
-    Messages []oaMessage `json:"messages"`
-    Stream   bool        `json:"stream"`
-    Options  any         `json:"options,omitempty"`
+	Model    string      `json:"model"`
+	Messages []oaMessage `json:"messages"`
+	Stream   bool        `json:"stream"`
+	Options  any         `json:"options,omitempty"`
 }
 
 type ollamaChatResponse struct {
@@ -63,10 +65,17 @@ func (c *ollamaClient) Chat(ctx context.Context, messages []Message, opts ...Req
 	}
 
 	start := time.Now()
-	logging.Logf("llm/ollama ", "chat start model=%s temp=%.2f max_tokens=%d stop=%d messages=%d", o.Model, o.Temperature, o.MaxTokens, len(o.Stop), len(messages))
+	logMessages := make([]struct {
+		Role    string
+		Content string
+	}, len(messages))
 	for i, m := range messages {
-		logging.Logf("llm/ollama ", "msg[%d] role=%s size=%d preview=%s%s%s", i, m.Role, len(m.Content), logging.AnsiCyan, logging.PreviewForLog(m.Content), logging.AnsiBase)
+		logMessages[i] = struct {
+			Role    string
+			Content string
+		}{Role: m.Role, Content: m.Content}
 	}
+	c.chatLogger.LogStart(false, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)
 
 	req := ollamaChatRequest{Model: o.Model, Stream: false}
 	req.Messages = make([]oaMessage, len(messages))
@@ -139,91 +148,98 @@ func (c *ollamaClient) DefaultModel() string { return c.defaultModel }
 
 // Streaming support (optional)
 func (c *ollamaClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
-    o := Options{Model: c.defaultModel}
-    for _, opt := range opts {
-        opt(&o)
-    }
-    if o.Model == "" {
-        o.Model = c.defaultModel
-    }
+	o := Options{Model: c.defaultModel}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	if o.Model == "" {
+		o.Model = c.defaultModel
+	}
 
-    start := time.Now()
-    logging.Logf("llm/ollama ", "stream start model=%s temp=%.2f max_tokens=%d stop=%d messages=%d", o.Model, o.Temperature, o.MaxTokens, len(o.Stop), len(messages))
-    for i, m := range messages {
-        logging.Logf("llm/ollama ", "msg[%d] role=%s size=%d preview=%s%s%s", i, m.Role, len(m.Content), logging.AnsiCyan, logging.PreviewForLog(m.Content), logging.AnsiBase)
-    }
+	start := time.Now()
+	logMessages := make([]struct {
+		Role    string
+		Content string
+	}, len(messages))
+	for i, m := range messages {
+		logMessages[i] = struct {
+			Role    string
+			Content string
+		}{Role: m.Role, Content: m.Content}
+	}
+	c.chatLogger.LogStart(true, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)
 
-    req := ollamaChatRequest{Model: o.Model, Stream: true}
-    req.Messages = make([]oaMessage, len(messages))
-    for i, m := range messages {
-        req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
-    }
-    // Build options map
-    optsMap := map[string]any{}
-    if o.Temperature != 0 {
-        optsMap["temperature"] = o.Temperature
-    }
-    if o.MaxTokens > 0 {
-        optsMap["num_predict"] = o.MaxTokens
-    }
-    if len(o.Stop) > 0 {
-        optsMap["stop"] = o.Stop
-    }
-    if len(optsMap) > 0 {
-        req.Options = optsMap
-    }
+	req := ollamaChatRequest{Model: o.Model, Stream: true}
+	req.Messages = make([]oaMessage, len(messages))
+	for i, m := range messages {
+		req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
+	}
+	// Build options map
+	optsMap := map[string]any{}
+	if o.Temperature != 0 {
+		optsMap["temperature"] = o.Temperature
+	}
+	if o.MaxTokens > 0 {
+		optsMap["num_predict"] = o.MaxTokens
+	}
+	if len(o.Stop) > 0 {
+		optsMap["stop"] = o.Stop
+	}
+	if len(optsMap) > 0 {
+		req.Options = optsMap
+	}
 
-    body, err := json.Marshal(req)
-    if err != nil {
-        return err
-    }
+	body, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
 
-    endpoint := c.baseURL + "/api/chat"
-    logging.Logf("llm/ollama ", "POST %s (stream)", endpoint)
-    httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-    if err != nil {
-        return err
-    }
-    httpReq.Header.Set("Content-Type", "application/json")
+	endpoint := c.baseURL + "/api/chat"
+	logging.Logf("llm/ollama ", "POST %s (stream)", endpoint)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
 
-    resp, err := c.httpClient.Do(httpReq)
-    if err != nil {
-        logging.Logf("llm/ollama ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
-        return err
-    }
-    defer resp.Body.Close()
-    if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-        var apiErr ollamaChatResponse
-        _ = json.NewDecoder(resp.Body).Decode(&apiErr)
-        if strings.TrimSpace(apiErr.Error) != "" {
-            logging.Logf("llm/ollama ", "%sapi error status=%d msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error, time.Since(start), logging.AnsiBase)
-            return fmt.Errorf("ollama error: %s (status %d)", apiErr.Error, resp.StatusCode)
-        }
-        logging.Logf("llm/ollama ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
-        return fmt.Errorf("ollama http error: status %d", resp.StatusCode)
-    }
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		logging.Logf("llm/ollama ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var apiErr ollamaChatResponse
+		_ = json.NewDecoder(resp.Body).Decode(&apiErr)
+		if strings.TrimSpace(apiErr.Error) != "" {
+			logging.Logf("llm/ollama ", "%sapi error status=%d msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error, time.Since(start), logging.AnsiBase)
+			return fmt.Errorf("ollama error: %s (status %d)", apiErr.Error, resp.StatusCode)
+		}
+		logging.Logf("llm/ollama ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
+		return fmt.Errorf("ollama http error: status %d", resp.StatusCode)
+	}
 
-    dec := json.NewDecoder(resp.Body)
-    for {
-        var ev ollamaChatResponse
-        if err := dec.Decode(&ev); err != nil {
-            if errors.Is(err, io.EOF) {
-                break
-            }
-            logging.Logf("llm/ollama ", "%sdecode stream error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
-            return err
-        }
-        if strings.TrimSpace(ev.Error) != "" {
-            logging.Logf("llm/ollama ", "%sstream event error: %s%s", logging.AnsiRed, ev.Error, logging.AnsiBase)
-            return fmt.Errorf("ollama stream error: %s", ev.Error)
-        }
-        if s := ev.Message.Content; strings.TrimSpace(s) != "" {
-            onDelta(s)
-        }
-        if ev.Done {
-            break
-        }
-    }
-    logging.Logf("llm/ollama ", "stream end duration=%s", time.Since(start))
-    return nil
+	dec := json.NewDecoder(resp.Body)
+	for {
+		var ev ollamaChatResponse
+		if err := dec.Decode(&ev); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			logging.Logf("llm/ollama ", "%sdecode stream error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
+			return err
+		}
+		if strings.TrimSpace(ev.Error) != "" {
+			logging.Logf("llm/ollama ", "%sstream event error: %s%s", logging.AnsiRed, ev.Error, logging.AnsiBase)
+			return fmt.Errorf("ollama stream error: %s", ev.Error)
+		}
+		if s := ev.Message.Content; strings.TrimSpace(s) != "" {
+			onDelta(s)
+		}
+		if ev.Done {
+			break
+		}
+	}
+	logging.Logf("llm/ollama ", "stream end duration=%s", time.Since(start))
+	return nil
 }

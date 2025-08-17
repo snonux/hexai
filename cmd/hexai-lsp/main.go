@@ -1,5 +1,4 @@
 // Summary: Hexai LSP entrypoint; parses flags and delegates to internal/hexailsp.
-// Not yet reviewed by a human
 package main
 
 import (

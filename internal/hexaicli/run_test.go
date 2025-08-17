@@ -1,5 +1,4 @@
 // Summary: Unit tests for Hexai CLI helpers and run flow (input parsing, messages, streaming).
-// Not yet reviewed by a human
 package hexaicli
 
 import (
@@ -8,8 +7,6 @@ import (
 	"strings"
 	"testing"
 )
-
-// helpers moved to testhelpers_test.go
 
 func TestReadInput_ArgsOnly(t *testing.T) {
 	restore, f := setStdin(t, "")
