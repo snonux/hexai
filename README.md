@@ -22,7 +22,7 @@ Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilo
   - `openai_model` — model name (default: `gpt-4.1`).
   - `openai_base_url` — API base (default: `https://api.openai.com/v1`).
 
-### Copilot configuration
+### GitHub Copilot configuration
 
 - Required: `COPILOT_API_KEY` — provided via environment variable only.
 - In config file:

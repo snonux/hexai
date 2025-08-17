@@ -6,20 +6,20 @@ tasks:
   install:
     deps: ["build"]
     cmds:
-      - cp -v ./hexai ~/go/bin/
+      - cp -v ./hexai-lsp ~/go/bin/
   run:
     deps: ["dev"]
     cmds:
       - go run cmd/hexai/main.go
   build:
-    deps: ["buildhexai"]
-  buildhexai:
+    deps: ["build-hexai-lsp"]
+  build-hexai-lsp:
     cmds:
-      - go build -o hexai cmd/hexai/main.go
+      - go build -o hexai-lsp cmd/hexai/main.go
   dev:
     deps: ["test", "vet", "lint"]
     cmds:
-      - go build -race -o hexai cmd/hexai/main.go
+      - go build -race -o hexai-lsp cmd/hexai/main.go
   test:
     cmds:
       - go clean -testcache
