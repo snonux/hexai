@@ -1,3 +1,5 @@
+// Summary: In-memory document model for the LSP; tracks text, lines, and applies edits.
+// Not yet reviewed by a human
 package lsp
 
 import (

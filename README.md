@@ -4,7 +4,7 @@
 
 Hexai, the AI LSP for the Helix editor and also a simple command line tool to interact with LLMs in general.
 
-At the moment this project is only in the proof of PoC phase.
+At the moment this project is in the alpha state.
 
 ## LLM provider
 
@@ -73,6 +73,22 @@ Notes for `hexai` (CLI):
   - If the prompt asks for commands, outputs only the commands with no commentary.
   - Add the word `explain` in your prompt to request a verbose explanation.
 - Exit codes: `0` success, `1` provider/config error, `2` no input.
+
+### Internal CLI package
+
+- Package `internal/hexaicli` contains the CLI logic extracted from `cmd/hexai`.
+- Entry points:
+- `Run(ctx, args, stdin, stdout, stderr)`: Full CLI flow; parses input and builds the LLM client from config/env.
+- `RunWithClient(ctx, args, stdin, stdout, stderr, client)`: Same flow using a provided `llm.Client` (useful for tests and embedding).
+- Behavior is identical to the `hexai` binary: provider/model banner on stderr, streamed output when available, and a final summary line.
+
+### Internal LSP package
+
+- Package `internal/hexailsp` contains the LSP binary logic extracted from `cmd/hexai-lsp`.
+- Entry points:
+- `Run(logPath, stdin, stdout, stderr)`: Configures logging, loads config, builds the LLM client, and runs the LSP server over stdio.
+- `RunWithFactory(logPath, stdin, stdout, logger, cfg, client, factory)`: Testable entry that accepts a prebuilt `llm.Client` and a factory for `lsp.Server` creation.
+- Mirrors the behavior of the `hexai-lsp` binary while enabling unit tests without invoking the full server loop.
 
 Examples:
 

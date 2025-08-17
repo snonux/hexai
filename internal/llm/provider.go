@@ -1,3 +1,5 @@
+// Summary: LLM provider interfaces, request options, configuration, and factory to build a client from config.
+// Not yet reviewed by a human
 package llm
 
 import (

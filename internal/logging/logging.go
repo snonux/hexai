@@ -1,3 +1,5 @@
+// Summary: ANSI-styled logging utilities with a bound standard logger and configurable preview truncation.
+// Not yet reviewed by a human
 package logging
 
 import (

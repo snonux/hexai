@@ -1,3 +1,5 @@
+// Summary: Ollama client against a local server; supports chat responses and streaming via /api/chat.
+// Not yet reviewed by a human
 package llm
 
 import (
