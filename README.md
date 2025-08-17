@@ -8,19 +8,26 @@ At the moment this project is only in the proof of PoC phase.
 
 ## LLM provider
 
-Hexai exposes a simple LLM provider interface. It supports OpenAI and a local Ollama server. Provider selection and models are configured via a JSON configuration file.
+Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilot, and a local Ollama server. Provider selection and models are configured via a JSON configuration file.
 
 ### Selecting a provider
 
-- Set `provider` in the config file to `openai` or `ollama`.
+- Set `provider` in the config file to `openai`, `copilot`, or `ollama`.
 - If omitted, Hexai defaults to `openai`.
 
 ### OpenAI configuration
 
 - Required: `OPENAI_API_KEY` — provided via environment variable only.
 - In config file:
-  - `openai_model` — model name (default: `gpt-4o-mini`).
+  - `openai_model` — model name (default: `gpt-4.1`).
   - `openai_base_url` — API base (default: `https://api.openai.com/v1`).
+
+### Copilot configuration
+
+- Required: `COPILOT_API_KEY` — provided via environment variable only.
+- In config file:
+  - `copilot_model` — model name (default: `gpt-4.1`).
+  - `copilot_base_url` — API base (default: `https://api.githubcopilot.com`).
 
 ### Ollama configuration (local)
 
@@ -59,6 +66,8 @@ Notes:
   "no_disk_io": true,
   "trigger_characters": [".", ":", "/", "_", ";", "?"],
   "provider": "ollama",
+  "copilot_model": "gpt-4.1",
+  "copilot_base_url": "https://api.githubcopilot.com",
   "openai_model": "gpt-4.1",
   "openai_base_url": "https://api.openai.com/v1",
   "ollama_model": "qwen2.5-coder:latest",
@@ -67,8 +76,9 @@ Notes:
 ```
 
 * context_mode: minimal | window | file-on-new-func | always-full
-* provider: ollama or openai
+* provider: openai | copilot | ollama
 * openai_model, openai_base_url: OpenAI-only options
+* copilot_model, copilot_base_url: Copilot-only options
 * ollama_model, ollama_base_url: Ollama-only options
 Minimal config (defaults to OpenAI):
 
@@ -76,7 +86,7 @@ Minimal config (defaults to OpenAI):
 {}
 ```
 
-Ensure `OPENAI_API_KEY` is set in your environment.
+Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment according to your chosen provider.
 
 ## Inline triggers
 

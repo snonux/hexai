@@ -43,32 +43,40 @@ func WithStop(stop ...string) RequestOption {
 
 // Config defines provider configuration read from the Hexai config file.
 type Config struct {
-	Provider string
-	// OpenAI options
-	OpenAIBaseURL string
-	OpenAIModel   string
-	// Ollama options
-	OllamaBaseURL string
-	OllamaModel   string
+    Provider string
+    // OpenAI options
+    OpenAIBaseURL string
+    OpenAIModel   string
+    // Ollama options
+    OllamaBaseURL string
+    OllamaModel   string
+    // Copilot options
+    CopilotBaseURL string
+    CopilotModel   string
 }
 
 // NewFromConfig creates an LLM client using only the supplied configuration.
 // The OpenAI API key is supplied separately and may be read from the environment
 // by the caller; other environment-based configuration is not used.
-func NewFromConfig(cfg Config, openAIAPIKey string) (Client, error) {
-	p := strings.ToLower(strings.TrimSpace(cfg.Provider))
-	if p == "" {
-		p = "openai"
-	}
-	switch p {
-	case "openai":
-		if strings.TrimSpace(openAIAPIKey) == "" {
-			return nil, errors.New("missing OPENAI_API_KEY for provider openai")
-		}
-		return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey), nil
-	case "ollama":
-		return newOllama(cfg.OllamaBaseURL, cfg.OllamaModel), nil
-	default:
-		return nil, errors.New("unknown LLM provider: " + p)
-	}
+func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, error) {
+    p := strings.ToLower(strings.TrimSpace(cfg.Provider))
+    if p == "" {
+        p = "openai"
+    }
+    switch p {
+    case "openai":
+        if strings.TrimSpace(openAIAPIKey) == "" {
+            return nil, errors.New("missing OPENAI_API_KEY for provider openai")
+        }
+        return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey), nil
+    case "ollama":
+        return newOllama(cfg.OllamaBaseURL, cfg.OllamaModel), nil
+    case "copilot":
+        if strings.TrimSpace(copilotAPIKey) == "" {
+            return nil, errors.New("missing COPILOT_API_KEY for provider copilot")
+        }
+        return newCopilot(cfg.CopilotBaseURL, cfg.CopilotModel, copilotAPIKey), nil
+    default:
+        return nil, errors.New("unknown LLM provider: " + p)
+    }
 }

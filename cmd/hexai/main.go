@@ -53,9 +53,12 @@ func main() {
 			OpenAIModel:   cfg.OpenAIModel,
 			OllamaBaseURL: cfg.OllamaBaseURL,
 			OllamaModel:   cfg.OllamaModel,
+			CopilotBaseURL: cfg.CopilotBaseURL,
+			CopilotModel:   cfg.CopilotModel,
 		}
 		oaKey := os.Getenv("OPENAI_API_KEY")
-		if c, err := llm.NewFromConfig(llmCfg, oaKey); err != nil {
+		cpKey := os.Getenv("COPILOT_API_KEY")
+		if c, err := llm.NewFromConfig(llmCfg, oaKey, cpKey); err != nil {
 			logging.Logf("lsp ", "llm disabled: %v", err)
 		} else {
 			client = c
@@ -93,6 +96,8 @@ type appConfig struct {
 	OpenAIModel   string `json:"openai_model"`
 	OllamaBaseURL string `json:"ollama_base_url"`
 	OllamaModel   string `json:"ollama_model"`
+	CopilotBaseURL string `json:"copilot_base_url"`
+	CopilotModel   string `json:"copilot_model"`
 }
 
 func loadConfig(logger *log.Logger) appConfig {
@@ -156,6 +161,12 @@ func loadConfig(logger *log.Logger) appConfig {
 	}
 	if strings.TrimSpace(fileCfg.OllamaModel) != "" {
 		cfg.OllamaModel = fileCfg.OllamaModel
+	}
+	if strings.TrimSpace(fileCfg.CopilotBaseURL) != "" {
+		cfg.CopilotBaseURL = fileCfg.CopilotBaseURL
+	}
+	if strings.TrimSpace(fileCfg.CopilotModel) != "" {
+		cfg.CopilotModel = fileCfg.CopilotModel
 	}
 	return cfg
 }
