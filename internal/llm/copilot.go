@@ -17,35 +17,19 @@ import (
 
 // copilotClient implements Client against GitHub Copilot's Chat Completions API.
 type copilotClient struct {
-	httpClient   *http.Client
-	apiKey       string
-	baseURL      string
-	defaultModel string
+    httpClient   *http.Client
+    apiKey       string
+    baseURL      string
+    defaultModel string
     chatLogger   logging.ChatLogger
 }
 
-func newCopilot(baseURL, model, apiKey string) Client {
-	if strings.TrimSpace(baseURL) == "" {
-		baseURL = "https://api.githubcopilot.com"
-	}
-	if strings.TrimSpace(model) == "" {
-		model = "gpt-4.1"
-	}
-    return copilotClient{
-        httpClient:   &http.Client{Timeout: 30 * time.Second},
-        apiKey:       apiKey,
-        baseURL:      strings.TrimRight(baseURL, "/"),
-        defaultModel: model,
-        chatLogger:   logging.NewChatLogger("copilot"),
-    }
-}
-
 type copilotChatRequest struct {
-	Model       string           `json:"model"`
-	Messages    []copilotMessage `json:"messages"`
-	Temperature *float64         `json:"temperature,omitempty"`
-	MaxTokens   *int             `json:"max_tokens,omitempty"`
-	Stop        []string         `json:"stop,omitempty"`
+    Model       string           `json:"model"`
+    Messages    []copilotMessage `json:"messages"`
+    Temperature *float64         `json:"temperature,omitempty"`
+    MaxTokens   *int             `json:"max_tokens,omitempty"`
+    Stop        []string         `json:"stop,omitempty"`
 }
 
 type copilotMessage struct {
@@ -160,3 +144,20 @@ func (c copilotClient) Chat(ctx context.Context, messages []Message, opts ...Req
 // Provider metadata
 func (c copilotClient) Name() string         { return "copilot" }
 func (c copilotClient) DefaultModel() string { return c.defaultModel }
+
+// Private constructor
+func newCopilot(baseURL, model, apiKey string) Client {
+    if strings.TrimSpace(baseURL) == "" {
+        baseURL = "https://api.githubcopilot.com"
+    }
+    if strings.TrimSpace(model) == "" {
+        model = "gpt-4.1"
+    }
+    return copilotClient{
+        httpClient:   &http.Client{Timeout: 30 * time.Second},
+        apiKey:       apiKey,
+        baseURL:      strings.TrimRight(baseURL, "/"),
+        defaultModel: model,
+        chatLogger:   logging.NewChatLogger("copilot"),
+    }
+}

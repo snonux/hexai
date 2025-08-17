@@ -18,32 +18,17 @@ import (
 
 // ollamaClient implements Client against a local Ollama server.
 type ollamaClient struct {
-	httpClient   *http.Client
-	baseURL      string
-	defaultModel string
-	chatLogger   logging.ChatLogger
-}
-
-func newOllama(baseURL, model string) Client {
-	if strings.TrimSpace(baseURL) == "" {
-		baseURL = "http://localhost:11434"
-	}
-	if strings.TrimSpace(model) == "" {
-		model = "qwen2.5-coder:latest"
-	}
-	return ollamaClient{
-		httpClient:   &http.Client{Timeout: 30 * time.Second},
-		baseURL:      strings.TrimRight(baseURL, "/"),
-		defaultModel: model,
-		chatLogger:   logging.NewChatLogger("ollama"),
-	}
+    httpClient   *http.Client
+    baseURL      string
+    defaultModel string
+    chatLogger   logging.ChatLogger
 }
 
 type ollamaChatRequest struct {
-	Model    string      `json:"model"`
-	Messages []oaMessage `json:"messages"`
-	Stream   bool        `json:"stream"`
-	Options  any         `json:"options,omitempty"`
+    Model    string      `json:"model"`
+    Messages []oaMessage `json:"messages"`
+    Stream   bool        `json:"stream"`
+    Options  any         `json:"options,omitempty"`
 }
 
 type ollamaChatResponse struct {
@@ -240,6 +225,22 @@ func (c ollamaClient) ChatStream(ctx context.Context, messages []Message, onDelt
 			break
 		}
 	}
-	logging.Logf("llm/ollama ", "stream end duration=%s", time.Since(start))
-	return nil
+    logging.Logf("llm/ollama ", "stream end duration=%s", time.Since(start))
+    return nil
+}
+
+// Private constructor
+func newOllama(baseURL, model string) Client {
+    if strings.TrimSpace(baseURL) == "" {
+        baseURL = "http://localhost:11434"
+    }
+    if strings.TrimSpace(model) == "" {
+        model = "qwen2.5-coder:latest"
+    }
+    return ollamaClient{
+        httpClient:   &http.Client{Timeout: 30 * time.Second},
+        baseURL:      strings.TrimRight(baseURL, "/"),
+        defaultModel: model,
+        chatLogger:   logging.NewChatLogger("ollama"),
+    }
 }
