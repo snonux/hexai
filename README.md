@@ -57,6 +57,40 @@ Notes:
 Notes for `hexai` (CLI):
 - Prints LLM output to stdout.
 - Prints provider/model immediately to stderr, and a summary to stderr at the end (time, input bytes, output bytes, provider/model).
+- Default response style: short answers. If the prompt asks for commands, outputs only the commands with no explanation. Include the word `explain` anywhere in the prompt to request a verbose explanation.
+
+### Hexai CLI behavior
+
+- Inputs: reads from stdin, from a single argument, or both.
+  - If both are provided, Hexai concatenates them with a blank line in between.
+- Output routing:
+  - Stdout: the LLM response only (no decorations).
+  - Stderr: metadata and progress in grey on black (styled via ANSI):
+    - Provider/model printed immediately when the request starts.
+    - A final stats line on a new line: `done provider=… model=… time=… in_bytes=… out_bytes=…`.
+- Default style: concise answers.
+  - If the prompt asks for commands, outputs only the commands with no commentary.
+  - Add the word `explain` in your prompt to request a verbose explanation.
+- Exit codes: `0` success, `1` provider/config error, `2` no input.
+
+Examples:
+
+```
+# From stdin only
+cat SOMEFILE.txt | hexai
+
+# From arg only
+hexai 'summarize: list 3 bullets'
+
+# From both (stdin first, then arg)
+cat SOMEFILE.txt | hexai 'explain the tradeoffs'
+
+# Commands-only output (no explanation)
+hexai 'install ripgrep on macOS'
+
+# Verbose explanation
+hexai 'install ripgrep on macOS and explain'
+```
 
 Notes:
 - Token estimation for truncation uses a simple 4 chars/token heuristic.
