@@ -31,17 +31,83 @@ type App struct {
 	CopilotModel   string `json:"copilot_model"`
 }
 
-// Load reads configuration from a file and merges with defaults.
-// It respects the XDG Base Directory Specification.
-func Load(logger *log.Logger) App {
-	cfg := App{
+func newDefaultConfig() App {
+	return App{
 		MaxTokens:          4000,
 		ContextMode:        "always-full",
 		ContextWindowLines: 120,
 		MaxContextTokens:   4000,
 		LogPreviewLimit:    100,
-		
 	}
+}
+
+func loadFromFile(path string, logger *log.Logger) (*App, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		if !os.IsNotExist(err) && logger != nil {
+			logger.Printf("cannot open config file %s: %v", path, err)
+		}
+		return nil, err
+	}
+	defer f.Close()
+
+	dec := json.NewDecoder(f)
+	var fileCfg App
+	if err := dec.Decode(&fileCfg); err != nil {
+		if logger != nil {
+			logger.Printf("invalid config file %s: %v", path, err)
+		}
+		return nil, err
+	}
+	return &fileCfg, nil
+}
+
+func (a *App) mergeWith(other *App) {
+	if other.MaxTokens > 0 {
+		a.MaxTokens = other.MaxTokens
+	}
+	if strings.TrimSpace(other.ContextMode) != "" {
+		a.ContextMode = other.ContextMode
+	}
+	if other.ContextWindowLines > 0 {
+		a.ContextWindowLines = other.ContextWindowLines
+	}
+	if other.MaxContextTokens > 0 {
+		a.MaxContextTokens = other.MaxContextTokens
+	}
+	if other.LogPreviewLimit >= 0 {
+		a.LogPreviewLimit = other.LogPreviewLimit
+	}
+	if len(other.TriggerCharacters) > 0 {
+		a.TriggerCharacters = slices.Clone(other.TriggerCharacters)
+	}
+	if strings.TrimSpace(other.Provider) != "" {
+		a.Provider = other.Provider
+	}
+	if strings.TrimSpace(other.OpenAIBaseURL) != "" {
+		a.OpenAIBaseURL = other.OpenAIBaseURL
+	}
+	if strings.TrimSpace(other.OpenAIModel) != "" {
+		a.OpenAIModel = other.OpenAIModel
+	}
+	if strings.TrimSpace(other.OllamaBaseURL) != "" {
+		a.OllamaBaseURL = other.OllamaBaseURL
+	}
+	if strings.TrimSpace(other.OllamaModel) != "" {
+		a.OllamaModel = other.OllamaModel
+	}
+	if strings.TrimSpace(other.CopilotBaseURL) != "" {
+		a.CopilotBaseURL = other.CopilotBaseURL
+	}
+	if strings.TrimSpace(other.CopilotModel) != "" {
+		a.CopilotModel = other.CopilotModel
+	}
+}
+
+// Load reads configuration from a file and merges with defaults.
+// It respects the XDG Base Directory Specification.
+func Load(logger *log.Logger) App {
+	cfg := newDefaultConfig()
 	if logger == nil {
 		return cfg // Return defaults if no logger is provided (e.g. in tests)
 	}
@@ -52,67 +118,12 @@ func Load(logger *log.Logger) App {
 		return cfg
 	}
 
-	f, err := os.Open(configPath)
+	fileCfg, err := loadFromFile(configPath, logger)
 	if err != nil {
-		if !os.IsNotExist(err) && logger != nil {
-			logger.Printf("cannot open config file %s: %v", configPath, err)
-		}
-		return cfg // Return defaults if file doesn't exist or can't be opened
-	}
-	defer f.Close()
-
-	dec := json.NewDecoder(f)
-	var fileCfg App
-	if err := dec.Decode(&fileCfg); err != nil {
-		if logger != nil {
-			logger.Printf("invalid config file %s: %v", configPath, err)
-		}
-		return cfg // Return defaults on decoding error
+		return cfg
 	}
 
-	// Merge: file overrides defaults when provided
-	if fileCfg.MaxTokens > 0 {
-		cfg.MaxTokens = fileCfg.MaxTokens
-	}
-	if strings.TrimSpace(fileCfg.ContextMode) != "" {
-		cfg.ContextMode = fileCfg.ContextMode
-	}
-	if fileCfg.ContextWindowLines > 0 {
-		cfg.ContextWindowLines = fileCfg.ContextWindowLines
-	}
-	if fileCfg.MaxContextTokens > 0 {
-		cfg.MaxContextTokens = fileCfg.MaxContextTokens
-	}
-	if fileCfg.LogPreviewLimit >= 0 {
-		cfg.LogPreviewLimit = fileCfg.LogPreviewLimit
-	}
-	
-	if len(fileCfg.TriggerCharacters) > 0 {
-		cfg.TriggerCharacters = slices.Clone(fileCfg.TriggerCharacters)
-	}
-	if strings.TrimSpace(fileCfg.Provider) != "" {
-		cfg.Provider = fileCfg.Provider
-	}
-
-	// Provider-specific options
-	if strings.TrimSpace(fileCfg.OpenAIBaseURL) != "" {
-		cfg.OpenAIBaseURL = fileCfg.OpenAIBaseURL
-	}
-	if strings.TrimSpace(fileCfg.OpenAIModel) != "" {
-		cfg.OpenAIModel = fileCfg.OpenAIModel
-	}
-	if strings.TrimSpace(fileCfg.OllamaBaseURL) != "" {
-		cfg.OllamaBaseURL = fileCfg.OllamaBaseURL
-	}
-	if strings.TrimSpace(fileCfg.OllamaModel) != "" {
-		cfg.OllamaModel = fileCfg.OllamaModel
-	}
-	if strings.TrimSpace(fileCfg.CopilotBaseURL) != "" {
-		cfg.CopilotBaseURL = fileCfg.CopilotBaseURL
-	}
-	if strings.TrimSpace(fileCfg.CopilotModel) != "" {
-		cfg.CopilotModel = fileCfg.CopilotModel
-	}
+	cfg.mergeWith(fileCfg)
 	return cfg
 }
 
