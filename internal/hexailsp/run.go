@@ -80,7 +80,7 @@ func RunWithFactory(logPath string, stdin io.Reader, stdout io.Writer, logger *l
         ContextMode:       cfg.ContextMode,
         WindowLines:       cfg.ContextWindowLines,
         MaxContextTokens:  cfg.MaxContextTokens,
-        NoDiskIO:          cfg.NoDiskIO,
+        
         Client:            client,
         TriggerCharacters: cfg.TriggerCharacters,
     })

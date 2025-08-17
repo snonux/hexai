@@ -51,9 +51,7 @@ func TestRunWithFactory_UsesDefaultsAndCallsServer(t *testing.T) {
     if gotOpts.MaxContextTokens != cfg.MaxContextTokens {
         t.Fatalf("MaxContextTokens want %d got %d", cfg.MaxContextTokens, gotOpts.MaxContextTokens)
     }
-    if gotOpts.NoDiskIO != cfg.NoDiskIO {
-        t.Fatalf("NoDiskIO want %v got %v", cfg.NoDiskIO, gotOpts.NoDiskIO)
-    }
+    
     if gotOpts.Client != nil { // with no env, openai client fails to build
         t.Fatalf("expected nil client when API key missing")
     }

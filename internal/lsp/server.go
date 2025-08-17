@@ -45,7 +45,7 @@ type ServerOptions struct {
 	ContextMode       string
 	WindowLines       int
 	MaxContextTokens  int
-	NoDiskIO          bool
+	
 	Client            llm.Client
 	TriggerCharacters []string
 }
@@ -72,7 +72,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.contextMode = contextMode
 	s.windowLines = windowLines
 	s.maxContextTokens = maxContextTokens
-	s.noDiskIO = opts.NoDiskIO
+	
 	s.startTime = time.Now()
 	s.llmClient = opts.Client
 	if len(opts.TriggerCharacters) == 0 {
