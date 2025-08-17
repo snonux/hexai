@@ -1,3 +1,5 @@
+// Summary: Tests for LSP handlers and request processing, including diagnostics and code actions.
+// Not yet reviewed by a human
 package lsp
 
 import (

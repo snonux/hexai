@@ -1,3 +1,5 @@
+// Summary: Application configuration model and loader; reads ~/.config/hexai/config.json and merges defaults.
+// Not yet reviewed by a human
 package appconfig
 
 import (
@@ -99,4 +101,3 @@ func Load(logger *log.Logger) App {
     }
     return cfg
 }
-
