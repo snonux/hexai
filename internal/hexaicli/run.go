@@ -1,6 +1,5 @@
 // Summary: Hexai CLI runner; reads input, creates an LLM client, builds messages,
 // streams or collects the model output, and prints a short summary to stderr.
-// Not yet reviewed by a human
 package hexaicli
 
 import (
