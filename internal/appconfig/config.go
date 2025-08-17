@@ -1,32 +1,34 @@
 // Summary: Application configuration model and loader; reads ~/.config/hexai/config.json and merges defaults.
-// Not yet reviewed by a human
 package appconfig
 
 import (
-    "encoding/json"
-    "log"
-    "os"
-    "path/filepath"
-    "strings"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
 )
 
 // App holds user-configurable settings read from ~/.config/hexai/config.json.
 type App struct {
-    MaxTokens          int      `json:"max_tokens"`
-    ContextMode        string   `json:"context_mode"`
-    ContextWindowLines int      `json:"context_window_lines"`
-    MaxContextTokens   int      `json:"max_context_tokens"`
-    LogPreviewLimit    int      `json:"log_preview_limit"`
-    NoDiskIO           bool     `json:"no_disk_io"`
-    TriggerCharacters  []string `json:"trigger_characters"`
-    Provider           string   `json:"provider"`
-    // Provider-specific options
-    OpenAIBaseURL  string `json:"openai_base_url"`
-    OpenAIModel    string `json:"openai_model"`
-    OllamaBaseURL  string `json:"ollama_base_url"`
-    OllamaModel    string `json:"ollama_model"`
-    CopilotBaseURL string `json:"copilot_base_url"`
-    CopilotModel   string `json:"copilot_model"`
+	MaxTokens          int      `json:"max_tokens"`
+	ContextMode        string   `json:"context_mode"`
+	ContextWindowLines int      `json:"context_window_lines"`
+	MaxContextTokens   int      `json:"max_context_tokens"`
+	LogPreviewLimit    int      `json:"log_preview_limit"`
+	NoDiskIO           bool     `json:"no_disk_io"`
+	TriggerCharacters  []string `json:"trigger_characters"`
+	Provider           string   `json:"provider"`
+
+	// Provider-specific options
+	OpenAIBaseURL  string `json:"openai_base_url"`
+	OpenAIModel    string `json:"openai_model"`
+	OllamaBaseURL  string `json:"ollama_base_url"`
+	OllamaModel    string `json:"ollama_model"`
+	CopilotBaseURL string `json:"copilot_base_url"`
+	CopilotModel   string `json:"copilot_model"`
 }
 
 // Load reads configuration from a file and merges with defaults.
@@ -40,23 +42,14 @@ func Load(logger *log.Logger) App {
 		LogPreviewLimit:    100,
 		NoDiskIO:           true,
 	}
-
 	if logger == nil {
 		return cfg // Return defaults if no logger is provided (e.g. in tests)
 	}
 
-	var configPath string
-	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
-		configPath = filepath.Join(xdgConfigHome, "hexai", "config.json")
-	} else {
-		home, err := os.UserHomeDir()
-		if err != nil {
-				if logger != nil {
-					logger.Printf("cannot find user home directory: %v", err)
-				}
-			return cfg // Return defaults if home dir is not found
-		}
-		configPath = filepath.Join(home, ".config", "hexai", "config.json")
+	configPath, err := getConfigPath()
+	if err != nil {
+		logger.Printf("%v", err)
+		return cfg
 	}
 
 	f, err := os.Open(configPath)
@@ -95,11 +88,12 @@ func Load(logger *log.Logger) App {
 	}
 	cfg.NoDiskIO = fileCfg.NoDiskIO
 	if len(fileCfg.TriggerCharacters) > 0 {
-		cfg.TriggerCharacters = append([]string{}, fileCfg.TriggerCharacters...)
+		cfg.TriggerCharacters = slices.Clone(fileCfg.TriggerCharacters)
 	}
 	if strings.TrimSpace(fileCfg.Provider) != "" {
 		cfg.Provider = fileCfg.Provider
 	}
+
 	// Provider-specific options
 	if strings.TrimSpace(fileCfg.OpenAIBaseURL) != "" {
 		cfg.OpenAIBaseURL = fileCfg.OpenAIBaseURL
@@ -120,4 +114,18 @@ func Load(logger *log.Logger) App {
 		cfg.CopilotModel = fileCfg.CopilotModel
 	}
 	return cfg
+}
+
+func getConfigPath() (string, error) {
+	var configPath string
+	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+		configPath = filepath.Join(xdgConfigHome, "hexai", "config.json")
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("cannot find user home directory: %v", err)
+		}
+		configPath = filepath.Join(home, ".config", "hexai", "config.json")
+	}
+	return configPath, nil
 }
