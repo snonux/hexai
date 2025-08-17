@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	logPath := flag.String("log", "/tmp/hexai.log", "path to log file (optional)")
+    logPath := flag.String("log", "/tmp/hexai-lsp.log", "path to log file (optional)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 	if *showVersion {
