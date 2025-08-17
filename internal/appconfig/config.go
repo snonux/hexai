@@ -13,14 +13,14 @@ import (
 
 // App holds user-configurable settings read from ~/.config/hexai/config.json.
 type App struct {
-	MaxTokens          int      `json:"max_tokens"`
-	ContextMode        string   `json:"context_mode"`
-	ContextWindowLines int      `json:"context_window_lines"`
-	MaxContextTokens   int      `json:"max_context_tokens"`
-	LogPreviewLimit    int      `json:"log_preview_limit"`
-	
-	TriggerCharacters  []string `json:"trigger_characters"`
-	Provider           string   `json:"provider"`
+	MaxTokens          int    `json:"max_tokens"`
+	ContextMode        string `json:"context_mode"`
+	ContextWindowLines int    `json:"context_window_lines"`
+	MaxContextTokens   int    `json:"max_context_tokens"`
+	LogPreviewLimit    int    `json:"log_preview_limit"`
+
+	TriggerCharacters []string `json:"trigger_characters"`
+	Provider          string   `json:"provider"`
 
 	// Provider-specific options
 	OpenAIBaseURL  string `json:"openai_base_url"`
