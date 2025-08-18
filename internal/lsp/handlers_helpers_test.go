@@ -50,3 +50,22 @@ func TestPromptRemovalEditsForLine_WholeLine(t *testing.T) {
     }
 }
 
+func TestStripCodeFences(t *testing.T) {
+    cases := []struct{
+        name string
+        in   string
+        want string
+    }{
+        {"no fences", "package main\nfunc x(){}", "package main\nfunc x(){}"},
+        {"triple backticks no lang", "```\nA\nB\n```", "A\nB"},
+        {"triple backticks with lang", "```go\nfmt.Println(\"hi\")\n```", "fmt.Println(\"hi\")"},
+        {"leading/trailing spaces", " \n```python\nprint('x')\n```\n ", "print('x')"},
+        {"single line fenced", "```go\npackage main\n```", "package main"},
+    }
+    for _, tc := range cases {
+        got := stripCodeFences(tc.in)
+        if got != tc.want {
+            t.Fatalf("%s: got %q want %q", tc.name, got, tc.want)
+        }
+    }
+}
