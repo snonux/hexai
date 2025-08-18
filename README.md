@@ -134,7 +134,7 @@ formatter = { command = "goimports" }
 language-servers = [ "gopls", "golangci-lint-lsp", "hexai" ]
 
 [language-server.hexai]
-command = "hexai"
+command = "hexai-lsp"
 ```
 
 Note, that we have also configured other LSPs here (for Go, `gopls` and `golangci-lint-lsp`, along with `hexai` for AI completions - they aren't required for `hexai` to work, though)

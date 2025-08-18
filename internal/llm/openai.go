@@ -1,5 +1,4 @@
 // Summary: OpenAI client implementation for chat completions with optional streaming and detailed logging.
-// Not yet reviewed by a human
 package llm
 
 import (
