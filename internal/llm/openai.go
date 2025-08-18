@@ -13,26 +13,26 @@ import (
 	"strings"
 	"time"
 
-    "hexai/internal/logging"
+	"hexai/internal/logging"
 )
 
 // openAIClient implements Client against OpenAI's Chat Completions API.
 type openAIClient struct {
-    httpClient   *http.Client
-    apiKey       string
-    baseURL      string
-    defaultModel string
-    chatLogger   logging.ChatLogger
-    defaultTemperature *float64
+	httpClient         *http.Client
+	apiKey             string
+	baseURL            string
+	defaultModel       string
+	chatLogger         logging.ChatLogger
+	defaultTemperature *float64
 }
 
 type oaChatRequest struct {
-    Model       string      `json:"model"`
-    Messages    []oaMessage `json:"messages"`
-    Temperature *float64    `json:"temperature,omitempty"`
-    MaxTokens   *int        `json:"max_tokens,omitempty"`
-    Stop        []string    `json:"stop,omitempty"`
-    Stream      bool        `json:"stream,omitempty"`
+	Model       string      `json:"model"`
+	Messages    []oaMessage `json:"messages"`
+	Temperature *float64    `json:"temperature,omitempty"`
+	MaxTokens   *int        `json:"max_tokens,omitempty"`
+	Stop        []string    `json:"stop,omitempty"`
+	Stream      bool        `json:"stream,omitempty"`
 }
 
 type oaMessage struct {
@@ -54,43 +54,43 @@ type oaChatResponse struct {
 		Type    string `json:"type"`
 		Param   any    `json:"param"`
 		Code    any    `json:"code"`
-    } `json:"error,omitempty"`
+	} `json:"error,omitempty"`
 }
 
 // Streaming response chunk type (SSE)
 type oaStreamChunk struct {
-    Choices []struct {
-        Delta struct {
-            Content string `json:"content"`
-        } `json:"delta"`
-        FinishReason string `json:"finish_reason"`
-    } `json:"choices"`
-    Error *struct {
-        Message string `json:"message"`
-        Type    string `json:"type"`
-        Param   any    `json:"param"`
-        Code    any    `json:"code"`
-    } `json:"error,omitempty"`
+	Choices []struct {
+		Delta struct {
+			Content string `json:"content"`
+		} `json:"delta"`
+		FinishReason string `json:"finish_reason"`
+	} `json:"choices"`
+	Error *struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+		Param   any    `json:"param"`
+		Code    any    `json:"code"`
+	} `json:"error,omitempty"`
 }
 
 // Constructor (kept among the first functions by convention)
 // newOpenAI constructs an OpenAI client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
 func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) Client {
-    if strings.TrimSpace(baseURL) == "" {
-        baseURL = "https://api.openai.com/v1"
-    }
-    if strings.TrimSpace(model) == "" {
-        model = "gpt-4.1"
-    }
-    return openAIClient{
-        httpClient:   &http.Client{Timeout: 30 * time.Second},
-        apiKey:       apiKey,
-        baseURL:      baseURL,
-        defaultModel: model,
-        chatLogger:   logging.NewChatLogger("openai"),
-        defaultTemperature: defaultTemp,
-    }
+	if strings.TrimSpace(baseURL) == "" {
+		baseURL = "https://api.openai.com/v1"
+	}
+	if strings.TrimSpace(model) == "" {
+		model = "gpt-4.1"
+	}
+	return openAIClient{
+		httpClient:         &http.Client{Timeout: 30 * time.Second},
+		apiKey:             apiKey,
+		baseURL:            baseURL,
+		defaultModel:       model,
+		chatLogger:         logging.NewChatLogger("openai"),
+		defaultTemperature: defaultTemp,
+	}
 }
 
 func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
@@ -105,37 +105,8 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 		o.Model = c.defaultModel
 	}
 	start := time.Now()
-	logMessages := make([]struct {
-		Role    string
-		Content string
-	}, len(messages))
-	for i, m := range messages {
-		logMessages[i] = struct {
-			Role    string
-			Content string
-		}{Role: m.Role, Content: m.Content}
-	}
-	c.chatLogger.LogStart(false, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)
-
-	req := oaChatRequest{Model: o.Model}
-	req.Messages = make([]oaMessage, len(messages))
-	for i, m := range messages {
-		req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
-	}
-    // Decide temperature: request option overrides config default.
-    if o.Temperature != 0 {
-        req.Temperature = &o.Temperature
-    } else if c.defaultTemperature != nil {
-        t := *c.defaultTemperature
-        req.Temperature = &t
-    }
-	if o.MaxTokens > 0 {
-		req.MaxTokens = &o.MaxTokens
-	}
-	if len(o.Stop) > 0 {
-		req.Stop = o.Stop
-	}
-
+	c.logStart(false, o, messages)
+	req := buildOAChatRequest(o, messages, c.defaultTemperature, false)
 	body, err := json.Marshal(req)
 	if err != nil {
 		c.logf("marshal error: %v", err)
@@ -143,33 +114,19 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 	}
 	endpoint := c.baseURL + "/chat/completions"
 	logging.Logf("llm/openai ", "POST %s", endpoint)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		c.logf("new request error: %v", err)
-		return "", err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.doJSON(ctx, endpoint, body, map[string]string{
+		"Authorization": "Bearer " + c.apiKey,
+	})
 	if err != nil {
 		logging.Logf("llm/openai ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return "", err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		var apiErr oaChatResponse
-		_ = json.NewDecoder(resp.Body).Decode(&apiErr)
-		if apiErr.Error != nil && apiErr.Error.Message != "" {
-			logging.Logf("llm/openai ", "%sapi error status=%d type=%s msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), logging.AnsiBase)
-			return "", fmt.Errorf("openai error: %s (status %d)", apiErr.Error.Message, resp.StatusCode)
-		}
-		logging.Logf("llm/openai ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
-		return "", fmt.Errorf("openai http error: status %d", resp.StatusCode)
+	if err := handleOpenAINon2xx(resp, start); err != nil {
+		return "", err
 	}
-	var out oaChatResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		logging.Logf("llm/openai ", "%sdecode error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
+	out, err := decodeOpenAIChat(resp, start)
+	if err != nil {
 		return "", err
 	}
 	if len(out.Choices) == 0 {
@@ -177,7 +134,6 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 		return "", errors.New("openai: no choices returned")
 	}
 	content := out.Choices[0].Message.Content
-	// Received context (green)
 	logging.Logf("llm/openai ", "success choice=0 finish=%s size=%d preview=%s%s%s duration=%s", out.Choices[0].FinishReason, len(content), logging.AnsiGreen, logging.PreviewForLog(content), logging.AnsiBase, time.Since(start))
 	return content, nil
 }
@@ -187,7 +143,6 @@ func (c openAIClient) Name() string         { return "openai" }
 func (c openAIClient) DefaultModel() string { return c.defaultModel }
 
 // Streaming support (optional)
- 
 
 func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
 	if c.apiKey == "" {
@@ -201,36 +156,8 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 		o.Model = c.defaultModel
 	}
 	start := time.Now()
-	logMessages := make([]struct {
-		Role    string
-		Content string
-	}, len(messages))
-	for i, m := range messages {
-		logMessages[i] = struct {
-			Role    string
-			Content string
-		}{Role: m.Role, Content: m.Content}
-	}
-	c.chatLogger.LogStart(true, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)
-
-	req := oaChatRequest{Model: o.Model, Stream: true}
-	req.Messages = make([]oaMessage, len(messages))
-	for i, m := range messages {
-		req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
-	}
-    if o.Temperature != 0 {
-        req.Temperature = &o.Temperature
-    } else if c.defaultTemperature != nil {
-        t := *c.defaultTemperature
-        req.Temperature = &t
-    }
-	if o.MaxTokens > 0 {
-		req.MaxTokens = &o.MaxTokens
-	}
-	if len(o.Stop) > 0 {
-		req.Stop = o.Stop
-	}
-
+	c.logStart(true, o, messages)
+	req := buildOAChatRequest(o, messages, c.defaultTemperature, true)
 	body, err := json.Marshal(req)
 	if err != nil {
 		c.logf("marshal error: %v", err)
@@ -238,37 +165,109 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 	}
 	endpoint := c.baseURL + "/chat/completions"
 	logging.Logf("llm/openai ", "POST %s (stream)", endpoint)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		c.logf("new request error: %v", err)
-		return err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	// Streaming uses SSE-style data lines
-	httpReq.Header.Set("Accept", "text/event-stream")
-
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.doJSONWithAccept(ctx, endpoint, body, map[string]string{
+		"Authorization": "Bearer " + c.apiKey,
+	}, "text/event-stream")
 	if err != nil {
 		logging.Logf("llm/openai ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// try to decode body to surface message
-		var apiErr oaChatResponse
-		_ = json.NewDecoder(resp.Body).Decode(&apiErr)
-		if apiErr.Error != nil && apiErr.Error.Message != "" {
-			logging.Logf("llm/openai ", "%sapi error status=%d type=%s msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), logging.AnsiBase)
-			return fmt.Errorf("openai error: %s (status %d)", apiErr.Error.Message, resp.StatusCode)
-		}
-		logging.Logf("llm/openai ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
-		return fmt.Errorf("openai http error: status %d", resp.StatusCode)
+	if err := handleOpenAINon2xx(resp, start); err != nil {
+		return err
 	}
 
+	if err := parseOpenAIStream(resp, start, onDelta); err != nil {
+		return err
+	}
+	logging.Logf("llm/openai ", "stream end duration=%s", time.Since(start))
+	return nil
+}
+
+// Private helpers
+func (c openAIClient) logf(format string, args ...any) { logging.Logf("llm/openai ", format, args...) }
+
+// helpers extracted to keep methods small
+func (c openAIClient) logStart(stream bool, o Options, messages []Message) {
+	logMessages := make([]struct{ Role, Content string }, len(messages))
+	for i, m := range messages {
+		logMessages[i] = struct{ Role, Content string }{m.Role, m.Content}
+	}
+	c.chatLogger.LogStart(stream, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)
+}
+
+func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, stream bool) oaChatRequest {
+	req := oaChatRequest{Model: o.Model, Stream: stream}
+	req.Messages = make([]oaMessage, len(messages))
+	for i, m := range messages {
+		req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
+	}
+	if o.Temperature != 0 {
+		req.Temperature = &o.Temperature
+	} else if defaultTemp != nil {
+		t := *defaultTemp
+		req.Temperature = &t
+	}
+	if o.MaxTokens > 0 {
+		req.MaxTokens = &o.MaxTokens
+	}
+	if len(o.Stop) > 0 {
+		req.Stop = o.Stop
+	}
+	return req
+}
+
+func (c openAIClient) doJSON(ctx context.Context, url string, body []byte, headers map[string]string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	return c.httpClient.Do(req)
+}
+
+func (c openAIClient) doJSONWithAccept(ctx context.Context, url string, body []byte, headers map[string]string, accept string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", accept)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	return c.httpClient.Do(req)
+}
+
+func handleOpenAINon2xx(resp *http.Response, start time.Time) error {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+	var apiErr oaChatResponse
+	_ = json.NewDecoder(resp.Body).Decode(&apiErr)
+	if apiErr.Error != nil && apiErr.Error.Message != "" {
+		logging.Logf("llm/openai ", "%sapi error status=%d type=%s msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), logging.AnsiBase)
+		return fmt.Errorf("openai error: %s (status %d)", apiErr.Error.Message, resp.StatusCode)
+	}
+	logging.Logf("llm/openai ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
+	return fmt.Errorf("openai http error: status %d", resp.StatusCode)
+}
+
+func decodeOpenAIChat(resp *http.Response, start time.Time) (oaChatResponse, error) {
+	var out oaChatResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		logging.Logf("llm/openai ", "%sdecode error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
+		return oaChatResponse{}, err
+	}
+	return out, nil
+}
+
+func parseOpenAIStream(resp *http.Response, start time.Time, onDelta func(string)) error {
 	// Parse SSE: lines starting with "data: " containing JSON or [DONE]
 	scanner := bufio.NewScanner(resp.Body)
-	// Increase buffer for long lines
 	const maxBuf = 1024 * 1024
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, maxBuf)
@@ -283,7 +282,7 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 		}
 		var chunk oaStreamChunk
 		if err := json.Unmarshal([]byte(payload), &chunk); err != nil {
-			continue // skip malformed lines
+			continue
 		}
 		if chunk.Error != nil && chunk.Error.Message != "" {
 			logging.Logf("llm/openai ", "%sstream error: %s%s", logging.AnsiRed, chunk.Error.Message, logging.AnsiBase)
@@ -299,9 +298,5 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 		logging.Logf("llm/openai ", "%sstream read error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return err
 	}
-	logging.Logf("llm/openai ", "stream end duration=%s", time.Since(start))
 	return nil
 }
-
-// Private helpers
-func (c openAIClient) logf(format string, args ...any) { logging.Logf("llm/openai ", format, args...) }
