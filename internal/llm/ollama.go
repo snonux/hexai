@@ -22,13 +22,14 @@ type ollamaClient struct {
     baseURL      string
     defaultModel string
     chatLogger   logging.ChatLogger
+    defaultTemperature *float64
 }
 
 type ollamaChatRequest struct {
-    Model    string      `json:"model"`
-    Messages []oaMessage `json:"messages"`
-    Stream   bool        `json:"stream"`
-    Options  any         `json:"options,omitempty"`
+	Model    string      `json:"model"`
+	Messages []oaMessage `json:"messages"`
+	Stream   bool        `json:"stream"`
+	Options  any         `json:"options,omitempty"`
 }
 
 type ollamaChatResponse struct {
@@ -41,21 +42,23 @@ type ollamaChatResponse struct {
 }
 
 // Constructor (kept among the first functions by convention)
-func newOllama(baseURL, model string) Client {
-    if strings.TrimSpace(baseURL) == "" {
-        baseURL = "http://localhost:11434"
-    }
-    if strings.TrimSpace(model) == "" {
-        model = "qwen2.5-coder:latest"
-    }
+func newOllama(baseURL, model string, defaultTemp *float64) Client {
+	if strings.TrimSpace(baseURL) == "" {
+		baseURL = "http://localhost:11434"
+	}
+	if strings.TrimSpace(model) == "" {
+		model = "qwen3-coder:30b-a3b-q4_K_M`"
+	}
     return ollamaClient{
         httpClient:   &http.Client{Timeout: 30 * time.Second},
         baseURL:      strings.TrimRight(baseURL, "/"),
         defaultModel: model,
         chatLogger:   logging.NewChatLogger("ollama"),
+        defaultTemperature: defaultTemp,
     }
 }
 
+// TODO: This function is too long and should be refactored for readability and maintainability.
 func (c ollamaClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	o := Options{Model: c.defaultModel}
 	for _, opt := range opts {
@@ -86,9 +89,11 @@ func (c ollamaClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 
 	// Build options map only if any option is set
 	optsMap := map[string]any{}
-	if o.Temperature != 0 {
-		optsMap["temperature"] = o.Temperature
-	}
+    if o.Temperature != 0 {
+        optsMap["temperature"] = o.Temperature
+    } else if c.defaultTemperature != nil {
+        optsMap["temperature"] = *c.defaultTemperature
+    }
 	if o.MaxTokens > 0 {
 		optsMap["num_predict"] = o.MaxTokens
 	}
@@ -177,9 +182,11 @@ func (c ollamaClient) ChatStream(ctx context.Context, messages []Message, onDelt
 	}
 	// Build options map
 	optsMap := map[string]any{}
-	if o.Temperature != 0 {
-		optsMap["temperature"] = o.Temperature
-	}
+    if o.Temperature != 0 {
+        optsMap["temperature"] = o.Temperature
+    } else if c.defaultTemperature != nil {
+        optsMap["temperature"] = *c.defaultTemperature
+    }
 	if o.MaxTokens > 0 {
 		optsMap["num_predict"] = o.MaxTokens
 	}
@@ -241,6 +248,6 @@ func (c ollamaClient) ChatStream(ctx context.Context, messages []Message, onDelt
 			break
 		}
 	}
-    logging.Logf("llm/ollama ", "stream end duration=%s", time.Since(start))
-    return nil
+	logging.Logf("llm/ollama ", "stream end duration=%s", time.Since(start))
+	return nil
 }

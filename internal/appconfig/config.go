@@ -13,7 +13,7 @@ import (
 
 // App holds user-configurable settings read from ~/.config/hexai/config.json.
 type App struct {
-	MaxTokens          int    `json:"max_tokens"`
+    MaxTokens          int    `json:"max_tokens"`
 	ContextMode        string `json:"context_mode"`
 	ContextWindowLines int    `json:"context_window_lines"`
 	MaxContextTokens   int    `json:"max_context_tokens"`
@@ -22,23 +22,35 @@ type App struct {
 	TriggerCharacters []string `json:"trigger_characters"`
 	Provider          string   `json:"provider"`
 
-	// Provider-specific options
-	OpenAIBaseURL  string `json:"openai_base_url"`
-	OpenAIModel    string `json:"openai_model"`
-	OllamaBaseURL  string `json:"ollama_base_url"`
-	OllamaModel    string `json:"ollama_model"`
-	CopilotBaseURL string `json:"copilot_base_url"`
-	CopilotModel   string `json:"copilot_model"`
+    // Provider-specific options
+    OpenAIBaseURL  string `json:"openai_base_url"`
+    OpenAIModel    string `json:"openai_model"`
+    // Default temperature for OpenAI requests (nil means use provider default)
+    OpenAITemperature *float64 `json:"openai_temperature"`
+    OllamaBaseURL  string `json:"ollama_base_url"`
+    OllamaModel    string `json:"ollama_model"`
+    // Default temperature for Ollama requests (nil means use provider default)
+    OllamaTemperature *float64 `json:"ollama_temperature"`
+    CopilotBaseURL string `json:"copilot_base_url"`
+    CopilotModel   string `json:"copilot_model"`
+    // Default temperature for Copilot requests (nil means use provider default)
+    CopilotTemperature *float64 `json:"copilot_temperature"`
 }
 
 // Constructor: defaults for App (kept first among functions)
 func newDefaultConfig() App {
+    // Coding-friendly default temperature across providers
+    // Users can override per provider in config.json (including 0.0).
+    t := 0.2
     return App{
         MaxTokens:          4000,
         ContextMode:        "always-full",
         ContextWindowLines: 120,
         MaxContextTokens:   4000,
         LogPreviewLimit:    100,
+        OpenAITemperature:  &t,
+        OllamaTemperature:  &t,
+        CopilotTemperature: &t,
     }
 }
 
@@ -115,17 +127,26 @@ func (a *App) mergeWith(other *App) {
     if strings.TrimSpace(other.OpenAIModel) != "" {
         a.OpenAIModel = other.OpenAIModel
     }
+    if other.OpenAITemperature != nil { // allow explicit 0.0
+        a.OpenAITemperature = other.OpenAITemperature
+    }
     if strings.TrimSpace(other.OllamaBaseURL) != "" {
         a.OllamaBaseURL = other.OllamaBaseURL
     }
     if strings.TrimSpace(other.OllamaModel) != "" {
         a.OllamaModel = other.OllamaModel
     }
+    if other.OllamaTemperature != nil { // allow explicit 0.0
+        a.OllamaTemperature = other.OllamaTemperature
+    }
     if strings.TrimSpace(other.CopilotBaseURL) != "" {
         a.CopilotBaseURL = other.CopilotBaseURL
     }
     if strings.TrimSpace(other.CopilotModel) != "" {
         a.CopilotModel = other.CopilotModel
+    }
+    if other.CopilotTemperature != nil { // allow explicit 0.0
+        a.CopilotTemperature = other.CopilotTemperature
     }
 }
 

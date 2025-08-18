@@ -68,15 +68,18 @@ func readInput(stdin io.Reader, args []string) (string, error) {
 
 // newClientFromConfig builds an LLM client from the app config and env keys.
 func newClientFromConfig(cfg appconfig.App) (llm.Client, error) {
-	llmCfg := llm.Config{
-		Provider:       cfg.Provider,
-		OpenAIBaseURL:  cfg.OpenAIBaseURL,
-		OpenAIModel:    cfg.OpenAIModel,
-		OllamaBaseURL:  cfg.OllamaBaseURL,
-		OllamaModel:    cfg.OllamaModel,
-		CopilotBaseURL: cfg.CopilotBaseURL,
-		CopilotModel:   cfg.CopilotModel,
-	}
+    llmCfg := llm.Config{
+        Provider:       cfg.Provider,
+        OpenAIBaseURL:  cfg.OpenAIBaseURL,
+        OpenAIModel:    cfg.OpenAIModel,
+        OpenAITemperature: cfg.OpenAITemperature,
+        OllamaBaseURL:  cfg.OllamaBaseURL,
+        OllamaModel:    cfg.OllamaModel,
+        OllamaTemperature: cfg.OllamaTemperature,
+        CopilotBaseURL: cfg.CopilotBaseURL,
+        CopilotModel:   cfg.CopilotModel,
+        CopilotTemperature: cfg.CopilotTemperature,
+    }
 	oaKey := os.Getenv("OPENAI_API_KEY")
 	cpKey := os.Getenv("COPILOT_API_KEY")
 	return llm.NewFromConfig(llmCfg, oaKey, cpKey)
