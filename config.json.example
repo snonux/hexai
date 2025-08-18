@@ -11,10 +11,13 @@
 
   "openai_model": "gpt-4.1",
   "openai_base_url": "https://api.openai.com/v1",
+  "openai_temperature": 0.2,
 
-  "ollama_model": "qwen2.5-coder:latest",
+  "ollama_model": "qwen3-coder:30b-a3b-q4_K_M",
   "ollama_base_url": "http://localhost:11434",
+  "ollama_temperature": 0.2,
 
   "copilot_model": "gpt-4.1",
-  "copilot_base_url": "https://api.githubcopilot.com"
+  "copilot_base_url": "https://api.githubcopilot.com",
+  "copilot_temperature": 0.2
 }

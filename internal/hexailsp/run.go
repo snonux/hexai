@@ -52,10 +52,13 @@ func RunWithFactory(logPath string, stdin io.Reader, stdout io.Writer, logger *l
 			Provider:       cfg.Provider,
 			OpenAIBaseURL:  cfg.OpenAIBaseURL,
 			OpenAIModel:    cfg.OpenAIModel,
+			OpenAITemperature: cfg.OpenAITemperature,
 			OllamaBaseURL:  cfg.OllamaBaseURL,
 			OllamaModel:    cfg.OllamaModel,
+			OllamaTemperature: cfg.OllamaTemperature,
 			CopilotBaseURL: cfg.CopilotBaseURL,
 			CopilotModel:   cfg.CopilotModel,
+			CopilotTemperature: cfg.CopilotTemperature,
 		}
 		oaKey := os.Getenv("OPENAI_API_KEY")
 		cpKey := os.Getenv("COPILOT_API_KEY")

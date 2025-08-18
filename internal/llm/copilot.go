@@ -22,6 +22,7 @@ type copilotClient struct {
     baseURL      string
     defaultModel string
     chatLogger   logging.ChatLogger
+    defaultTemperature *float64
 }
 
 type copilotChatRequest struct {
@@ -55,7 +56,7 @@ type copilotChatResponse struct {
 }
 
 // Constructor (kept among the first functions by convention)
-func newCopilot(baseURL, model, apiKey string) Client {
+func newCopilot(baseURL, model, apiKey string, defaultTemp *float64) Client {
     if strings.TrimSpace(baseURL) == "" {
         baseURL = "https://api.githubcopilot.com"
     }
@@ -68,6 +69,7 @@ func newCopilot(baseURL, model, apiKey string) Client {
         baseURL:      strings.TrimRight(baseURL, "/"),
         defaultModel: model,
         chatLogger:   logging.NewChatLogger("copilot"),
+        defaultTemperature: defaultTemp,
     }
 }
 
@@ -101,9 +103,12 @@ func (c copilotClient) Chat(ctx context.Context, messages []Message, opts ...Req
 	for i, m := range messages {
 		req.Messages[i] = copilotMessage{Role: m.Role, Content: m.Content}
 	}
-	if o.Temperature != 0 {
-		req.Temperature = &o.Temperature
-	}
+    if o.Temperature != 0 {
+        req.Temperature = &o.Temperature
+    } else if c.defaultTemperature != nil {
+        t := *c.defaultTemperature
+        req.Temperature = &t
+    }
 	if o.MaxTokens > 0 {
 		req.MaxTokens = &o.MaxTokens
 	}

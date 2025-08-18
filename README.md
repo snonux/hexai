@@ -4,6 +4,8 @@
 
 Hexai, the AI LSP for the Helix editor and also a simple command line tool to interact with LLMs in general.
 
+It has been coded with AI and human review.
+
 Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilot, and a local Ollama server. Provider selection and models are configured via a JSON configuration file.
 
 ## Configuration
@@ -25,18 +27,21 @@ Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilo
   "provider": "ollama",
   "copilot_model": "gpt-4.1",
   "copilot_base_url": "https://api.githubcopilot.com",
+  "copilot_temperature": 0.2,
   "openai_model": "gpt-4.1",
   "openai_base_url": "https://api.openai.com/v1",
-  "ollama_model": "qwen2.5-coder:latest",
-  "ollama_base_url": "http://localhost:11434"
+  "openai_temperature": 0.2,
+  "ollama_model": "qwen3-coder:30b-a3b-q4_K_M",
+  "ollama_base_url": "http://localhost:11434",
+  "ollama_temperature": 0.2
 }
 ```
 
 * context_mode: minimal | window | file-on-new-func | always-full
 * provider: openai | copilot | ollama
-* openai_model, openai_base_url: OpenAI-only options
-* copilot_model, copilot_base_url: Copilot-only options
-* ollama_model, ollama_base_url: Ollama-only options
+* openai_model, openai_base_url, openai_temperature: OpenAI-only options
+* copilot_model, copilot_base_url, copilot_temperature: Copilot-only options
+* ollama_model, ollama_base_url, ollama_temperature: Ollama-only options
 
 Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment according to your chosen provider.
 
@@ -51,6 +56,7 @@ Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment accordin
 - In config file:
   - `openai_model` — model name (default: `gpt-4.1`).
   - `openai_base_url` — API base (default: `https://api.openai.com/v1`).
+  - `openai_temperature` — default temperature (coding-friendly default `0.2`).
 
 ### GitHub Copilot configuration
 
@@ -58,15 +64,46 @@ Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment accordin
 - In config file:
   - `copilot_model` — model name (default: `gpt-4.1`).
   - `copilot_base_url` — API base (default: `https://api.githubcopilot.com`).
+  - `copilot_temperature` — default temperature (coding-friendly default `0.2`).
 
 ### Ollama configuration (local)
 
 - In config file:
-  - `ollama_model` — model name/tag (default: `qwen2.5-coder:latest`).
+  - `ollama_model` — model name/tag (default: `qwen3-coder:30b-a3b-q4_K_M`).
   - `ollama_base_url` — base URL to Ollama (default: `http://localhost:11434`).
+  - `ollama_temperature` — default temperature (coding-friendly default `0.2`).
+
+### Temperature behavior
+
+* What it is: Temperature controls how random/creative the model's word choices are.
+  Lower values (≈0–0.3) are more deterministic and precise; higher values (≈0.7+)
+  produce more diverse, creative outputs.
+* Default for coding: When not specified in the config, Hexai uses a
+  coding-friendly default temperature of `0.2` for all providers.
+* Per-provider override: Set `openai_temperature`, `copilot_temperature`, or
+  `ollama_temperature` to override. Valid ranges depend on the provider, but
+  typically `0.0`–`2.0`.
+* LSP vs CLI: The LSP sometimes overrides temperature for specific actions
+  (e.g., `0.1`–`0.2` for completions). The CLI uses the configured provider
+  default unless you change it.
+
+Recommended ranges and use cases:
+
+- 0.0–0.3: Deterministic, precise, minimal tangents. Best for code
+  refactoring, bug fixes, tests, and data extraction.
+- 0.4–0.7: Balanced creativity and coherence. General Q&A and most writing.
+- 0.8–1.2+: Highly creative/varied. Brainstorming, fiction, or ad copy; may
+  increase risk of off-target or verbose outputs.
+
+Guidance:
+
+- Lower temperature increases consistency and predictability, but can repeat
+  or be terse.
+- Higher temperature increases diversity of phrasing and ideas, but can wander
+  or introduce mistakes.
 
 Notes:
-- For Ollama, ensure the model is available locally (e.g., `ollama pull qwen2.5-coder:latest`).
+- For Ollama, ensure the model is available locally (e.g., `ollama pull qwen3-coder:30b-a3b-q4_K_M`).
 - If you run Ollama in OpenAI‑compatible mode, you may alternatively use the
   OpenAI provider with `openai_base_url` in the config pointing to your local endpoint.
 
@@ -104,11 +141,11 @@ Note, that we have also configured other LSPs here (for Go, `gopls` and `golangc
 Hexai LSP supports inline trigger tags you can type in your code to request an
 action from the LLM and then clean up the tag automatically.
 
-- `;some prompt here;`: Do what is written in `some prompt text here`, then remove just the prompt.
+- ``: Do what is written in `some prompt text here`, then remove just the prompt.
   - Strict form: no space after the first ``.
   - An optional single space immediately after the closing `;` is also removed.
 - Spaced variants such as `; text ; spaced ;` are ignored.
-- `some text here ;;some prompt;`
+
 
 ## Code actions
 
@@ -156,4 +193,3 @@ hexai 'install ripgrep on macOS'
 # Verbose explanation
 hexai 'install ripgrep on macOS and explain'
 ```
-

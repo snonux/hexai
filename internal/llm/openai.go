@@ -23,6 +23,7 @@ type openAIClient struct {
     baseURL      string
     defaultModel string
     chatLogger   logging.ChatLogger
+    defaultTemperature *float64
 }
 
 type oaChatRequest struct {
@@ -75,7 +76,7 @@ type oaStreamChunk struct {
 // Constructor (kept among the first functions by convention)
 // newOpenAI constructs an OpenAI client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
-func newOpenAI(baseURL, model, apiKey string) Client {
+func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) Client {
     if strings.TrimSpace(baseURL) == "" {
         baseURL = "https://api.openai.com/v1"
     }
@@ -88,6 +89,7 @@ func newOpenAI(baseURL, model, apiKey string) Client {
         baseURL:      baseURL,
         defaultModel: model,
         chatLogger:   logging.NewChatLogger("openai"),
+        defaultTemperature: defaultTemp,
     }
 }
 
@@ -120,9 +122,13 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 	for i, m := range messages {
 		req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
 	}
-	if o.Temperature != 0 {
-		req.Temperature = &o.Temperature
-	}
+    // Decide temperature: request option overrides config default.
+    if o.Temperature != 0 {
+        req.Temperature = &o.Temperature
+    } else if c.defaultTemperature != nil {
+        t := *c.defaultTemperature
+        req.Temperature = &t
+    }
 	if o.MaxTokens > 0 {
 		req.MaxTokens = &o.MaxTokens
 	}
@@ -212,9 +218,12 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 	for i, m := range messages {
 		req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
 	}
-	if o.Temperature != 0 {
-		req.Temperature = &o.Temperature
-	}
+    if o.Temperature != 0 {
+        req.Temperature = &o.Temperature
+    } else if c.defaultTemperature != nil {
+        t := *c.defaultTemperature
+        req.Temperature = &t
+    }
 	if o.MaxTokens > 0 {
 		req.MaxTokens = &o.MaxTokens
 	}

@@ -15,7 +15,8 @@
 
 ### New features
 
-* [ ] Use hexai as a gh copilot... CLI replacemant for command line questions
+* [ ] implement a code action for selected code block the way via a unix pipe as faster access in helix
+* [x] Use hexai as a gh copilot... CLI replacemant for command line questions
 * [ ] Resolve diagnostics code action feature
 * [X] LSP server to be used with the Helix text editor
 * [X] Code completion using LLMs
