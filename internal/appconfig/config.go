@@ -17,7 +17,9 @@ type App struct {
 	ContextMode        string `json:"context_mode"`
 	ContextWindowLines int    `json:"context_window_lines"`
 	MaxContextTokens   int    `json:"max_context_tokens"`
-	LogPreviewLimit    int    `json:"log_preview_limit"`
+    LogPreviewLimit    int    `json:"log_preview_limit"`
+    // Single knob for LSP requests; if set, overrides hardcoded temps in LSP.
+    CodingTemperature  *float64 `json:"coding_temperature"`
 
 	TriggerCharacters []string `json:"trigger_characters"`
 	Provider          string   `json:"provider"`
@@ -48,6 +50,7 @@ func newDefaultConfig() App {
         ContextWindowLines: 120,
         MaxContextTokens:   4000,
         LogPreviewLimit:    100,
+        CodingTemperature:  &t,
         OpenAITemperature:  &t,
         OllamaTemperature:  &t,
         CopilotTemperature: &t,
@@ -114,6 +117,9 @@ func (a *App) mergeWith(other *App) {
     }
     if other.LogPreviewLimit >= 0 {
         a.LogPreviewLimit = other.LogPreviewLimit
+    }
+    if other.CodingTemperature != nil { // allow explicit 0.0
+        a.CodingTemperature = other.CodingTemperature
     }
     if len(other.TriggerCharacters) > 0 {
         a.TriggerCharacters = slices.Clone(other.TriggerCharacters)

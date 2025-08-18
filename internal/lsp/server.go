@@ -29,7 +29,9 @@ type Server struct {
 	windowLines      int
 	maxContextTokens int
 	noDiskIO         bool
-	triggerChars     []string
+    triggerChars     []string
+    // If set, used as the LSP coding temperature for all LLM calls
+    codingTemperature *float64
 	// LLM request stats
 	llmReqTotal       int64
 	llmSentBytesTotal int64
@@ -40,14 +42,15 @@ type Server struct {
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
 type ServerOptions struct {
-	LogContext        bool
-	MaxTokens         int
-	ContextMode       string
-	WindowLines       int
-	MaxContextTokens  int
-	
-	Client            llm.Client
-	TriggerCharacters []string
+    LogContext        bool
+    MaxTokens         int
+    ContextMode       string
+    WindowLines       int
+    MaxContextTokens  int
+
+    Client            llm.Client
+    TriggerCharacters []string
+    CodingTemperature *float64
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -74,13 +77,14 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.maxContextTokens = maxContextTokens
 	
 	s.startTime = time.Now()
-	s.llmClient = opts.Client
-	if len(opts.TriggerCharacters) == 0 {
-		s.triggerChars = []string{".", ":", "/", "_", ";", "?"}
-	} else {
-		s.triggerChars = append([]string{}, opts.TriggerCharacters...)
-	}
-	return s
+    s.llmClient = opts.Client
+    if len(opts.TriggerCharacters) == 0 {
+        s.triggerChars = []string{".", ":", "/", "_", ";", "?"}
+    } else {
+        s.triggerChars = append([]string{}, opts.TriggerCharacters...)
+    }
+    s.codingTemperature = opts.CodingTemperature
+    return s
 }
 
 func (s *Server) Run() error {

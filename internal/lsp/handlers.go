@@ -93,7 +93,12 @@ func (s *Server) handleCodeAction(req Request) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-		if text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.1)); err == nil {
+        // Build request options from server settings
+        opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens)}
+        if s.codingTemperature != nil {
+            opts = append(opts, llm.WithTemperature(*s.codingTemperature))
+        }
+        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
 			out := strings.TrimSpace(text)
 			if out != "" {
 				edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
@@ -123,7 +128,11 @@ func (s *Server) handleCodeAction(req Request) {
 		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: b.String()}}
-		if text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.1)); err == nil {
+        opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens)}
+        if s.codingTemperature != nil {
+            opts = append(opts, llm.WithTemperature(*s.codingTemperature))
+        }
+        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
 			out := strings.TrimSpace(text)
 			if out != "" {
 				edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
@@ -454,7 +463,11 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	s.llmSentBytesTotal += int64(sentSize)
 	s.mu.Unlock()
 
-	text, err := s.llmClient.Chat(ctx, messages, llm.WithMaxTokens(s.maxTokens), llm.WithTemperature(0.2))
+    opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens)}
+    if s.codingTemperature != nil {
+        opts = append(opts, llm.WithTemperature(*s.codingTemperature))
+    }
+    text, err := s.llmClient.Chat(ctx, messages, opts...)
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
 		// Log updated averages after this request (even if failed)

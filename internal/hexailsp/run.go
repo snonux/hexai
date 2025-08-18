@@ -83,6 +83,8 @@ func RunWithFactory(logPath string, stdin io.Reader, stdout io.Writer, logger *l
 		WindowLines:      cfg.ContextWindowLines,
 		MaxContextTokens: cfg.MaxContextTokens,
 
+		CodingTemperature: cfg.CodingTemperature,
+
 		Client:            client,
 		TriggerCharacters: cfg.TriggerCharacters,
 	})

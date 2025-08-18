@@ -24,6 +24,7 @@ Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilo
   "log_preview_limit": 100,
   "no_disk_io": true,
   "trigger_characters": [".", ":", "/", "_", ";", "?"],
+  "coding_temperature": 0.2,
   "provider": "ollama",
   "copilot_model": "gpt-4.1",
   "copilot_base_url": "https://api.githubcopilot.com",
@@ -39,6 +40,7 @@ Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilo
 
 * context_mode: minimal | window | file-on-new-func | always-full
 * provider: openai | copilot | ollama
+* coding_temperature: single knob for LSP requests (optional; default uses provider temperature)
 * openai_model, openai_base_url, openai_temperature: OpenAI-only options
 * copilot_model, copilot_base_url, copilot_temperature: Copilot-only options
 * ollama_model, ollama_base_url, ollama_temperature: Ollama-only options
@@ -84,8 +86,9 @@ Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment accordin
   `ollama_temperature` to override. Valid ranges depend on the provider, but
   typically `0.0`–`2.0`.
 * LSP vs CLI: The LSP sometimes overrides temperature for specific actions
-  (e.g., `0.1`–`0.2` for completions). The CLI uses the configured provider
-  default unless you change it.
+  using `coding_temperature` (if set). If `coding_temperature` is not set,
+  LSP calls use the provider default temperature. The CLI uses the configured
+  provider default unless you change it.
 
 Recommended ranges and use cases:
 
