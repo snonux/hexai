@@ -6,6 +6,7 @@
   "log_preview_limit": 100,
   "no_disk_io": true,
   "trigger_characters": [".", ":", "/", "_", ";", "?"],
+  "coding_temperature": 0.2,
 
   "provider": "openai",
 
