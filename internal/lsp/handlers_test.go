@@ -9,16 +9,26 @@ import (
 )
 
 func TestInParamList(t *testing.T) {
-	line := "func foo(a int, b string) int {"
-	if !inParamList(line, 15) { // inside params
-		t.Fatalf("expected inParamList true for cursor inside params")
-	}
-	if inParamList(line, 2) { // before 'func'
-		t.Fatalf("expected inParamList false for cursor before params")
-	}
-	if inParamList(line, len(line)) { // after ')'
-		t.Fatalf("expected inParamList false for cursor after params")
-	}
+    line := "func foo(a int, b string) int {"
+    cases := []struct{
+        name string
+        cursor int
+        want bool
+    }{
+        {"inside-params", 15, true},
+        {"before-func", 2, false},
+        {"after-paren", len(line), false},
+        {"at-open-paren", strings.Index(line, "(")+1, true},
+        {"at-close-paren", strings.Index(line, ")"), true},
+    }
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            got := inParamList(line, tc.cursor)
+            if got != tc.want {
+                t.Fatalf("cursor=%d got %v want %v", tc.cursor, got, tc.want)
+            }
+        })
+    }
 }
 
 func TestComputeWordStart(t *testing.T) {
