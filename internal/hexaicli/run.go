@@ -3,13 +3,14 @@
 package hexaicli
 
 import (
-	"bufio"
-	"context"
-	"fmt"
-	"io"
-	"os"
-	"strings"
-	"time"
+    "bufio"
+    "context"
+    "fmt"
+    "io"
+    "log"
+    "os"
+    "strings"
+    "time"
 
 	"hexai/internal/appconfig"
 	"hexai/internal/llm"
@@ -19,12 +20,14 @@ import (
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
 // It assumes flags have already been parsed by the caller.
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	cfg := appconfig.Load(nil)
-	client, err := newClientFromConfig(cfg)
-	if err != nil {
-		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
-		return err
-	}
+    // Load configuration with a logger so file-based config is respected.
+    logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
+    cfg := appconfig.Load(logger)
+    client, err := newClientFromConfig(cfg)
+    if err != nil {
+        fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+        return err
+    }
 
 	return RunWithClient(ctx, args, stdin, stdout, stderr, client)
 }

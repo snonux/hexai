@@ -1,5 +1,4 @@
 // Summary: GitHub Copilot client implementation for chat completions using the Copilot API.
-// Not yet reviewed by a human
 package llm
 
 import (
