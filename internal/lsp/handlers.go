@@ -452,25 +452,41 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	defer cancel()
 
     inParams := inParamList(current, p.Position.Character)
-    // Heuristic 1: Require a minimal typed identifier prefix to avoid early triggers
+    // Heuristic 1: Require a minimal typed identifier prefix to avoid early triggers,
+    // but allow immediate completion after structural trigger chars like '.', ':', '/'.
     if !inParams {
-        start := computeWordStart(current, p.Position.Character)
-        if p.Position.Character-start < 2 { // fewer than 2 identifier chars
-            return []CompletionItem{}, true
+        // Determine the effective cursor index within current line, clamped, and
+        // skip over trailing spaces/tabs to support cases like "type Matrix| "
+        // where the cursor is after a space following an identifier.
+        idx := p.Position.Character
+        if idx > len(current) { idx = len(current) }
+        // Structural triggers allow no prefix
+        allowNoPrefix := false
+        if idx > 0 {
+            ch := current[idx-1]
+            if ch == '.' || ch == ':' || ch == '/' || ch == '_' {
+                allowNoPrefix = true
+            }
+        }
+        if !allowNoPrefix {
+            // Walk left over whitespace
+            j := idx
+            for j > 0 {
+                c := current[j-1]
+                if c == ' ' || c == '\t' { j--; continue }
+                break
+            }
+            start := computeWordStart(current, j)
+            if j-start < 1 { // require at least 1 identifier char
+                logging.Logf("lsp ", "completion skip=short-prefix line=%d char=%d current=%q", p.Position.Line, p.Position.Character, trimLen(current))
+                return []CompletionItem{}, true
+            }
         }
     }
-    // Heuristic 2: Throttle LLM calls to avoid rapid-fire requests
-    if s.minCompletionInterval > 0 {
-        s.mu.Lock()
-        tooSoon := time.Since(s.lastLLMCompletion) < s.minCompletionInterval
-        // Preemptively update timestamp to coalesce bursts
-        if !tooSoon {
-            s.lastLLMCompletion = time.Now()
-        }
-        s.mu.Unlock()
-        if tooSoon {
-            return []CompletionItem{}, true
-        }
+    // Concurrency guard: if another LLM request is running, skip this one.
+    if !s.tryStartLLM() {
+        logging.Logf("lsp ", "completion skip=busy another LLM request in flight")
+        return []CompletionItem{}, true
     }
 	sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
 	messages := []llm.Message{
@@ -492,7 +508,9 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	if s.codingTemperature != nil {
 		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
 	}
-	text, err := s.llmClient.Chat(ctx, messages, opts...)
+    logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
+    text, err := s.llmClient.Chat(ctx, messages, opts...)
+    defer s.endLLM()
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
 		// Log updated averages after this request (even if failed)
