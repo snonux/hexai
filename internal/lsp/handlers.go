@@ -477,11 +477,17 @@ func (s *Server) handleCompletion(req Request) {
 		if s.llmClient != nil {
 			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
 			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
-			items, ok := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
-			if ok {
-				s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
-				return
-			}
+            items, ok, busy := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
+            if ok {
+                s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
+                return
+            }
+            if busy {
+                // Inform client that results are incomplete so it may try again shortly.
+                logging.Logf("lsp ", "completion busy uri=%s line=%d char=%d returning isIncomplete", p.TextDocument.URI, p.Position.Line, p.Position.Character)
+                s.reply(req.ID, CompletionList{IsIncomplete: true, Items: []CompletionItem{}}, nil)
+                return
+            }
 		}
 	}
 	items := s.fallbackCompletionItems(docStr)
@@ -505,17 +511,27 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 		p.TextDocument.URI, p.Position.Line, p.Position.Character, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
 }
 
-func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) {
+func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool, bool) {
     ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
     defer cancel()
 
     // Only invoke LLM when triggered by one of our trigger characters.
     if !s.isTriggerEvent(p, current) {
         logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-        return []CompletionItem{}, true
+        return []CompletionItem{}, true, false
     }
 
     inParams := inParamList(current, p.Position.Character)
+
+    // Build a cache key for this completion context (ignore trailing whitespace
+    // before the cursor when forming the key) and try cache before any LLM call.
+    key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
+    if cleaned, ok := s.completionCacheGet(key); ok && strings.TrimSpace(cleaned) != "" {
+        logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
+            p.TextDocument.URI, p.Position.Line, p.Position.Character,
+            logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
+        return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
+    }
     // Heuristic 1: Require a minimal typed identifier prefix to avoid early triggers,
     // but allow immediate completion after structural trigger chars like '.', ':', '/'.
     if !inParams {
@@ -543,14 +559,14 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
             start := computeWordStart(current, j)
             if j-start < 1 { // require at least 1 identifier char
                 logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-                return []CompletionItem{}, true
+                return []CompletionItem{}, true, false
             }
         }
     }
     // Concurrency guard: if another LLM request is running, skip this one.
     if !s.tryStartLLM() {
         logging.Logf("lsp ", "%scompletion skip=busy another LLM request in flight%s", logging.AnsiYellow, logging.AnsiBase)
-        return []CompletionItem{}, true
+        return []CompletionItem{}, false, true
     }
 	sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
 	messages := []llm.Message{
@@ -579,7 +595,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		logging.Logf("lsp ", "llm completion error: %v", err)
 		// Log updated averages after this request (even if failed)
 		s.logLLMStats()
-		return nil, false
+        return nil, false, false
 	}
 	// Update response counters (received)
 	s.incRecvCounters(len(text))
@@ -595,14 +611,100 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
             }
         }
     }
-	if cleaned != "" {
-		cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
-	}
-	if cleaned == "" {
-		return nil, false
-	}
+    if cleaned != "" {
+        cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
+    }
+    if cleaned == "" {
+        return nil, false, false
+    }
 
-	return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
+    // Store successful completion in cache
+    s.completionCachePut(key, cleaned)
+
+    return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
+}
+
+// --- small completion cache (last ~10 entries) ---
+
+func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string {
+    // Normalize left-of-cursor by trimming trailing spaces/tabs
+    idx := p.Position.Character
+    if idx > len(current) { idx = len(current) }
+    left := strings.TrimRight(current[:idx], " \t")
+    right := ""
+    if idx < len(current) { right = current[idx:] }
+    prov := ""
+    model := ""
+    if s.llmClient != nil {
+        prov = s.llmClient.Name()
+        model = s.llmClient.DefaultModel()
+    }
+    temp := ""
+    if s.codingTemperature != nil { temp = fmt.Sprintf("%.3f", *s.codingTemperature) }
+    extra := ""
+    if hasExtra {
+        extra = strings.TrimSpace(extraText)
+    }
+    // Compose a key from essential context parts
+    return strings.Join([]string{
+        "v1", // version for future-proofing
+        prov,
+        model,
+        temp,
+        p.TextDocument.URI,
+        fmt.Sprintf("%d:%d", p.Position.Line, p.Position.Character),
+        above,
+        left,
+        right,
+        below,
+        funcCtx,
+        fmt.Sprintf("params=%t", inParams),
+        extra,
+    }, "\x1f") // use unit separator to avoid collisions
+}
+
+func (s *Server) completionCacheGet(key string) (string, bool) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    v, ok := s.compCache[key]
+    if !ok {
+        return "", false
+    }
+    // move to most-recent
+    s.compCacheTouchLocked(key)
+    return v, true
+}
+
+func (s *Server) completionCachePut(key, value string) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    if _, exists := s.compCache[key]; !exists {
+        s.compCacheOrder = append(s.compCacheOrder, key)
+        s.compCache[key] = value
+        if len(s.compCacheOrder) > 10 {
+            // evict oldest
+            old := s.compCacheOrder[0]
+            s.compCacheOrder = s.compCacheOrder[1:]
+            delete(s.compCache, old)
+        }
+        return
+    }
+    // update existing and mark most-recent
+    s.compCache[key] = value
+    s.compCacheTouchLocked(key)
+}
+
+func (s *Server) compCacheTouchLocked(key string) {
+    // assumes s.mu is held
+    // remove any existing occurrence of key in order slice
+    idx := -1
+    for i, k := range s.compCacheOrder {
+        if k == key { idx = i; break }
+    }
+    if idx >= 0 {
+        s.compCacheOrder = append(append([]string{}, s.compCacheOrder[:idx]...), s.compCacheOrder[idx+1:]...)
+    }
+    s.compCacheOrder = append(s.compCacheOrder, key)
 }
 
 // isTriggerEvent returns true when the completion request appears to be caused
