@@ -96,24 +96,24 @@ func (s *Server) handleCodeAction(req Request) {
 }
 
 func (s *Server) buildRewriteCodeAction(p CodeActionParams, sel string) *CodeAction {
-    if instr, cleaned := instructionFromSelection(sel); strings.TrimSpace(instr) != "" {
-        sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
-        user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", instr, cleaned)
-        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-        defer cancel()
-        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-        opts := s.llmRequestOpts()
-        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
-            if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-                edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
-                ca := CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Edit: &edit}
-                return &ca
-            }
-        } else {
-            logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
-        }
-    }
-    return nil
+	if instr, cleaned := instructionFromSelection(sel); strings.TrimSpace(instr) != "" {
+		sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
+		user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", instr, cleaned)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+		opts := s.llmRequestOpts()
+		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+				edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
+				ca := CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Edit: &edit}
+				return &ca
+			}
+		} else {
+			logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
+		}
+	}
+	return nil
 }
 
 func (s *Server) buildDiagnosticsCodeAction(p CodeActionParams, sel string) *CodeAction {
@@ -137,16 +137,16 @@ func (s *Server) buildDiagnosticsCodeAction(p CodeActionParams, sel string) *Cod
 	defer cancel()
 	messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: b.String()}}
 	opts := s.llmRequestOpts()
-    if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
-        if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-            edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
-            ca := CodeAction{Title: "Hexai: resolve diagnostics", Kind: "quickfix", Edit: &edit}
-            return &ca
-        }
-    } else {
-        logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
-    }
-    return nil
+	if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+		if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+			edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
+			ca := CodeAction{Title: "Hexai: resolve diagnostics", Kind: "quickfix", Edit: &edit}
+			return &ca
+		}
+	} else {
+		logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
+	}
+	return nil
 }
 
 func (s *Server) llmRequestOpts() []llm.RequestOption {
@@ -482,13 +482,13 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	// Update response counters (received)
 	s.incRecvCounters(len(text))
 	s.logLLMStats()
-    cleaned := stripCodeFences(strings.TrimSpace(text))
-    if cleaned != "" {
-        cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
-    }
-    if cleaned == "" {
-        return nil, false
-    }
+	cleaned := stripCodeFences(strings.TrimSpace(text))
+	if cleaned != "" {
+		cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
+	}
+	if cleaned == "" {
+		return nil, false
+	}
 
 	return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
 }
@@ -712,7 +712,7 @@ func isIdentChar(ch byte) bool {
 // already appears immediately to the left of the cursor on the current line.
 // Also handles simple '=' assignments.
 func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) string {
-    s2 := strings.TrimLeft(suggestion, " \t")
+	s2 := strings.TrimLeft(suggestion, " \t")
 	// Prefer := if present at end of prefix
 	if idx := strings.LastIndex(prefixBeforeCursor, ":="); idx >= 0 && idx+2 <= len(prefixBeforeCursor) {
 		// Ensure only spaces follow in prefix (cursor at end of prefix segment)
@@ -754,30 +754,30 @@ func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) strin
 // response when the entire output is wrapped, e.g. starting with "```go" or
 // "```" and ending with "```". It returns the inner content unchanged.
 func stripCodeFences(s string) string {
-    t := strings.TrimSpace(s)
-    if t == "" {
-        return t
-    }
-    lines := splitLines(t)
-    // find first and last non-empty lines
-    start := 0
-    for start < len(lines) && strings.TrimSpace(lines[start]) == "" {
-        start++
-    }
-    end := len(lines) - 1
-    for end >= 0 && strings.TrimSpace(lines[end]) == "" {
-        end--
-    }
-    if start >= len(lines) || end < 0 || start > end {
-        return t
-    }
-    first := strings.TrimSpace(lines[start])
-    last := strings.TrimSpace(lines[end])
-    if strings.HasPrefix(first, "```") && last == "```" && end > start {
-        inner := strings.Join(lines[start+1:end], "\n")
-        return inner
-    }
-    return t
+	t := strings.TrimSpace(s)
+	if t == "" {
+		return t
+	}
+	lines := splitLines(t)
+	// find first and last non-empty lines
+	start := 0
+	for start < len(lines) && strings.TrimSpace(lines[start]) == "" {
+		start++
+	}
+	end := len(lines) - 1
+	for end >= 0 && strings.TrimSpace(lines[end]) == "" {
+		end--
+	}
+	if start >= len(lines) || end < 0 || start > end {
+		return t
+	}
+	first := strings.TrimSpace(lines[start])
+	last := strings.TrimSpace(lines[end])
+	if strings.HasPrefix(first, "```") && last == "```" && end > start {
+		inner := strings.Join(lines[start+1:end], "\n")
+		return inner
+	}
+	return t
 }
 
 func labelForCompletion(cleaned, filter string) string {
