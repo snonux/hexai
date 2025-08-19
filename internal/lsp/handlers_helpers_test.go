@@ -69,3 +69,24 @@ func TestStripCodeFences(t *testing.T) {
         }
     }
 }
+
+func TestStripInlineCodeSpan(t *testing.T) {
+    cases := []struct{
+        name string
+        in   string
+        want string
+    }{
+        {"no backticks", "return x + y", "return x + y"},
+        {"single inline", "Use `foo(bar)` here", "foo(bar)"},
+        {"just inline", "`x := y()`", "x := y()"},
+        {"unmatched start", "use `foo(bar) without end", "use `foo(bar) without end"},
+        {"multiple spans picks first", "`a` and also `b`", "a"},
+        {"leading/trailing spaces", "  text ` z `  ", " z "},
+    }
+    for _, tc := range cases {
+        got := stripInlineCodeSpan(tc.in)
+        if got != tc.want {
+            t.Fatalf("%s: got %q want %q", tc.name, got, tc.want)
+        }
+    }
+}
