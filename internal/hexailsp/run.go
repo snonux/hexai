@@ -77,8 +77,12 @@ func buildClientIfNil(cfg appconfig.App, client llm.Client) llm.Client {
 		CopilotModel:       cfg.CopilotModel,
 		CopilotTemperature: cfg.CopilotTemperature,
 	}
-	oaKey := os.Getenv("OPENAI_API_KEY")
-	cpKey := os.Getenv("COPILOT_API_KEY")
+    // Prefer HEXAI_OPENAI_API_KEY; fall back to OPENAI_API_KEY
+    oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
+    if strings.TrimSpace(oaKey) == "" {
+        oaKey = os.Getenv("OPENAI_API_KEY")
+    }
+    cpKey := os.Getenv("COPILOT_API_KEY")
 	if c, err := llm.NewFromConfig(llmCfg, oaKey, cpKey); err != nil {
 		logging.Logf("lsp ", "llm disabled: %v", err)
 		return nil

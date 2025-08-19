@@ -83,9 +83,13 @@ func newClientFromConfig(cfg appconfig.App) (llm.Client, error) {
         CopilotModel:   cfg.CopilotModel,
         CopilotTemperature: cfg.CopilotTemperature,
     }
-	oaKey := os.Getenv("OPENAI_API_KEY")
-	cpKey := os.Getenv("COPILOT_API_KEY")
-	return llm.NewFromConfig(llmCfg, oaKey, cpKey)
+    // Prefer HEXAI_OPENAI_API_KEY; fall back to OPENAI_API_KEY
+    oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
+    if strings.TrimSpace(oaKey) == "" {
+        oaKey = os.Getenv("OPENAI_API_KEY")
+    }
+    cpKey := os.Getenv("COPILOT_API_KEY")
+    return llm.NewFromConfig(llmCfg, oaKey, cpKey)
 }
 
 // buildMessages creates system and user messages based on input content.

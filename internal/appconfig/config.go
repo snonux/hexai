@@ -2,13 +2,14 @@
 package appconfig
 
 import (
-	"encoding/json"
-	"fmt"
-	"log"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
+    "encoding/json"
+    "fmt"
+    "log"
+    "os"
+    "path/filepath"
+    "slices"
+    "strconv"
+    "strings"
 )
 
 // App holds user-configurable settings read from ~/.config/hexai/config.json.
@@ -60,10 +61,10 @@ func newDefaultConfig() App {
 // Load reads configuration from a file and merges with defaults.
 // It respects the XDG Base Directory Specification.
 func Load(logger *log.Logger) App {
-	cfg := newDefaultConfig()
-	if logger == nil {
-		return cfg // Return defaults if no logger is provided (e.g. in tests)
-	}
+    cfg := newDefaultConfig()
+    if logger == nil {
+        return cfg // Return defaults if no logger is provided (e.g. in tests)
+    }
 
 	configPath, err := getConfigPath()
 	if err != nil {
@@ -76,8 +77,12 @@ func Load(logger *log.Logger) App {
 		return cfg
 	}
 
-	cfg.mergeWith(fileCfg)
-	return cfg
+    cfg.mergeWith(fileCfg)
+    // Environment overrides (take precedence over file)
+    if envCfg := loadFromEnv(logger); envCfg != nil {
+        cfg.mergeWith(envCfg)
+    }
+    return cfg
 }
 
 // Private helpers
@@ -103,8 +108,8 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) {
 }
 
 func (a *App) mergeWith(other *App) {
-	a.mergeBasics(other)
-	a.mergeProviderFields(other)
+    a.mergeBasics(other)
+    a.mergeProviderFields(other)
 }
 
 // mergeBasics merges general (non-provider) fields.
@@ -177,5 +182,87 @@ func getConfigPath() (string, error) {
 		}
 		configPath = filepath.Join(home, ".config", "hexai", "config.json")
 	}
-	return configPath, nil
+    return configPath, nil
+}
+
+// --- Environment overrides ---
+
+// loadFromEnv constructs an App containing only fields set via HEXAI_* env vars.
+// These values should take precedence over file config when merged.
+func loadFromEnv(logger *log.Logger) *App {
+    var out App
+    var any bool
+
+    // helpers
+    getenv := func(k string) string { return strings.TrimSpace(os.Getenv(k)) }
+    parseInt := func(k string) (int, bool) {
+        v := getenv(k)
+        if v == "" { return 0, false }
+        n, err := strconv.Atoi(v)
+        if err != nil {
+            if logger != nil { logger.Printf("invalid %s: %v", k, err) }
+            return 0, false
+        }
+        return n, true
+    }
+    parseFloatPtr := func(k string) (*float64, bool) {
+        v := getenv(k)
+        if v == "" { return nil, false }
+        f, err := strconv.ParseFloat(v, 64)
+        if err != nil {
+            if logger != nil { logger.Printf("invalid %s: %v", k, err) }
+            return nil, false
+        }
+        return &f, true
+    }
+
+    if n, ok := parseInt("HEXAI_MAX_TOKENS"); ok {
+        out.MaxTokens = n; any = true
+    }
+    if s := getenv("HEXAI_CONTEXT_MODE"); s != "" {
+        out.ContextMode = s; any = true
+    }
+    if n, ok := parseInt("HEXAI_CONTEXT_WINDOW_LINES"); ok {
+        out.ContextWindowLines = n; any = true
+    }
+    if n, ok := parseInt("HEXAI_MAX_CONTEXT_TOKENS"); ok {
+        out.MaxContextTokens = n; any = true
+    }
+    if n, ok := parseInt("HEXAI_LOG_PREVIEW_LIMIT"); ok {
+        out.LogPreviewLimit = n; any = true
+    }
+    if f, ok := parseFloatPtr("HEXAI_CODING_TEMPERATURE"); ok {
+        out.CodingTemperature = f; any = true
+    }
+    if s := getenv("HEXAI_TRIGGER_CHARACTERS"); s != "" {
+        parts := strings.Split(s, ",")
+        out.TriggerCharacters = nil
+        for _, p := range parts {
+            if t := strings.TrimSpace(p); t != "" {
+                out.TriggerCharacters = append(out.TriggerCharacters, t)
+            }
+        }
+        any = true
+    }
+    if s := getenv("HEXAI_PROVIDER"); s != "" {
+        out.Provider = s; any = true
+    }
+
+    // Provider-specific
+    if s := getenv("HEXAI_OPENAI_BASE_URL"); s != "" { out.OpenAIBaseURL = s; any = true }
+    if s := getenv("HEXAI_OPENAI_MODEL"); s != "" { out.OpenAIModel = s; any = true }
+    if f, ok := parseFloatPtr("HEXAI_OPENAI_TEMPERATURE"); ok { out.OpenAITemperature = f; any = true }
+
+    if s := getenv("HEXAI_OLLAMA_BASE_URL"); s != "" { out.OllamaBaseURL = s; any = true }
+    if s := getenv("HEXAI_OLLAMA_MODEL"); s != "" { out.OllamaModel = s; any = true }
+    if f, ok := parseFloatPtr("HEXAI_OLLAMA_TEMPERATURE"); ok { out.OllamaTemperature = f; any = true }
+
+    if s := getenv("HEXAI_COPILOT_BASE_URL"); s != "" { out.CopilotBaseURL = s; any = true }
+    if s := getenv("HEXAI_COPILOT_MODEL"); s != "" { out.CopilotModel = s; any = true }
+    if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok { out.CopilotTemperature = f; any = true }
+
+    if !any {
+        return nil
+    }
+    return &out
 }
