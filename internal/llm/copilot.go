@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	appver "hexai/internal"
 	"hexai/internal/logging"
 )
 
@@ -60,7 +61,9 @@ func newCopilot(baseURL, model, apiKey string, defaultTemp *float64) Client {
 		baseURL = "https://api.githubcopilot.com"
 	}
 	if strings.TrimSpace(model) == "" {
-		model = "gpt-4.1"
+		// GitHub Models (Copilot API) commonly supports gpt-4o/gpt-4o-mini.
+		// Default to a broadly available, cost-effective option.
+		model = "gpt-4o-mini"
 	}
 	return copilotClient{
 		httpClient:         &http.Client{Timeout: 30 * time.Second},
@@ -155,6 +158,10 @@ func (c copilotClient) doJSON(ctx context.Context, url string, body []byte, head
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// GitHub Copilot (GitHub Models) requires an API version header and a UA.
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-GitHub-Api-Version", "2023-07-07")
+	req.Header.Set("User-Agent", "hexai/"+appver.Version)
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
