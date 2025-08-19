@@ -482,7 +482,17 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	// Update response counters (received)
 	s.incRecvCounters(len(text))
 	s.logLLMStats()
-	cleaned := stripCodeFences(strings.TrimSpace(text))
+    cleaned := stripCodeFences(strings.TrimSpace(text))
+    // For code completion responses, also strip inline single-backtick code spans
+    // when the model returns prose like: "Use `expr` here".
+    if cleaned != "" {
+        if strings.ContainsRune(cleaned, '`') {
+            inline := stripInlineCodeSpan(cleaned)
+            if strings.TrimSpace(inline) != "" {
+                cleaned = inline
+            }
+        }
+    }
 	if cleaned != "" {
 		cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
 	}
@@ -778,6 +788,28 @@ func stripCodeFences(s string) string {
 		return inner
 	}
 	return t
+}
+
+// stripInlineCodeSpan returns only the contents of the first inline backtick
+// code span if present, e.g., "some text `x := y()` more" -> "x := y()".
+// If no matching pair of backticks exists, it returns the input unchanged.
+// This is intended for code completion responses where the model may wrap a
+// small snippet in single backticks among prose.
+func stripInlineCodeSpan(s string) string {
+    t := strings.TrimSpace(s)
+    if t == "" {
+        return t
+    }
+    i := strings.IndexByte(t, '`')
+    if i < 0 {
+        return t
+    }
+    jrel := strings.IndexByte(t[i+1:], '`')
+    if jrel < 0 {
+        return t
+    }
+    j := i + 1 + jrel
+    return t[i+1 : j]
 }
 
 func labelForCompletion(cleaned, filter string) string {
