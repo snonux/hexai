@@ -35,9 +35,10 @@ type ServerInfo struct {
 }
 
 type ServerCapabilities struct {
-	TextDocumentSync   any                `json:"textDocumentSync,omitempty"`
-	CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
-	CodeActionProvider bool               `json:"codeActionProvider,omitempty"`
+    TextDocumentSync   any                `json:"textDocumentSync,omitempty"`
+    CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
+    // bool | CodeActionOptions
+    CodeActionProvider any                `json:"codeActionProvider,omitempty"`
 }
 
 type CompletionOptions struct {
@@ -61,6 +62,11 @@ type CompletionItem struct {
 	AdditionalTextEdits []TextEdit `json:"additionalTextEdits,omitempty"`
 	SortText            string     `json:"sortText,omitempty"`
 	Documentation       string     `json:"documentation,omitempty"`
+}
+
+// Code action options
+type CodeActionOptions struct {
+    ResolveProvider bool `json:"resolveProvider,omitempty"`
 }
 
 // LSP param types (subset)
@@ -122,9 +128,10 @@ type WorkspaceEdit struct {
 }
 
 type CodeAction struct {
-	Title string         `json:"title"`
-	Kind  string         `json:"kind,omitempty"`
-	Edit  *WorkspaceEdit `json:"edit,omitempty"`
+    Title string         `json:"title"`
+    Kind  string         `json:"kind,omitempty"`
+    Edit  *WorkspaceEdit `json:"edit,omitempty"`
+    Data  json.RawMessage `json:"data,omitempty"`
 }
 
 // Diagnostics (subset needed for code action context)
