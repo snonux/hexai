@@ -23,7 +23,7 @@ Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilo
   "max_context_tokens": 4000,
   "log_preview_limit": 100,
   "no_disk_io": true,
-  "trigger_characters": [".", ":", "/", "_", ";", "?"],
+  "trigger_characters": [".", ":", "/", "_", " " ],
   "coding_temperature": 0.2,
   "provider": "ollama",
   "copilot_model": "gpt-4o-mini",
