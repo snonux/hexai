@@ -448,8 +448,14 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 }
 
 func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-	defer cancel()
+    ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+    defer cancel()
+
+    // Only invoke LLM when triggered by one of our trigger characters.
+    if !s.isTriggerEvent(p, current) {
+        logging.Logf("lsp ", "completion skip=no-trigger line=%d char=%d current=%q", p.Position.Line, p.Position.Character, trimLen(current))
+        return []CompletionItem{}, true
+    }
 
     inParams := inParamList(current, p.Position.Character)
     // Heuristic 1: Require a minimal typed identifier prefix to avoid early triggers,
@@ -464,7 +470,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
         allowNoPrefix := false
         if idx > 0 {
             ch := current[idx-1]
-            if ch == '.' || ch == ':' || ch == '/' || ch == '_' {
+            if ch == '.' || ch == ':' || ch == '/' || ch == '_' || ch == ' ' {
                 allowNoPrefix = true
             }
         }
@@ -539,6 +545,52 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	}
 
 	return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
+}
+
+// isTriggerEvent returns true when the completion request appears to be caused
+// by typing one of our configured trigger characters. It checks the LSP
+// CompletionContext if provided and also falls back to inspecting the character
+// immediately to the left of the cursor.
+func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
+    // 1) Inspect LSP completion context if present
+    if p.Context != nil {
+        var ctx struct{
+            TriggerKind int    `json:"triggerKind"`
+            TriggerCharacter string `json:"triggerCharacter,omitempty"`
+        }
+        if raw, ok := p.Context.(json.RawMessage); ok {
+            _ = json.Unmarshal(raw, &ctx)
+        } else {
+            b, _ := json.Marshal(p.Context)
+            _ = json.Unmarshal(b, &ctx)
+        }
+        // TriggerKind 2 is TriggerCharacter per LSP spec
+        if ctx.TriggerKind == 2 {
+            if ctx.TriggerCharacter != "" {
+                for _, c := range s.triggerChars {
+                    if c == ctx.TriggerCharacter {
+                        return true
+                    }
+                }
+                return false
+            }
+            // No character provided but reported as TriggerCharacter; be conservative
+            return false
+        }
+        // For Invoked (1) or TriggerForIncomplete (3), require manual char check below
+    }
+    // 2) Fallback: check the character immediately prior to cursor
+    idx := p.Position.Character
+    if idx <= 0 || idx > len(current) {
+        return false
+    }
+    ch := string(current[idx-1])
+    for _, c := range s.triggerChars {
+        if c == ch {
+            return true
+        }
+    }
+    return false
 }
 
 func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string) []CompletionItem {

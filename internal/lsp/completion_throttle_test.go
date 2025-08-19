@@ -35,13 +35,13 @@ func TestDefaultTriggerChars_DoesNotIncludeSemicolonOrQuestion(t *testing.T) {
 }
 
 func TestTryLLMCompletion_BusySkipsConcurrent(t *testing.T) {
-    s := &Server{ maxTokens: 32 }
+    s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_"} }
     fake := &countingLLM{}
     s.llmClient = fake
     // Simulate another LLM request in flight
     s.llmBusy = true
-    p := CompletionParams{ Position: Position{ Line: 0, Character: 3 }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
-    items, ok := s.tryLLMCompletion(p, "", "foo", "", "", "", false, "")
+    p := CompletionParams{ Position: Position{ Line: 0, Character: 4 }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
+    items, ok := s.tryLLMCompletion(p, "", "foo.", "", "", "", false, "")
     if !ok {
         t.Fatalf("expected ok=true when busy guard skips")
     }
@@ -54,32 +54,44 @@ func TestTryLLMCompletion_BusySkipsConcurrent(t *testing.T) {
 }
 
 func TestTryLLMCompletion_MinPrefixSkipsEarly(t *testing.T) {
-    s := &Server{ maxTokens: 32 }
+    s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_"} }
     fake := &countingLLM{}
     s.llmClient = fake
-    // Zero identifier characters before cursor
-    p := CompletionParams{ Position: Position{ Line: 0, Character: 0 }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
-    items, ok := s.tryLLMCompletion(p, "", "", "", "", "", false, "")
+    // No trigger character -> skip regardless of prefix
+    p := CompletionParams{ Position: Position{ Line: 0, Character: 1 }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
+    items, ok := s.tryLLMCompletion(p, "", "a", "", "", "", false, "")
     if !ok {
         t.Fatalf("expected ok=true when skipped by min-prefix heuristic")
     }
     if len(items) != 0 {
-        t.Fatalf("expected zero items when min-prefix not satisfied")
+        t.Fatalf("expected zero items when not triggered")
     }
     if fake.calls != 0 {
-        t.Fatalf("LLM Chat should not be called when min-prefix not met; calls=%d", fake.calls)
+        t.Fatalf("LLM Chat should not be called when not triggered; calls=%d", fake.calls)
     }
 }
 
-func TestTryLLMCompletion_AllowsAfterTrailingSpace(t *testing.T) {
-    s := &Server{ maxTokens: 32 }
+func TestTryLLMCompletion_RequiresTriggerChar(t *testing.T) {
+    s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_", " "} }
+    fake := &countingLLM{}
+    s.llmClient = fake
+    // With trigger character '.' directly before cursor -> allowed
+    items, ok := s.tryLLMCompletion(CompletionParams{ Position: Position{ Line: 0, Character: 1 }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }, "", ".", "", "", "", false, "")
+    if !ok || len(items) == 0 || fake.calls == 0 { t.Fatalf("expected allowed with '.' trigger") }
+    // Without trigger -> skipped
+    fake.calls = 0
+    items, ok = s.tryLLMCompletion(CompletionParams{ Position: Position{ Line: 0, Character: 1 }, TextDocument: TextDocumentIdentifier{URI: "file://y.go"} }, "", "a", "", "", "", false, "")
+    if !ok || len(items) != 0 || fake.calls != 0 { t.Fatalf("expected skip without trigger; ok=%v len=%d calls=%d", ok, len(items), fake.calls) }
+}
+
+func TestTryLLMCompletion_AllowsSpaceTrigger(t *testing.T) {
+    s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_", " "} }
     fake := &countingLLM{}
     s.llmClient = fake
     line := "type Matrix "
-    // Cursor after trailing space
     p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
     items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
     if !ok || len(items) == 0 || fake.calls == 0 {
-        t.Fatalf("expected completion allowed after trailing space; ok=%v len=%d calls=%d", ok, len(items), fake.calls)
+        t.Fatalf("expected allowed with space trigger; ok=%v len=%d calls=%d", ok, len(items), fake.calls)
     }
 }
