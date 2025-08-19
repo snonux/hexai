@@ -6,7 +6,7 @@ Hexai, the AI LSP for the Helix editor and also a simple command line tool to in
 
 It has been coded with AI and human review.
 
-Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilot, and a local Ollama server. Provider selection and models are configured via a JSON configuration file.
+Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilot, and a local Ollama server. Provider selection and models are configured via a JSON configuration file (overridable via environment variables).
 
 ## Configuration
 
@@ -45,7 +45,22 @@ Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilo
 * copilot_model, copilot_base_url, copilot_temperature: Copilot-only options
 * ollama_model, ollama_base_url, ollama_temperature: Ollama-only options
 
-Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment according to your chosen provider.
+Ensure `HEXAI_OPENAI_API_KEY` (or `OPENAI_API_KEY`) or `COPILOT_API_KEY` is set in your environment according to your chosen provider.
+
+### Environment overrides
+
+- All config-file options can be overridden by environment variables prefixed with `HEXAI_`.
+- Env values take precedence over `config.json`.
+- Examples:
+  - `HEXAI_PROVIDER`, `HEXAI_MAX_TOKENS`, `HEXAI_CONTEXT_MODE`, `HEXAI_CONTEXT_WINDOW_LINES`, `HEXAI_MAX_CONTEXT_TOKENS`, `HEXAI_LOG_PREVIEW_LIMIT`
+  - `HEXAI_CODING_TEMPERATURE`
+  - `HEXAI_TRIGGER_CHARACTERS` (comma-separated, e.g. `".,:,_ , "`)
+  - `HEXAI_OPENAI_MODEL`, `HEXAI_OPENAI_BASE_URL`, `HEXAI_OPENAI_TEMPERATURE`
+  - `HEXAI_COPILOT_MODEL`, `HEXAI_COPILOT_BASE_URL`, `HEXAI_COPILOT_TEMPERATURE`
+  - `HEXAI_OLLAMA_MODEL`, `HEXAI_OLLAMA_BASE_URL`, `HEXAI_OLLAMA_TEMPERATURE`
+- API keys:
+  - OpenAI: prefer `HEXAI_OPENAI_API_KEY`, falling back to `OPENAI_API_KEY`.
+  - Copilot: use `COPILOT_API_KEY`.
 
 ### Selecting a provider
 
@@ -54,7 +69,7 @@ Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment accordin
 
 ### OpenAI configuration
 
-- Required: `OPENAI_API_KEY` — provided via environment variable only.
+- Required: `HEXAI_OPENAI_API_KEY` (or `OPENAI_API_KEY`) — provided via environment variable only.
 - In config file:
   - `openai_model` — model name (default: `gpt-4.1`).
   - `openai_base_url` — API base (default: `https://api.openai.com/v1`).
