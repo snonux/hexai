@@ -453,7 +453,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 
     // Only invoke LLM when triggered by one of our trigger characters.
     if !s.isTriggerEvent(p, current) {
-        logging.Logf("lsp ", "completion skip=no-trigger line=%d char=%d current=%q", p.Position.Line, p.Position.Character, trimLen(current))
+        logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
         return []CompletionItem{}, true
     }
 
@@ -484,14 +484,14 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
             }
             start := computeWordStart(current, j)
             if j-start < 1 { // require at least 1 identifier char
-                logging.Logf("lsp ", "completion skip=short-prefix line=%d char=%d current=%q", p.Position.Line, p.Position.Character, trimLen(current))
+                logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
                 return []CompletionItem{}, true
             }
         }
     }
     // Concurrency guard: if another LLM request is running, skip this one.
     if !s.tryStartLLM() {
-        logging.Logf("lsp ", "completion skip=busy another LLM request in flight")
+        logging.Logf("lsp ", "%scompletion skip=busy another LLM request in flight%s", logging.AnsiYellow, logging.AnsiBase)
         return []CompletionItem{}, true
     }
 	sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)

@@ -8,12 +8,13 @@ import (
 
 // ANSI color utilities shared across Hexai.
 const (
-	AnsiBgBlack = "\x1b[40m"
-	AnsiGrey    = "\x1b[90m"
-	AnsiCyan    = "\x1b[36m"
-	AnsiGreen   = "\x1b[32m"
-	AnsiRed     = "\x1b[31m"
-	AnsiReset   = "\x1b[0m"
+    AnsiBgBlack = "\x1b[40m"
+    AnsiGrey    = "\x1b[90m"
+    AnsiCyan    = "\x1b[36m"
+    AnsiGreen   = "\x1b[32m"
+    AnsiYellow  = "\x1b[33m"
+    AnsiRed     = "\x1b[31m"
+    AnsiReset   = "\x1b[0m"
 )
 
 // AnsiBase is the default style: black background + grey foreground.
