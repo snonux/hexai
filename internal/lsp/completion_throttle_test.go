@@ -5,7 +5,6 @@ import (
     "context"
     "log"
     "testing"
-    "time"
 
     "hexai/internal/llm"
 )
@@ -35,24 +34,22 @@ func TestDefaultTriggerChars_DoesNotIncludeSemicolonOrQuestion(t *testing.T) {
     }
 }
 
-func TestTryLLMCompletion_ThrottleSkipsRapidCalls(t *testing.T) {
-    // Build server with long min interval and set last completion to now
+func TestTryLLMCompletion_BusySkipsConcurrent(t *testing.T) {
     s := &Server{ maxTokens: 32 }
-    s.minCompletionInterval = time.Hour
-    s.lastLLMCompletion = time.Now()
     fake := &countingLLM{}
     s.llmClient = fake
-    // Position with adequate prefix to avoid prefix heuristic from skipping
+    // Simulate another LLM request in flight
+    s.llmBusy = true
     p := CompletionParams{ Position: Position{ Line: 0, Character: 3 }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
     items, ok := s.tryLLMCompletion(p, "", "foo", "", "", "", false, "")
     if !ok {
-        t.Fatalf("expected ok=true even when throttled")
+        t.Fatalf("expected ok=true when busy guard skips")
     }
     if len(items) != 0 {
-        t.Fatalf("expected zero items when throttled, got %d", len(items))
+        t.Fatalf("expected zero items when busy, got %d", len(items))
     }
     if fake.calls != 0 {
-        t.Fatalf("LLM Chat should not be called when throttled; calls=%d", fake.calls)
+        t.Fatalf("LLM Chat should not be called when busy; calls=%d", fake.calls)
     }
 }
 
@@ -60,9 +57,9 @@ func TestTryLLMCompletion_MinPrefixSkipsEarly(t *testing.T) {
     s := &Server{ maxTokens: 32 }
     fake := &countingLLM{}
     s.llmClient = fake
-    // Only 1 identifier character before cursor
-    p := CompletionParams{ Position: Position{ Line: 0, Character: 1 }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
-    items, ok := s.tryLLMCompletion(p, "", "a", "", "", "", false, "")
+    // Zero identifier characters before cursor
+    p := CompletionParams{ Position: Position{ Line: 0, Character: 0 }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
+    items, ok := s.tryLLMCompletion(p, "", "", "", "", "", false, "")
     if !ok {
         t.Fatalf("expected ok=true when skipped by min-prefix heuristic")
     }
@@ -71,5 +68,18 @@ func TestTryLLMCompletion_MinPrefixSkipsEarly(t *testing.T) {
     }
     if fake.calls != 0 {
         t.Fatalf("LLM Chat should not be called when min-prefix not met; calls=%d", fake.calls)
+    }
+}
+
+func TestTryLLMCompletion_AllowsAfterTrailingSpace(t *testing.T) {
+    s := &Server{ maxTokens: 32 }
+    fake := &countingLLM{}
+    s.llmClient = fake
+    line := "type Matrix "
+    // Cursor after trailing space
+    p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
+    items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+    if !ok || len(items) == 0 || fake.calls == 0 {
+        t.Fatalf("expected completion allowed after trailing space; ok=%v len=%d calls=%d", ok, len(items), fake.calls)
     }
 }

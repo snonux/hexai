@@ -32,9 +32,8 @@ type Server struct {
     triggerChars     []string
     // If set, used as the LSP coding temperature for all LLM calls
     codingTemperature *float64
-    // Throttling for LLM-powered completion
-    lastLLMCompletion   time.Time
-    minCompletionInterval time.Duration
+    // Concurrency guard: prevent overlapping LLM requests (esp. completions)
+    llmBusy bool
 	// LLM request stats
 	llmReqTotal       int64
 	llmSentBytesTotal int64
@@ -54,7 +53,6 @@ type ServerOptions struct {
     Client            llm.Client
     TriggerCharacters []string
     CodingTemperature *float64
-    MinCompletionIntervalMs int
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -89,12 +87,26 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
         s.triggerChars = append([]string{}, opts.TriggerCharacters...)
     }
     s.codingTemperature = opts.CodingTemperature
-    if opts.MinCompletionIntervalMs <= 0 {
-        s.minCompletionInterval = 900 * time.Millisecond
-    } else {
-        s.minCompletionInterval = time.Duration(opts.MinCompletionIntervalMs) * time.Millisecond
-    }
     return s
+}
+
+// tryStartLLM attempts to mark the LLM as busy. Returns true when it acquired
+// the guard; false if another LLM request is already running.
+func (s *Server) tryStartLLM() bool {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    if s.llmBusy {
+        return false
+    }
+    s.llmBusy = true
+    return true
+}
+
+// endLLM releases the busy guard for LLM requests.
+func (s *Server) endLLM() {
+    s.mu.Lock()
+    s.llmBusy = false
+    s.mu.Unlock()
 }
 
 func (s *Server) Run() error {
