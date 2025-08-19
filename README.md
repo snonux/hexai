@@ -60,7 +60,7 @@ Ensure `HEXAI_OPENAI_API_KEY` (or `OPENAI_API_KEY`) or `COPILOT_API_KEY` is set 
   - `HEXAI_OLLAMA_MODEL`, `HEXAI_OLLAMA_BASE_URL`, `HEXAI_OLLAMA_TEMPERATURE`
 - API keys:
   - OpenAI: prefer `HEXAI_OPENAI_API_KEY`, falling back to `OPENAI_API_KEY`.
-  - Copilot: use `COPILOT_API_KEY`.
+  - Copilot: prefer `HEXAI_COPILOT_API_KEY`, falling back to `COPILOT_API_KEY`.
 
 ### Selecting a provider
 
