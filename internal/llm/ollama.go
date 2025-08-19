@@ -57,7 +57,6 @@ func newOllama(baseURL, model string, defaultTemp *float64) Client {
 	}
 }
 
-// TODO: This function is too long and should be refactored for readability and maintainability.
 func (c ollamaClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	o := Options{Model: c.defaultModel}
 	for _, opt := range opts {
