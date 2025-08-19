@@ -82,7 +82,11 @@ func buildClientIfNil(cfg appconfig.App, client llm.Client) llm.Client {
     if strings.TrimSpace(oaKey) == "" {
         oaKey = os.Getenv("OPENAI_API_KEY")
     }
-    cpKey := os.Getenv("COPILOT_API_KEY")
+    // Prefer HEXAI_COPILOT_API_KEY; fall back to COPILOT_API_KEY
+    cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
+    if strings.TrimSpace(cpKey) == "" {
+        cpKey = os.Getenv("COPILOT_API_KEY")
+    }
 	if c, err := llm.NewFromConfig(llmCfg, oaKey, cpKey); err != nil {
 		logging.Logf("lsp ", "llm disabled: %v", err)
 		return nil

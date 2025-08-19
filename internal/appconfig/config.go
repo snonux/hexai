@@ -66,18 +66,18 @@ func Load(logger *log.Logger) App {
         return cfg // Return defaults if no logger is provided (e.g. in tests)
     }
 
-	configPath, err := getConfigPath()
-	if err != nil {
-		logger.Printf("%v", err)
-		return cfg
-	}
+    configPath, err := getConfigPath()
+    if err != nil {
+        logger.Printf("%v", err)
+        // Even if config path cannot be resolved, still allow env overrides below.
+    } else {
+        if fileCfg, err := loadFromFile(configPath, logger); err == nil && fileCfg != nil {
+            cfg.mergeWith(fileCfg)
+        }
+        // When the config file is missing or invalid, we keep defaults and still
+        // apply any environment overrides below.
+    }
 
-	fileCfg, err := loadFromFile(configPath, logger)
-	if err != nil {
-		return cfg
-	}
-
-    cfg.mergeWith(fileCfg)
     // Environment overrides (take precedence over file)
     if envCfg := loadFromEnv(logger); envCfg != nil {
         cfg.mergeWith(envCfg)

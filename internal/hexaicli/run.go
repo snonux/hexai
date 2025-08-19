@@ -88,7 +88,11 @@ func newClientFromConfig(cfg appconfig.App) (llm.Client, error) {
     if strings.TrimSpace(oaKey) == "" {
         oaKey = os.Getenv("OPENAI_API_KEY")
     }
-    cpKey := os.Getenv("COPILOT_API_KEY")
+    // Prefer HEXAI_COPILOT_API_KEY; fall back to COPILOT_API_KEY
+    cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
+    if strings.TrimSpace(cpKey) == "" {
+        cpKey = os.Getenv("COPILOT_API_KEY")
+    }
     return llm.NewFromConfig(llmCfg, oaKey, cpKey)
 }
 
