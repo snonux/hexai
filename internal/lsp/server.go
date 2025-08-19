@@ -38,8 +38,11 @@ type Server struct {
 	llmReqTotal       int64
 	llmSentBytesTotal int64
 	llmRespTotal      int64
-	llmRespBytesTotal int64
-	startTime         time.Time
+    llmRespBytesTotal int64
+    startTime         time.Time
+    // Small LRU cache for recent code completion outputs (keyed by context)
+    compCache      map[string]string
+    compCacheOrder []string // most-recent at end; cap ~10
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
@@ -87,6 +90,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
         s.triggerChars = append([]string{}, opts.TriggerCharacters...)
     }
     s.codingTemperature = opts.CodingTemperature
+    s.compCache = make(map[string]string)
     return s
 }
 
