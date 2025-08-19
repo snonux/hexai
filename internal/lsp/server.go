@@ -32,6 +32,9 @@ type Server struct {
     triggerChars     []string
     // If set, used as the LSP coding temperature for all LLM calls
     codingTemperature *float64
+    // Throttling for LLM-powered completion
+    lastLLMCompletion   time.Time
+    minCompletionInterval time.Duration
 	// LLM request stats
 	llmReqTotal       int64
 	llmSentBytesTotal int64
@@ -51,6 +54,7 @@ type ServerOptions struct {
     Client            llm.Client
     TriggerCharacters []string
     CodingTemperature *float64
+    MinCompletionIntervalMs int
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -79,11 +83,17 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.startTime = time.Now()
     s.llmClient = opts.Client
     if len(opts.TriggerCharacters) == 0 {
-        s.triggerChars = []string{".", ":", "/", "_", ";", "?"}
+        // Conservative defaults to reduce early triggers and API usage
+        s.triggerChars = []string{".", ":", "/", "_"}
     } else {
         s.triggerChars = append([]string{}, opts.TriggerCharacters...)
     }
     s.codingTemperature = opts.CodingTemperature
+    if opts.MinCompletionIntervalMs <= 0 {
+        s.minCompletionInterval = 900 * time.Millisecond
+    } else {
+        s.minCompletionInterval = time.Duration(opts.MinCompletionIntervalMs) * time.Millisecond
+    }
     return s
 }
 

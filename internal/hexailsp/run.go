@@ -98,14 +98,16 @@ func ensureFactory(factory ServerFactory) ServerFactory {
 }
 
 func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) lsp.ServerOptions {
-	return lsp.ServerOptions{
-		LogContext:        logContext,
-		MaxTokens:         cfg.MaxTokens,
-		ContextMode:       cfg.ContextMode,
-		WindowLines:       cfg.ContextWindowLines,
-		MaxContextTokens:  cfg.MaxContextTokens,
-		CodingTemperature: cfg.CodingTemperature,
-		Client:            client,
-		TriggerCharacters: cfg.TriggerCharacters,
-	}
+    return lsp.ServerOptions{
+        LogContext:        logContext,
+        MaxTokens:         cfg.MaxTokens,
+        ContextMode:       cfg.ContextMode,
+        WindowLines:       cfg.ContextWindowLines,
+        MaxContextTokens:  cfg.MaxContextTokens,
+        CodingTemperature: cfg.CodingTemperature,
+        Client:            client,
+        TriggerCharacters: cfg.TriggerCharacters,
+        // Optional; when zero, server uses a sensible default
+        MinCompletionIntervalMs: 0,
+    }
 }

@@ -451,7 +451,27 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 
-	inParams := inParamList(current, p.Position.Character)
+    inParams := inParamList(current, p.Position.Character)
+    // Heuristic 1: Require a minimal typed identifier prefix to avoid early triggers
+    if !inParams {
+        start := computeWordStart(current, p.Position.Character)
+        if p.Position.Character-start < 2 { // fewer than 2 identifier chars
+            return []CompletionItem{}, true
+        }
+    }
+    // Heuristic 2: Throttle LLM calls to avoid rapid-fire requests
+    if s.minCompletionInterval > 0 {
+        s.mu.Lock()
+        tooSoon := time.Since(s.lastLLMCompletion) < s.minCompletionInterval
+        // Preemptively update timestamp to coalesce bursts
+        if !tooSoon {
+            s.lastLLMCompletion = time.Now()
+        }
+        s.mu.Unlock()
+        if tooSoon {
+            return []CompletionItem{}, true
+        }
+    }
 	sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
 	messages := []llm.Message{
 		{Role: "system", Content: sysPrompt},
