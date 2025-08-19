@@ -15,15 +15,20 @@ func (f fakeLLM) Chat(_ context.Context, _ []llm.Message, _ ...llm.RequestOption
 func (f fakeLLM) Name() string { return "fake" }
 func (f fakeLLM) DefaultModel() string { return "fake-model" }
 
-func TestBuildRewriteCodeAction_ReturnsEdit(t *testing.T) {
+func TestBuildRewriteCodeAction_LazyAndResolves(t *testing.T) {
     s := newTestServer()
     s.llmClient = fakeLLM{resp: "REWRITTEN"}
     p := CodeActionParams{TextDocument: TextDocumentIdentifier{URI: "file:///t.go"}, Range: Range{Start: Position{Line: 1, Character: 2}, End: Position{Line: 3, Character: 4}}}
     sel := ";rewrite;\nold code"
     ca := s.buildRewriteCodeAction(p, sel)
     if ca == nil { t.Fatalf("expected code action") }
-    if ca.Edit == nil || len(ca.Edit.Changes) == 0 { t.Fatalf("expected workspace edit with changes") }
-    edits := ca.Edit.Changes[p.TextDocument.URI]
+    // Should be lazy (no edit yet)
+    if ca.Edit != nil { t.Fatalf("expected nil Edit before resolve") }
+    if len(ca.Data) == 0 { t.Fatalf("expected data payload for lazy resolve") }
+    // Resolve now
+    resolved, ok := s.resolveCodeAction(*ca)
+    if !ok || resolved.Edit == nil { t.Fatalf("expected resolve to produce edit") }
+    edits := resolved.Edit.Changes[p.TextDocument.URI]
     if len(edits) != 1 { t.Fatalf("expected 1 edit, got %d", len(edits)) }
     if edits[0].Range != p.Range { t.Fatalf("edit range mismatch: got %+v want %+v", edits[0].Range, p.Range) }
     if edits[0].NewText == "" { t.Fatalf("expected non-empty replacement text") }
@@ -37,7 +42,7 @@ func TestBuildRewriteCodeAction_NoInstruction(t *testing.T) {
     if ca := s.buildRewriteCodeAction(p, sel); ca != nil { t.Fatalf("expected nil action when no instruction present") }
 }
 
-func TestBuildDiagnosticsCodeAction_ReturnsEdit(t *testing.T) {
+func TestBuildDiagnosticsCodeAction_LazyAndResolves(t *testing.T) {
     s := newTestServer()
     s.llmClient = fakeLLM{resp: "FIXED"}
     p := CodeActionParams{TextDocument: TextDocumentIdentifier{URI: "file:///t.go"}, Range: Range{Start: Position{Line: 10}, End: Position{Line: 12, Character: 5}}}
@@ -50,7 +55,10 @@ func TestBuildDiagnosticsCodeAction_ReturnsEdit(t *testing.T) {
     sel := "some selected code"
     ca := s.buildDiagnosticsCodeAction(p, sel)
     if ca == nil { t.Fatalf("expected diagnostics code action") }
-    if ca.Edit == nil || len(ca.Edit.Changes) == 0 { t.Fatalf("expected workspace edit") }
+    if ca.Edit != nil { t.Fatalf("expected lazy action without edit") }
+    if len(ca.Data) == 0 { t.Fatalf("expected data payload for lazy diagnostics action") }
+    resolved, ok := s.resolveCodeAction(*ca)
+    if !ok || resolved.Edit == nil { t.Fatalf("expected resolve to produce edit") }
 }
 
 func TestBuildDiagnosticsCodeAction_NoDiagnostics(t *testing.T) {

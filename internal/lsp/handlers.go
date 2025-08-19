@@ -15,7 +15,7 @@ import (
 )
 
 func (s *Server) handle(req Request) {
-	switch req.Method {
+    switch req.Method {
 	case "initialize":
 		s.handleInitialize(req)
 	case "initialized":
@@ -32,9 +32,11 @@ func (s *Server) handle(req Request) {
 		s.handleDidClose(req)
 	case "textDocument/completion":
 		s.handleCompletion(req)
-	case "textDocument/codeAction":
-		s.handleCodeAction(req)
-	default:
+    case "textDocument/codeAction":
+        s.handleCodeAction(req)
+    case "codeAction/resolve":
+        s.handleCodeActionResolve(req)
+    default:
 		if len(req.ID) != 0 {
 			s.reply(req.ID, nil, &RespError{Code: -32601, Message: fmt.Sprintf("method not found: %s", req.Method)})
 		}
@@ -46,17 +48,17 @@ func (s *Server) handleInitialize(req Request) {
 	if s.llmClient != nil {
 		version = version + " [" + s.llmClient.Name() + ":" + s.llmClient.DefaultModel() + "]"
 	}
-	res := InitializeResult{
-		Capabilities: ServerCapabilities{
-			TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
-			CompletionProvider: &CompletionOptions{
-				ResolveProvider:   false,
-				TriggerCharacters: s.triggerChars,
-			},
-			CodeActionProvider: true,
-		},
-		ServerInfo: &ServerInfo{Name: "hexai", Version: version},
-	}
+    res := InitializeResult{
+        Capabilities: ServerCapabilities{
+            TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
+            CompletionProvider: &CompletionOptions{
+                ResolveProvider:   false,
+                TriggerCharacters: s.triggerChars,
+            },
+            CodeActionProvider: CodeActionOptions{ResolveProvider: true},
+        },
+        ServerInfo: &ServerInfo{Name: "hexai", Version: version},
+    }
 	s.reply(req.ID, res, nil)
 }
 
@@ -96,57 +98,113 @@ func (s *Server) handleCodeAction(req Request) {
 }
 
 func (s *Server) buildRewriteCodeAction(p CodeActionParams, sel string) *CodeAction {
-	if instr, cleaned := instructionFromSelection(sel); strings.TrimSpace(instr) != "" {
-		sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
-		user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", instr, cleaned)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-		opts := s.llmRequestOpts()
-		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
-			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-				edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
-				ca := CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Edit: &edit}
-				return &ca
-			}
-		} else {
-			logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
-		}
-	}
-	return nil
+    if instr, cleaned := instructionFromSelection(sel); strings.TrimSpace(instr) != "" {
+        payload := struct{
+            Type string `json:"type"`
+            URI  string `json:"uri"`
+            Range Range `json:"range"`
+            Instruction string `json:"instruction"`
+            Selection string `json:"selection"`
+        }{Type: "rewrite", URI: p.TextDocument.URI, Range: p.Range, Instruction: instr, Selection: cleaned}
+        raw, _ := json.Marshal(payload)
+        ca := CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Data: raw}
+        return &ca
+    }
+    return nil
 }
 
 func (s *Server) buildDiagnosticsCodeAction(p CodeActionParams, sel string) *CodeAction {
-	diags := s.diagnosticsInRange(p.Context, p.Range)
-	if len(diags) == 0 {
-		return nil
-	}
-	sys := "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes."
-	var b strings.Builder
-	b.WriteString("Diagnostics to resolve (selection only):\n")
-	for i, dgn := range diags {
-		if dgn.Source != "" {
-			fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
-		} else {
-			fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
-		}
-	}
-	b.WriteString("\nSelected code:\n")
-	b.WriteString(sel)
-	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-	defer cancel()
-	messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: b.String()}}
-	opts := s.llmRequestOpts()
-	if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
-		if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-			edit := WorkspaceEdit{Changes: map[string][]TextEdit{p.TextDocument.URI: {{Range: p.Range, NewText: out}}}}
-			ca := CodeAction{Title: "Hexai: resolve diagnostics", Kind: "quickfix", Edit: &edit}
-			return &ca
-		}
-	} else {
-		logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
-	}
-	return nil
+    diags := s.diagnosticsInRange(p.Context, p.Range)
+    if len(diags) == 0 {
+        return nil
+    }
+    payload := struct{
+        Type string `json:"type"`
+        URI  string `json:"uri"`
+        Range Range `json:"range"`
+        Selection string `json:"selection"`
+        Diagnostics []Diagnostic `json:"diagnostics"`
+    }{Type: "diagnostics", URI: p.TextDocument.URI, Range: p.Range, Selection: sel, Diagnostics: diags}
+    raw, _ := json.Marshal(payload)
+    ca := CodeAction{Title: "Hexai: resolve diagnostics", Kind: "quickfix", Data: raw}
+    return &ca
+}
+
+func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
+    if s.llmClient == nil || len(ca.Data) == 0 {
+        return ca, false
+    }
+    var payload struct{
+        Type string `json:"type"`
+        URI  string `json:"uri"`
+        Range Range `json:"range"`
+        Instruction string `json:"instruction,omitempty"`
+        Selection string `json:"selection"`
+        Diagnostics []Diagnostic `json:"diagnostics,omitempty"`
+    }
+    if err := json.Unmarshal(ca.Data, &payload); err != nil {
+        return ca, false
+    }
+    switch payload.Type {
+    case "rewrite":
+        sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
+        user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", payload.Instruction, payload.Selection)
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+        opts := s.llmRequestOpts()
+        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+            if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+                ca.Edit = &edit
+                return ca, true
+            }
+        } else {
+            logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
+        }
+    case "diagnostics":
+        sys := "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes."
+        var b strings.Builder
+        b.WriteString("Diagnostics to resolve (selection only):\n")
+        for i, dgn := range payload.Diagnostics {
+            if dgn.Source != "" {
+                fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
+            } else {
+                fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
+            }
+        }
+        b.WriteString("\nSelected code:\n")
+        b.WriteString(payload.Selection)
+        ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: b.String()}}
+        opts := s.llmRequestOpts()
+        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+            if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+                ca.Edit = &edit
+                return ca, true
+            }
+        } else {
+            logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
+        }
+    }
+    return ca, false
+}
+
+func (s *Server) handleCodeActionResolve(req Request) {
+    var ca CodeAction
+    if err := json.Unmarshal(req.Params, &ca); err != nil {
+        if len(req.ID) != 0 {
+            s.reply(req.ID, ca, nil)
+        }
+        return
+    }
+    if resolved, ok := s.resolveCodeAction(ca); ok {
+        s.reply(req.ID, resolved, nil)
+        return
+    }
+    s.reply(req.ID, ca, nil)
 }
 
 func (s *Server) llmRequestOpts() []llm.RequestOption {
