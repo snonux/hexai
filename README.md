@@ -26,7 +26,7 @@ Hexai exposes a simple LLM provider interface. It supports OpenAI, GitHub Copilo
   "trigger_characters": [".", ":", "/", "_", ";", "?"],
   "coding_temperature": 0.2,
   "provider": "ollama",
-  "copilot_model": "gpt-4.1",
+  "copilot_model": "gpt-4o-mini",
   "copilot_base_url": "https://api.githubcopilot.com",
   "copilot_temperature": 0.2,
   "openai_model": "gpt-4.1",
@@ -64,7 +64,7 @@ Ensure `OPENAI_API_KEY` or `COPILOT_API_KEY` is set in your environment accordin
 
 - Required: `COPILOT_API_KEY` — provided via environment variable only.
 - In config file:
-  - `copilot_model` — model name (default: `gpt-4.1`).
+  - `copilot_model` — model name (default: `gpt-4o-mini`).
   - `copilot_base_url` — API base (default: `https://api.githubcopilot.com`).
   - `copilot_temperature` — default temperature (coding-friendly default `0.2`).
 
