@@ -3,16 +3,6 @@
 This document describes how to run the LSP server, configure Helix, use in-editor chat,
 inline triggers, code actions, and the CLI — with examples.
 
-## Table of contents
-
-- LSP server
-- Configure in Helix
-- In-editor chat
-- Inline triggers
-- Code actions
-- CLI usage
-- Examples
-
 ## LSP server
 
 - Run over stdio: `hexai-lsp`
@@ -20,7 +10,7 @@ inline triggers, code actions, and the CLI — with examples.
   - `-version`: print Hexai version and exit.
   - `-log`: path to log file (default `/tmp/hexai-lsp.log`).
 
-## Configure in Helix
+### Configure in Helix
 
 In `~/.config/helix/languages.toml`:
 
@@ -58,16 +48,13 @@ What is a slice in Go??
 
 ```
 
-Context: Hexai includes up to the three most recent Q/A pairs above the question when asking the
-LLM, so follow-ups remain on topic (e.g., “Are there many tourists?” after a location answer).
+Context: Hexai includes up to the three most recent Q/A pairs above the question when asking the LLM, so follow-ups remain on topic (e.g., “Are there many tourists?” after a location answer).
 
 ## Inline triggers
 
-Hexai supports inline prompt tags you can type in code to request an action from the LLM and then
-auto-clean the tag. The strict semicolon form is supported:
+Hexai supports inline prompt tags you can type in code to request an action from the LLM and then auto-clean the tag. The strict semicolon form is supported:
 
-- `;do something;` — Hexai uses the text between semicolons as the instruction and removes only the
-  prompt. Strict form requires no space after the first `;` and no space before the closing `;`.
+- `;do something;` — Hexai uses the text between semicolons as the instruction and removes only the prompt. Strict form requires no space after the first `;` and no space before the closing `;`.
 
 Spaced variants (e.g., `; spaced ;`) are ignored.
 
@@ -76,8 +63,7 @@ Spaced variants (e.g., `; spaced ;`) are ignored.
 Operate on the current selection in Helix:
 
 - Rewrite selection: finds the first instruction inside the selection and rewrites accordingly.
-- Resolve diagnostics: gathers only diagnostics overlapping the selection and fixes them by editing
-  the selected code; diagnostics outside the selection are not changed.
+- Resolve diagnostics: gathers only diagnostics overlapping the selection and fixes them by editing the selected code; diagnostics outside the selection are not changed.
 
 Instruction sources (first match wins):
 
@@ -93,11 +79,9 @@ Process text via the configured LLM:
 - `hexai 'some prompt text here'`
 - `cat SOMEFILE.txt | hexai 'some prompt text here'` (stdin and arg are concatenated)
 
-Defaults: concise answers. If the prompt asks for commands, Hexai outputs only commands. Add the
-word `explain` to request a verbose explanation. Exit codes: `0` success, `1` provider/config error,
-`2` no input.
+Defaults: concise answers. If the prompt asks for commands, Hexai outputs only commands. Add the word `explain` to request a verbose explanation. Exit codes: `0` success, `1` provider/config error, `2` no input.
 
-## Examples
+### Examples
 
 ```sh
 # From stdin only
