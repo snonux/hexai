@@ -124,7 +124,13 @@ type CodeActionParams struct {
 }
 
 type WorkspaceEdit struct {
-	Changes map[string][]TextEdit `json:"changes,omitempty"`
+    Changes map[string][]TextEdit `json:"changes,omitempty"`
+}
+
+// ApplyWorkspaceEditParams is the client request payload for workspace/applyEdit.
+type ApplyWorkspaceEditParams struct {
+    Label string        `json:"label,omitempty"`
+    Edit  WorkspaceEdit `json:"edit"`
 }
 
 type CodeAction struct {
