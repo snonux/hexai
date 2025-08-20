@@ -448,13 +448,15 @@ func (s *Server) handleDidOpen(req Request) {
 }
 
 func (s *Server) handleDidChange(req Request) {
-	var p DidChangeTextDocumentParams
-	if err := json.Unmarshal(req.Params, &p); err == nil {
-		if len(p.ContentChanges) > 0 {
-			s.setDocument(p.TextDocument.URI, p.ContentChanges[len(p.ContentChanges)-1].Text)
-		}
-		s.markActivity()
-	}
+    var p DidChangeTextDocumentParams
+    if err := json.Unmarshal(req.Params, &p); err == nil {
+        if len(p.ContentChanges) > 0 {
+            s.setDocument(p.TextDocument.URI, p.ContentChanges[len(p.ContentChanges)-1].Text)
+        }
+        s.markActivity()
+        // Detect in-editor chat trigger lines and respond inline.
+        s.detectAndHandleChat(p.TextDocument.URI)
+    }
 }
 
 func (s *Server) handleDidClose(req Request) {
@@ -495,8 +497,197 @@ func (s *Server) handleCompletion(req Request) {
 }
 
 func (s *Server) reply(id json.RawMessage, result any, err *RespError) {
-	resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
-	s.writeMessage(resp)
+    resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
+    s.writeMessage(resp)
+}
+
+// --- in-editor chat (";C ...") ---
+
+// detectAndHandleChat scans the current document for any line that starts with
+// ";C" and appears to be awaiting a response (i.e., followed by a blank line
+// and no non-empty answer line yet). If found, it asks the LLM and inserts the
+// answer below the blank line, leaving exactly one empty line between prompt
+// and response.
+func (s *Server) detectAndHandleChat(uri string) {
+    if s.llmClient == nil {
+        return
+    }
+    d := s.getDocument(uri)
+    if d == nil || len(d.lines) == 0 {
+        return
+    }
+    for i, raw := range d.lines {
+        // Find last non-space character index
+        j := len(raw) - 1
+        for j >= 0 {
+            if raw[j] == ' ' || raw[j] == '\t' { j--; continue }
+            break
+        }
+        if j < 1 { // need at least two chars for double trigger
+            continue
+        }
+        pair := raw[j-1 : j+1]
+        isTrigger := pair == ".." || pair == "??" || pair == "!!" || pair == "::" || pair == ";;"
+        if !isTrigger {
+            continue
+        }
+        // Avoid double-answering: if the next non-empty line starts with '>' we skip.
+        k := i + 1
+        for k < len(d.lines) && strings.TrimSpace(d.lines[k]) == "" { k++ }
+        if k < len(d.lines) && strings.HasPrefix(strings.TrimSpace(d.lines[k]), ">") {
+            continue
+        }
+        // Derive prompt by removing 1 trailing char for punctuation pairs; remove both for ';;'
+        removeCount := 1
+        if pair == ";;" { removeCount = 2 }
+        base := raw[:j+1-removeCount]
+        prompt := strings.TrimSpace(base)
+        if prompt == "" {
+            continue
+        }
+        if !s.tryStartLLM() {
+            continue
+        }
+        lineIdx := i
+        lastIdx := j
+        go func(prompt string, remove int) {
+            defer s.endLLM()
+            ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+            defer cancel()
+            sys := "You are a helpful coding assistant. Answer concisely and clearly."
+            // Build short conversation history from the document above this line
+            history := s.buildChatHistory(uri, lineIdx, prompt)
+            msgs := append([]llm.Message{{Role: "system", Content: sys}}, history...)
+            opts := s.llmRequestOpts()
+            logging.Logf("lsp ", "chat llm=requesting model=%s", s.llmClient.DefaultModel())
+            text, err := s.llmClient.Chat(ctx, msgs, opts...)
+            if err != nil {
+                logging.Logf("lsp ", "chat llm error: %v", err)
+                return
+            }
+            out := strings.TrimSpace(stripCodeFences(text))
+            if out == "" {
+                return
+            }
+            s.applyChatEdits(uri, lineIdx, lastIdx, remove, "> "+out)
+        }(prompt, removeCount)
+        // Only handle one per change tick to avoid flooding
+        break
+    }
+}
+
+// applyChatEdits removes the triggering punctuation at end of the line and
+// inserts two newlines followed by a new line with the response prefixed.
+func (s *Server) applyChatEdits(uri string, lineIdx int, lastNonSpace int, removeCount int, response string) {
+    d := s.getDocument(uri)
+    if d == nil { return }
+    // 1) Delete the trailing punctuation (1 or 2 chars)
+    delStart := Position{Line: lineIdx, Character: lastNonSpace+1-removeCount}
+    delEnd := Position{Line: lineIdx, Character: lastNonSpace+1}
+    // 2) Insert two newlines and the response at end-of-line, then one extra
+    //    newline so there is exactly one blank line after the reply
+    insPos := Position{Line: lineIdx, Character: len(d.lines[lineIdx])}
+    resp := strings.TrimRight(response, "\n") + "\n"
+    insert := "\n\n" + resp + "\n"
+    edits := []TextEdit{
+        {Range: Range{Start: delStart, End: delEnd}, NewText: ""},
+        {Range: Range{Start: insPos, End: insPos}, NewText: insert},
+    }
+    we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
+    s.clientApplyEdit("Hexai: insert chat response", we)
+}
+
+// buildChatHistory walks upwards from the current line to collect the most recent
+// Q/A pairs in the in-editor transcript. It returns messages in chronological order
+// ending with the current user prompt. Limits to a small number of pairs to control tokens.
+func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string) []llm.Message {
+    d := s.getDocument(uri)
+    if d == nil { return []llm.Message{{Role: "user", Content: currentPrompt}} }
+    type pair struct{ q string; a string }
+    pairs := []pair{}
+    i := lineIdx - 1
+    // Collect up to 3 recent pairs
+    for i >= 0 && len(pairs) < 3 {
+        // Skip blank lines
+        for i >= 0 && strings.TrimSpace(d.lines[i]) == "" { i-- }
+        if i < 0 { break }
+        // Expect assistant reply lines starting with ">"
+        if !strings.HasPrefix(strings.TrimSpace(d.lines[i]), ">") {
+            break
+        }
+        // Collect contiguous reply block
+        var replyLines []string
+        for i >= 0 {
+            line := strings.TrimSpace(d.lines[i])
+            if strings.HasPrefix(line, ">") {
+                replyLines = append([]string{strings.TrimSpace(strings.TrimPrefix(line, ">"))}, replyLines...)
+                i--
+                continue
+            }
+            break
+        }
+        // Skip a single blank line that should separate Q from A
+        for i >= 0 && strings.TrimSpace(d.lines[i]) == "" { i-- }
+        if i < 0 { break }
+        // Take the question as the non-empty line above
+        q := strings.TrimSpace(d.lines[i])
+        // Remove any lingering trigger pair at end if present
+        q = stripTrailingTrigger(q)
+        pairs = append([]pair{{q: q, a: strings.Join(replyLines, "\n")}}, pairs...)
+        i--
+        // Continue to find older pairs
+    }
+    // Build messages
+    msgs := make([]llm.Message, 0, len(pairs)*2+1)
+    for _, p := range pairs {
+        if strings.TrimSpace(p.q) != "" {
+            msgs = append(msgs, llm.Message{Role: "user", Content: p.q})
+        }
+        if strings.TrimSpace(p.a) != "" {
+            msgs = append(msgs, llm.Message{Role: "assistant", Content: p.a})
+        }
+    }
+    msgs = append(msgs, llm.Message{Role: "user", Content: currentPrompt})
+    return msgs
+}
+
+// stripTrailingTrigger removes a single trailing punctuation from the set
+// [.,?,!,:] or both semicolons if present at end, mirroring the inline trigger rules.
+func stripTrailingTrigger(sx string) string {
+    s := strings.TrimRight(sx, " \t")
+    if strings.HasSuffix(s, ";;") {
+        return strings.TrimRight(strings.TrimSuffix(s, ";;"), " \t")
+    }
+    if len(s) == 0 { return sx }
+    last := s[len(s)-1]
+    switch last {
+    case '.', '?', '!', ':':
+        return strings.TrimRight(s[:len(s)-1], " \t")
+    default:
+        return sx
+    }
+}
+
+// clientApplyEdit sends a workspace/applyEdit request to the client.
+func (s *Server) clientApplyEdit(label string, edit WorkspaceEdit) {
+    params := ApplyWorkspaceEditParams{Label: label, Edit: edit}
+    // Build a JSON-RPC request with a fresh id
+    id := s.nextReqID()
+    req := Request{JSONRPC: "2.0", ID: id, Method: "workspace/applyEdit"}
+    // marshal params separately to avoid changing Request type
+    b, _ := json.Marshal(params)
+    req.Params = b
+    s.writeMessage(req)
+}
+
+// nextReqID returns a unique json.RawMessage id for server-initiated requests.
+func (s *Server) nextReqID() json.RawMessage {
+    s.mu.Lock()
+    s.nextID++
+    idNum := s.nextID
+    s.mu.Unlock()
+    b, _ := json.Marshal(idNum)
+    return b
 }
 
 // --- completion helpers ---

@@ -43,6 +43,8 @@ type Server struct {
     // Small LRU cache for recent code completion outputs (keyed by context)
     compCache      map[string]string
     compCacheOrder []string // most-recent at end; cap ~10
+    // Outgoing JSON-RPC id counter for server-initiated requests
+    nextID int64
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
