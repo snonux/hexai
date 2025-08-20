@@ -5,6 +5,8 @@ environment overrides, provider selection, and temperature behavior.
 
 ## Config file
 
+The config file is optional. 
+
 - Location: `$XDG_CONFIG_HOME/hexai/config.json` (usually `~/.config/hexai/config.json`).
 - Example:
 
@@ -65,7 +67,7 @@ API keys:
 - Set `provider` in the config to `openai`, `copilot`, or `ollama`.
 - If omitted, Hexai defaults to `openai`.
 
-## OpenAI configuration
+### OpenAI configuration
 
 - Required: `HEXAI_OPENAI_API_KEY` (or `OPENAI_API_KEY`).
 - Options:
@@ -73,7 +75,7 @@ API keys:
   - `openai_base_url` — API base (default: `https://api.openai.com/v1`).
   - `openai_temperature` — default temperature (coding-friendly `0.2`).
 
-## GitHub Copilot configuration
+### GitHub Copilot configuration
 
 - Required: `COPILOT_API_KEY`.
 - Options:
@@ -81,7 +83,7 @@ API keys:
   - `copilot_base_url` — API base (default: `https://api.githubcopilot.com`).
   - `copilot_temperature` — default temperature (coding-friendly `0.2`).
 
-## Ollama configuration
+### Ollama configuration
 
 - Options:
   - `ollama_model` — model name/tag (default: `qwen3-coder:30b-a3b-q4_K_M`).
