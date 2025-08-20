@@ -12,7 +12,7 @@ Hexai, the AI addition for your Helix Editor (https://helix-editor.com) .. Other
 * Stand-alone command line tool for LLM interaction
 * Support for OpenAI, GitHub Copilot, and Ollama
 
-It has been coded with AI and human review.
+AI coded it under human supervision, and a human developer reviewed the code.
 
 ## Documentation
 
