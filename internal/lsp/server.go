@@ -31,8 +31,6 @@ type Server struct {
 	triggerChars     []string
 	// If set, used as the LSP coding temperature for all LLM calls
 	codingTemperature *float64
-	// Concurrency guard: prevent overlapping LLM requests (esp. completions)
-	llmBusy bool
 	// LLM request stats
 	llmReqTotal       int64
 	llmSentBytesTotal int64
@@ -97,25 +95,6 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.compCache = make(map[string]string)
 	s.manualInvokeMinPrefix = opts.ManualInvokeMinPrefix
 	return s
-}
-
-// tryStartLLM attempts to mark the LLM as busy. Returns true when it acquired
-// the guard; false if another LLM request is already running.
-func (s *Server) tryStartLLM() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.llmBusy {
-		return false
-	}
-	s.llmBusy = true
-	return true
-}
-
-// endLLM releases the busy guard for LLM requests.
-func (s *Server) endLLM() {
-	s.mu.Lock()
-	s.llmBusy = false
-	s.mu.Unlock()
 }
 
 func (s *Server) Run() error {
