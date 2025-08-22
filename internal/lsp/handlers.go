@@ -735,7 +735,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
         allowNoPrefix := false
         if idx > 0 {
             ch := current[idx-1]
-            if ch == '.' || ch == ':' || ch == '/' || ch == '_' || ch == ' ' {
+            if ch == '.' || ch == ':' || ch == '/' || ch == '_' {
                 allowNoPrefix = true
             }
         }
@@ -915,6 +915,10 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
             b, _ := json.Marshal(p.Context)
             _ = json.Unmarshal(b, &ctx)
         }
+        // TriggerKind 1 = Invoked (manual) — always allow
+        if ctx.TriggerKind == 1 {
+            return true
+        }
         // TriggerKind 2 is TriggerCharacter per LSP spec
         if ctx.TriggerKind == 2 {
             if ctx.TriggerCharacter != "" {
@@ -928,7 +932,7 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
             // No character provided but reported as TriggerCharacter; be conservative
             return false
         }
-        // For Invoked (1) or TriggerForIncomplete (3), require manual char check below
+        // For TriggerForIncomplete (3), require manual char check below
     }
     // 2) Fallback: check the character immediately prior to cursor
     idx := p.Position.Character
