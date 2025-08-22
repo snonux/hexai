@@ -822,9 +822,8 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
             }
         }
     }
-    if cleaned != "" {
-        cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
-    }
+    if cleaned != "" { cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned) }
+    if cleaned != "" { cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned) }
     if cleaned == "" {
         return nil, false, false
     }
@@ -863,7 +862,7 @@ func (s *Server) completionCacheKey(p CompletionParams, above, current, below, f
         model,
         temp,
         p.TextDocument.URI,
-        fmt.Sprintf("%d:%d", p.Position.Line, p.Position.Character),
+        fmt.Sprintf("%d:%d", p.Position.Line, len(left)),
         above,
         left,
         right,
@@ -889,6 +888,9 @@ func (s *Server) completionCacheGet(key string) (string, bool) {
 func (s *Server) completionCachePut(key, value string) {
     s.mu.Lock()
     defer s.mu.Unlock()
+    if s.compCache == nil {
+        s.compCache = make(map[string]string)
+    }
     if _, exists := s.compCache[key]; !exists {
         s.compCacheOrder = append(s.compCacheOrder, key)
         s.compCache[key] = value
@@ -1179,7 +1181,7 @@ func computeWordStart(current string, at int) int {
 }
 
 func isIdentChar(ch byte) bool {
-	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
 }
 
 // stripDuplicateAssignmentPrefix removes a duplicated assignment prefix (e.g.,
@@ -1223,6 +1225,38 @@ func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) strin
 		}
 	}
 	return suggestion
+}
+
+// stripDuplicateGeneralPrefix removes any already-typed prefix that the model repeated
+// at the beginning of its suggestion. It compares the entire text to the left of the
+// cursor (prefixBeforeCursor) against the suggestion, trimming whitespace appropriately,
+// and strips the longest sensible overlap. This prevents cases like:
+//   prefix:    "func New "
+//   suggestion:"func New() *Type"
+// resulting in duplicates like "func New func New() *Type".
+func stripDuplicateGeneralPrefix(prefixBeforeCursor, suggestion string) string {
+    if suggestion == "" { return suggestion }
+    s := strings.TrimLeft(suggestion, " \t")
+    p := strings.TrimRight(prefixBeforeCursor, " \t")
+    // Exact prefix overlap: remove the full typed prefix
+    if p != "" && strings.HasPrefix(s, p) {
+        return strings.TrimLeft(s[len(p):], " \t")
+    }
+    // Otherwise, try the longest token-aligned suffix of p that prefixes s
+    // Prefer boundaries where the char before the suffix is not an identifier char
+    for k := len(p) - 1; k > 0; k-- {
+        if !isIdentBoundary(p[k-1]) { continue }
+        suf := strings.TrimLeft(p[k:], " \t")
+        if suf == "" { continue }
+        if strings.HasPrefix(s, suf) {
+            return strings.TrimLeft(s[len(suf):], " \t")
+        }
+    }
+    return suggestion
+}
+
+func isIdentBoundary(ch byte) bool {
+    return !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_')
 }
 
 // stripCodeFences removes surrounding Markdown code fences from a model
