@@ -1,5 +1,4 @@
 // Summary: Minimal LSP server over stdio; manages documents, dispatches requests, and tracks stats.
-// Not yet reviewed by a human
 package lsp
 
 import (
@@ -29,35 +28,38 @@ type Server struct {
 	windowLines      int
 	maxContextTokens int
 	noDiskIO         bool
-    triggerChars     []string
-    // If set, used as the LSP coding temperature for all LLM calls
-    codingTemperature *float64
-    // Concurrency guard: prevent overlapping LLM requests (esp. completions)
-    llmBusy bool
+	triggerChars     []string
+	// If set, used as the LSP coding temperature for all LLM calls
+	codingTemperature *float64
+	// Concurrency guard: prevent overlapping LLM requests (esp. completions)
+	llmBusy bool
 	// LLM request stats
 	llmReqTotal       int64
 	llmSentBytesTotal int64
 	llmRespTotal      int64
-    llmRespBytesTotal int64
-    startTime         time.Time
-    // Small LRU cache for recent code completion outputs (keyed by context)
-    compCache      map[string]string
-    compCacheOrder []string // most-recent at end; cap ~10
-    // Outgoing JSON-RPC id counter for server-initiated requests
-    nextID int64
+	llmRespBytesTotal int64
+	startTime         time.Time
+	// Small LRU cache for recent code completion outputs (keyed by context)
+	compCache      map[string]string
+	compCacheOrder []string // most-recent at end; cap ~10
+	// Outgoing JSON-RPC id counter for server-initiated requests
+	nextID int64
+	// Minimum identifier chars required for manual invoke to bypass prefix checks
+	manualInvokeMinPrefix int
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
 type ServerOptions struct {
-    LogContext        bool
-    MaxTokens         int
-    ContextMode       string
-    WindowLines       int
-    MaxContextTokens  int
+	LogContext       bool
+	MaxTokens        int
+	ContextMode      string
+	WindowLines      int
+	MaxContextTokens int
 
-    Client            llm.Client
-    TriggerCharacters []string
-    CodingTemperature *float64
+	Client                llm.Client
+	TriggerCharacters     []string
+	CodingTemperature     *float64
+	ManualInvokeMinPrefix int
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -82,37 +84,38 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.contextMode = contextMode
 	s.windowLines = windowLines
 	s.maxContextTokens = maxContextTokens
-	
+
 	s.startTime = time.Now()
-    s.llmClient = opts.Client
-    if len(opts.TriggerCharacters) == 0 {
-        // Defaults (no space to avoid auto-trigger after whitespace)
-        s.triggerChars = []string{".", ":", "/", "_"}
-    } else {
-        s.triggerChars = append([]string{}, opts.TriggerCharacters...)
-    }
-    s.codingTemperature = opts.CodingTemperature
-    s.compCache = make(map[string]string)
-    return s
+	s.llmClient = opts.Client
+	if len(opts.TriggerCharacters) == 0 {
+		// Defaults (no space to avoid auto-trigger after whitespace)
+		s.triggerChars = []string{".", ":", "/", "_", ")", "{"}
+	} else {
+		s.triggerChars = append([]string{}, opts.TriggerCharacters...)
+	}
+	s.codingTemperature = opts.CodingTemperature
+	s.compCache = make(map[string]string)
+	s.manualInvokeMinPrefix = opts.ManualInvokeMinPrefix
+	return s
 }
 
 // tryStartLLM attempts to mark the LLM as busy. Returns true when it acquired
 // the guard; false if another LLM request is already running.
 func (s *Server) tryStartLLM() bool {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    if s.llmBusy {
-        return false
-    }
-    s.llmBusy = true
-    return true
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.llmBusy {
+		return false
+	}
+	s.llmBusy = true
+	return true
 }
 
 // endLLM releases the busy guard for LLM requests.
 func (s *Server) endLLM() {
-    s.mu.Lock()
-    s.llmBusy = false
-    s.mu.Unlock()
+	s.mu.Lock()
+	s.llmBusy = false
+	s.mu.Unlock()
 }
 
 func (s *Server) Run() error {
