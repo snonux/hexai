@@ -1,4 +1,5 @@
 // Summary: LSP JSON-RPC handlers; implements core methods and integrates with the LLM client when enabled.
+// TODO: Split this up into multiple smaller files.
 package lsp
 
 import (
@@ -14,7 +15,7 @@ import (
 )
 
 func (s *Server) handle(req Request) {
-    switch req.Method {
+	switch req.Method {
 	case "initialize":
 		s.handleInitialize(req)
 	case "initialized":
@@ -31,11 +32,11 @@ func (s *Server) handle(req Request) {
 		s.handleDidClose(req)
 	case "textDocument/completion":
 		s.handleCompletion(req)
-    case "textDocument/codeAction":
-        s.handleCodeAction(req)
-    case "codeAction/resolve":
-        s.handleCodeActionResolve(req)
-    default:
+	case "textDocument/codeAction":
+		s.handleCodeAction(req)
+	case "codeAction/resolve":
+		s.handleCodeActionResolve(req)
+	default:
 		if len(req.ID) != 0 {
 			s.reply(req.ID, nil, &RespError{Code: -32601, Message: fmt.Sprintf("method not found: %s", req.Method)})
 		}
@@ -47,17 +48,17 @@ func (s *Server) handleInitialize(req Request) {
 	if s.llmClient != nil {
 		version = version + " [" + s.llmClient.Name() + ":" + s.llmClient.DefaultModel() + "]"
 	}
-    res := InitializeResult{
-        Capabilities: ServerCapabilities{
-            TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
-            CompletionProvider: &CompletionOptions{
-                ResolveProvider:   false,
-                TriggerCharacters: s.triggerChars,
-            },
-            CodeActionProvider: CodeActionOptions{ResolveProvider: true},
-        },
-        ServerInfo: &ServerInfo{Name: "hexai", Version: version},
-    }
+	res := InitializeResult{
+		Capabilities: ServerCapabilities{
+			TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
+			CompletionProvider: &CompletionOptions{
+				ResolveProvider:   false,
+				TriggerCharacters: s.triggerChars,
+			},
+			CodeActionProvider: CodeActionOptions{ResolveProvider: true},
+		},
+		ServerInfo: &ServerInfo{Name: "hexai", Version: version},
+	}
 	s.reply(req.ID, res, nil)
 }
 
@@ -97,113 +98,113 @@ func (s *Server) handleCodeAction(req Request) {
 }
 
 func (s *Server) buildRewriteCodeAction(p CodeActionParams, sel string) *CodeAction {
-    if instr, cleaned := instructionFromSelection(sel); strings.TrimSpace(instr) != "" {
-        payload := struct{
-            Type string `json:"type"`
-            URI  string `json:"uri"`
-            Range Range `json:"range"`
-            Instruction string `json:"instruction"`
-            Selection string `json:"selection"`
-        }{Type: "rewrite", URI: p.TextDocument.URI, Range: p.Range, Instruction: instr, Selection: cleaned}
-        raw, _ := json.Marshal(payload)
-        ca := CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Data: raw}
-        return &ca
-    }
-    return nil
+	if instr, cleaned := instructionFromSelection(sel); strings.TrimSpace(instr) != "" {
+		payload := struct {
+			Type        string `json:"type"`
+			URI         string `json:"uri"`
+			Range       Range  `json:"range"`
+			Instruction string `json:"instruction"`
+			Selection   string `json:"selection"`
+		}{Type: "rewrite", URI: p.TextDocument.URI, Range: p.Range, Instruction: instr, Selection: cleaned}
+		raw, _ := json.Marshal(payload)
+		ca := CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Data: raw}
+		return &ca
+	}
+	return nil
 }
 
 func (s *Server) buildDiagnosticsCodeAction(p CodeActionParams, sel string) *CodeAction {
-    diags := s.diagnosticsInRange(p.Context, p.Range)
-    if len(diags) == 0 {
-        return nil
-    }
-    payload := struct{
-        Type string `json:"type"`
-        URI  string `json:"uri"`
-        Range Range `json:"range"`
-        Selection string `json:"selection"`
-        Diagnostics []Diagnostic `json:"diagnostics"`
-    }{Type: "diagnostics", URI: p.TextDocument.URI, Range: p.Range, Selection: sel, Diagnostics: diags}
-    raw, _ := json.Marshal(payload)
-    ca := CodeAction{Title: "Hexai: resolve diagnostics", Kind: "quickfix", Data: raw}
-    return &ca
+	diags := s.diagnosticsInRange(p.Context, p.Range)
+	if len(diags) == 0 {
+		return nil
+	}
+	payload := struct {
+		Type        string       `json:"type"`
+		URI         string       `json:"uri"`
+		Range       Range        `json:"range"`
+		Selection   string       `json:"selection"`
+		Diagnostics []Diagnostic `json:"diagnostics"`
+	}{Type: "diagnostics", URI: p.TextDocument.URI, Range: p.Range, Selection: sel, Diagnostics: diags}
+	raw, _ := json.Marshal(payload)
+	ca := CodeAction{Title: "Hexai: resolve diagnostics", Kind: "quickfix", Data: raw}
+	return &ca
 }
 
 func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
-    if s.llmClient == nil || len(ca.Data) == 0 {
-        return ca, false
-    }
-    var payload struct{
-        Type string `json:"type"`
-        URI  string `json:"uri"`
-        Range Range `json:"range"`
-        Instruction string `json:"instruction,omitempty"`
-        Selection string `json:"selection"`
-        Diagnostics []Diagnostic `json:"diagnostics,omitempty"`
-    }
-    if err := json.Unmarshal(ca.Data, &payload); err != nil {
-        return ca, false
-    }
-    switch payload.Type {
-    case "rewrite":
-        sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
-        user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", payload.Instruction, payload.Selection)
-        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-        defer cancel()
-        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-        opts := s.llmRequestOpts()
-        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
-            if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-                ca.Edit = &edit
-                return ca, true
-            }
-        } else {
-            logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
-        }
-    case "diagnostics":
-        sys := "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes."
-        var b strings.Builder
-        b.WriteString("Diagnostics to resolve (selection only):\n")
-        for i, dgn := range payload.Diagnostics {
-            if dgn.Source != "" {
-                fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
-            } else {
-                fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
-            }
-        }
-        b.WriteString("\nSelected code:\n")
-        b.WriteString(payload.Selection)
-        ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-        defer cancel()
-        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: b.String()}}
-        opts := s.llmRequestOpts()
-        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
-            if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-                ca.Edit = &edit
-                return ca, true
-            }
-        } else {
-            logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
-        }
-    }
-    return ca, false
+	if s.llmClient == nil || len(ca.Data) == 0 {
+		return ca, false
+	}
+	var payload struct {
+		Type        string       `json:"type"`
+		URI         string       `json:"uri"`
+		Range       Range        `json:"range"`
+		Instruction string       `json:"instruction,omitempty"`
+		Selection   string       `json:"selection"`
+		Diagnostics []Diagnostic `json:"diagnostics,omitempty"`
+	}
+	if err := json.Unmarshal(ca.Data, &payload); err != nil {
+		return ca, false
+	}
+	switch payload.Type {
+	case "rewrite":
+		sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
+		user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", payload.Instruction, payload.Selection)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+		opts := s.llmRequestOpts()
+		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+				ca.Edit = &edit
+				return ca, true
+			}
+		} else {
+			logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
+		}
+	case "diagnostics":
+		sys := "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes."
+		var b strings.Builder
+		b.WriteString("Diagnostics to resolve (selection only):\n")
+		for i, dgn := range payload.Diagnostics {
+			if dgn.Source != "" {
+				fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
+			} else {
+				fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
+			}
+		}
+		b.WriteString("\nSelected code:\n")
+		b.WriteString(payload.Selection)
+		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		defer cancel()
+		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: b.String()}}
+		opts := s.llmRequestOpts()
+		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+				ca.Edit = &edit
+				return ca, true
+			}
+		} else {
+			logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
+		}
+	}
+	return ca, false
 }
 
 func (s *Server) handleCodeActionResolve(req Request) {
-    var ca CodeAction
-    if err := json.Unmarshal(req.Params, &ca); err != nil {
-        if len(req.ID) != 0 {
-            s.reply(req.ID, ca, nil)
-        }
-        return
-    }
-    if resolved, ok := s.resolveCodeAction(ca); ok {
-        s.reply(req.ID, resolved, nil)
-        return
-    }
-    s.reply(req.ID, ca, nil)
+	var ca CodeAction
+	if err := json.Unmarshal(req.Params, &ca); err != nil {
+		if len(req.ID) != 0 {
+			s.reply(req.ID, ca, nil)
+		}
+		return
+	}
+	if resolved, ok := s.resolveCodeAction(ca); ok {
+		s.reply(req.ID, resolved, nil)
+		return
+	}
+	s.reply(req.ID, ca, nil)
 }
 
 func (s *Server) llmRequestOpts() []llm.RequestOption {
@@ -447,15 +448,15 @@ func (s *Server) handleDidOpen(req Request) {
 }
 
 func (s *Server) handleDidChange(req Request) {
-    var p DidChangeTextDocumentParams
-    if err := json.Unmarshal(req.Params, &p); err == nil {
-        if len(p.ContentChanges) > 0 {
-            s.setDocument(p.TextDocument.URI, p.ContentChanges[len(p.ContentChanges)-1].Text)
-        }
-        s.markActivity()
-        // Detect in-editor chat trigger lines and respond inline.
-        s.detectAndHandleChat(p.TextDocument.URI)
-    }
+	var p DidChangeTextDocumentParams
+	if err := json.Unmarshal(req.Params, &p); err == nil {
+		if len(p.ContentChanges) > 0 {
+			s.setDocument(p.TextDocument.URI, p.ContentChanges[len(p.ContentChanges)-1].Text)
+		}
+		s.markActivity()
+		// Detect in-editor chat trigger lines and respond inline.
+		s.detectAndHandleChat(p.TextDocument.URI)
+	}
 }
 
 func (s *Server) handleDidClose(req Request) {
@@ -467,32 +468,32 @@ func (s *Server) handleDidClose(req Request) {
 }
 
 func (s *Server) handleCompletion(req Request) {
-    var p CompletionParams
-    var docStr string
-    if err := json.Unmarshal(req.Params, &p); err == nil {
-        // Log trigger information for every completion request from client
-        tk, tch := extractTriggerInfo(p)
-        logging.Logf("lsp ", "completion trigger kind=%d char=%q uri=%s line=%d char=%d",
-            tk, tch, p.TextDocument.URI, p.Position.Line, p.Position.Character)
-        above, current, below, funcCtx := s.lineContext(p.TextDocument.URI, p.Position)
-        docStr = s.buildDocString(p, above, current, below, funcCtx)
-        if s.logContext {
-            s.logCompletionContext(p, above, current, below, funcCtx)
-        }
+	var p CompletionParams
+	var docStr string
+	if err := json.Unmarshal(req.Params, &p); err == nil {
+		// Log trigger information for every completion request from client
+		tk, tch := extractTriggerInfo(p)
+		logging.Logf("lsp ", "completion trigger kind=%d char=%q uri=%s line=%d char=%d",
+			tk, tch, p.TextDocument.URI, p.Position.Line, p.Position.Character)
+		above, current, below, funcCtx := s.lineContext(p.TextDocument.URI, p.Position)
+		docStr = s.buildDocString(p, above, current, below, funcCtx)
+		if s.logContext {
+			s.logCompletionContext(p, above, current, below, funcCtx)
+		}
 		if s.llmClient != nil {
 			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
 			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
-            items, ok, busy := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
-            if ok {
-                s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
-                return
-            }
-            if busy {
-                // Inform client that results are incomplete so it may try again shortly.
-                logging.Logf("lsp ", "completion busy uri=%s line=%d char=%d returning isIncomplete", p.TextDocument.URI, p.Position.Line, p.Position.Character)
-                s.reply(req.ID, CompletionList{IsIncomplete: true, Items: []CompletionItem{}}, nil)
-                return
-            }
+			items, ok, busy := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
+			if ok {
+				s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
+				return
+			}
+			if busy {
+				// Inform client that results are incomplete so it may try again shortly.
+				logging.Logf("lsp ", "completion busy uri=%s line=%d char=%d returning isIncomplete", p.TextDocument.URI, p.Position.Line, p.Position.Character)
+				s.reply(req.ID, CompletionList{IsIncomplete: true, Items: []CompletionItem{}}, nil)
+				return
+			}
 		}
 	}
 	items := s.fallbackCompletionItems(docStr)
@@ -500,27 +501,27 @@ func (s *Server) handleCompletion(req Request) {
 }
 
 func (s *Server) reply(id json.RawMessage, result any, err *RespError) {
-    resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
-    s.writeMessage(resp)
+	resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
+	s.writeMessage(resp)
 }
 
 // extractTriggerInfo returns the LSP completion TriggerKind and TriggerCharacter
 // if provided by the client; when absent it returns zeros.
 func extractTriggerInfo(p CompletionParams) (kind int, ch string) {
-    if p.Context == nil {
-        return 0, ""
-    }
-    var ctx struct {
-        TriggerKind      int    `json:"triggerKind"`
-        TriggerCharacter string `json:"triggerCharacter,omitempty"`
-    }
-    if raw, ok := p.Context.(json.RawMessage); ok {
-        _ = json.Unmarshal(raw, &ctx)
-    } else {
-        b, _ := json.Marshal(p.Context)
-        _ = json.Unmarshal(b, &ctx)
-    }
-    return ctx.TriggerKind, ctx.TriggerCharacter
+	if p.Context == nil {
+		return 0, ""
+	}
+	var ctx struct {
+		TriggerKind      int    `json:"triggerKind"`
+		TriggerCharacter string `json:"triggerCharacter,omitempty"`
+	}
+	if raw, ok := p.Context.(json.RawMessage); ok {
+		_ = json.Unmarshal(raw, &ctx)
+	} else {
+		b, _ := json.Marshal(p.Context)
+		_ = json.Unmarshal(b, &ctx)
+	}
+	return ctx.TriggerKind, ctx.TriggerCharacter
 }
 
 // --- in-editor chat (";C ...") ---
@@ -531,184 +532,202 @@ func extractTriggerInfo(p CompletionParams) (kind int, ch string) {
 // answer below the blank line, leaving exactly one empty line between prompt
 // and response.
 func (s *Server) detectAndHandleChat(uri string) {
-    if s.llmClient == nil {
-        return
-    }
-    d := s.getDocument(uri)
-    if d == nil || len(d.lines) == 0 {
-        return
-    }
-    for i, raw := range d.lines {
-        // Find last non-space character index
-        j := len(raw) - 1
-        for j >= 0 {
-            if raw[j] == ' ' || raw[j] == '\t' { j--; continue }
-            break
-        }
-        if j < 1 { // need at least two chars for double trigger
-            continue
-        }
-        pair := raw[j-1 : j+1]
-        isTrigger := pair == ".." || pair == "??" || pair == "!!" || pair == "::"
-        if !isTrigger {
-            continue
-        }
-        // Avoid double-answering: if the next non-empty line starts with '>' we skip.
-        k := i + 1
-        for k < len(d.lines) && strings.TrimSpace(d.lines[k]) == "" { k++ }
-        if k < len(d.lines) && strings.HasPrefix(strings.TrimSpace(d.lines[k]), ">") {
-            continue
-        }
-        // Derive prompt by removing 1 trailing char for punctuation pairs
-        removeCount := 1
-        base := raw[:j+1-removeCount]
-        prompt := strings.TrimSpace(base)
-        if prompt == "" {
-            continue
-        }
-        if !s.tryStartLLM() {
-            continue
-        }
-        lineIdx := i
-        lastIdx := j
-        go func(prompt string, remove int) {
-            defer s.endLLM()
-            ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-            defer cancel()
-            sys := "You are a helpful coding assistant. Answer concisely and clearly."
-            // Build short conversation history from the document above this line
-            history := s.buildChatHistory(uri, lineIdx, prompt)
-            msgs := append([]llm.Message{{Role: "system", Content: sys}}, history...)
-            opts := s.llmRequestOpts()
-            logging.Logf("lsp ", "chat llm=requesting model=%s", s.llmClient.DefaultModel())
-            text, err := s.llmClient.Chat(ctx, msgs, opts...)
-            if err != nil {
-                logging.Logf("lsp ", "chat llm error: %v", err)
-                return
-            }
-            out := strings.TrimSpace(stripCodeFences(text))
-            if out == "" {
-                return
-            }
-            s.applyChatEdits(uri, lineIdx, lastIdx, remove, "> "+out)
-        }(prompt, removeCount)
-        // Only handle one per change tick to avoid flooding
-        break
-    }
+	if s.llmClient == nil {
+		return
+	}
+	d := s.getDocument(uri)
+	if d == nil || len(d.lines) == 0 {
+		return
+	}
+	for i, raw := range d.lines {
+		// Find last non-space character index
+		j := len(raw) - 1
+		for j >= 0 {
+			if raw[j] == ' ' || raw[j] == '\t' {
+				j--
+				continue
+			}
+			break
+		}
+		if j < 1 { // need at least two chars for double trigger
+			continue
+		}
+		pair := raw[j-1 : j+1]
+		isTrigger := pair == ".." || pair == "??" || pair == "!!" || pair == "::"
+		if !isTrigger {
+			continue
+		}
+		// Avoid double-answering: if the next non-empty line starts with '>' we skip.
+		k := i + 1
+		for k < len(d.lines) && strings.TrimSpace(d.lines[k]) == "" {
+			k++
+		}
+		if k < len(d.lines) && strings.HasPrefix(strings.TrimSpace(d.lines[k]), ">") {
+			continue
+		}
+		// Derive prompt by removing 1 trailing char for punctuation pairs
+		removeCount := 1
+		base := raw[:j+1-removeCount]
+		prompt := strings.TrimSpace(base)
+		if prompt == "" {
+			continue
+		}
+		lineIdx := i
+		lastIdx := j
+		go func(prompt string, remove int) {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			sys := "You are a helpful coding assistant. Answer concisely and clearly."
+			// Build short conversation history from the document above this line
+			history := s.buildChatHistory(uri, lineIdx, prompt)
+			msgs := append([]llm.Message{{Role: "system", Content: sys}}, history...)
+			opts := s.llmRequestOpts()
+			logging.Logf("lsp ", "chat llm=requesting model=%s", s.llmClient.DefaultModel())
+			text, err := s.llmClient.Chat(ctx, msgs, opts...)
+			if err != nil {
+				logging.Logf("lsp ", "chat llm error: %v", err)
+				return
+			}
+			out := strings.TrimSpace(stripCodeFences(text))
+			if out == "" {
+				return
+			}
+			s.applyChatEdits(uri, lineIdx, lastIdx, remove, "> "+out)
+		}(prompt, removeCount)
+		// Only handle one per change tick to avoid flooding
+		break
+	}
 }
 
 // applyChatEdits removes the triggering punctuation at end of the line and
 // inserts two newlines followed by a new line with the response prefixed.
 func (s *Server) applyChatEdits(uri string, lineIdx int, lastNonSpace int, removeCount int, response string) {
-    d := s.getDocument(uri)
-    if d == nil { return }
-    // 1) Delete the trailing punctuation (1 or 2 chars)
-    delStart := Position{Line: lineIdx, Character: lastNonSpace+1-removeCount}
-    delEnd := Position{Line: lineIdx, Character: lastNonSpace+1}
-    // 2) Insert two newlines and the response at end-of-line, then one extra
-    //    newline so there is exactly one blank line after the reply
-    insPos := Position{Line: lineIdx, Character: len(d.lines[lineIdx])}
-    resp := strings.TrimRight(response, "\n") + "\n"
-    insert := "\n\n" + resp + "\n"
-    edits := []TextEdit{
-        {Range: Range{Start: delStart, End: delEnd}, NewText: ""},
-        {Range: Range{Start: insPos, End: insPos}, NewText: insert},
-    }
-    we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
-    s.clientApplyEdit("Hexai: insert chat response", we)
+	d := s.getDocument(uri)
+	if d == nil {
+		return
+	}
+	// 1) Delete the trailing punctuation (1 or 2 chars)
+	delStart := Position{Line: lineIdx, Character: lastNonSpace + 1 - removeCount}
+	delEnd := Position{Line: lineIdx, Character: lastNonSpace + 1}
+	// 2) Insert two newlines and the response at end-of-line, then one extra
+	//    newline so there is exactly one blank line after the reply
+	insPos := Position{Line: lineIdx, Character: len(d.lines[lineIdx])}
+	resp := strings.TrimRight(response, "\n") + "\n"
+	insert := "\n\n" + resp + "\n"
+	edits := []TextEdit{
+		{Range: Range{Start: delStart, End: delEnd}, NewText: ""},
+		{Range: Range{Start: insPos, End: insPos}, NewText: insert},
+	}
+	we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
+	s.clientApplyEdit("Hexai: insert chat response", we)
 }
 
 // buildChatHistory walks upwards from the current line to collect the most recent
 // Q/A pairs in the in-editor transcript. It returns messages in chronological order
 // ending with the current user prompt. Limits to a small number of pairs to control tokens.
 func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string) []llm.Message {
-    d := s.getDocument(uri)
-    if d == nil { return []llm.Message{{Role: "user", Content: currentPrompt}} }
-    type pair struct{ q string; a string }
-    pairs := []pair{}
-    i := lineIdx - 1
-    // Collect up to 3 recent pairs
-    for i >= 0 && len(pairs) < 3 {
-        // Skip blank lines
-        for i >= 0 && strings.TrimSpace(d.lines[i]) == "" { i-- }
-        if i < 0 { break }
-        // Expect assistant reply lines starting with ">"
-        if !strings.HasPrefix(strings.TrimSpace(d.lines[i]), ">") {
-            break
-        }
-        // Collect contiguous reply block
-        var replyLines []string
-        for i >= 0 {
-            line := strings.TrimSpace(d.lines[i])
-            if strings.HasPrefix(line, ">") {
-                replyLines = append([]string{strings.TrimSpace(strings.TrimPrefix(line, ">"))}, replyLines...)
-                i--
-                continue
-            }
-            break
-        }
-        // Skip a single blank line that should separate Q from A
-        for i >= 0 && strings.TrimSpace(d.lines[i]) == "" { i-- }
-        if i < 0 { break }
-        // Take the question as the non-empty line above
-        q := strings.TrimSpace(d.lines[i])
-        // Remove any lingering trigger pair at end if present
-        q = stripTrailingTrigger(q)
-        pairs = append([]pair{{q: q, a: strings.Join(replyLines, "\n")}}, pairs...)
-        i--
-        // Continue to find older pairs
-    }
-    // Build messages
-    msgs := make([]llm.Message, 0, len(pairs)*2+1)
-    for _, p := range pairs {
-        if strings.TrimSpace(p.q) != "" {
-            msgs = append(msgs, llm.Message{Role: "user", Content: p.q})
-        }
-        if strings.TrimSpace(p.a) != "" {
-            msgs = append(msgs, llm.Message{Role: "assistant", Content: p.a})
-        }
-    }
-    msgs = append(msgs, llm.Message{Role: "user", Content: currentPrompt})
-    return msgs
+	d := s.getDocument(uri)
+	if d == nil {
+		return []llm.Message{{Role: "user", Content: currentPrompt}}
+	}
+	type pair struct {
+		q string
+		a string
+	}
+	pairs := []pair{}
+	i := lineIdx - 1
+	// Collect up to 3 recent pairs
+	for i >= 0 && len(pairs) < 3 {
+		// Skip blank lines
+		for i >= 0 && strings.TrimSpace(d.lines[i]) == "" {
+			i--
+		}
+		if i < 0 {
+			break
+		}
+		// Expect assistant reply lines starting with ">"
+		if !strings.HasPrefix(strings.TrimSpace(d.lines[i]), ">") {
+			break
+		}
+		// Collect contiguous reply block
+		var replyLines []string
+		for i >= 0 {
+			line := strings.TrimSpace(d.lines[i])
+			if strings.HasPrefix(line, ">") {
+				replyLines = append([]string{strings.TrimSpace(strings.TrimPrefix(line, ">"))}, replyLines...)
+				i--
+				continue
+			}
+			break
+		}
+		// Skip a single blank line that should separate Q from A
+		for i >= 0 && strings.TrimSpace(d.lines[i]) == "" {
+			i--
+		}
+		if i < 0 {
+			break
+		}
+		// Take the question as the non-empty line above
+		q := strings.TrimSpace(d.lines[i])
+		// Remove any lingering trigger pair at end if present
+		q = stripTrailingTrigger(q)
+		pairs = append([]pair{{q: q, a: strings.Join(replyLines, "\n")}}, pairs...)
+		i--
+		// Continue to find older pairs
+	}
+	// Build messages
+	msgs := make([]llm.Message, 0, len(pairs)*2+1)
+	for _, p := range pairs {
+		if strings.TrimSpace(p.q) != "" {
+			msgs = append(msgs, llm.Message{Role: "user", Content: p.q})
+		}
+		if strings.TrimSpace(p.a) != "" {
+			msgs = append(msgs, llm.Message{Role: "assistant", Content: p.a})
+		}
+	}
+	msgs = append(msgs, llm.Message{Role: "user", Content: currentPrompt})
+	return msgs
 }
 
 // stripTrailingTrigger removes a single trailing punctuation from the set
 // [.,?,!,:] or both semicolons if present at end, mirroring the inline trigger rules.
 func stripTrailingTrigger(sx string) string {
-    s := strings.TrimRight(sx, " \t")
-    if strings.HasSuffix(s, ";;") {
-        return strings.TrimRight(strings.TrimSuffix(s, ";;"), " \t")
-    }
-    if len(s) == 0 { return sx }
-    last := s[len(s)-1]
-    switch last {
-    case '.', '?', '!', ':':
-        return strings.TrimRight(s[:len(s)-1], " \t")
-    default:
-        return sx
-    }
+	s := strings.TrimRight(sx, " \t")
+	if strings.HasSuffix(s, ";;") {
+		return strings.TrimRight(strings.TrimSuffix(s, ";;"), " \t")
+	}
+	if len(s) == 0 {
+		return sx
+	}
+	last := s[len(s)-1]
+	switch last {
+	case '.', '?', '!', ':':
+		return strings.TrimRight(s[:len(s)-1], " \t")
+	default:
+		return sx
+	}
 }
 
 // clientApplyEdit sends a workspace/applyEdit request to the client.
 func (s *Server) clientApplyEdit(label string, edit WorkspaceEdit) {
-    params := ApplyWorkspaceEditParams{Label: label, Edit: edit}
-    // Build a JSON-RPC request with a fresh id
-    id := s.nextReqID()
-    req := Request{JSONRPC: "2.0", ID: id, Method: "workspace/applyEdit"}
-    // marshal params separately to avoid changing Request type
-    b, _ := json.Marshal(params)
-    req.Params = b
-    s.writeMessage(req)
+	params := ApplyWorkspaceEditParams{Label: label, Edit: edit}
+	// Build a JSON-RPC request with a fresh id
+	id := s.nextReqID()
+	req := Request{JSONRPC: "2.0", ID: id, Method: "workspace/applyEdit"}
+	// marshal params separately to avoid changing Request type
+	b, _ := json.Marshal(params)
+	req.Params = b
+	s.writeMessage(req)
 }
 
 // nextReqID returns a unique json.RawMessage id for server-initiated requests.
 func (s *Server) nextReqID() json.RawMessage {
-    s.mu.Lock()
-    s.nextID++
-    idNum := s.nextID
-    s.mu.Unlock()
-    b, _ := json.Marshal(idNum)
-    return b
+	s.mu.Lock()
+	s.nextID++
+	idNum := s.nextID
+	s.mu.Unlock()
+	b, _ := json.Marshal(idNum)
+	return b
 }
 
 // --- completion helpers ---
@@ -724,109 +743,111 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 }
 
 func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool, bool) {
-    ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
 
-    // Inline prompt markers (strict ;text; or double-; patterns) explicitly allow triggering.
-    inlinePrompt := lineHasInlinePrompt(current)
-    // Only invoke LLM when triggered by our characters, manual invoke, or inline prompt markers.
-    if !inlinePrompt && !s.isTriggerEvent(p, current) {
-        logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-        return []CompletionItem{}, true, false
-    }
+	// Inline prompt markers (strict ;text; or double-; patterns) explicitly allow triggering.
+	inlinePrompt := lineHasInlinePrompt(current)
+	// Only invoke LLM when triggered by our characters, manual invoke, or inline prompt markers.
+	if !inlinePrompt && !s.isTriggerEvent(p, current) {
+		logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+		return []CompletionItem{}, true, false
+	}
 
-    inParams := inParamList(current, p.Position.Character)
+	inParams := inParamList(current, p.Position.Character)
 
-    // Detect manual invoke so we can relax prefix heuristics when user pressed completion key.
-    manualInvoke := false
-    if p.Context != nil {
-        var c struct{
-            TriggerKind int `json:"triggerKind"`
-        }
-        if raw, ok := p.Context.(json.RawMessage); ok {
-            _ = json.Unmarshal(raw, &c)
-        } else {
-            b, _ := json.Marshal(p.Context)
-            _ = json.Unmarshal(b, &c)
-        }
-        if c.TriggerKind == 1 { // Invoked
-            manualInvoke = true
-        }
-    }
+	// Detect manual invoke so we can relax prefix heuristics when user pressed completion key.
+	manualInvoke := false
+	if p.Context != nil {
+		var c struct {
+			TriggerKind int `json:"triggerKind"`
+		}
+		if raw, ok := p.Context.(json.RawMessage); ok {
+			_ = json.Unmarshal(raw, &c)
+		} else {
+			b, _ := json.Marshal(p.Context)
+			_ = json.Unmarshal(b, &c)
+		}
+		if c.TriggerKind == 1 { // Invoked
+			manualInvoke = true
+		}
+	}
 
-    // Build a cache key for this completion context (ignore trailing whitespace
-    // before the cursor when forming the key) and try cache before any LLM call.
-    key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
-    if cleaned, ok := s.completionCacheGet(key); ok && strings.TrimSpace(cleaned) != "" {
-        logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
-            p.TextDocument.URI, p.Position.Line, p.Position.Character,
-            logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
-        return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
-    }
-    // If there is a bare ';;' on the current or next line (no valid ';;text;'),
-    // do not auto-trigger unless it was a manual invoke.
-    if (isBareDoubleSemicolon(current) || isBareDoubleSemicolon(below)) && !manualInvoke {
-        logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-        return []CompletionItem{}, true, false
-    }
+	// Build a cache key for this completion context (ignore trailing whitespace
+	// before the cursor when forming the key) and try cache before any LLM call.
+	key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
+	if cleaned, ok := s.completionCacheGet(key); ok && strings.TrimSpace(cleaned) != "" {
+		logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
+			p.TextDocument.URI, p.Position.Line, p.Position.Character,
+			logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
+		return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
+	}
+	// If there is a bare ';;' on the current or next line (no valid ';;text;'),
+	// do not auto-trigger unless it was a manual invoke.
+	if (isBareDoubleSemicolon(current) || isBareDoubleSemicolon(below)) && !manualInvoke {
+		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+		return []CompletionItem{}, true, false
+	}
 
-    // Heuristic 1: Require a minimal typed identifier prefix to avoid early triggers,
-    // but allow immediate completion after structural trigger chars like '.', ':', '/'.
-    if !inParams {
-        // Determine the effective cursor index within current line, clamped, and
-        // skip over trailing spaces/tabs to support cases like "type Matrix| "
-        // where the cursor is after a space following an identifier.
-        idx := p.Position.Character
-        if idx > len(current) { idx = len(current) }
-        // Structural triggers allow no prefix
-        allowNoPrefix := false
-        if inlinePrompt {
-            allowNoPrefix = true
-        }
-        if idx > 0 {
-            ch := current[idx-1]
-            if ch == '.' || ch == ':' || ch == '/' || ch == '_' || ch == ')' {
-                allowNoPrefix = true
-            }
-        }
-        if !allowNoPrefix {
-            // Walk left over whitespace
-            j := idx
-            for j > 0 {
-                c := current[j-1]
-                if c == ' ' || c == '\t' { j--; continue }
-                break
-            }
-            start := computeWordStart(current, j)
-            // For manual invoke, require a configurable minimum prefix length
-            min := 1
-            if manualInvoke && s.manualInvokeMinPrefix >= 0 { min = s.manualInvokeMinPrefix }
-            if j-start < min { // require at least min identifier chars
-                logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-                return []CompletionItem{}, true, false
-            }
-        }
-    }
-    // Concurrency guard: if another LLM request is running, skip this one.
-    if !s.tryStartLLM() {
-        logging.Logf("lsp ", "%scompletion skip=busy another LLM request in flight%s", logging.AnsiYellow, logging.AnsiBase)
-        return []CompletionItem{}, false, true
-    }
-    sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
-    messages := []llm.Message{
-        {Role: "system", Content: sysPrompt},
-        {Role: "user", Content: userPrompt},
-    }
+	// Heuristic 1: Require a minimal typed identifier prefix to avoid early triggers,
+	// but allow immediate completion after structural trigger chars like '.', ':', '/'.
+	if !inParams {
+		// Determine the effective cursor index within current line, clamped, and
+		// skip over trailing spaces/tabs to support cases like "type Matrix| "
+		// where the cursor is after a space following an identifier.
+		idx := p.Position.Character
+		if idx > len(current) {
+			idx = len(current)
+		}
+		// Structural triggers allow no prefix
+		allowNoPrefix := false
+		if inlinePrompt {
+			allowNoPrefix = true
+		}
+		if idx > 0 {
+			ch := current[idx-1]
+			if ch == '.' || ch == ':' || ch == '/' || ch == '_' || ch == ')' {
+				allowNoPrefix = true
+			}
+		}
+		if !allowNoPrefix {
+			// Walk left over whitespace
+			j := idx
+			for j > 0 {
+				c := current[j-1]
+				if c == ' ' || c == '\t' {
+					j--
+					continue
+				}
+				break
+			}
+			start := computeWordStart(current, j)
+			// For manual invoke, require a configurable minimum prefix length
+			min := 1
+			if manualInvoke && s.manualInvokeMinPrefix >= 0 {
+				min = s.manualInvokeMinPrefix
+			}
+			if j-start < min { // require at least min identifier chars
+				logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+				return []CompletionItem{}, true, false
+			}
+		}
+	}
+	sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
+	messages := []llm.Message{
+		{Role: "system", Content: sysPrompt},
+		{Role: "user", Content: userPrompt},
+	}
 	if hasExtra && extraText != "" {
 		messages = append(messages, llm.Message{Role: "user", Content: "Additional context:\n" + extraText})
 	}
 
-    // If an inline prompt marker is present, make the instruction stricter: code only.
-    if inlinePrompt {
-        messages[0].Content = "You are a precise code completion/refactoring engine. Output only the code to insert with no prose, no comments, and no backticks. Return raw code only."
-    }
+	// If an inline prompt marker is present, make the instruction stricter: code only.
+	if inlinePrompt {
+		messages[0].Content = "You are a precise code completion/refactoring engine. Output only the code to insert with no prose, no comments, and no backticks. Return raw code only."
+	}
 
-    // Compute total sent context size (sum of message contents)
+	// Compute total sent context size (sum of message contents)
 	var sentSize int
 	for _, m := range messages {
 		sentSize += len(m.Content)
@@ -837,134 +858,146 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	if s.codingTemperature != nil {
 		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
 	}
-    logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
-    text, err := s.llmClient.Chat(ctx, messages, opts...)
-    defer s.endLLM()
+	logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
+	text, err := s.llmClient.Chat(ctx, messages, opts...)
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
 		// Log updated averages after this request (even if failed)
 		s.logLLMStats()
-        return nil, false, false
+		return nil, false, false
 	}
 	// Update response counters (received)
 	s.incRecvCounters(len(text))
 	s.logLLMStats()
-    cleaned := stripCodeFences(strings.TrimSpace(text))
-    // For code completion responses, also strip inline single-backtick code spans
-    // when the model returns prose like: "Use `expr` here".
-    if cleaned != "" {
-        if strings.ContainsRune(cleaned, '`') {
-            inline := stripInlineCodeSpan(cleaned)
-            if strings.TrimSpace(inline) != "" {
-                cleaned = inline
-            }
-        }
-    }
-    if cleaned != "" { cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned) }
-    if cleaned != "" { cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned) }
-    // Preserve the current line's leading indentation only for double-semicolon
-    // inline prompts (";;text;"), since strict ";text;" replacements already
-    // occur in-place without affecting leading indentation.
-    if cleaned != "" && hasDoubleSemicolonTrigger(current) {
-        indent := leadingIndent(current)
-        if indent != "" {
-            cleaned = applyIndent(indent, cleaned)
-        }
-    }
-    if cleaned == "" {
-        return nil, false, false
-    }
+	cleaned := stripCodeFences(strings.TrimSpace(text))
+	// For code completion responses, also strip inline single-backtick code spans
+	// when the model returns prose like: "Use `expr` here".
+	if cleaned != "" {
+		if strings.ContainsRune(cleaned, '`') {
+			inline := stripInlineCodeSpan(cleaned)
+			if strings.TrimSpace(inline) != "" {
+				cleaned = inline
+			}
+		}
+	}
+	if cleaned != "" {
+		cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
+	}
+	if cleaned != "" {
+		cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
+	}
+	// Preserve the current line's leading indentation only for double-semicolon
+	// inline prompts (";;text;"), since strict ";text;" replacements already
+	// occur in-place without affecting leading indentation.
+	if cleaned != "" && hasDoubleSemicolonTrigger(current) {
+		indent := leadingIndent(current)
+		if indent != "" {
+			cleaned = applyIndent(indent, cleaned)
+		}
+	}
+	if cleaned == "" {
+		return nil, false, false
+	}
 
-    // Store successful completion in cache
-    s.completionCachePut(key, cleaned)
+	// Store successful completion in cache
+	s.completionCachePut(key, cleaned)
 
-    return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
+	return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
 }
 
 // --- small completion cache (last ~10 entries) ---
 
 func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string {
-    // Normalize left-of-cursor by trimming trailing spaces/tabs
-    idx := p.Position.Character
-    if idx > len(current) { idx = len(current) }
-    left := strings.TrimRight(current[:idx], " \t")
-    right := ""
-    if idx < len(current) { right = current[idx:] }
-    prov := ""
-    model := ""
-    if s.llmClient != nil {
-        prov = s.llmClient.Name()
-        model = s.llmClient.DefaultModel()
-    }
-    temp := ""
-    if s.codingTemperature != nil { temp = fmt.Sprintf("%.3f", *s.codingTemperature) }
-    extra := ""
-    if hasExtra {
-        extra = strings.TrimSpace(extraText)
-    }
-    // Compose a key from essential context parts
-    return strings.Join([]string{
-        "v1", // version for future-proofing
-        prov,
-        model,
-        temp,
-        p.TextDocument.URI,
-        fmt.Sprintf("%d:%d", p.Position.Line, len(left)),
-        above,
-        left,
-        right,
-        below,
-        funcCtx,
-        fmt.Sprintf("params=%t", inParams),
-        extra,
-    }, "\x1f") // use unit separator to avoid collisions
+	// Normalize left-of-cursor by trimming trailing spaces/tabs
+	idx := p.Position.Character
+	if idx > len(current) {
+		idx = len(current)
+	}
+	left := strings.TrimRight(current[:idx], " \t")
+	right := ""
+	if idx < len(current) {
+		right = current[idx:]
+	}
+	prov := ""
+	model := ""
+	if s.llmClient != nil {
+		prov = s.llmClient.Name()
+		model = s.llmClient.DefaultModel()
+	}
+	temp := ""
+	if s.codingTemperature != nil {
+		temp = fmt.Sprintf("%.3f", *s.codingTemperature)
+	}
+	extra := ""
+	if hasExtra {
+		extra = strings.TrimSpace(extraText)
+	}
+	// Compose a key from essential context parts
+	return strings.Join([]string{
+		"v1", // version for future-proofing
+		prov,
+		model,
+		temp,
+		p.TextDocument.URI,
+		fmt.Sprintf("%d:%d", p.Position.Line, len(left)),
+		above,
+		left,
+		right,
+		below,
+		funcCtx,
+		fmt.Sprintf("params=%t", inParams),
+		extra,
+	}, "\x1f") // use unit separator to avoid collisions
 }
 
 func (s *Server) completionCacheGet(key string) (string, bool) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    v, ok := s.compCache[key]
-    if !ok {
-        return "", false
-    }
-    // move to most-recent
-    s.compCacheTouchLocked(key)
-    return v, true
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v, ok := s.compCache[key]
+	if !ok {
+		return "", false
+	}
+	// move to most-recent
+	s.compCacheTouchLocked(key)
+	return v, true
 }
 
 func (s *Server) completionCachePut(key, value string) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    if s.compCache == nil {
-        s.compCache = make(map[string]string)
-    }
-    if _, exists := s.compCache[key]; !exists {
-        s.compCacheOrder = append(s.compCacheOrder, key)
-        s.compCache[key] = value
-        if len(s.compCacheOrder) > 10 {
-            // evict oldest
-            old := s.compCacheOrder[0]
-            s.compCacheOrder = s.compCacheOrder[1:]
-            delete(s.compCache, old)
-        }
-        return
-    }
-    // update existing and mark most-recent
-    s.compCache[key] = value
-    s.compCacheTouchLocked(key)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.compCache == nil {
+		s.compCache = make(map[string]string)
+	}
+	if _, exists := s.compCache[key]; !exists {
+		s.compCacheOrder = append(s.compCacheOrder, key)
+		s.compCache[key] = value
+		if len(s.compCacheOrder) > 10 {
+			// evict oldest
+			old := s.compCacheOrder[0]
+			s.compCacheOrder = s.compCacheOrder[1:]
+			delete(s.compCache, old)
+		}
+		return
+	}
+	// update existing and mark most-recent
+	s.compCache[key] = value
+	s.compCacheTouchLocked(key)
 }
 
 func (s *Server) compCacheTouchLocked(key string) {
-    // assumes s.mu is held
-    // remove any existing occurrence of key in order slice
-    idx := -1
-    for i, k := range s.compCacheOrder {
-        if k == key { idx = i; break }
-    }
-    if idx >= 0 {
-        s.compCacheOrder = append(append([]string{}, s.compCacheOrder[:idx]...), s.compCacheOrder[idx+1:]...)
-    }
-    s.compCacheOrder = append(s.compCacheOrder, key)
+	// assumes s.mu is held
+	// remove any existing occurrence of key in order slice
+	idx := -1
+	for i, k := range s.compCacheOrder {
+		if k == key {
+			idx = i
+			break
+		}
+	}
+	if idx >= 0 {
+		s.compCacheOrder = append(append([]string{}, s.compCacheOrder[:idx]...), s.compCacheOrder[idx+1:]...)
+	}
+	s.compCacheOrder = append(s.compCacheOrder, key)
 }
 
 // isTriggerEvent returns true when the completion request appears to be caused
@@ -972,57 +1005,57 @@ func (s *Server) compCacheTouchLocked(key string) {
 // CompletionContext if provided and also falls back to inspecting the character
 // immediately to the left of the cursor.
 func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
-    // 1) Inspect LSP completion context if present
-    if p.Context != nil {
-        var ctx struct{
-            TriggerKind int    `json:"triggerKind"`
-            TriggerCharacter string `json:"triggerCharacter,omitempty"`
-        }
-        if raw, ok := p.Context.(json.RawMessage); ok {
-            _ = json.Unmarshal(raw, &ctx)
-        } else {
-            b, _ := json.Marshal(p.Context)
-            _ = json.Unmarshal(b, &ctx)
-        }
-        // If the line contains a bare ';;' (no ';;text;'), do not treat as a trigger source.
-        if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
-            return false
-        }
-        // TriggerKind 1 = Invoked (manual) — always allow (unless bare ';;' above)
-        if ctx.TriggerKind == 1 {
-            return true
-        }
-        // TriggerKind 2 is TriggerCharacter per LSP spec
-        if ctx.TriggerKind == 2 {
-            if ctx.TriggerCharacter != "" {
-                for _, c := range s.triggerChars {
-                    if c == ctx.TriggerCharacter {
-                        return true
-                    }
-                }
-                return false
-            }
-            // No character provided but reported as TriggerCharacter; be conservative
-            return false
-        }
-        // For TriggerForIncomplete (3), require manual char check below
-    }
-    // 2) Fallback: check the character immediately prior to cursor
-    idx := p.Position.Character
-    if idx <= 0 || idx > len(current) {
-        return false
-    }
-    // Bare ';;' should not trigger via fallback char either
-    if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
-        return false
-    }
-    ch := string(current[idx-1])
-    for _, c := range s.triggerChars {
-        if c == ch {
-            return true
-        }
-    }
-    return false
+	// 1) Inspect LSP completion context if present
+	if p.Context != nil {
+		var ctx struct {
+			TriggerKind      int    `json:"triggerKind"`
+			TriggerCharacter string `json:"triggerCharacter,omitempty"`
+		}
+		if raw, ok := p.Context.(json.RawMessage); ok {
+			_ = json.Unmarshal(raw, &ctx)
+		} else {
+			b, _ := json.Marshal(p.Context)
+			_ = json.Unmarshal(b, &ctx)
+		}
+		// If the line contains a bare ';;' (no ';;text;'), do not treat as a trigger source.
+		if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
+			return false
+		}
+		// TriggerKind 1 = Invoked (manual) — always allow (unless bare ';;' above)
+		if ctx.TriggerKind == 1 {
+			return true
+		}
+		// TriggerKind 2 is TriggerCharacter per LSP spec
+		if ctx.TriggerKind == 2 {
+			if ctx.TriggerCharacter != "" {
+				for _, c := range s.triggerChars {
+					if c == ctx.TriggerCharacter {
+						return true
+					}
+				}
+				return false
+			}
+			// No character provided but reported as TriggerCharacter; be conservative
+			return false
+		}
+		// For TriggerForIncomplete (3), require manual char check below
+	}
+	// 2) Fallback: check the character immediately prior to cursor
+	idx := p.Position.Character
+	if idx <= 0 || idx > len(current) {
+		return false
+	}
+	// Bare ';;' should not trigger via fallback char either
+	if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
+		return false
+	}
+	ch := string(current[idx-1])
+	for _, c := range s.triggerChars {
+		if c == ch {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string) []CompletionItem {
@@ -1110,37 +1143,37 @@ func promptRemovalEditsForLine(line string, lineNum int) []TextEdit {
 }
 
 func hasDoubleSemicolonTrigger(line string) bool {
-    pos := 0
-    for pos < len(line) {
-        j := strings.Index(line[pos:], ";;")
-        if j < 0 {
-            return false
-        }
-        j += pos
-        contentStart := j + 2
-        if contentStart >= len(line) {
-            return false // nothing after ';;'
-        }
-        // First content char cannot be space or another ';'
-        first := line[contentStart]
-        if first == ' ' || first == ';' {
-            pos = contentStart + 1
-            continue
-        }
-        // Require at least one content char before a closing ';'
-        k := strings.Index(line[contentStart+1:], ";")
-        if k < 0 {
-            return false
-        }
-        closeIdx := contentStart + 1 + k
-        // Disallow trailing space before closing ';'
-        if closeIdx-1 >= 0 && line[closeIdx-1] == ' ' {
-            pos = closeIdx + 1
-            continue
-        }
-        return true
-    }
-    return false
+	pos := 0
+	for pos < len(line) {
+		j := strings.Index(line[pos:], ";;")
+		if j < 0 {
+			return false
+		}
+		j += pos
+		contentStart := j + 2
+		if contentStart >= len(line) {
+			return false // nothing after ';;'
+		}
+		// First content char cannot be space or another ';'
+		first := line[contentStart]
+		if first == ' ' || first == ';' {
+			pos = contentStart + 1
+			continue
+		}
+		// Require at least one content char before a closing ';'
+		k := strings.Index(line[contentStart+1:], ";")
+		if k < 0 {
+			return false
+		}
+		closeIdx := contentStart + 1 + k
+		// Disallow trailing space before closing ';'
+		if closeIdx-1 >= 0 && line[closeIdx-1] == ' ' {
+			pos = closeIdx + 1
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func collectSemicolonMarkers(line string, lineNum int) []TextEdit {
@@ -1246,65 +1279,73 @@ func computeWordStart(current string, at int) int {
 }
 
 func isIdentChar(ch byte) bool {
-    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
 }
 
 // lineHasInlinePrompt returns true if the line contains an inline strict
 // semicolon marker ;text; (no spaces at boundaries) or a double-semicolon
 // pattern recognized by hasDoubleSemicolonTrigger.
 func lineHasInlinePrompt(line string) bool {
-    if _, _, _, ok := findStrictSemicolonTag(line); ok {
-        return true
-    }
-    return hasDoubleSemicolonTrigger(line)
+	if _, _, _, ok := findStrictSemicolonTag(line); ok {
+		return true
+	}
+	return hasDoubleSemicolonTrigger(line)
 }
 
 // leadingIndent returns the run of leading spaces/tabs from the provided line.
 func leadingIndent(line string) string {
-    i := 0
-    for i < len(line) {
-        if line[i] == ' ' || line[i] == '\t' {
-            i++
-            continue
-        }
-        break
-    }
-    if i == 0 { return "" }
-    return line[:i]
+	i := 0
+	for i < len(line) {
+		if line[i] == ' ' || line[i] == '\t' {
+			i++
+			continue
+		}
+		break
+	}
+	if i == 0 {
+		return ""
+	}
+	return line[:i]
 }
 
 // applyIndent prefixes each non-empty line of suggestion with the given indent
 // unless it already starts with that indent.
 func applyIndent(indent, suggestion string) string {
-    if indent == "" || suggestion == "" { return suggestion }
-    lines := splitLines(suggestion)
-    for i, ln := range lines {
-        if strings.TrimSpace(ln) == "" { continue }
-        if strings.HasPrefix(ln, indent) { continue }
-        lines[i] = indent + ln
-    }
-    return strings.Join(lines, "\n")
+	if indent == "" || suggestion == "" {
+		return suggestion
+	}
+	lines := splitLines(suggestion)
+	for i, ln := range lines {
+		if strings.TrimSpace(ln) == "" {
+			continue
+		}
+		if strings.HasPrefix(ln, indent) {
+			continue
+		}
+		lines[i] = indent + ln
+	}
+	return strings.Join(lines, "\n")
 }
 
 // isBareDoubleSemicolon reports whether the line contains a standalone
 // double-semicolon marker with no inline content (";;" possibly with only
 // whitespace after it). It explicitly excludes the valid form ";;text;".
 func isBareDoubleSemicolon(line string) bool {
-    t := strings.TrimSpace(line)
-    if !strings.Contains(t, ";;") {
-        return false
-    }
-    if hasDoubleSemicolonTrigger(t) {
-        return false
-    }
-    if strings.HasPrefix(t, ";;") {
-        rest := strings.TrimSpace(t[2:])
-        // Bare if nothing follows or only semicolons/spaces remain without closing pattern
-        if rest == "" || rest == ";" {
-            return true
-        }
-    }
-    return false
+	t := strings.TrimSpace(line)
+	if !strings.Contains(t, ";;") {
+		return false
+	}
+	if hasDoubleSemicolonTrigger(t) {
+		return false
+	}
+	if strings.HasPrefix(t, ";;") {
+		rest := strings.TrimSpace(t[2:])
+		// Bare if nothing follows or only semicolons/spaces remain without closing pattern
+		if rest == "" || rest == ";" {
+			return true
+		}
+	}
+	return false
 }
 
 // stripDuplicateAssignmentPrefix removes a duplicated assignment prefix (e.g.,
@@ -1354,32 +1395,40 @@ func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) strin
 // at the beginning of its suggestion. It compares the entire text to the left of the
 // cursor (prefixBeforeCursor) against the suggestion, trimming whitespace appropriately,
 // and strips the longest sensible overlap. This prevents cases like:
-//   prefix:    "func New "
-//   suggestion:"func New() *Type"
+//
+//	prefix:    "func New "
+//	suggestion:"func New() *Type"
+//
 // resulting in duplicates like "func New func New() *Type".
 func stripDuplicateGeneralPrefix(prefixBeforeCursor, suggestion string) string {
-    if suggestion == "" { return suggestion }
-    s := strings.TrimLeft(suggestion, " \t")
-    p := strings.TrimRight(prefixBeforeCursor, " \t")
-    // Exact prefix overlap: remove the full typed prefix
-    if p != "" && strings.HasPrefix(s, p) {
-        return strings.TrimLeft(s[len(p):], " \t")
-    }
-    // Otherwise, try the longest token-aligned suffix of p that prefixes s
-    // Prefer boundaries where the char before the suffix is not an identifier char
-    for k := len(p) - 1; k > 0; k-- {
-        if !isIdentBoundary(p[k-1]) { continue }
-        suf := strings.TrimLeft(p[k:], " \t")
-        if suf == "" { continue }
-        if strings.HasPrefix(s, suf) {
-            return strings.TrimLeft(s[len(suf):], " \t")
-        }
-    }
-    return suggestion
+	if suggestion == "" {
+		return suggestion
+	}
+	s := strings.TrimLeft(suggestion, " \t")
+	p := strings.TrimRight(prefixBeforeCursor, " \t")
+	// Exact prefix overlap: remove the full typed prefix
+	if p != "" && strings.HasPrefix(s, p) {
+		return strings.TrimLeft(s[len(p):], " \t")
+	}
+	// Otherwise, try the longest token-aligned suffix of p that prefixes s
+	// Prefer boundaries where the char before the suffix is not an identifier char
+	for k := len(p) - 1; k > 0; k-- {
+		if !isIdentBoundary(p[k-1]) {
+			continue
+		}
+		suf := strings.TrimLeft(p[k:], " \t")
+		if suf == "" {
+			continue
+		}
+		if strings.HasPrefix(s, suf) {
+			return strings.TrimLeft(s[len(suf):], " \t")
+		}
+	}
+	return suggestion
 }
 
 func isIdentBoundary(ch byte) bool {
-    return !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_')
+	return !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_')
 }
 
 // stripCodeFences removes surrounding Markdown code fences from a model
@@ -1418,20 +1467,20 @@ func stripCodeFences(s string) string {
 // This is intended for code completion responses where the model may wrap a
 // small snippet in single backticks among prose.
 func stripInlineCodeSpan(s string) string {
-    t := strings.TrimSpace(s)
-    if t == "" {
-        return t
-    }
-    i := strings.IndexByte(t, '`')
-    if i < 0 {
-        return t
-    }
-    jrel := strings.IndexByte(t[i+1:], '`')
-    if jrel < 0 {
-        return t
-    }
-    j := i + 1 + jrel
-    return t[i+1 : j]
+	t := strings.TrimSpace(s)
+	if t == "" {
+		return t
+	}
+	i := strings.IndexByte(t, '`')
+	if i < 0 {
+		return t
+	}
+	jrel := strings.IndexByte(t[i+1:], '`')
+	if jrel < 0 {
+		return t
+	}
+	j := i + 1 + jrel
+	return t[i+1 : j]
 }
 
 func labelForCompletion(cleaned, filter string) string {

@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-// --- Document store and helpers ---
-
 type document struct {
 	uri   string
 	text  string
@@ -38,6 +36,7 @@ func (s *Server) getDocument(uri string) *document {
 	return s.docs[uri]
 }
 
+// splitLines splits the input string into lines, normalizing line endings to '\n'.
 func splitLines(sx string) []string {
 	sx = strings.ReplaceAll(sx, "\r\n", "\n")
 	return strings.Split(sx, "\n")
