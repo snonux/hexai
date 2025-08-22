@@ -86,8 +86,8 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.startTime = time.Now()
     s.llmClient = opts.Client
     if len(opts.TriggerCharacters) == 0 {
-        // Defaults (explicit space included to allow post-identifier triggers)
-        s.triggerChars = []string{".", ":", "/", "_", " "}
+        // Defaults (no space to avoid auto-trigger after whitespace)
+        s.triggerChars = []string{".", ":", "/", "_"}
     } else {
         s.triggerChars = append([]string{}, opts.TriggerCharacters...)
     }
