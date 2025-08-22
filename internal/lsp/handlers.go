@@ -706,8 +706,10 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
     ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
     defer cancel()
 
-    // Only invoke LLM when triggered by one of our trigger characters.
-    if !s.isTriggerEvent(p, current) {
+    // Inline prompt markers (strict ;text; or double-; patterns) explicitly allow triggering.
+    inlinePrompt := lineHasInlinePrompt(current)
+    // Only invoke LLM when triggered by our characters, manual invoke, or inline prompt markers.
+    if !inlinePrompt && !s.isTriggerEvent(p, current) {
         logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
         return []CompletionItem{}, true, false
     }
@@ -750,7 +752,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
         if idx > len(current) { idx = len(current) }
         // Structural triggers allow no prefix
         allowNoPrefix := false
-        if manualInvoke {
+        if manualInvoke || inlinePrompt {
             allowNoPrefix = true
         }
         if idx > 0 {
@@ -1182,6 +1184,16 @@ func computeWordStart(current string, at int) int {
 
 func isIdentChar(ch byte) bool {
     return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
+}
+
+// lineHasInlinePrompt returns true if the line contains an inline strict
+// semicolon marker ;text; (no spaces at boundaries) or a double-semicolon
+// pattern recognized by hasDoubleSemicolonTrigger.
+func lineHasInlinePrompt(line string) bool {
+    if _, _, _, ok := findStrictSemicolonTag(line); ok {
+        return true
+    }
+    return hasDoubleSemicolonTrigger(line)
 }
 
 // stripDuplicateAssignmentPrefix removes a duplicated assignment prefix (e.g.,

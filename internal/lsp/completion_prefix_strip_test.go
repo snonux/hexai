@@ -50,3 +50,14 @@ func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
     if !ok { t.Fatalf("expected ok=true for manual invoke after whitespace") }
     if len(items) == 0 { t.Fatalf("expected at least one completion item") }
 }
+
+func TestTryLLMCompletion_InlineSemicolonPromptAlwaysTriggers(t *testing.T) {
+    s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string) }
+    s.llmClient = fakeLLM{resp: "replacement"}
+    line := "prefix ;do something; suffix"
+    // No trigger char immediately before cursor; place cursor at end
+    p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://inline.go"} }
+    items, ok, busy := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+    if busy { t.Fatalf("unexpected busy=true") }
+    if !ok || len(items) == 0 { t.Fatalf("expected completion to trigger on inline ;text; prompt") }
+}
