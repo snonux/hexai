@@ -714,6 +714,23 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 
     inParams := inParamList(current, p.Position.Character)
 
+    // Detect manual invoke so we can relax prefix heuristics when user pressed completion key.
+    manualInvoke := false
+    if p.Context != nil {
+        var c struct{
+            TriggerKind int `json:"triggerKind"`
+        }
+        if raw, ok := p.Context.(json.RawMessage); ok {
+            _ = json.Unmarshal(raw, &c)
+        } else {
+            b, _ := json.Marshal(p.Context)
+            _ = json.Unmarshal(b, &c)
+        }
+        if c.TriggerKind == 1 { // Invoked
+            manualInvoke = true
+        }
+    }
+
     // Build a cache key for this completion context (ignore trailing whitespace
     // before the cursor when forming the key) and try cache before any LLM call.
     key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
@@ -733,9 +750,12 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
         if idx > len(current) { idx = len(current) }
         // Structural triggers allow no prefix
         allowNoPrefix := false
+        if manualInvoke {
+            allowNoPrefix = true
+        }
         if idx > 0 {
             ch := current[idx-1]
-            if ch == '.' || ch == ':' || ch == '/' || ch == '_' {
+            if ch == '.' || ch == ':' || ch == '/' || ch == '_' || ch == ')' {
                 allowNoPrefix = true
             }
         }
