@@ -61,3 +61,15 @@ func TestTryLLMCompletion_InlineSemicolonPromptAlwaysTriggers(t *testing.T) {
     if busy { t.Fatalf("unexpected busy=true") }
     if !ok || len(items) == 0 { t.Fatalf("expected completion to trigger on inline ;text; prompt") }
 }
+
+func TestTryLLMCompletion_DoubleSemicolonEmpty_DoesNotAutoTrigger(t *testing.T) {
+    s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string) }
+    fake := &countingLLM{}
+    s.llmClient = fake
+    line := ";;   " // empty content after ';;' should not force-trigger
+    p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://empty-inline.go"} }
+    items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+    if !ok { t.Fatalf("expected ok=true for non-trigger path") }
+    if len(items) != 0 { t.Fatalf("expected no items when inline ';;' is empty") }
+    if fake.calls != 0 { t.Fatalf("LLM should not be called; calls=%d", fake.calls) }
+}
