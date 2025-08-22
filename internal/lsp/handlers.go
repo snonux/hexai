@@ -781,16 +781,21 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
         logging.Logf("lsp ", "%scompletion skip=busy another LLM request in flight%s", logging.AnsiYellow, logging.AnsiBase)
         return []CompletionItem{}, false, true
     }
-	sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
-	messages := []llm.Message{
-		{Role: "system", Content: sysPrompt},
-		{Role: "user", Content: userPrompt},
-	}
+    sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
+    messages := []llm.Message{
+        {Role: "system", Content: sysPrompt},
+        {Role: "user", Content: userPrompt},
+    }
 	if hasExtra && extraText != "" {
 		messages = append(messages, llm.Message{Role: "user", Content: "Additional context:\n" + extraText})
 	}
 
-	// Compute total sent context size (sum of message contents)
+    // If an inline prompt marker is present, make the instruction stricter: code only.
+    if inlinePrompt {
+        messages[0].Content = "You are a precise code completion/refactoring engine. Output only the code to insert with no prose, no comments, and no backticks. Return raw code only."
+    }
+
+    // Compute total sent context size (sum of message contents)
 	var sentSize int
 	for _, m := range messages {
 		sentSize += len(m.Content)
@@ -1057,27 +1062,37 @@ func promptRemovalEditsForLine(line string, lineNum int) []TextEdit {
 }
 
 func hasDoubleSemicolonTrigger(line string) bool {
-	pos := 0
-	for pos < len(line) {
-		j := strings.Index(line[pos:], ";;")
-		if j < 0 {
-			return false
-		}
-		j += pos
-		if j+2 < len(line) && line[j+2] != ' ' {
-			if k := strings.Index(line[j+2:], ";"); k >= 0 {
-				closeIdx := j + 2 + k
-				if closeIdx-1 >= 0 && line[closeIdx-1] != ' ' {
-					return true
-				}
-				pos = closeIdx + 1
-				continue
-			}
-			return false
-		}
-		pos = j + 2
-	}
-	return false
+    pos := 0
+    for pos < len(line) {
+        j := strings.Index(line[pos:], ";;")
+        if j < 0 {
+            return false
+        }
+        j += pos
+        contentStart := j + 2
+        if contentStart >= len(line) {
+            return false // nothing after ';;'
+        }
+        // First content char cannot be space or another ';'
+        first := line[contentStart]
+        if first == ' ' || first == ';' {
+            pos = contentStart + 1
+            continue
+        }
+        // Require at least one content char before a closing ';'
+        k := strings.Index(line[contentStart+1:], ";")
+        if k < 0 {
+            return false
+        }
+        closeIdx := contentStart + 1 + k
+        // Disallow trailing space before closing ';'
+        if closeIdx-1 >= 0 && line[closeIdx-1] == ' ' {
+            pos = closeIdx + 1
+            continue
+        }
+        return true
+    }
+    return false
 }
 
 func collectSemicolonMarkers(line string, lineNum int) []TextEdit {
