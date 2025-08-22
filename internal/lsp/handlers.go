@@ -468,14 +468,18 @@ func (s *Server) handleDidClose(req Request) {
 }
 
 func (s *Server) handleCompletion(req Request) {
-	var p CompletionParams
-	var docStr string
-	if err := json.Unmarshal(req.Params, &p); err == nil {
-		above, current, below, funcCtx := s.lineContext(p.TextDocument.URI, p.Position)
-		docStr = s.buildDocString(p, above, current, below, funcCtx)
-		if s.logContext {
-			s.logCompletionContext(p, above, current, below, funcCtx)
-		}
+    var p CompletionParams
+    var docStr string
+    if err := json.Unmarshal(req.Params, &p); err == nil {
+        // Log trigger information for every completion request from client
+        tk, tch := extractTriggerInfo(p)
+        logging.Logf("lsp ", "completion trigger kind=%d char=%q uri=%s line=%d char=%d",
+            tk, tch, p.TextDocument.URI, p.Position.Line, p.Position.Character)
+        above, current, below, funcCtx := s.lineContext(p.TextDocument.URI, p.Position)
+        docStr = s.buildDocString(p, above, current, below, funcCtx)
+        if s.logContext {
+            s.logCompletionContext(p, above, current, below, funcCtx)
+        }
 		if s.llmClient != nil {
 			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
 			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
@@ -499,6 +503,25 @@ func (s *Server) handleCompletion(req Request) {
 func (s *Server) reply(id json.RawMessage, result any, err *RespError) {
     resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
     s.writeMessage(resp)
+}
+
+// extractTriggerInfo returns the LSP completion TriggerKind and TriggerCharacter
+// if provided by the client; when absent it returns zeros.
+func extractTriggerInfo(p CompletionParams) (kind int, ch string) {
+    if p.Context == nil {
+        return 0, ""
+    }
+    var ctx struct {
+        TriggerKind      int    `json:"triggerKind"`
+        TriggerCharacter string `json:"triggerCharacter,omitempty"`
+    }
+    if raw, ok := p.Context.(json.RawMessage); ok {
+        _ = json.Unmarshal(raw, &ctx)
+    } else {
+        b, _ := json.Marshal(p.Context)
+        _ = json.Unmarshal(b, &ctx)
+    }
+    return ctx.TriggerKind, ctx.TriggerCharacter
 }
 
 // --- in-editor chat (";C ...") ---
@@ -758,7 +781,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
         if idx > len(current) { idx = len(current) }
         // Structural triggers allow no prefix
         allowNoPrefix := false
-        if manualInvoke || inlinePrompt {
+        if inlinePrompt {
             allowNoPrefix = true
         }
         if idx > 0 {
@@ -776,7 +799,10 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
                 break
             }
             start := computeWordStart(current, j)
-            if j-start < 1 { // require at least 1 identifier char
+            // For manual invoke, require a configurable minimum prefix length
+            min := 1
+            if manualInvoke && s.manualInvokeMinPrefix >= 0 { min = s.manualInvokeMinPrefix }
+            if j-start < min { // require at least min identifier chars
                 logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
                 return []CompletionItem{}, true, false
             }
