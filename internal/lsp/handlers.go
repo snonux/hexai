@@ -837,6 +837,15 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
     }
     if cleaned != "" { cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned) }
     if cleaned != "" { cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned) }
+    // Preserve the current line's leading indentation only for double-semicolon
+    // inline prompts (";;text;"), since strict ";text;" replacements already
+    // occur in-place without affecting leading indentation.
+    if cleaned != "" && hasDoubleSemicolonTrigger(current) {
+        indent := leadingIndent(current)
+        if indent != "" {
+            cleaned = applyIndent(indent, cleaned)
+        }
+    }
     if cleaned == "" {
         return nil, false, false
     }
@@ -1223,6 +1232,33 @@ func lineHasInlinePrompt(line string) bool {
         return true
     }
     return hasDoubleSemicolonTrigger(line)
+}
+
+// leadingIndent returns the run of leading spaces/tabs from the provided line.
+func leadingIndent(line string) string {
+    i := 0
+    for i < len(line) {
+        if line[i] == ' ' || line[i] == '\t' {
+            i++
+            continue
+        }
+        break
+    }
+    if i == 0 { return "" }
+    return line[:i]
+}
+
+// applyIndent prefixes each non-empty line of suggestion with the given indent
+// unless it already starts with that indent.
+func applyIndent(indent, suggestion string) string {
+    if indent == "" || suggestion == "" { return suggestion }
+    lines := splitLines(suggestion)
+    for i, ln := range lines {
+        if strings.TrimSpace(ln) == "" { continue }
+        if strings.HasPrefix(ln, indent) { continue }
+        lines[i] = indent + ln
+    }
+    return strings.Join(lines, "\n")
 }
 
 // isBareDoubleSemicolon reports whether the line contains a standalone
