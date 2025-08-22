@@ -2,11 +2,6 @@
 
 ## Code quality
 
-### Refactor
-
-* [ ] Refactor existing code in a more modular way
-* [ ] Add unit tests
-
 ## Features
 
 ### Improvements
