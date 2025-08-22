@@ -32,7 +32,7 @@ Note: additional LSPs (`gopls`, `golangci-lint-lsp`) are optional; Hexai works w
 
 Ask a question at the end of a line and receive the answer inline.
 
-- End your question line with a trigger: `..`, `??`, `!!`, `::`, or `;;`.
+- End your question line with a trigger: `..`, `??`, `!!`, or `::`.
 - Hexai removes the trailing marker (last char for `..`/`??`/`!!`/`::`, both for `;;`).
 - It inserts a blank line, then a reply line prefixed with `> `, then one extra newline so most
   editors place the cursor on a fresh blank line after the answer.
@@ -55,6 +55,7 @@ Context: Hexai includes up to the three most recent Q/A pairs above the question
 Hexai supports inline prompt tags you can type in code to request an action from the LLM and then auto-clean the tag. The strict semicolon form is supported:
 
 - `;do something;` — Hexai uses the text between semicolons as the instruction and removes only the prompt. Strict form requires no space after the first `;` and no space before the closing `;`.
+- `;;do someting;` - Same as above, but replace the current line with the completion
 
 Spaced variants (e.g., `; spaced ;`) are ignored.
 
