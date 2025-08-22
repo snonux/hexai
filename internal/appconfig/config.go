@@ -20,7 +20,10 @@ type App struct {
 	MaxContextTokens   int    `json:"max_context_tokens"`
 	LogPreviewLimit    int    `json:"log_preview_limit"`
 	// Single knob for LSP requests; if set, overrides hardcoded temps in LSP.
-	CodingTemperature *float64 `json:"coding_temperature"`
+    CodingTemperature *float64 `json:"coding_temperature"`
+    // Minimum identifier characters required for manual (TriggerKind=1) invoke
+    // to proceed without structural triggers. 0 means always allow.
+    ManualInvokeMinPrefix int `json:"manual_invoke_min_prefix"`
 
 	TriggerCharacters []string `json:"trigger_characters"`
 	Provider          string   `json:"provider"`
@@ -54,8 +57,9 @@ func newDefaultConfig() App {
 		CodingTemperature:  &t,
 		OpenAITemperature:  &t,
 		OllamaTemperature:  &t,
-		CopilotTemperature: &t,
-	}
+        CopilotTemperature: &t,
+        ManualInvokeMinPrefix: 0,
+    }
 }
 
 // Load reads configuration from a file and merges with defaults.
@@ -129,9 +133,12 @@ func (a *App) mergeBasics(other *App) {
 	if other.LogPreviewLimit >= 0 {
 		a.LogPreviewLimit = other.LogPreviewLimit
 	}
-	if other.CodingTemperature != nil { // allow explicit 0.0
-		a.CodingTemperature = other.CodingTemperature
-	}
+    if other.CodingTemperature != nil { // allow explicit 0.0
+        a.CodingTemperature = other.CodingTemperature
+    }
+    if other.ManualInvokeMinPrefix >= 0 {
+        a.ManualInvokeMinPrefix = other.ManualInvokeMinPrefix
+    }
 	if len(other.TriggerCharacters) > 0 {
 		a.TriggerCharacters = slices.Clone(other.TriggerCharacters)
 	}
@@ -199,10 +206,7 @@ func loadFromEnv(logger *log.Logger) *App {
         v := getenv(k)
         if v == "" { return 0, false }
         n, err := strconv.Atoi(v)
-        if err != nil {
-            if logger != nil { logger.Printf("invalid %s: %v", k, err) }
-            return 0, false
-        }
+        if err != nil { if logger != nil { logger.Printf("invalid %s: %v", k, err) } ; return 0, false }
         return n, true
     }
     parseFloatPtr := func(k string) (*float64, bool) {
@@ -230,6 +234,9 @@ func loadFromEnv(logger *log.Logger) *App {
     }
     if n, ok := parseInt("HEXAI_LOG_PREVIEW_LIMIT"); ok {
         out.LogPreviewLimit = n; any = true
+    }
+    if n, ok := parseInt("HEXAI_MANUAL_INVOKE_MIN_PREFIX"); ok {
+        out.ManualInvokeMinPrefix = n; any = true
     }
     if f, ok := parseFloatPtr("HEXAI_CODING_TEMPERATURE"); ok {
         out.CodingTemperature = f; any = true

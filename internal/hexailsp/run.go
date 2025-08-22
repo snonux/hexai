@@ -115,5 +115,6 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) ls
         CodingTemperature: cfg.CodingTemperature,
         Client:            client,
         TriggerCharacters: cfg.TriggerCharacters,
+        ManualInvokeMinPrefix: cfg.ManualInvokeMinPrefix,
     }
 }

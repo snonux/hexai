@@ -1,5 +1,4 @@
 // Summary: Tests for instruction extraction helpers in handlers.go
-// Not yet reviewed by a human
 package lsp
 
 import "testing"
