@@ -742,6 +742,12 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
             logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
         return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
     }
+    // If there is a bare ';;' (no valid ';;text;'), do not auto-trigger unless it was a manual invoke.
+    if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) && !manualInvoke {
+        logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+        return []CompletionItem{}, true, false
+    }
+
     // Heuristic 1: Require a minimal typed identifier prefix to avoid early triggers,
     // but allow immediate completion after structural trigger chars like '.', ':', '/'.
     if !inParams {
