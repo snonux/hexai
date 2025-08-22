@@ -80,3 +80,43 @@ func TestHasDoubleSemicolonTrigger_Variants(t *testing.T) {
     if hasDoubleSemicolonTrigger(";;;") { t.Fatalf("';;;' should not trigger (no content)") }
     if !hasDoubleSemicolonTrigger(";;x;") { t.Fatalf("expected trigger for ';;x;' pattern") }
 }
+
+func TestBareDoubleSemicolonPreventsAutoTriggerEvenWithOtherTriggers(t *testing.T) {
+    s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string) }
+    fake := &countingLLM{}
+    s.llmClient = fake
+    // Place a '.' earlier but also include bare ';;' at end; should not auto-trigger
+    line := "obj. call ;;"
+    p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://bare-ds.go"} }
+    items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+    if !ok { t.Fatalf("expected ok=true (handled), but not auto-triggering") }
+    if len(items) != 0 { t.Fatalf("expected no items due to bare ';;'") }
+    if fake.calls != 0 { t.Fatalf("LLM should not be called; calls=%d", fake.calls) }
+}
+
+func TestBareDoubleSemicolonOnNextLine_PreventsAutoTrigger(t *testing.T) {
+    s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string) }
+    fake := &countingLLM{}
+    s.llmClient = fake
+    current := "expression := flag.String(\"expression\", \"\", \"Expression to evaluate\")"
+    below := ";;"
+    p := CompletionParams{ Position: Position{ Line: 0, Character: len(current) }, TextDocument: TextDocumentIdentifier{URI: "file://nextline.go"} }
+    items, ok, _ := s.tryLLMCompletion(p, "", current, below, "", "", false, "")
+    if !ok { t.Fatalf("expected ok=true handled") }
+    if len(items) != 0 { t.Fatalf("expected no items due to bare ';;' on next line") }
+    if fake.calls != 0 { t.Fatalf("LLM should not be called; calls=%d", fake.calls) }
+}
+
+func TestBareDoubleSemicolonPreventsManualInvoke(t *testing.T) {
+    s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string) }
+    fake := &countingLLM{}
+    s.llmClient = fake
+    line := ";;"
+    p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://bare-ds-manual.go"} }
+    // Simulate manual invoke
+    p.Context = json.RawMessage([]byte(`{"triggerKind":1}`))
+    items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+    if !ok { t.Fatalf("expected ok=true (handled)") }
+    if len(items) != 0 { t.Fatalf("expected no items for bare ';;' even with manual invoke") }
+    if fake.calls != 0 { t.Fatalf("LLM should not be called; calls=%d", fake.calls) }
+}
