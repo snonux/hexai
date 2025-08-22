@@ -527,7 +527,7 @@ func (s *Server) detectAndHandleChat(uri string) {
             continue
         }
         pair := raw[j-1 : j+1]
-        isTrigger := pair == ".." || pair == "??" || pair == "!!" || pair == "::" || pair == ";;"
+        isTrigger := pair == ".." || pair == "??" || pair == "!!" || pair == "::"
         if !isTrigger {
             continue
         }
@@ -537,9 +537,8 @@ func (s *Server) detectAndHandleChat(uri string) {
         if k < len(d.lines) && strings.HasPrefix(strings.TrimSpace(d.lines[k]), ">") {
             continue
         }
-        // Derive prompt by removing 1 trailing char for punctuation pairs; remove both for ';;'
+        // Derive prompt by removing 1 trailing char for punctuation pairs
         removeCount := 1
-        if pair == ";;" { removeCount = 2 }
         base := raw[:j+1-removeCount]
         prompt := strings.TrimSpace(base)
         if prompt == "" {
@@ -742,8 +741,9 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
             logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
         return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
     }
-    // If there is a bare ';;' (no valid ';;text;'), do not auto-trigger unless it was a manual invoke.
-    if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) && !manualInvoke {
+    // If there is a bare ';;' on the current or next line (no valid ';;text;'),
+    // do not auto-trigger unless it was a manual invoke.
+    if (isBareDoubleSemicolon(current) || isBareDoubleSemicolon(below)) && !manualInvoke {
         logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
         return []CompletionItem{}, true, false
     }
@@ -950,7 +950,11 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
             b, _ := json.Marshal(p.Context)
             _ = json.Unmarshal(b, &ctx)
         }
-        // TriggerKind 1 = Invoked (manual) — always allow
+        // If the line contains a bare ';;' (no ';;text;'), do not treat as a trigger source.
+        if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
+            return false
+        }
+        // TriggerKind 1 = Invoked (manual) — always allow (unless bare ';;' above)
         if ctx.TriggerKind == 1 {
             return true
         }
@@ -972,6 +976,10 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
     // 2) Fallback: check the character immediately prior to cursor
     idx := p.Position.Character
     if idx <= 0 || idx > len(current) {
+        return false
+    }
+    // Bare ';;' should not trigger via fallback char either
+    if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
         return false
     }
     ch := string(current[idx-1])
@@ -1215,6 +1223,27 @@ func lineHasInlinePrompt(line string) bool {
         return true
     }
     return hasDoubleSemicolonTrigger(line)
+}
+
+// isBareDoubleSemicolon reports whether the line contains a standalone
+// double-semicolon marker with no inline content (";;" possibly with only
+// whitespace after it). It explicitly excludes the valid form ";;text;".
+func isBareDoubleSemicolon(line string) bool {
+    t := strings.TrimSpace(line)
+    if !strings.Contains(t, ";;") {
+        return false
+    }
+    if hasDoubleSemicolonTrigger(t) {
+        return false
+    }
+    if strings.HasPrefix(t, ";;") {
+        rest := strings.TrimSpace(t[2:])
+        // Bare if nothing follows or only semicolons/spaces remain without closing pattern
+        if rest == "" || rest == ";" {
+            return true
+        }
+    }
+    return false
 }
 
 // stripDuplicateAssignmentPrefix removes a duplicated assignment prefix (e.g.,
