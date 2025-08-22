@@ -73,3 +73,10 @@ func TestTryLLMCompletion_DoubleSemicolonEmpty_DoesNotAutoTrigger(t *testing.T) 
     if len(items) != 0 { t.Fatalf("expected no items when inline ';;' is empty") }
     if fake.calls != 0 { t.Fatalf("LLM should not be called; calls=%d", fake.calls) }
 }
+
+func TestHasDoubleSemicolonTrigger_Variants(t *testing.T) {
+    if hasDoubleSemicolonTrigger(";;") { t.Fatalf("bare ';;' should not trigger") }
+    if hasDoubleSemicolonTrigger(";; ;") { t.Fatalf("';;' followed by space should not trigger") }
+    if hasDoubleSemicolonTrigger(";;;") { t.Fatalf("';;;' should not trigger (no content)") }
+    if !hasDoubleSemicolonTrigger(";;x;") { t.Fatalf("expected trigger for ';;x;' pattern") }
+}
