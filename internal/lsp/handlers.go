@@ -94,92 +94,12 @@ func findFirstInstructionInLine(line string) (instr string, cleaned string, ok b
 	return best.text, cleaned, true
 }
 
-// findStrictSemicolonTag finds ;text; with no space after first ';' and no space
-// before the last ';' on the given line. Returns the text between semicolons,
-// the start index of the opening ';', the end index just after the closing ';',
-// and whether it was found.
-func findStrictSemicolonTag(line string) (string, int, int, bool) {
-	pos := 0
-	for pos < len(line) {
-		j := strings.Index(line[pos:], ";")
-		if j < 0 {
-			return "", 0, 0, false
-		}
-		j += pos
-		// ensure single ';' (not ';;') and non-space after
-		if j+1 >= len(line) || line[j+1] == ';' || line[j+1] == ' ' {
-			pos = j + 1
-			continue
-		}
-		k := strings.Index(line[j+1:], ";")
-		if k < 0 {
-			return "", 0, 0, false
-		}
-		closeIdx := j + 1 + k
-		if closeIdx-1 < 0 || line[closeIdx-1] == ' ' {
-			pos = closeIdx + 1
-			continue
-		}
-		inner := strings.TrimSpace(line[j+1 : closeIdx])
-		if inner == "" {
-			pos = closeIdx + 1
-			continue
-		}
-		end := closeIdx + 1
-		return inner, j, end, true
-	}
-	return "", 0, 0, false
-}
-
 // diagnosticsInRange parses the CodeAction context and returns diagnostics
 // that overlap the given selection range. If the context is missing or does
 // not contain diagnostics, returns an empty slice.
 // CodeAction-related handlers and helpers moved to handlers_codeaction.go
 
-// extractRangeText returns the exact text within the given document range.
-func extractRangeText(d *document, r Range) string {
-	if r.Start.Line == r.End.Line {
-		line := d.lines[r.Start.Line]
-		if r.Start.Character < 0 {
-			r.Start.Character = 0
-		}
-		if r.End.Character > len(line) {
-			r.End.Character = len(line)
-		}
-		if r.Start.Character > r.End.Character {
-			return ""
-		}
-		return line[r.Start.Character:r.End.Character]
-	}
-	var b strings.Builder
-	// first line
-	first := d.lines[r.Start.Line]
-	if r.Start.Character < 0 {
-		r.Start.Character = 0
-	}
-	if r.Start.Character > len(first) {
-		r.Start.Character = len(first)
-	}
-	b.WriteString(first[r.Start.Character:])
-	b.WriteString("\n")
-	// middle lines
-	for i := r.Start.Line + 1; i < r.End.Line; i++ {
-		b.WriteString(d.lines[i])
-		if i+1 <= r.End.Line {
-			b.WriteString("\n")
-		}
-	}
-	// last line
-	last := d.lines[r.End.Line]
-	if r.End.Character < 0 {
-		r.End.Character = 0
-	}
-	if r.End.Character > len(last) {
-		r.End.Character = len(last)
-	}
-	b.WriteString(last[:r.End.Character])
-	return b.String()
-}
+// extractRangeText moved to handlers_utils.go
 
 // handleInitialized moved to handlers_init.go
 
@@ -509,66 +429,13 @@ func (s *Server) makeCompletionItems(cleaned string, inParams bool, current stri
 // isBareDoubleSemicolon reports whether the line contains a standalone
 // double-semicolon marker with no inline content (";;" possibly with only
 // whitespace after it). It explicitly excludes the valid form ";;text;".
-func isBareDoubleSemicolon(line string) bool {
-	t := strings.TrimSpace(line)
-	if !strings.Contains(t, ";;") {
-		return false
-	}
-	if hasDoubleSemicolonTrigger(t) {
-		return false
-	}
-	if strings.HasPrefix(t, ";;") {
-		rest := strings.TrimSpace(t[2:])
-		// Bare if nothing follows or only semicolons/spaces remain without closing pattern
-		if rest == "" || rest == ";" {
-			return true
-		}
-	}
-	return false
-}
+// isBareDoubleSemicolon moved to handlers_utils.go
 
 // stripDuplicateAssignmentPrefix removes a duplicated assignment prefix (e.g.,
 // "name :=") from the beginning of the model suggestion when that same prefix
 // already appears immediately to the left of the cursor on the current line.
 // Also handles simple '=' assignments.
-func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) string {
-	s2 := strings.TrimLeft(suggestion, " \t")
-	// Prefer := if present at end of prefix
-	if idx := strings.LastIndex(prefixBeforeCursor, ":="); idx >= 0 && idx+2 <= len(prefixBeforeCursor) {
-		// Ensure only spaces follow in prefix (cursor at end of prefix segment)
-		tail := prefixBeforeCursor[idx+2:]
-		if strings.TrimSpace(tail) == "" {
-			// Move left to include identifier and spaces
-			start := idx - 1
-			for start >= 0 && (isIdentChar(prefixBeforeCursor[start]) || prefixBeforeCursor[start] == ' ' || prefixBeforeCursor[start] == '\t') {
-				start--
-			}
-			start++
-			seg := strings.TrimRight(prefixBeforeCursor[start:idx+2], " \t")
-			if strings.HasPrefix(s2, seg) {
-				return strings.TrimLeft(s2[len(seg):], " \t")
-			}
-		}
-	}
-	// Fallback to plain '=' if present
-	if idx := strings.LastIndex(prefixBeforeCursor, "="); idx >= 0 {
-		if !(idx > 0 && prefixBeforeCursor[idx-1] == ':') { // not := (handled above)
-			tail := prefixBeforeCursor[idx+1:]
-			if strings.TrimSpace(tail) == "" {
-				start := idx - 1
-				for start >= 0 && (isIdentChar(prefixBeforeCursor[start]) || prefixBeforeCursor[start] == ' ' || prefixBeforeCursor[start] == '\t') {
-					start--
-				}
-				start++
-				seg := strings.TrimRight(prefixBeforeCursor[start:idx+1], " \t")
-				if strings.HasPrefix(s2, seg) {
-					return strings.TrimLeft(s2[len(seg):], " \t")
-				}
-			}
-		}
-	}
-	return suggestion
-}
+// stripDuplicateAssignmentPrefix moved to handlers_utils.go
 
 // stripDuplicateGeneralPrefix removes any already-typed prefix that the model repeated
 // at the beginning of its suggestion. It compares the entire text to the left of the
@@ -579,96 +446,23 @@ func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) strin
 //	suggestion:"func New() *Type"
 //
 // resulting in duplicates like "func New func New() *Type".
-func stripDuplicateGeneralPrefix(prefixBeforeCursor, suggestion string) string {
-	if suggestion == "" {
-		return suggestion
-	}
-	s := strings.TrimLeft(suggestion, " \t")
-	p := strings.TrimRight(prefixBeforeCursor, " \t")
-	// Exact prefix overlap: remove the full typed prefix
-	if p != "" && strings.HasPrefix(s, p) {
-		return strings.TrimLeft(s[len(p):], " \t")
-	}
-	// Otherwise, try the longest token-aligned suffix of p that prefixes s
-	// Prefer boundaries where the char before the suffix is not an identifier char
-	for k := len(p) - 1; k > 0; k-- {
-		if !isIdentBoundary(p[k-1]) {
-			continue
-		}
-		suf := strings.TrimLeft(p[k:], " \t")
-		if suf == "" {
-			continue
-		}
-		if strings.HasPrefix(s, suf) {
-			return strings.TrimLeft(s[len(suf):], " \t")
-		}
-	}
-	return suggestion
-}
+// stripDuplicateGeneralPrefix moved to handlers_utils.go
 
-func isIdentBoundary(ch byte) bool {
-	return !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_')
-}
+// isIdentBoundary moved to handlers_utils.go
 
 // stripCodeFences removes surrounding Markdown code fences from a model
 // response when the entire output is wrapped, e.g. starting with "```go" or
 // "```" and ending with "```". It returns the inner content unchanged.
-func stripCodeFences(s string) string {
-	t := strings.TrimSpace(s)
-	if t == "" {
-		return t
-	}
-	lines := splitLines(t)
-	// find first and last non-empty lines
-	start := 0
-	for start < len(lines) && strings.TrimSpace(lines[start]) == "" {
-		start++
-	}
-	end := len(lines) - 1
-	for end >= 0 && strings.TrimSpace(lines[end]) == "" {
-		end--
-	}
-	if start >= len(lines) || end < 0 || start > end {
-		return t
-	}
-	first := strings.TrimSpace(lines[start])
-	last := strings.TrimSpace(lines[end])
-	if strings.HasPrefix(first, "```") && last == "```" && end > start {
-		inner := strings.Join(lines[start+1:end], "\n")
-		return inner
-	}
-	return t
-}
+// stripCodeFences moved to handlers_utils.go
 
 // stripInlineCodeSpan returns only the contents of the first inline backtick
 // code span if present, e.g., "some text `x := y()` more" -> "x := y()".
 // If no matching pair of backticks exists, it returns the input unchanged.
 // This is intended for code completion responses where the model may wrap a
 // small snippet in single backticks among prose.
-func stripInlineCodeSpan(s string) string {
-	t := strings.TrimSpace(s)
-	if t == "" {
-		return t
-	}
-	i := strings.IndexByte(t, '`')
-	if i < 0 {
-		return t
-	}
-	jrel := strings.IndexByte(t[i+1:], '`')
-	if jrel < 0 {
-		return t
-	}
-	j := i + 1 + jrel
-	return t[i+1 : j]
-}
+// stripInlineCodeSpan moved to handlers_utils.go
 
-func labelForCompletion(cleaned, filter string) string {
-	label := trimLen(firstLine(cleaned))
-	if filter != "" && !strings.HasPrefix(strings.ToLower(label), strings.ToLower(filter)) {
-		return filter
-	}
-	return label
-}
+// labelForCompletion moved to handlers_utils.go
 
 func (s *Server) fallbackCompletionItems(docStr string) []CompletionItem {
 	return []CompletionItem{{
