@@ -35,10 +35,10 @@ type ServerInfo struct {
 }
 
 type ServerCapabilities struct {
-    TextDocumentSync   any                `json:"textDocumentSync,omitempty"`
-    CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
-    // bool | CodeActionOptions
-    CodeActionProvider any                `json:"codeActionProvider,omitempty"`
+	TextDocumentSync   any                `json:"textDocumentSync,omitempty"`
+	CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
+	// bool | CodeActionOptions
+	CodeActionProvider any `json:"codeActionProvider,omitempty"`
 }
 
 type CompletionOptions struct {
@@ -66,7 +66,7 @@ type CompletionItem struct {
 
 // Code action options
 type CodeActionOptions struct {
-    ResolveProvider bool `json:"resolveProvider,omitempty"`
+	ResolveProvider bool `json:"resolveProvider,omitempty"`
 }
 
 // LSP param types (subset)
@@ -124,20 +124,20 @@ type CodeActionParams struct {
 }
 
 type WorkspaceEdit struct {
-    Changes map[string][]TextEdit `json:"changes,omitempty"`
+	Changes map[string][]TextEdit `json:"changes,omitempty"`
 }
 
 // ApplyWorkspaceEditParams is the client request payload for workspace/applyEdit.
 type ApplyWorkspaceEditParams struct {
-    Label string        `json:"label,omitempty"`
-    Edit  WorkspaceEdit `json:"edit"`
+	Label string        `json:"label,omitempty"`
+	Edit  WorkspaceEdit `json:"edit"`
 }
 
 type CodeAction struct {
-    Title string         `json:"title"`
-    Kind  string         `json:"kind,omitempty"`
-    Edit  *WorkspaceEdit `json:"edit,omitempty"`
-    Data  json.RawMessage `json:"data,omitempty"`
+	Title string          `json:"title"`
+	Kind  string          `json:"kind,omitempty"`
+	Edit  *WorkspaceEdit  `json:"edit,omitempty"`
+	Data  json.RawMessage `json:"data,omitempty"`
 }
 
 // Diagnostics (subset needed for code action context)

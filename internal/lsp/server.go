@@ -40,13 +40,16 @@ type Server struct {
 	// Small LRU cache for recent code completion outputs (keyed by context)
 	compCache      map[string]string
 	compCacheOrder []string // most-recent at end; cap ~10
-    // Outgoing JSON-RPC id counter for server-initiated requests
-    nextID int64
-    // Minimum identifier chars required for manual invoke to bypass prefix checks
-    manualInvokeMinPrefix int
+	// Outgoing JSON-RPC id counter for server-initiated requests
+	nextID int64
+	// Minimum identifier chars required for manual invoke to bypass prefix checks
+	manualInvokeMinPrefix int
 
-    // LLM concurrency guard: allow at most one in-flight request
-    llmBusy bool
+	// LLM concurrency guard: allow at most one in-flight request
+	llmBusy bool
+
+	// Dispatch table for JSON-RPC methods → handler functions
+	handlers map[string]func(Request)
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
@@ -97,6 +100,19 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.codingTemperature = opts.CodingTemperature
 	s.compCache = make(map[string]string)
 	s.manualInvokeMinPrefix = opts.ManualInvokeMinPrefix
+	// Initialize dispatch table
+	s.handlers = map[string]func(Request){
+		"initialize":              s.handleInitialize,
+		"initialized":             func(_ Request) { s.handleInitialized() },
+		"shutdown":                s.handleShutdown,
+		"exit":                    func(_ Request) { s.handleExit() },
+		"textDocument/didOpen":    s.handleDidOpen,
+		"textDocument/didChange":  s.handleDidChange,
+		"textDocument/didClose":   s.handleDidClose,
+		"textDocument/completion": s.handleCompletion,
+		"textDocument/codeAction": s.handleCodeAction,
+		"codeAction/resolve":      s.handleCodeActionResolve,
+	}
 	return s
 }
 
