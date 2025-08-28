@@ -553,7 +553,7 @@ func (s *Server) detectAndHandleChat(uri string) {
 			continue
 		}
 		pair := raw[j-1 : j+1]
-		isTrigger := pair == ".." || pair == "??" || pair == "!!" || pair == "::"
+		isTrigger := pair == "??" || pair == "!!" || pair == "::"
 		if !isTrigger {
 			continue
 		}
@@ -690,7 +690,7 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
 }
 
 // stripTrailingTrigger removes a single trailing punctuation from the set
-// [.,?,!,:] or both semicolons if present at end, mirroring the inline trigger rules.
+// [?,!,:] or both semicolons if present at end, mirroring the inline trigger rules.
 func stripTrailingTrigger(sx string) string {
 	s := strings.TrimRight(sx, " \t")
 	if strings.HasSuffix(s, ";;") {
@@ -699,10 +699,10 @@ func stripTrailingTrigger(sx string) string {
 	if len(s) == 0 {
 		return sx
 	}
-	last := s[len(s)-1]
-	switch last {
-	case '.', '?', '!', ':':
-		return strings.TrimRight(s[:len(s)-1], " \t")
+    last := s[len(s)-1]
+    switch last {
+    case '?', '!', ':':
+        return strings.TrimRight(s[:len(s)-1], " \t")
 	default:
 		return sx
 	}
