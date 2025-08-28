@@ -32,8 +32,8 @@ Note: additional LSPs (`gopls`, `golangci-lint-lsp`) are optional; Hexai works w
 
 Ask a question at the end of a line and receive the answer inline.
 
-- End your question line with a trigger: `??`, `!!`, or `::`.
-- Hexai removes the trailing marker (last char for `??`/`!!`/`::`, both for `;;`).
+- End your question line with a trigger: `?>`, `!>`, or `:>`.
+- Hexai removes only the trailing `>` from the question line (and keeps your trailing punctuation). The inline code-completion trigger `;;text;` remains unchanged.
 - It inserts a blank line, then a reply line prefixed with `> `, then one extra newline so most
   editors place the cursor on a fresh blank line after the answer.
 - If a `>` reply already exists below the question, Hexai won’t answer again.
@@ -41,7 +41,7 @@ Ask a question at the end of a line and receive the answer inline.
 Example:
 
 ```text
-What is a slice in Go??
+What is a slice in Go?>
 
 > A slice is a dynamically-sized, flexible view into the elements of an array. It references
 > an underlying array and tracks length/capacity; most Go code uses slices instead of arrays.

@@ -558,7 +558,7 @@ func (s *Server) detectAndHandleChat(uri string) {
 	if d == nil || len(d.lines) == 0 {
 		return
 	}
-	for i, raw := range d.lines {
+    for i, raw := range d.lines {
 		// Find last non-space character index
 		j := len(raw) - 1
 		for j >= 0 {
@@ -568,14 +568,14 @@ func (s *Server) detectAndHandleChat(uri string) {
 			}
 			break
 		}
-		if j < 1 { // need at least two chars for double trigger
-			continue
-		}
-		pair := raw[j-1 : j+1]
-		isTrigger := pair == "??" || pair == "!!" || pair == "::"
-		if !isTrigger {
-			continue
-		}
+        if j < 1 { // need at least two chars for pattern like '?>'
+            continue
+        }
+        pair := raw[j-1 : j+1]
+        isTrigger := pair == "?>" || pair == "!>" || pair == ":>" || pair == ";>"
+        if !isTrigger {
+            continue
+        }
 		// Avoid double-answering: if the next non-empty line starts with '>' we skip.
 		k := i + 1
 		for k < len(d.lines) && strings.TrimSpace(d.lines[k]) == "" {
@@ -584,13 +584,13 @@ func (s *Server) detectAndHandleChat(uri string) {
 		if k < len(d.lines) && strings.HasPrefix(strings.TrimSpace(d.lines[k]), ">") {
 			continue
 		}
-		// Derive prompt by removing 1 trailing char for punctuation pairs
-		removeCount := 1
-		base := raw[:j+1-removeCount]
-		prompt := strings.TrimSpace(base)
-		if prompt == "" {
-			continue
-		}
+        // Derive prompt by removing only the trailing '>'
+        removeCount := 1
+        base := raw[:j+1-removeCount]
+        prompt := strings.TrimSpace(base)
+        if prompt == "" {
+            continue
+        }
 		lineIdx := i
 		lastIdx := j
 		go func(prompt string, remove int) {
@@ -611,8 +611,8 @@ func (s *Server) detectAndHandleChat(uri string) {
 			if out == "" {
 				return
 			}
-			s.applyChatEdits(uri, lineIdx, lastIdx, remove, "> "+out)
-		}(prompt, removeCount)
+        s.applyChatEdits(uri, lineIdx, lastIdx, remove, "> "+out)
+        }(prompt, removeCount)
 		// Only handle one per change tick to avoid flooding
 		break
 	}
@@ -711,20 +711,27 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
 // stripTrailingTrigger removes a single trailing punctuation from the set
 // [?,!,:] or both semicolons if present at end, mirroring the inline trigger rules.
 func stripTrailingTrigger(sx string) string {
-	s := strings.TrimRight(sx, " \t")
-	if strings.HasSuffix(s, ";;") {
-		return strings.TrimRight(strings.TrimSuffix(s, ";;"), " \t")
-	}
-	if len(s) == 0 {
-		return sx
-	}
+    s := strings.TrimRight(sx, " \t")
+    // New chat triggers use a trailing '>' paired with one of ? ! : ;
+    if len(s) >= 2 && s[len(s)-1] == '>' {
+        prev := s[len(s)-2]
+        if prev == '?' || prev == '!' || prev == ':' || prev == ';' {
+            return strings.TrimRight(s[:len(s)-1], " \t")
+        }
+    }
+    if strings.HasSuffix(s, ";;") { // keep legacy inline ';;' cleanup used in history building
+        return strings.TrimRight(strings.TrimSuffix(s, ";;"), " \t")
+    }
+    if len(s) == 0 {
+        return sx
+    }
     last := s[len(s)-1]
-    switch last {
+    switch last { // legacy: remove one trailing punctuation for old-chat triggers
     case '?', '!', ':':
         return strings.TrimRight(s[:len(s)-1], " \t")
-	default:
-		return sx
-	}
+    default:
+        return sx
+    }
 }
 
 // clientApplyEdit sends a workspace/applyEdit request to the client.
@@ -765,12 +772,22 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 
-	// Inline prompt markers (strict ;text; or double-; patterns) explicitly allow triggering.
-	inlinePrompt := lineHasInlinePrompt(current)
-	// Only invoke LLM when triggered by our characters, manual invoke, or inline prompt markers.
+    // Inline prompt markers (strict ;text; or double-; patterns) explicitly allow triggering.
+    inlinePrompt := lineHasInlinePrompt(current)
+    // Only invoke LLM when triggered by our characters, manual invoke, or inline prompt markers.
     if !inlinePrompt && !s.isTriggerEvent(p, current) {
         logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
         return []CompletionItem{}, true
+    }
+
+    // Suppress code completion when an in-editor chat trigger is at EOL.
+    // New triggers: ?> !> :> ;> (trim trailing whitespace before checking).
+    if t := strings.TrimRight(current, " \t"); len(t) >= 2 && t[len(t)-1] == '>' {
+        prev := t[len(t)-2]
+        if prev == '?' || prev == '!' || prev == ':' || prev == ';' {
+            logging.Logf("lsp ", "completion skip=chat-trigger-eol uri=%s line=%d", p.TextDocument.URI, p.Position.Line)
+            return []CompletionItem{}, true
+        }
     }
 
 	inParams := inParamList(current, p.Position.Character)
