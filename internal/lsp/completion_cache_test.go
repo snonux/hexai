@@ -21,7 +21,7 @@ func TestCompletionCache_IgnoresWhitespaceBeforeCursor(t *testing.T) {
     // First request with trailing spaces before cursor
     line := "foo   "
     p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
-    items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+    items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
     if !ok || len(items) == 0 || fake.calls != 1 {
         t.Fatalf("expected first call to invoke LLM; ok=%v len=%d calls=%d", ok, len(items), fake.calls)
     }
@@ -29,7 +29,7 @@ func TestCompletionCache_IgnoresWhitespaceBeforeCursor(t *testing.T) {
     // Same logical context but with a different amount of trailing whitespace
     line2 := "foo             "
     p2 := CompletionParams{ Position: Position{ Line: 0, Character: len(line2) }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
-    items2, ok2, _ := s.tryLLMCompletion(p2, "", line2, "", "", "", false, "")
+    items2, ok2 := s.tryLLMCompletion(p2, "", line2, "", "", "", false, "")
     if !ok2 || len(items2) == 0 {
         t.Fatalf("expected cache hit to still return items")
     }

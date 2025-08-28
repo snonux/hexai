@@ -483,26 +483,45 @@ func (s *Server) handleCompletion(req Request) {
 		if s.llmClient != nil {
 			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
 			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
-			items, ok, busy := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
-			if ok {
-				s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
-				return
-			}
-			if busy {
-				// Inform client that results are incomplete so it may try again shortly.
-				logging.Logf("lsp ", "completion busy uri=%s line=%d char=%d returning isIncomplete", p.TextDocument.URI, p.Position.Line, p.Position.Character)
-				s.reply(req.ID, CompletionList{IsIncomplete: true, Items: []CompletionItem{}}, nil)
-				return
-			}
-		}
-	}
-	items := s.fallbackCompletionItems(docStr)
-	s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
+            items, ok := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
+            if ok {
+                s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
+                return
+            }
+        }
+    }
+    items := s.fallbackCompletionItems(docStr)
+    s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
 }
 
 func (s *Server) reply(id json.RawMessage, result any, err *RespError) {
-	resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
-	s.writeMessage(resp)
+    resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
+    s.writeMessage(resp)
+}
+
+// docBeforeAfter returns the full document text split at the given position.
+// The returned strings are the text before the cursor (inclusive of anything
+// left of the position) and the text after the cursor.
+func (s *Server) docBeforeAfter(uri string, pos Position) (string, string) {
+    d := s.getDocument(uri)
+    if d == nil { return "", "" }
+    // Clamp indices
+    line := pos.Line
+    if line < 0 { line = 0 }
+    if line >= len(d.lines) { line = len(d.lines) - 1 }
+    col := pos.Character
+    if col < 0 { col = 0 }
+    if col > len(d.lines[line]) { col = len(d.lines[line]) }
+    // Build before
+    var b strings.Builder
+    for i := 0; i < line; i++ { b.WriteString(d.lines[i]); b.WriteByte('\n') }
+    b.WriteString(d.lines[line][:col])
+    before := b.String()
+    // Build after
+    var a strings.Builder
+    a.WriteString(d.lines[line][col:])
+    for i := line + 1; i < len(d.lines); i++ { a.WriteByte('\n'); a.WriteString(d.lines[i]) }
+    return before, a.String()
 }
 
 // extractTriggerInfo returns the LSP completion TriggerKind and TriggerCharacter
@@ -742,17 +761,17 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 		p.TextDocument.URI, p.Position.Line, p.Position.Character, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
 }
 
-func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool, bool) {
+func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 
 	// Inline prompt markers (strict ;text; or double-; patterns) explicitly allow triggering.
 	inlinePrompt := lineHasInlinePrompt(current)
 	// Only invoke LLM when triggered by our characters, manual invoke, or inline prompt markers.
-	if !inlinePrompt && !s.isTriggerEvent(p, current) {
-		logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-		return []CompletionItem{}, true, false
-	}
+    if !inlinePrompt && !s.isTriggerEvent(p, current) {
+        logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+        return []CompletionItem{}, true
+    }
 
 	inParams := inParamList(current, p.Position.Character)
 
@@ -776,18 +795,18 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	// Build a cache key for this completion context (ignore trailing whitespace
 	// before the cursor when forming the key) and try cache before any LLM call.
 	key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
-	if cleaned, ok := s.completionCacheGet(key); ok && strings.TrimSpace(cleaned) != "" {
-		logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
-			p.TextDocument.URI, p.Position.Line, p.Position.Character,
-			logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
-		return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
-	}
+    if cleaned, ok := s.completionCacheGet(key); ok && strings.TrimSpace(cleaned) != "" {
+        logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
+            p.TextDocument.URI, p.Position.Line, p.Position.Character,
+            logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
+        return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
+    }
 	// If there is a bare ';;' on the current or next line (no valid ';;text;'),
 	// do not auto-trigger unless it was a manual invoke.
-	if (isBareDoubleSemicolon(current) || isBareDoubleSemicolon(below)) && !manualInvoke {
-		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-		return []CompletionItem{}, true, false
-	}
+    if (isBareDoubleSemicolon(current) || isBareDoubleSemicolon(below)) && !manualInvoke {
+        logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+        return []CompletionItem{}, true
+    }
 
 	// Heuristic 1: Require a minimal typed identifier prefix to avoid early triggers,
 	// but allow immediate completion after structural trigger chars like '.', ':', '/'.
@@ -827,13 +846,49 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 			if manualInvoke && s.manualInvokeMinPrefix >= 0 {
 				min = s.manualInvokeMinPrefix
 			}
-			if j-start < min { // require at least min identifier chars
-				logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-				return []CompletionItem{}, true, false
-			}
-		}
-	}
-	sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
+            if j-start < min { // require at least min identifier chars
+                logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+                return []CompletionItem{}, true
+            }
+        }
+    }
+    // Prefer provider-native code completion when available (e.g., Copilot Codex)
+    if cc, ok := s.llmClient.(llm.CodeCompleter); ok {
+        before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
+        // Construct prompt/suffix similar to helix-gpt
+        path := strings.TrimPrefix(p.TextDocument.URI, "file://")
+        prompt := "// Path: " + path + "\n" + before
+        lang := ""
+        temp := 0.0
+        if s.codingTemperature != nil { temp = *s.codingTemperature }
+        prov := ""
+        if s.llmClient != nil { prov = s.llmClient.Name() }
+        logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
+        ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
+        defer cancel2()
+        suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
+        if err == nil && len(suggestions) > 0 {
+            cleaned := strings.TrimSpace(suggestions[0])
+            if cleaned != "" {
+                cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
+                if cleaned != "" { cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned) }
+                if cleaned != "" && hasDoubleSemicolonTrigger(current) {
+                    indent := leadingIndent(current)
+                    if indent != "" { cleaned = applyIndent(indent, cleaned) }
+                }
+                if strings.TrimSpace(cleaned) != "" {
+                    key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
+                    s.completionCachePut(key, cleaned)
+                    return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
+                }
+            }
+        } else if err != nil {
+            logging.Logf("lsp ", "completion path=codex error=%v (falling back to chat)", err)
+        }
+        // If provider-native path failed, fall back to chat below.
+    }
+
+    sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
 	messages := []llm.Message{
 		{Role: "system", Content: sysPrompt},
 		{Role: "user", Content: userPrompt},
@@ -859,13 +914,13 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
 	}
 	logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
-	text, err := s.llmClient.Chat(ctx, messages, opts...)
-	if err != nil {
-		logging.Logf("lsp ", "llm completion error: %v", err)
-		// Log updated averages after this request (even if failed)
-		s.logLLMStats()
-		return nil, false, false
-	}
+    text, err := s.llmClient.Chat(ctx, messages, opts...)
+    if err != nil {
+        logging.Logf("lsp ", "llm completion error: %v", err)
+        // Log updated averages after this request (even if failed)
+        s.logLLMStats()
+        return nil, false
+    }
 	// Update response counters (received)
 	s.incRecvCounters(len(text))
 	s.logLLMStats()
@@ -895,14 +950,14 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 			cleaned = applyIndent(indent, cleaned)
 		}
 	}
-	if cleaned == "" {
-		return nil, false, false
-	}
+    if cleaned == "" {
+        return nil, false
+    }
 
 	// Store successful completion in cache
 	s.completionCachePut(key, cleaned)
 
-	return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true, false
+    return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
 }
 
 // --- small completion cache (last ~10 entries) ---

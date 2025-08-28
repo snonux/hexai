@@ -45,8 +45,7 @@ func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
     p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
     // Simulate manual user invocation (TriggerKind=1)
     p.Context = json.RawMessage([]byte(`{"triggerKind":1}`))
-    items, ok, busy := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
-    if busy { t.Fatalf("unexpected busy=true") }
+    items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
     if !ok { t.Fatalf("expected ok=true for manual invoke after whitespace") }
     if len(items) == 0 { t.Fatalf("expected at least one completion item") }
 }
@@ -57,8 +56,7 @@ func TestTryLLMCompletion_InlineSemicolonPromptAlwaysTriggers(t *testing.T) {
     line := "prefix ;do something; suffix"
     // No trigger char immediately before cursor; place cursor at end
     p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://inline.go"} }
-    items, ok, busy := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
-    if busy { t.Fatalf("unexpected busy=true") }
+    items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
     if !ok || len(items) == 0 { t.Fatalf("expected completion to trigger on inline ;text; prompt") }
 }
 
@@ -68,7 +66,7 @@ func TestTryLLMCompletion_DoubleSemicolonEmpty_DoesNotAutoTrigger(t *testing.T) 
     s.llmClient = fake
     line := ";;   " // empty content after ';;' should not force-trigger
     p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://empty-inline.go"} }
-    items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+    items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
     if !ok { t.Fatalf("expected ok=true for non-trigger path") }
     if len(items) != 0 { t.Fatalf("expected no items when inline ';;' is empty") }
     if fake.calls != 0 { t.Fatalf("LLM should not be called; calls=%d", fake.calls) }
@@ -88,7 +86,7 @@ func TestBareDoubleSemicolonPreventsAutoTriggerEvenWithOtherTriggers(t *testing.
     // Place a '.' earlier but also include bare ';;' at end; should not auto-trigger
     line := "obj. call ;;"
     p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://bare-ds.go"} }
-    items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+    items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
     if !ok { t.Fatalf("expected ok=true (handled), but not auto-triggering") }
     if len(items) != 0 { t.Fatalf("expected no items due to bare ';;'") }
     if fake.calls != 0 { t.Fatalf("LLM should not be called; calls=%d", fake.calls) }
@@ -101,7 +99,7 @@ func TestBareDoubleSemicolonOnNextLine_PreventsAutoTrigger(t *testing.T) {
     current := "expression := flag.String(\"expression\", \"\", \"Expression to evaluate\")"
     below := ";;"
     p := CompletionParams{ Position: Position{ Line: 0, Character: len(current) }, TextDocument: TextDocumentIdentifier{URI: "file://nextline.go"} }
-    items, ok, _ := s.tryLLMCompletion(p, "", current, below, "", "", false, "")
+    items, ok := s.tryLLMCompletion(p, "", current, below, "", "", false, "")
     if !ok { t.Fatalf("expected ok=true handled") }
     if len(items) != 0 { t.Fatalf("expected no items due to bare ';;' on next line") }
     if fake.calls != 0 { t.Fatalf("LLM should not be called; calls=%d", fake.calls) }
@@ -115,7 +113,7 @@ func TestBareDoubleSemicolonPreventsManualInvoke(t *testing.T) {
     p := CompletionParams{ Position: Position{ Line: 0, Character: len(line) }, TextDocument: TextDocumentIdentifier{URI: "file://bare-ds-manual.go"} }
     // Simulate manual invoke
     p.Context = json.RawMessage([]byte(`{"triggerKind":1}`))
-    items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+    items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
     if !ok { t.Fatalf("expected ok=true (handled)") }
     if len(items) != 0 { t.Fatalf("expected no items for bare ';;' even with manual invoke") }
     if fake.calls != 0 { t.Fatalf("LLM should not be called; calls=%d", fake.calls) }

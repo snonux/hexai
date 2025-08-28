@@ -28,10 +28,20 @@ type Client interface {
 // token-by-token streaming responses. Callers can type-assert to Streamer and
 // fall back to Client.Chat when not implemented.
 type Streamer interface {
-	// ChatStream sends chat messages and invokes onDelta with incremental text
-	// chunks as they are produced by the model. Implementations should call
-	// onDelta with empty strings sparingly (prefer only non-empty chunks).
-	ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error
+    // ChatStream sends chat messages and invokes onDelta with incremental text
+    // chunks as they are produced by the model. Implementations should call
+    // onDelta with empty strings sparingly (prefer only non-empty chunks).
+    ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error
+}
+
+// CodeCompleter is an optional interface for providers that support a
+// prompt/suffix code-completion API (e.g., Copilot Codex endpoint). Clients
+// can type-assert to this and prefer it over chat when available.
+type CodeCompleter interface {
+    // CodeCompletion requests up to n suggestions given a left-hand prompt and
+    // right-hand suffix around the cursor. Language is advisory and may be
+    // ignored. Temperature applies when provider supports it.
+    CodeCompletion(ctx context.Context, prompt string, suffix string, n int, language string, temperature float64) ([]string, error)
 }
 
 // Options for a request. Providers may ignore unsupported fields.
