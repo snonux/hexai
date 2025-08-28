@@ -34,25 +34,27 @@ func TestDefaultTriggerChars_DoesNotIncludeSemicolonOrQuestion(t *testing.T) {
     }
 }
 
-func TestTryLLMCompletion_BusySkipsConcurrent(t *testing.T) {
+// Note: The server no longer exposes a busy guard; completion requests are
+// handled sequentially and the LSP can request again if needed. This test used
+// to assert a busy path; it now asserts that a normal trigger proceeds and
+// calls the LLM without reporting busy.
+func TestTryLLMCompletion_NoBusyPath_CurrentBehavior(t *testing.T) {
     s := &Server{ maxTokens: 32, triggerChars: []string{".", ":", "/", "_"} }
     fake := &countingLLM{}
     s.llmClient = fake
-    // Simulate another LLM request in flight
-    s.llmBusy = true
     p := CompletionParams{ Position: Position{ Line: 0, Character: 4 }, TextDocument: TextDocumentIdentifier{URI: "file://x.go"} }
     items, ok, busy := s.tryLLMCompletion(p, "", "foo.", "", "", "", false, "")
-    if ok {
-        t.Fatalf("expected ok=false when busy guard triggers")
+    if !ok {
+        t.Fatalf("expected ok=true for a normal triggered completion")
     }
-    if !busy {
-        t.Fatalf("expected busy=true when another request in flight")
+    if busy {
+        t.Fatalf("did not expect busy=true in current behavior")
     }
-    if len(items) != 0 {
-        t.Fatalf("expected zero items when busy, got %d", len(items))
+    if len(items) == 0 {
+        t.Fatalf("expected some completion items when triggered")
     }
-    if fake.calls != 0 {
-        t.Fatalf("LLM Chat should not be called when busy; calls=%d", fake.calls)
+    if fake.calls == 0 {
+        t.Fatalf("expected LLM Chat to be called")
     }
 }
 
