@@ -769,8 +769,10 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 }
 
 func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-	defer cancel()
+    ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+    defer cancel()
+    // Track if we've already acquired the LLM busy lock during this call
+    locked := false
 
     // Inline prompt markers (strict ;text; or double-; patterns) explicitly allow triggering.
     inlinePrompt := lineHasInlinePrompt(current)
@@ -883,6 +885,14 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
         logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
         ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
         defer cancel2()
+        // Concurrency guard
+        if s.isLLMBusy() {
+            return []CompletionItem{s.busyCompletionItem()}, true
+        }
+        s.setLLMBusy(true)
+        defer s.setLLMBusy(false)
+        locked = true
+
         suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
         if err == nil && len(suggestions) > 0 {
             cleaned := strings.TrimSpace(suggestions[0])
@@ -931,6 +941,15 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
 	}
 	logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
+    // Concurrency guard for chat path as well
+    if !locked {
+        if s.isLLMBusy() {
+            return []CompletionItem{s.busyCompletionItem()}, true
+        }
+        s.setLLMBusy(true)
+        defer s.setLLMBusy(false)
+    }
+
     text, err := s.llmClient.Chat(ctx, messages, opts...)
     if err != nil {
         logging.Logf("lsp ", "llm completion error: %v", err)
@@ -975,6 +994,39 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	s.completionCachePut(key, cleaned)
 
     return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
+}
+
+// busyCompletionItem builds a visible, non-inserting completion item indicating
+// that an LLM request is already in flight.
+func (s *Server) busyCompletionItem() CompletionItem {
+    prov := ""
+    model := ""
+    if s.llmClient != nil {
+        prov = s.llmClient.Name()
+        model = s.llmClient.DefaultModel()
+    }
+    label := "Hexai: LLM busy"
+    if prov != "" && model != "" { label += " (" + prov + ":" + model + ")" }
+    return CompletionItem{
+        Label:         label,
+        Detail:        "Another request is running; only one is allowed concurrently",
+        InsertText:    "",
+        FilterText:    "",
+        SortText:      "~~~~~busy", // float to top
+        Documentation: "Hexai is processing a previous request. Please retry shortly.",
+    }
+}
+
+func (s *Server) isLLMBusy() bool {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    return s.llmBusy
+}
+
+func (s *Server) setLLMBusy(v bool) {
+    s.mu.Lock()
+    s.llmBusy = v
+    s.mu.Unlock()
 }
 
 // --- small completion cache (last ~10 entries) ---
