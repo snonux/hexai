@@ -18,6 +18,7 @@ AI coded it under human supervision, and a human developer reviewed the code.
 
 * [Configuration guide](docs/configuration.md)  
 * [Usage examples](docs/usage-examples.md)
+* [Source structure](docs/source-structure.md)
 
 ## Build and tasks
 

@@ -27,5 +27,4 @@
   use fenced code blocks and descriptive link text.
 - Filenames: docs use `lowercase-with-dashes.md`; images use kebab‑case with
   size/purpose suffix (e.g., `hexai-small.png`).
-- Code (when added): follow language idioms; use consistent 2 or 4‑space
-  indentation; avoid one‑letter identifiers; keep functions short and focused.
+- Code (when added): follow language idioms

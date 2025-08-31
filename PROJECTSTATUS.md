@@ -8,6 +8,7 @@
 
 * [ ] TODO's in the code to be addressed
 * [ ] Include unit test coverage reports
+* [ ] Split up into more modules or packages for better organization (look at all the FOO_something.go files, when FOO becomes >2)
 
 ### New features
 
