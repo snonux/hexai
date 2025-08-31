@@ -1,5 +1,4 @@
 // Summary: LSP JSON-RPC handlers; implements core methods and integrates with the LLM client when enabled.
-// TODO: Split this up into multiple smaller files.
 package lsp
 
 import (

@@ -6,35 +6,32 @@
 
 ### Improvements
 
-* [ ] TODO's in the code to be addressed
+* [X] TODO's in the code to be addressed
 * [ ] Include unit test coverage reports
-* [ ] Split up into more modules or packages for better organization (look at all the FOO_something.go files, when FOO becomes >2)
 
 ### New features
 
 * [ ] implement a code action for selected code block the way via a unix pipe as faster access in helix
-* [x] Use hexai as a gh copilot... CLI replacemant for command line questions
-* [ ] Resolve diagnostics code action feature
+* [X] Use hexai as a gh copilot... CLI replacemant for command line questions
+* [X] Resolve diagnostics code action feature
 * [X] LSP server to be used with the Helix text editor
 * [X] Code completion using LLMs
 * [ ] Have all text LLM prompts be configurable. With defaults as of now.
 * [X] Text completion in general
-* [ ] Be a replacement for 'github copilot cli'
-* [ ] Be able to perform inline chats (keeping history in the document)
+* [/] Be a replacement for 'github copilot cli'
+* [X] Be able to perform inline chats (keeping history in the document)
 * [ ] Be able to switch the underlying model via a prompt
-* [ ] Fine tune when Large Language Model (LLM) completions trigger, as it seems that there are some cases where the Large Language Model (LLM) receives a request but Helix isn't suggesting any completions. There seems to be something odd with the in logic. Investigate the TriggerChar logic and make sure it matches Helix's expectations.
-* [ ] Only one code completion should run at a time, even if multiple triggers occur simultaneously
+* [/] Fine tune when Large Language Model (LLM) completions trigger, as it seems that there are some cases where the Large Language Model (LLM) receives a request but Helix isn't suggesting any completions. There seems to be something odd with the in logic. Investigate the TriggerChar logic and make sure it matches Helix's expectations.
+  * [ ] Actually document the completion timeout settings in HelixEditor 
+* [X] Only one code completion should run at a time, even if multiple triggers occur simultaneously
 * [ ] Create "generate unit test" code action for selected code block => write test to FILE_test.go file
-* [ ] Can anything else can be done with LSP?
+* [X] Can anything else can be done with LSP?
 
 Be able to select code blocks and perform code actions on them
 
 * [ ] Commenting exiting code
-* [ ] Code refactoring
-
-Be able to chat with the LLM
-
-* [ ] Have a dialog with the LLM, like in lsp-ai
+* [ ] Improve code
+* [X] Code refactoring (via comment instruction)
 
 Be able to switch LLMs. 
 
