@@ -1,4 +1,4 @@
-module hexai
+module codeberg.org/snonux/hexai
 
 go 1.21
 

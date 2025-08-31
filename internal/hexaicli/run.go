@@ -12,9 +12,9 @@ import (
     "strings"
     "time"
 
-	"hexai/internal/appconfig"
-	"hexai/internal/llm"
-	"hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
 // Run executes the Hexai CLI behavior given arguments and I/O streams.

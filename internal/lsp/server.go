@@ -4,8 +4,8 @@ package lsp
 import (
 	"bufio"
 	"encoding/json"
-	"hexai/internal/llm"
-	"hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/logging"
 	"io"
 	"log"
 	"sync"

@@ -1,11 +1,11 @@
 package lsp
 
 import (
-	"context"
-	"errors"
-	"testing"
+    "context"
+    "errors"
+    "testing"
 
-	"hexai/internal/llm"
+    "codeberg.org/snonux/hexai/internal/llm"
 )
 
 // fakeCodeLLM implements both llm.Client and llm.CodeCompleter.

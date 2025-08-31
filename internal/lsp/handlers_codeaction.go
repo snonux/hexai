@@ -2,13 +2,13 @@
 package lsp
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"hexai/internal/llm"
-	"hexai/internal/logging"
-	"strings"
-	"time"
+    "context"
+    "encoding/json"
+    "fmt"
+    "codeberg.org/snonux/hexai/internal/llm"
+    "codeberg.org/snonux/hexai/internal/logging"
+    "strings"
+    "time"
 )
 
 func (s *Server) handleCodeAction(req Request) {

@@ -8,10 +8,10 @@ import (
 	"os"
 	"strings"
 
-	"hexai/internal/appconfig"
-	"hexai/internal/llm"
-	"hexai/internal/logging"
-	"hexai/internal/lsp"
+	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/lsp"
 )
 
 // ServerRunner is the minimal interface satisfied by lsp.Server.

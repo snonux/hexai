@@ -2,7 +2,7 @@
 package lsp
 
 import (
-	"hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/logging"
 	"strings"
 )
 

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"os"
 
-	"hexai/internal"
-	"hexai/internal/hexaicli"
+	"codeberg.org/snonux/hexai/internal"
+	"codeberg.org/snonux/hexai/internal/hexaicli"
 )
 
 func main() {

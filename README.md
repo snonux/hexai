@@ -31,3 +31,8 @@ Hexai uses Mage for developer tasks. Install Mage, then run targets like build, 
 - Install binaries to `GOPATH/bin`: `mage install`
 
 Note: `mage lint` uses `golangci-lint`. Install via `mage devinstall` if needed.
+
+## Install
+
+- CLI: `go install codeberg.org/snonux/hexai/cmd/hexai@latest`
+- LSP: `go install codeberg.org/snonux/hexai/cmd/hexai-lsp@latest`

@@ -2,8 +2,8 @@
 package lsp
 
 import (
-	"hexai/internal"
-	"hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal"
+	"codeberg.org/snonux/hexai/internal/logging"
 	"os"
 )
 

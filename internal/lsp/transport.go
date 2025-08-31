@@ -4,7 +4,7 @@ package lsp
 import (
 	"encoding/json"
 	"fmt"
-	"hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/logging"
 	"io"
 	"net/textproto"
 	"strconv"

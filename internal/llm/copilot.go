@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"encoding/base64"
-	appver "hexai/internal"
-	"hexai/internal/logging"
+	appver "codeberg.org/snonux/hexai/internal"
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
 // copilotClient implements Client against GitHub Copilot's Chat Completions API.

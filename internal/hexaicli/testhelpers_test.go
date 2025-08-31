@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llm"
 )
 
 // setStdin sets os.Stdin from a string and returns a restore func and reader.

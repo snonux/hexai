@@ -2,11 +2,11 @@
 package lsp
 
 import (
-	"fmt"
-	"hexai/internal/llm"
-	"hexai/internal/logging"
-	"strings"
-	"time"
+    "fmt"
+    "codeberg.org/snonux/hexai/internal/llm"
+    "codeberg.org/snonux/hexai/internal/logging"
+    "strings"
+    "time"
 )
 
 // llmRequestOpts builds request options from server settings.

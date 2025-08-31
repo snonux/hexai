@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"hexai/internal"
-	"hexai/internal/hexailsp"
+	"codeberg.org/snonux/hexai/internal"
+	"codeberg.org/snonux/hexai/internal/hexailsp"
 )
 
 func main() {

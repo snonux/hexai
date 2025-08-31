@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
 // ollamaClient implements Client against a local Ollama server.

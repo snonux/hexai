@@ -1,10 +1,10 @@
 package lsp
 
 import (
-	"context"
-	"encoding/json"
-	"hexai/internal/llm"
-	"testing"
+    "context"
+    "encoding/json"
+    "codeberg.org/snonux/hexai/internal/llm"
+    "testing"
 )
 
 type fakeLLM struct {
