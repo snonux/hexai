@@ -17,6 +17,10 @@ Updated tests accordingly.
 
 Phase 2: Debounce completion requests: Introduce a configurable delay (e.g., 100–500 ms) before sending a completion request to the LLM. This prevents a flood of calls while typing. 
         
+Status: Done — added `completion_debounce_ms` (default 200). Server waits until
+no recent input activity for at least this duration before LLM calls (both chat
+and provider-native paths). Added unit test `TestCompletionDebounce_WaitsUntilQuiet`.
+        
 Phase 3: Throttle on the server side: Beyond debouncing, implement request throttling to cap the maximum rate of LLM calls (e.g., one per 500 ms). This is especially useful when debounce alone isn’t enough under rapid editing
     2
     .

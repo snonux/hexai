@@ -25,6 +25,14 @@ type App struct {
     // to proceed without structural triggers. 0 means always allow.
     ManualInvokeMinPrefix int `json:"manual_invoke_min_prefix"`
 
+    // Completion debounce in milliseconds. When > 0, the server waits until
+    // there has been no text change for at least this duration before sending
+    // an LLM completion request.
+    CompletionDebounceMs int `json:"completion_debounce_ms"`
+    // Completion throttle in milliseconds. When > 0, caps the minimum spacing
+    // between LLM requests (both chat and code-completer paths).
+    CompletionThrottleMs int `json:"completion_throttle_ms"`
+
 	TriggerCharacters []string `json:"trigger_characters"`
 	Provider          string   `json:"provider"`
 
@@ -59,6 +67,8 @@ func newDefaultConfig() App {
 		OllamaTemperature:  &t,
         CopilotTemperature: &t,
         ManualInvokeMinPrefix: 0,
+        CompletionDebounceMs: 200,
+        CompletionThrottleMs: 0,
     }
 }
 
@@ -139,6 +149,8 @@ func (a *App) mergeBasics(other *App) {
     if other.ManualInvokeMinPrefix >= 0 {
         a.ManualInvokeMinPrefix = other.ManualInvokeMinPrefix
     }
+    if other.CompletionDebounceMs > 0 { a.CompletionDebounceMs = other.CompletionDebounceMs }
+    if other.CompletionThrottleMs > 0 { a.CompletionThrottleMs = other.CompletionThrottleMs }
 	if len(other.TriggerCharacters) > 0 {
 		a.TriggerCharacters = slices.Clone(other.TriggerCharacters)
 	}
@@ -237,6 +249,12 @@ func loadFromEnv(logger *log.Logger) *App {
     }
     if n, ok := parseInt("HEXAI_MANUAL_INVOKE_MIN_PREFIX"); ok {
         out.ManualInvokeMinPrefix = n; any = true
+    }
+    if n, ok := parseInt("HEXAI_COMPLETION_DEBOUNCE_MS"); ok {
+        out.CompletionDebounceMs = n; any = true
+    }
+    if n, ok := parseInt("HEXAI_COMPLETION_THROTTLE_MS"); ok {
+        out.CompletionThrottleMs = n; any = true
     }
     if f, ok := parseFloatPtr("HEXAI_CODING_TEMPERATURE"); ok {
         out.CodingTemperature = f; any = true

@@ -116,5 +116,7 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) ls
         Client:            client,
         TriggerCharacters: cfg.TriggerCharacters,
         ManualInvokeMinPrefix: cfg.ManualInvokeMinPrefix,
+        CompletionDebounceMs:  cfg.CompletionDebounceMs,
+        CompletionThrottleMs:  cfg.CompletionThrottleMs,
     }
 }

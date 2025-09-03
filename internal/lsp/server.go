@@ -26,8 +26,8 @@ type Server struct {
 	maxTokens        int
 	contextMode      string
 	windowLines      int
-	maxContextTokens int
-	triggerChars     []string
+    maxContextTokens int
+    triggerChars     []string
 	// If set, used as the LSP coding temperature for all LLM calls
 	codingTemperature *float64
 	// LLM request stats
@@ -39,10 +39,15 @@ type Server struct {
 	// Small LRU cache for recent code completion outputs (keyed by context)
 	compCache      map[string]string
 	compCacheOrder []string // most-recent at end; cap ~10
-	// Outgoing JSON-RPC id counter for server-initiated requests
-	nextID int64
+    // Outgoing JSON-RPC id counter for server-initiated requests
+    nextID int64
 	// Minimum identifier chars required for manual invoke to bypass prefix checks
 	manualInvokeMinPrefix int
+
+    // Debounce and throttle settings
+    completionDebounce time.Duration
+    throttleInterval   time.Duration
+    lastLLMCall        time.Time
 
     // Dispatch table for JSON-RPC methods → handler functions
     handlers map[string]func(Request)
@@ -50,16 +55,18 @@ type Server struct {
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
 type ServerOptions struct {
-	LogContext       bool
-	MaxTokens        int
-	ContextMode      string
-	WindowLines      int
-	MaxContextTokens int
+    LogContext       bool
+    MaxTokens        int
+    ContextMode      string
+    WindowLines      int
+    MaxContextTokens int
 
-	Client                llm.Client
-	TriggerCharacters     []string
-	CodingTemperature     *float64
-	ManualInvokeMinPrefix int
+    Client                llm.Client
+    TriggerCharacters     []string
+    CodingTemperature     *float64
+    ManualInvokeMinPrefix int
+    CompletionDebounceMs  int
+    CompletionThrottleMs  int
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -93,9 +100,15 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	} else {
 		s.triggerChars = append([]string{}, opts.TriggerCharacters...)
 	}
-	s.codingTemperature = opts.CodingTemperature
-	s.compCache = make(map[string]string)
-	s.manualInvokeMinPrefix = opts.ManualInvokeMinPrefix
+    s.codingTemperature = opts.CodingTemperature
+    s.compCache = make(map[string]string)
+    s.manualInvokeMinPrefix = opts.ManualInvokeMinPrefix
+    if opts.CompletionDebounceMs > 0 {
+        s.completionDebounce = time.Duration(opts.CompletionDebounceMs) * time.Millisecond
+    }
+    if opts.CompletionThrottleMs > 0 {
+        s.throttleInterval = time.Duration(opts.CompletionThrottleMs) * time.Millisecond
+    }
 	// Initialize dispatch table
 	s.handlers = map[string]func(Request){
 		"initialize":              s.handleInitialize,

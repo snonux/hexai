@@ -2,13 +2,13 @@
 package lsp
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/logging"
-	"strings"
-	"time"
+    "context"
+    "encoding/json"
+    "fmt"
+    "codeberg.org/snonux/hexai/internal/llm"
+    "codeberg.org/snonux/hexai/internal/logging"
+    "strings"
+    "time"
 )
 
 func (s *Server) handleCompletion(req Request) {
@@ -120,6 +120,11 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	if s.codingTemperature != nil {
 		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
 	}
+    // Debounce and throttle before making the LLM call
+    s.waitForDebounce(ctx)
+    if !s.waitForThrottle(ctx) {
+        return nil, false
+    }
     logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
 
 	text, err := s.llmClient.Chat(ctx, messages, opts...)
@@ -226,6 +231,11 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
     ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
     defer cancel2()
 
+    // Debounce and throttle prior to provider-native call
+    s.waitForDebounce(ctx2)
+    if !s.waitForThrottle(ctx2) {
+        return nil, false
+    }
     suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
 	if err == nil && len(suggestions) > 0 {
 		cleaned := strings.TrimSpace(suggestions[0])
@@ -250,6 +260,68 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 		logging.Logf("lsp ", "completion path=codex error=%v (falling back to chat)", err)
 	}
 	return nil, false
+}
+
+// waitForDebounce sleeps until there has been no input activity for at least
+// completionDebounce. If debounce is zero or ctx is done, it returns promptly.
+func (s *Server) waitForDebounce(ctx context.Context) {
+    d := s.completionDebounce
+    if d <= 0 {
+        return
+    }
+    for {
+        s.mu.RLock()
+        last := s.lastInput
+        s.mu.RUnlock()
+        if last.IsZero() {
+            return
+        }
+        since := time.Since(last)
+        if since >= d {
+            return
+        }
+        rem := d - since
+        timer := time.NewTimer(rem)
+        select {
+        case <-ctx.Done():
+            timer.Stop()
+            return
+        case <-timer.C:
+            // loop and re-evaluate in case input occurred during sleep
+        }
+    }
+}
+
+// waitForThrottle enforces a minimum spacing between LLM calls. Returns false
+// if the context is canceled while waiting.
+func (s *Server) waitForThrottle(ctx context.Context) bool {
+    interval := s.throttleInterval
+    if interval <= 0 {
+        return true
+    }
+    var wait time.Duration
+    for {
+        s.mu.Lock()
+        next := s.lastLLMCall.Add(interval)
+        now := time.Now()
+        if now.Before(next) {
+            wait = next.Sub(now)
+            s.mu.Unlock()
+            timer := time.NewTimer(wait)
+            select {
+            case <-ctx.Done():
+                timer.Stop()
+                return false
+            case <-timer.C:
+                // try again to set the next call time
+                continue
+            }
+        }
+        // we are allowed to proceed now; record this call as the latest
+        s.lastLLMCall = now
+        s.mu.Unlock()
+        return true
+    }
 }
 
 // buildCompletionMessages constructs the LLM messages for completion.
