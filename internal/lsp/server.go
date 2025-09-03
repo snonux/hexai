@@ -44,11 +44,8 @@ type Server struct {
 	// Minimum identifier chars required for manual invoke to bypass prefix checks
 	manualInvokeMinPrefix int
 
-	// LLM concurrency guard: allow at most one in-flight request
-	llmBusy bool
-
-	// Dispatch table for JSON-RPC methods → handler functions
-	handlers map[string]func(Request)
+    // Dispatch table for JSON-RPC methods → handler functions
+    handlers map[string]func(Request)
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.

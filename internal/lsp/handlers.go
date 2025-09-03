@@ -184,38 +184,7 @@ func (s *Server) reply(id json.RawMessage, result any, err *RespError) {
 
 // busyCompletionItem builds a visible, non-inserting completion item indicating
 // that an LLM request is already in flight.
-func (s *Server) busyCompletionItem() CompletionItem {
-	prov := ""
-	model := ""
-	if s.llmClient != nil {
-		prov = s.llmClient.Name()
-		model = s.llmClient.DefaultModel()
-	}
-	label := "Hexai: LLM busy"
-	if prov != "" && model != "" {
-		label += " (" + prov + ":" + model + ")"
-	}
-	return CompletionItem{
-		Label:         label,
-		Detail:        "Another request is running; only one is allowed concurrently",
-		InsertText:    "",
-		FilterText:    "",
-		SortText:      "~~~~~busy", // float to top
-		Documentation: "Hexai is processing a previous request. Please retry shortly.",
-	}
-}
-
-func (s *Server) isLLMBusy() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.llmBusy
-}
-
-func (s *Server) setLLMBusy(v bool) {
-	s.mu.Lock()
-	s.llmBusy = v
-	s.mu.Unlock()
-}
+// removed: previous single in-flight LLM busy gate and busy item
 
 // --- small completion cache (last ~10 entries) ---
 
@@ -329,14 +298,14 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 			b, _ := json.Marshal(p.Context)
 			_ = json.Unmarshal(b, &ctx)
 		}
-		// If the line contains a bare ';;' (no ';;text;'), do not treat as a trigger source.
-		if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
-			return false
-		}
-		// TriggerKind 1 = Invoked (manual) — always allow (unless bare ';;' above)
-		if ctx.TriggerKind == 1 {
-			return true
-		}
+        // If the line contains a bare ';;' (no ';;text;'), do not treat as a trigger source.
+        if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
+            return false
+        }
+        // TriggerKind 1 = Invoked (manual). Always allow manual invoke.
+        if ctx.TriggerKind == 1 {
+            return true
+        }
 		// TriggerKind 2 is TriggerCharacter per LSP spec
 		if ctx.TriggerKind == 2 {
 			if ctx.TriggerCharacter != "" {

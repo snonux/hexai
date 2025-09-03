@@ -70,9 +70,8 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 }
 
 func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-	defer cancel()
-	locked := false // track if we've taken the LLM busy lock
+    ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+    defer cancel()
 
 	inlinePrompt := lineHasInlinePrompt(current)
 	if !inlinePrompt && !s.isTriggerEvent(p, current) {
@@ -104,10 +103,10 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		return []CompletionItem{}, true
 	}
 
-	// Provider-native path
-	if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, inParams); ok {
-		return items, true
-	}
+    // Provider-native path
+    if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, inParams); ok {
+        return items, true
+    }
 
 	// Chat path
 	messages := s.buildCompletionMessages(inlinePrompt, hasExtra, extraText, inParams, p, above, current, below, funcCtx)
@@ -121,16 +120,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	if s.codingTemperature != nil {
 		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
 	}
-	logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
-
-	// Concurrency guard for chat path as well
-	if !locked {
-		if s.isLLMBusy() {
-			return []CompletionItem{s.busyCompletionItem()}, true
-		}
-		s.setLLMBusy(true)
-		defer s.setLLMBusy(false)
-	}
+    logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
 
 	text, err := s.llmClient.Chat(ctx, messages, opts...)
 	if err != nil {
@@ -233,15 +223,10 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 		prov = s.llmClient.Name()
 	}
 	logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
-	defer cancel2()
-	if s.isLLMBusy() {
-		return []CompletionItem{s.busyCompletionItem()}, true
-	}
-	s.setLLMBusy(true)
-	defer s.setLLMBusy(false)
+    ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
+    defer cancel2()
 
-	suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
+    suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
 	if err == nil && len(suggestions) > 0 {
 		cleaned := strings.TrimSpace(suggestions[0])
 		if cleaned != "" {
