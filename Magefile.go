@@ -88,65 +88,69 @@ func Test() error {
 // - Prints function coverage summary to stdout
 // - Writes HTML report to coverage.html
 func Cover() error {
-	// Ensure a clean slate
-	_ = os.Remove("docs/coverage.out")
-	_ = os.Remove("docs/coverage.html")
+    // Ensure a clean slate
+    const prof = "docs/cover.out"
+    const html = "docs/cover.html"
+    _ = os.Remove(prof)
+    _ = os.Remove(html)
 	if err := sh.RunV("go", "clean", "-testcache"); err != nil {
 		return err
 	}
-	if err := sh.RunV("go", "test", "-covermode=atomic", "-coverprofile=docs/coverage.out", "./..."); err != nil {
-		return err
-	}
-	// Print function-by-function coverage summary
-	if out, err := sh.Output("go", "tool", "cover", "-func=docs/coverage.out"); err == nil {
-		fmt.Print(out)
-		lines := strings.Split(strings.TrimSpace(out), "\n")
-		for i := len(lines) - 1; i >= 0; i-- {
-			if strings.HasPrefix(strings.TrimSpace(lines[i]), "total:") {
-				fmt.Println("\nTotal coverage:", strings.TrimSpace(lines[i]))
-				break
-			}
-		}
-	} else {
-		return err
-	}
-	// Generate an HTML report for browsers/editors
-	if err := sh.RunV("go", "tool", "cover", "-html=docs/coverage.out", "-o", "docs/coverage.html"); err != nil {
-		return err
-	}
-	fmt.Println("HTML coverage report written to docs/coverage.html")
-	return nil
+    if err := sh.RunV("go", "test", "-covermode=atomic", "-coverprofile="+prof, "./..."); err != nil {
+        return err
+    }
+    // Print function-by-function coverage summary
+    if out, err := sh.Output("go", "tool", "cover", "-func="+prof); err == nil {
+        fmt.Print(out)
+        lines := strings.Split(strings.TrimSpace(out), "\n")
+        for i := len(lines) - 1; i >= 0; i-- {
+            if strings.HasPrefix(strings.TrimSpace(lines[i]), "total:") {
+                fmt.Println("\nTotal coverage:", strings.TrimSpace(lines[i]))
+                break
+            }
+        }
+    } else {
+        return err
+    }
+    // Generate an HTML report for browsers/editors
+    if err := sh.RunV("go", "tool", "cover", "-html="+prof, "-o", html); err != nil {
+        return err
+    }
+    fmt.Println("HTML coverage report written to "+html)
+    return nil
 }
 
 // CoverAll generates a combined coverage profile across all packages (cross-package coverage).
 // Instruments all packages during each test run using -coverpkg=./... so that
 // coverage collected from one package's tests include code executed in others.
 func CoverAll() error {
-	_ = os.Remove("docs/coverage.out")
-	_ = os.Remove("docs/coverage.html")
-	if err := sh.RunV("go", "clean", "-testcache"); err != nil {
-		return err
-	}
-	if err := sh.RunV("go", "test", "-covermode=atomic", "-coverpkg=./...", "-coverprofile=docs/coverage.out", "./..."); err != nil {
-		return err
-	}
-	if out, err := sh.Output("go", "tool", "cover", "-func=docs/coverage.out"); err == nil {
-		fmt.Print(out)
-		lines := strings.Split(strings.TrimSpace(out), "\n")
-		for i := len(lines) - 1; i >= 0; i-- {
-			if strings.HasPrefix(strings.TrimSpace(lines[i]), "total:") {
-				fmt.Println("\nTotal coverage (cross-package):", strings.TrimSpace(lines[i]))
-				break
-			}
-		}
-	} else {
-		return err
-	}
-	if err := sh.RunV("go", "tool", "cover", "-html=docs/coverage.out", "-o", "docs/coverage.html"); err != nil {
-		return err
-	}
-	fmt.Println("HTML coverage report written to docs/coverage.html (cross-package)")
-	return nil
+    const prof = "docs/coverall.out"
+    const html = "docs/coverall.html"
+    _ = os.Remove(prof)
+    _ = os.Remove(html)
+    if err := sh.RunV("go", "clean", "-testcache"); err != nil {
+        return err
+    }
+    if err := sh.RunV("go", "test", "-covermode=atomic", "-coverpkg=./...", "-coverprofile="+prof, "./..."); err != nil {
+        return err
+    }
+    if out, err := sh.Output("go", "tool", "cover", "-func="+prof); err == nil {
+        fmt.Print(out)
+        lines := strings.Split(strings.TrimSpace(out), "\n")
+        for i := len(lines) - 1; i >= 0; i-- {
+            if strings.HasPrefix(strings.TrimSpace(lines[i]), "total:") {
+                fmt.Println("\nTotal coverage (cross-package):", strings.TrimSpace(lines[i]))
+                break
+            }
+        }
+    } else {
+        return err
+    }
+    if err := sh.RunV("go", "tool", "cover", "-html="+prof, "-o", html); err != nil {
+        return err
+    }
+    fmt.Println("HTML coverage report written to "+html+" (cross-package)")
+    return nil
 }
 
 // Vet runs go vet.
