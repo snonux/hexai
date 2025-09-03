@@ -1,6 +1,7 @@
 # Ideas
 
 ## Code quality
+* [X] Delete dead code: `field noDiskIO is unused (U1000)` in `internal/lsp/server.go:30:2`
 
 ## Features
 
@@ -45,4 +46,3 @@ Be able to switch LLMs.
 * [ ] Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol` 
 
 ## Usage notes
-

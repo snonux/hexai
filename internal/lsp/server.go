@@ -27,7 +27,6 @@ type Server struct {
 	contextMode      string
 	windowLines      int
 	maxContextTokens int
-	noDiskIO         bool
 	triggerChars     []string
 	// If set, used as the LSP coding temperature for all LLM calls
 	codingTemperature *float64
