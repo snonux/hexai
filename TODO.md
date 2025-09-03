@@ -21,10 +21,21 @@ Status: Done — added `completion_debounce_ms` (default 200). Server waits unti
 no recent input activity for at least this duration before LLM calls (both chat
 and provider-native paths). Added unit test `TestCompletionDebounce_WaitsUntilQuiet`.
         
-Phase 3: Throttle on the server side: Beyond debouncing, implement request throttling to cap the maximum rate of LLM calls (e.g., one per 500 ms). This is especially useful when debounce alone isn’t enough under rapid editing
-    2
-    .
+Phase 3: Throttle on the server side: Beyond debouncing, implement request throttling to cap the maximum rate of LLM calls (e.g., one per 500 ms). This is especially useful when debounce alone isn’t enough under rapid editing.
+
+Status: Done — added `completion_throttle_ms` (default 0/disabled). Server
+serializes LLM calls to maintain a minimum spacing across both chat and
+provider-native completion paths. Added unit test
+`TestCompletionThrottle_SerializesCalls`.
 
 Phase 4: I think this is already implemented, verify: Filter incomplete triggers: Avoid sending requests for short or non-meaningful prefixes (e.g., less than 2–3 characters). This reduces noise and unnecessary LLM calls.
 
+Status: Verified — `prefixHeuristicAllows` enforces a minimal prefix length
+unless there is an inline prompt or structural trigger (., :, /, _, )). Manual
+invoke may be constrained by `manual_invoke_min_prefix` (default 0). Existing
+tests cover prefix handling.
+
 Phase 5: I think this is already implemented, verify: Server-side caching: Cache recent completions keyed by prefix and file context. This avoids recomputation for repeated or similar queries.
+
+Status: Verified — small LRU cache (~10) implemented (keyed by URI, position,
+left/right text, and context). Tests exist in `completion_cache_test.go`.
