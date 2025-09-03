@@ -7,6 +7,7 @@ import (
     "fmt"
     "os"
     "path/filepath"
+    "strings"
 
     "github.com/magefile/mage/mg"
     "github.com/magefile/mage/sh"
@@ -82,6 +83,72 @@ func Test() error {
     return sh.RunV("go", "test", "-v", "./...")
 }
 
+// Cover generates a unit test coverage report.
+// - Writes coverage data to coverage.out
+// - Prints function coverage summary to stdout
+// - Writes HTML report to coverage.html
+func Cover() error {
+    // Ensure a clean slate
+    _ = os.Remove("coverage.out")
+    _ = os.Remove("coverage.html")
+    if err := sh.RunV("go", "clean", "-testcache"); err != nil {
+        return err
+    }
+    if err := sh.RunV("go", "test", "-covermode=atomic", "-coverprofile=coverage.out", "./..."); err != nil {
+        return err
+    }
+    // Print function-by-function coverage summary
+    if out, err := sh.Output("go", "tool", "cover", "-func=coverage.out"); err == nil {
+        fmt.Print(out)
+        lines := strings.Split(strings.TrimSpace(out), "\n")
+        for i := len(lines) - 1; i >= 0; i-- {
+            if strings.HasPrefix(strings.TrimSpace(lines[i]), "total:") {
+                fmt.Println("\nTotal coverage:", strings.TrimSpace(lines[i]))
+                break
+            }
+        }
+    } else {
+        return err
+    }
+    // Generate an HTML report for browsers/editors
+    if err := sh.RunV("go", "tool", "cover", "-html=coverage.out", "-o", "coverage.html"); err != nil {
+        return err
+    }
+    fmt.Println("HTML coverage report written to ./coverage.html")
+    return nil
+}
+
+// CoverAll generates a combined coverage profile across all packages (cross-package coverage).
+// Instruments all packages during each test run using -coverpkg=./... so that
+// coverage collected from one package's tests include code executed in others.
+func CoverAll() error {
+    _ = os.Remove("coverage.out")
+    _ = os.Remove("coverage.html")
+    if err := sh.RunV("go", "clean", "-testcache"); err != nil {
+        return err
+    }
+    if err := sh.RunV("go", "test", "-covermode=atomic", "-coverpkg=./...", "-coverprofile=coverage.out", "./..."); err != nil {
+        return err
+    }
+    if out, err := sh.Output("go", "tool", "cover", "-func=coverage.out"); err == nil {
+        fmt.Print(out)
+        lines := strings.Split(strings.TrimSpace(out), "\n")
+        for i := len(lines) - 1; i >= 0; i-- {
+            if strings.HasPrefix(strings.TrimSpace(lines[i]), "total:") {
+                fmt.Println("\nTotal coverage (cross-package):", strings.TrimSpace(lines[i]))
+                break
+            }
+        }
+    } else {
+        return err
+    }
+    if err := sh.RunV("go", "tool", "cover", "-html=coverage.out", "-o", "coverage.html"); err != nil {
+        return err
+    }
+    fmt.Println("HTML coverage report written to ./coverage.html (cross-package)")
+    return nil
+}
+
 // Vet runs go vet.
 func Vet() error {
     return sh.RunV("go", "vet", "./...")
@@ -99,4 +166,3 @@ func DevInstall() error {
     }
     return sh.RunV("go", "install", "github.com/golangci/golangci-lint/cmd/golangci-lint@latest")
 }
-
