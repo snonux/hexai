@@ -4,10 +4,12 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
+    "fmt"
+    "os"
+    "path/filepath"
+    "strings"
+    "strconv"
+    "regexp"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
@@ -18,8 +20,9 @@ var Default = Build
 
 // Build builds the Hexai LSP and CLI binaries.
 func Build() error {
-	mg.Deps(BuildHexaiLSP, BuildHexaiCLI)
-	return nil
+    mg.Deps(BuildHexaiLSP, BuildHexaiCLI)
+    warnIfLowCoverage(80.0)
+    return nil
 }
 
 // BuildHexaiLSP builds the LSP server binary.
@@ -56,8 +59,8 @@ func RunCLI() error {
 
 // Install copies built binaries to GOPATH/bin (defaults to ~/go/bin when GOPATH is unset).
 func Install() error {
-	mg.Deps(Build)
-	gopath := os.Getenv("GOPATH")
+    mg.Deps(Build)
+    gopath := os.Getenv("GOPATH")
 	if gopath == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -69,10 +72,54 @@ func Install() error {
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		return err
 	}
-	if err := sh.RunV("cp", "-v", "./hexai-lsp", bin+"/"); err != nil {
-		return err
-	}
-	return sh.RunV("cp", "-v", "./hexai", bin+"/")
+    if err := sh.RunV("cp", "-v", "./hexai-lsp", bin+"/"); err != nil {
+        return err
+    }
+    return sh.RunV("cp", "-v", "./hexai", bin+"/")
+}
+
+// warnIfLowCoverage prints a warning if an existing coverage profile shows total < threshold.
+// It prefers docs/coverall.out, then docs/cover.out. It does not run tests.
+func warnIfLowCoverage(threshold float64) {
+    profile := ""
+    if _, err := os.Stat("docs/coverall.out"); err == nil {
+        profile = "docs/coverall.out"
+    } else if _, err := os.Stat("docs/cover.out"); err == nil {
+        profile = "docs/cover.out"
+    }
+    if profile == "" {
+        fmt.Println("[coverage] No coverage profile found (run 'mage cover' or 'mage coverall').")
+        return
+    }
+    pct, ok := totalCoveragePercent(profile)
+    if !ok {
+        fmt.Println("[coverage] Could not parse total coverage from", profile)
+        return
+    }
+    if pct < threshold {
+        fmt.Printf("WARNING: total test coverage is %.1f%% (< %.1f%%)\n", pct, threshold)
+    } else {
+        fmt.Printf("[coverage] total test coverage: %.1f%% (>= %.1f%%)\n", pct, threshold)
+    }
+}
+
+// totalCoveragePercent returns the parsed total percentage from a coverage profile using `go tool cover -func`.
+func totalCoveragePercent(profile string) (float64, bool) {
+    out, err := sh.Output("go", "tool", "cover", "-func="+profile)
+    if err != nil {
+        return 0, false
+    }
+    // Find a line like: "total:\t(statements)\t75.3%"
+    re := regexp.MustCompile(`(?m)^total:\s*\(statements\)\s*([0-9]+\.[0-9]+|[0-9]+)%\s*$`)
+    m := re.FindStringSubmatch(out)
+    if len(m) != 2 {
+        return 0, false
+    }
+    f, err := strconv.ParseFloat(m[1], 64)
+    if err != nil {
+        return 0, false
+    }
+    return f, true
 }
 
 // Test runs the test suite.
