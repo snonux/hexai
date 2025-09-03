@@ -17,6 +17,8 @@ The config file is optional.
   "context_window_lines": 120,
   "max_context_tokens": 4000,
   "log_preview_limit": 100,
+  "completion_debounce_ms": 200,
+  "completion_throttle_ms": 0,
   "no_disk_io": true,
   "trigger_characters": [".", ":", "/", "_", " " ],
   "coding_temperature": 0.2,
@@ -40,6 +42,8 @@ Key fields:
 - context_window_lines: line count for `window` mode.
 - max_context_tokens: hard cap for sent context tokens.
 - log_preview_limit: max characters of context preview logged.
+- completion_debounce_ms: minimum idle time before sending completion requests.
+- completion_throttle_ms: minimum spacing between completion requests (0 disables).
 - no_disk_io: avoid reading files from disk when building context.
 - trigger_characters: LSP completion trigger characters.
 - coding_temperature: optional override for LSP calls.
@@ -52,6 +56,7 @@ Key fields:
 - Examples:
   - `HEXAI_PROVIDER`, `HEXAI_MAX_TOKENS`, `HEXAI_CONTEXT_MODE`, `HEXAI_CONTEXT_WINDOW_LINES`, `HEXAI_MAX_CONTEXT_TOKENS`, `HEXAI_LOG_PREVIEW_LIMIT`
   - `HEXAI_CODING_TEMPERATURE`
+  - `HEXAI_COMPLETION_DEBOUNCE_MS`, `HEXAI_COMPLETION_THROTTLE_MS`
   - `HEXAI_TRIGGER_CHARACTERS` (comma-separated, e.g., `".,:,_ , "`)
   - `HEXAI_OPENAI_MODEL`, `HEXAI_OPENAI_BASE_URL`, `HEXAI_OPENAI_TEMPERATURE`
   - `HEXAI_COPILOT_MODEL`, `HEXAI_COPILOT_BASE_URL`, `HEXAI_COPILOT_TEMPERATURE`
