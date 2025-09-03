@@ -124,7 +124,8 @@ type CodeActionParams struct {
 }
 
 type WorkspaceEdit struct {
-	Changes map[string][]TextEdit `json:"changes,omitempty"`
+    Changes         map[string][]TextEdit `json:"changes,omitempty"`
+    DocumentChanges []any                 `json:"documentChanges,omitempty"`
 }
 
 // ApplyWorkspaceEditParams is the client request payload for workspace/applyEdit.
@@ -134,10 +135,34 @@ type ApplyWorkspaceEditParams struct {
 }
 
 type CodeAction struct {
-	Title string          `json:"title"`
-	Kind  string          `json:"kind,omitempty"`
-	Edit  *WorkspaceEdit  `json:"edit,omitempty"`
-	Data  json.RawMessage `json:"data,omitempty"`
+    Title string          `json:"title"`
+    Kind  string          `json:"kind,omitempty"`
+    Edit  *WorkspaceEdit  `json:"edit,omitempty"`
+    Data  json.RawMessage `json:"data,omitempty"`
+    Command *Command      `json:"command,omitempty"`
+}
+
+// Extended workspace edit types (minimal subset)
+type TextDocumentEdit struct {
+    TextDocument VersionedTextDocumentIdentifier `json:"textDocument"`
+    Edits        []TextEdit                      `json:"edits"`
+}
+
+type CreateFile struct {
+    Kind string `json:"kind"`
+    URI  string `json:"uri"`
+}
+
+// Commands
+type Command struct {
+    Title     string `json:"title"`
+    Command   string `json:"command"`
+    Arguments []any  `json:"arguments,omitempty"`
+}
+
+type ExecuteCommandParams struct {
+    Command   string `json:"command"`
+    Arguments []any  `json:"arguments,omitempty"`
 }
 
 // Diagnostics (subset needed for code action context)

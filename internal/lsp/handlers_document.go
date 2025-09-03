@@ -254,12 +254,12 @@ func stripTrailingTrigger(sx string) string {
 
 // clientApplyEdit sends a workspace/applyEdit request to the client.
 func (s *Server) clientApplyEdit(label string, edit WorkspaceEdit) {
-	params := ApplyWorkspaceEditParams{Label: label, Edit: edit}
-	id := s.nextReqID()
-	req := Request{JSONRPC: "2.0", ID: id, Method: "workspace/applyEdit"}
-	b, _ := json.Marshal(params)
-	req.Params = b
-	s.writeMessage(req)
+    params := ApplyWorkspaceEditParams{Label: label, Edit: edit}
+    id := s.nextReqID()
+    req := Request{JSONRPC: "2.0", ID: id, Method: "workspace/applyEdit"}
+    b, _ := json.Marshal(params)
+    req.Params = b
+    s.writeMessage(req)
 }
 
 // nextReqID returns a unique json.RawMessage id for server-initiated requests.
@@ -270,4 +270,31 @@ func (s *Server) nextReqID() json.RawMessage {
 	s.mu.Unlock()
 	b, _ := json.Marshal(idNum)
 	return b
+}
+
+// clientShowDocument asks the client to open/focus a document and select a range.
+func (s *Server) clientShowDocument(uri string, sel *Range) {
+    var params struct {
+        URI       string `json:"uri"`
+        External  bool   `json:"external,omitempty"`
+        TakeFocus bool   `json:"takeFocus,omitempty"`
+        Selection *Range `json:"selection,omitempty"`
+    }
+    params.URI = uri
+    params.TakeFocus = true
+    params.Selection = sel
+    id := s.nextReqID()
+    req := Request{JSONRPC: "2.0", ID: id, Method: "window/showDocument"}
+    b, _ := json.Marshal(params)
+    req.Params = b
+    s.writeMessage(req)
+}
+
+// deferShowDocument schedules a showDocument after a short delay to allow the client
+// time to apply any pending edits (e.g., create the file before focusing it).
+func (s *Server) deferShowDocument(uri string, sel Range) {
+    go func() {
+        time.Sleep(120 * time.Millisecond)
+        s.clientShowDocument(uri, &sel)
+    }()
 }

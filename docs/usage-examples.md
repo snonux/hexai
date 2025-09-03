@@ -65,6 +65,7 @@ Operate on the current selection in Helix:
 
 - Rewrite selection: finds the first instruction inside the selection and rewrites accordingly.
 - Resolve diagnostics: gathers only diagnostics overlapping the selection and fixes them by editing the selected code; diagnostics outside the selection are not changed.
+- Implement unit test (Go): when editing a `.go` file, adds a code action to generate a unit test for the function under the cursor. If `<file>_test.go` exists, appends a new `Test*`; otherwise creates the test file with `package` and `import "testing"`.
 
 Instruction sources (first match wins):
 

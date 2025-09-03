@@ -121,6 +121,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 		"textDocument/completion": s.handleCompletion,
 		"textDocument/codeAction": s.handleCodeAction,
 		"codeAction/resolve":      s.handleCodeActionResolve,
+		"workspace/executeCommand": s.handleExecuteCommand,
 	}
 	return s
 }
