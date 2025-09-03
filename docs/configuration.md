@@ -44,6 +44,7 @@ Key fields:
 - log_preview_limit: max characters of context preview logged.
 - completion_debounce_ms: minimum idle time before sending completion requests.
 - completion_throttle_ms: minimum spacing between completion requests (0 disables).
+- manual_invoke_min_prefix: minimum typed identifier chars required for manual invoke to proceed without structural triggers (0 allows always).
 - no_disk_io: avoid reading files from disk when building context.
 - trigger_characters: LSP completion trigger characters.
 - coding_temperature: optional override for LSP calls.
@@ -100,6 +101,14 @@ Notes:
 - Ensure the model is available locally (e.g., `ollama pull qwen3-coder:30b-a3b-q4_K_M`).
 - Alternatively, run Ollama in OpenAI‑compatible mode and use the OpenAI provider with
   `openai_base_url` pointed at your local endpoint.
+
+## LSP completion tuning
+
+- Debounce: `completion_debounce_ms` waits until there has been no recent input for at least this many milliseconds before sending a completion request. Recommended 150–300 ms to balance responsiveness and API usage.
+- Throttle: `completion_throttle_ms` enforces a minimum spacing between completion requests, across both chat and provider-native paths. Set to 0 to disable. Recommended 300–600 ms if you still see excessive requests with just debounce.
+- Manual invoke prefix: `manual_invoke_min_prefix` requires this many identifier characters before a manual completion (TriggerKind=1) proceeds without other triggers. Use 0 to always allow manual invoke.
+
+Environment variables mirror these settings: `HEXAI_COMPLETION_DEBOUNCE_MS`, `HEXAI_COMPLETION_THROTTLE_MS`, `HEXAI_MANUAL_INVOKE_MIN_PREFIX`.
 
 ## Temperature behavior
 
