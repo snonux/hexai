@@ -1,17 +1,23 @@
 # Ideas
 
-## Code quality
-* [X] Delete dead code: `field noDiskIO is unused (U1000)` in `internal/lsp/server.go:30:2`
+## Code qualoty
+
+* [/] TODO's in the code to be addressed
+* [/] No more than 1000 LOC per source file
+* [/] No more than 50 LOC per function
+* [/] Each struct type in his own file
+* [/] Sufficient unit tests
 
 ## Features
 
 ### Improvements
 
-* [X] TODO's in the code to be addressed
-* [ ] Include unit test coverage reports
+* [X] Include unit test coverage reports
+* [ ] Change inline triggers to include > to be more consistent with other triggers
 
 ### New features
 
+* [X] Create "generate unit test" code action for selected code block => write test to FILE_test.go file
 * [ ] implement a code action for selected code block the way via a unix pipe as faster access in helix
 * [X] Use hexai as a gh copilot... CLI replacemant for command line questions
 * [X] Resolve diagnostics code action feature
@@ -22,16 +28,13 @@
 * [/] Be a replacement for 'github copilot cli'
 * [X] Be able to perform inline chats (keeping history in the document)
 * [ ] Be able to switch the underlying model via a prompt
-* [/] Fine tune when Large Language Model (LLM) completions trigger, as it seems that there are some cases where the Large Language Model (LLM) receives a request but Helix isn't suggesting any completions. There seems to be something odd with the in logic. Investigate the TriggerChar logic and make sure it matches Helix's expectations.
-  * [ ] Actually document the completion timeout settings in HelixEditor 
-* [X] Only one code completion should run at a time, even if multiple triggers occur simultaneously
-* [ ] Create "generate unit test" code action for selected code block => write test to FILE_test.go file
+* [X] Fine tune when Large Language Model (LLM) completions trigger, as it seems that there are some cases where the Large Language Model (LLM) receives a request but Helix isn't suggesting any completions. There seems to be something odd with the in logic. Investigate the TriggerChar logic and make sure it matches Helix's expectations.
 * [X] Can anything else can be done with LSP?
 
 Be able to select code blocks and perform code actions on them
 
-* [ ] Commenting exiting code
-* [ ] Improve code
+* [X] Commenting exiting code
+* [X] Add unit test (for Go)
 * [X] Code refactoring (via comment instruction)
 
 Be able to switch LLMs. 
