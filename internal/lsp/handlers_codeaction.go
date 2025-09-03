@@ -30,11 +30,14 @@ func (s *Server) handleCodeAction(req Request) {
 	}
     sel := extractRangeText(d, p.Range)
 
-    actions := make([]CodeAction, 0, 3)
+    actions := make([]CodeAction, 0, 4)
     if a := s.buildRewriteCodeAction(p, sel); a != nil {
         actions = append(actions, *a)
     }
     if a := s.buildDiagnosticsCodeAction(p, sel); a != nil {
+        actions = append(actions, *a)
+    }
+    if a := s.buildDocumentCodeAction(p, sel); a != nil {
         actions = append(actions, *a)
     }
     if a := s.buildGoUnitTestCodeAction(p); a != nil {
@@ -136,6 +139,22 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		} else {
 			logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
 		}
+    case "document":
+        sys := "You are a precise code documentation engine. Add idiomatic documentation comments to the given code. Preserve exact behavior and formatting as much as possible. Return only the updated code with comments, no prose or backticks."
+        user := "Add documentation comments to this code:\n" + payload.Selection
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+        opts := s.llmRequestOpts()
+        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+            if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+                ca.Edit = &edit
+                return ca, true
+            }
+        } else {
+            logging.Logf("lsp ", "codeAction document llm error: %v", err)
+        }
     case "go_test":
         if edit, jumpURI, jumpRange, ok := s.resolveGoTest(payload.URI, payload.Range.Start); ok {
             ca.Edit = &edit
@@ -245,6 +264,25 @@ func (s *Server) buildGoUnitTestCodeAction(p CodeActionParams) *CodeAction {
     }{Type: "go_test", URI: uri, Range: p.Range}
     raw, _ := json.Marshal(payload)
     ca := CodeAction{Title: "Hexai: implement unit test", Kind: "quickfix", Data: raw}
+    return &ca
+}
+
+// buildDocumentCodeAction offers to document the selected code by injecting comments.
+func (s *Server) buildDocumentCodeAction(p CodeActionParams, sel string) *CodeAction {
+    if s.llmClient == nil {
+        return nil
+    }
+    if strings.TrimSpace(sel) == "" {
+        return nil
+    }
+    payload := struct {
+        Type      string `json:"type"`
+        URI       string `json:"uri"`
+        Range     Range  `json:"range"`
+        Selection string `json:"selection"`
+    }{Type: "document", URI: p.TextDocument.URI, Range: p.Range, Selection: sel}
+    raw, _ := json.Marshal(payload)
+    ca := CodeAction{Title: "Hexai: document code", Kind: "refactor.rewrite", Data: raw}
     return &ca
 }
 
