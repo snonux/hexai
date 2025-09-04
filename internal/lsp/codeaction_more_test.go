@@ -22,6 +22,23 @@ func TestBuildDocumentCodeAction_AndResolve(t *testing.T) {
     if len(edits) != 1 || strings.TrimSpace(edits[0].NewText) == "" { t.Fatalf("expected replacement text") }
 }
 
+func TestResolveCodeAction_Rewrite(t *testing.T) {
+    s := newTestServer()
+    s.llmClient = fakeLLM{resp: "rewritten"}
+    uri := "file:///x.go"
+    s.setDocument(uri, "package p\nvar a=1\n")
+    payload := struct {
+        Type        string `json:"type"`
+        URI         string `json:"uri"`
+        Range       Range  `json:"range"`
+        Instruction string `json:"instruction"`
+        Selection   string `json:"selection"`
+    }{Type: "rewrite", URI: uri, Range: Range{Start: Position{Line:1}, End: Position{Line:1, Character: 5}}, Instruction: "do it", Selection: "var a"}
+    raw, _ := json.Marshal(payload)
+    ca := CodeAction{Title: "Hexai: rewrite selection", Data: raw}
+    if resolved, ok := s.resolveCodeAction(ca); !ok || resolved.Edit == nil { t.Fatalf("expected resolved rewrite edit") }
+}
+
 func TestBuildGoUnitTestCodeAction_AndResolveCreate(t *testing.T) {
     s := newTestServer()
     // place files under a temp dir to avoid collisions
@@ -66,4 +83,3 @@ func TestDocBeforeAfter(t *testing.T) {
     before, after := s.docBeforeAfter(uri, Position{Line:1, Character:1})
     if before != "ab\nc" || after != "d\nef" { t.Fatalf("before=%q after=%q", before, after) }
 }
-

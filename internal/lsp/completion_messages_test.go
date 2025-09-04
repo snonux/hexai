@@ -44,6 +44,22 @@ func TestBuildDocString_Contents(t *testing.T) {
     }
 }
 
+func TestBuildPrompts_InParams(t *testing.T) {
+    p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x"}, Position: Position{Line:0, Character:5}}
+    sys, user := buildPrompts(true, p, "a", "func f(x)", "c", "func f(x)")
+    if !contains(sys, "function signatures") || !contains(user, "parameter list") { t.Fatalf("unexpected in-params prompts") }
+}
+
+func TestPostProcessCompletion_CodeFencesAndDuplicates(t *testing.T) {
+    s := newTestServer()
+    // code fences
+    cleaned := s.postProcessCompletion("```go\nname := value\n```", "", "")
+    if cleaned == "" { t.Fatalf("expected non-empty after fence removal") }
+    // duplicate assignment prefix strip
+    cleaned2 := s.postProcessCompletion("name := other", "name := ", "name := ")
+    if cleaned2 == "" || cleaned2 == "name := other" { t.Fatalf("expected duplicate assignment prefix stripped: %q", cleaned2) }
+}
+
 func contains(s, sub string) bool { return len(s) >= len(sub) && (s == sub || (len(sub) > 0 && (stringIndex(s, sub) >= 0))) }
 func stringIndex(s, sub string) int { return len([]rune(s[:])) - len([]rune(s[:])) + (func() int { return intIndex(s, sub) })() }
 func intIndex(s, sub string) int { return Index(s, sub) }
@@ -55,4 +71,3 @@ func Index(s, sub string) int {
     }
     return -1
 }
-

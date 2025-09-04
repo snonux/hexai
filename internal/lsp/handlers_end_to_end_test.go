@@ -3,6 +3,7 @@ package lsp
 import (
     "bytes"
     "encoding/json"
+    "fmt"
     "io"
     "log"
     "strings"
@@ -29,14 +30,35 @@ func captureResponse(t *testing.T, buf *bytes.Buffer) Response {
 func captureRequest(t *testing.T, buf *bytes.Buffer) Request {
     t.Helper()
     raw := buf.String()
-    idx := strings.Index(raw, "\r\n\r\n")
-    if idx < 0 { t.Fatalf("no header/body separator in %q", raw) }
-    body := raw[idx+4:]
-    var req Request
-    if err := json.Unmarshal([]byte(body), &req); err != nil {
-        t.Fatalf("unmarshal request: %v", err)
+    // There may be multiple framed messages concatenated; scan for each
+    off := 0
+    for off < len(raw) {
+        rest := raw[off:]
+        idx := strings.Index(rest, "\r\n\r\n")
+        if idx < 0 { break }
+        body := rest[idx+4:]
+        // Content-Length header indicates body length; parse length from header
+        hdr := rest[:idx]
+        clen := 0
+        for _, line := range strings.Split(hdr, "\r\n") {
+            if strings.HasPrefix(strings.ToLower(line), "content-length:") {
+                var n int
+                _, _ = fmt.Sscanf(line, "Content-Length: %d", &n)
+                clen = n
+                break
+            }
+        }
+        if clen <= 0 || clen > len(body) { clen = len(body) }
+        piece := body[:clen]
+        var req Request
+        _ = json.Unmarshal([]byte(piece), &req)
+        if req.Method != "" {
+            return req
+        }
+        off += idx + 4 + clen
     }
-    return req
+    t.Fatalf("no request found in output")
+    return Request{}
 }
 
 func TestHandleCodeAction_ListsHexaiActions(t *testing.T) {
@@ -139,6 +161,31 @@ func TestHandleCodeAction_NoLLMOrEmptySelection_ReturnsEmpty(t *testing.T) {
 }
 
 func mustJSON(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
+
+func TestHandle_UnknownMethod_ReturnsError(t *testing.T) {
+    var out bytes.Buffer
+    s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out, handlers: map[string]func(Request){}}
+    req := Request{JSONRPC: "2.0", ID: json.RawMessage("9"), Method: "no/such"}
+    out.Reset()
+    s.handle(req)
+    resp := captureResponse(t, &out)
+    if resp.Error == nil || resp.Error.Code != -32601 { t.Fatalf("expected method not found error, got %+v", resp.Error) }
+}
+
+func TestHandle_Dispatch_Initialize(t *testing.T) {
+    var out bytes.Buffer
+    // Build a server via constructor to ensure handlers map is populated
+    s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{})
+    req := Request{JSONRPC: "2.0", ID: json.RawMessage("13"), Method: "initialize"}
+    out.Reset()
+    s.handle(req)
+    resp := captureResponse(t, &out)
+    var init InitializeResult
+    b, _ := json.Marshal(resp.Result)
+    _ = json.Unmarshal(b, &init)
+    if init.Capabilities.CodeActionProvider == nil || init.Capabilities.CompletionProvider == nil { t.Fatalf("missing capabilities") }
+}
+
 
 func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
     var out bytes.Buffer
