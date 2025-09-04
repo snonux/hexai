@@ -7,6 +7,7 @@ import (
     "log"
     "strings"
     "testing"
+    "time"
 )
 
 // captureResponse decodes a single LSP Response from the server's output buffer.
@@ -22,6 +23,20 @@ func captureResponse(t *testing.T, buf *bytes.Buffer) Response {
         t.Fatalf("unmarshal response: %v", err)
     }
     return resp
+}
+
+// captureRequest decodes a single JSON-RPC Request from the server's output buffer.
+func captureRequest(t *testing.T, buf *bytes.Buffer) Request {
+    t.Helper()
+    raw := buf.String()
+    idx := strings.Index(raw, "\r\n\r\n")
+    if idx < 0 { t.Fatalf("no header/body separator in %q", raw) }
+    body := raw[idx+4:]
+    var req Request
+    if err := json.Unmarshal([]byte(body), &req); err != nil {
+        t.Fatalf("unmarshal request: %v", err)
+    }
+    return req
 }
 
 func TestHandleCodeAction_ListsHexaiActions(t *testing.T) {
@@ -94,3 +109,52 @@ func TestHandleCodeActionResolve_Document(t *testing.T) {
     if resolved.Edit == nil { t.Fatalf("expected resolved edit") }
 }
 
+func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
+    var out bytes.Buffer
+    s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+    s.llmClient = fakeLLM{resp: "Hello"}
+    uri := "file:///chat.go"
+    // Place a prompt line with a supported trigger at EOL, then a blank line
+    s.setDocument(uri, "What time?>\n\n")
+    out.Reset()
+    s.detectAndHandleChat(uri)
+    // Allow async goroutine to write the request
+    for i := 0; i < 20 && out.Len() == 0; i++ { time.Sleep(10 * time.Millisecond) }
+    if out.Len() == 0 { t.Fatalf("no output written by detectAndHandleChat") }
+    // Expect a workspace/applyEdit request to be written
+    req := captureRequest(t, &out)
+    if req.Method != "workspace/applyEdit" { t.Fatalf("expected workspace/applyEdit, got %s", req.Method) }
+    var params ApplyWorkspaceEditParams
+    if err := json.Unmarshal(req.Params, &params); err != nil { t.Fatalf("decode params: %v", err) }
+    we := params.Edit
+    if len(we.Changes) == 0 { t.Fatalf("expected changes in edit") }
+    edits := we.Changes[uri]
+    if len(edits) != 2 { t.Fatalf("expected 2 edits (delete+insert), got %d", len(edits)) }
+    if !strings.Contains(edits[1].NewText, "> Hello") { t.Fatalf("expected reply insertion with '> Hello', got %q", edits[1].NewText) }
+}
+
+func TestHandleCodeActionResolve_Diagnostics(t *testing.T) {
+    var out bytes.Buffer
+    s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+    s.llmClient = fakeLLM{resp: "fixed"}
+    uri := "file:///x.go"
+    s.setDocument(uri, "package p\nvar x = 1\n")
+    payload := struct {
+        Type        string       `json:"type"`
+        URI         string       `json:"uri"`
+        Range       Range        `json:"range"`
+        Selection   string       `json:"selection"`
+        Diagnostics []Diagnostic `json:"diagnostics"`
+    }{Type: "diagnostics", URI: uri, Range: Range{Start: Position{Line:1}, End: Position{Line:1, Character: 10}}, Selection: "var x = 1", Diagnostics: []Diagnostic{{Range: Range{Start: Position{Line:1}, End: Position{Line:1, Character:5}}, Message: "bad"}}}
+    raw, _ := json.Marshal(payload)
+    ca := CodeAction{Title: "Hexai: resolve diagnostics", Data: raw}
+    b, _ := json.Marshal(ca)
+    req := Request{JSONRPC: "2.0", ID: json.RawMessage("3"), Method: "codeAction/resolve", Params: b}
+    out.Reset()
+    s.handleCodeActionResolve(req)
+    resp := captureResponse(t, &out)
+    var resolved CodeAction
+    rb, _ := json.Marshal(resp.Result)
+    if err := json.Unmarshal(rb, &resolved); err != nil { t.Fatalf("decode resolved: %v", err) }
+    if resolved.Edit == nil { t.Fatalf("expected resolved edit for diagnostics") }
+}
