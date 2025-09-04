@@ -109,6 +109,37 @@ func TestHandleCodeActionResolve_Document(t *testing.T) {
     if resolved.Edit == nil { t.Fatalf("expected resolved edit") }
 }
 
+func TestHandleCodeAction_NoLLMOrEmptySelection_ReturnsEmpty(t *testing.T) {
+    var out bytes.Buffer
+    s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+    uri := "file:///x.go"
+    s.setDocument(uri, "package p\n\n")
+    // Empty selection
+    p := CodeActionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Range: Range{Start: Position{Line:1}, End: Position{Line:1}}}
+    b, _ := json.Marshal(p)
+    req := Request{JSONRPC: "2.0", ID: json.RawMessage("4"), Method: "textDocument/codeAction", Params: b}
+    out.Reset()
+    s.handleCodeAction(req)
+    resp := captureResponse(t, &out)
+    var actions []CodeAction
+    rb, _ := json.Marshal(resp.Result)
+    _ = json.Unmarshal(rb, &actions)
+    if len(actions) != 0 { t.Fatalf("expected no actions for empty selection, got %d", len(actions)) }
+
+    // No llm client: should also return empty even if selection non-empty
+    p2 := CodeActionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Range: Range{Start: Position{Line:0}, End: Position{Line:0, Character:7}}}
+    out.Reset()
+    req2 := Request{JSONRPC: "2.0", ID: json.RawMessage("5"), Method: "textDocument/codeAction", Params: mustJSON(p2)}
+    s.handleCodeAction(req2)
+    resp2 := captureResponse(t, &out)
+    var actions2 []CodeAction
+    rb2, _ := json.Marshal(resp2.Result)
+    _ = json.Unmarshal(rb2, &actions2)
+    if len(actions2) != 0 { t.Fatalf("expected no actions when llm is nil") }
+}
+
+func mustJSON(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
+
 func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
     var out bytes.Buffer
     s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
