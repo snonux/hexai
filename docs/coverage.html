@@ -59,7 +59,7 @@
 				
 				<option value="file1">codeberg.org/snonux/hexai/cmd/hexai/main.go (0.0%)</option>
 				
-				<option value="file2">codeberg.org/snonux/hexai/internal/appconfig/config.go (0.0%)</option>
+				<option value="file2">codeberg.org/snonux/hexai/internal/appconfig/config.go (94.6%)</option>
 				
 				<option value="file3">codeberg.org/snonux/hexai/internal/hexaicli/run.go (63.8%)</option>
 				
@@ -69,15 +69,15 @@
 				
 				<option value="file6">codeberg.org/snonux/hexai/internal/llm/ollama.go (13.9%)</option>
 				
-				<option value="file7">codeberg.org/snonux/hexai/internal/llm/openai.go (27.5%)</option>
+				<option value="file7">codeberg.org/snonux/hexai/internal/llm/openai.go (32.6%)</option>
 				
-				<option value="file8">codeberg.org/snonux/hexai/internal/llm/provider.go (0.0%)</option>
+				<option value="file8">codeberg.org/snonux/hexai/internal/llm/provider.go (37.9%)</option>
 				
 				<option value="file9">codeberg.org/snonux/hexai/internal/llm/util.go (0.0%)</option>
 				
-				<option value="file10">codeberg.org/snonux/hexai/internal/logging/chatlogger.go (0.0%)</option>
+				<option value="file10">codeberg.org/snonux/hexai/internal/logging/chatlogger.go (14.3%)</option>
 				
-				<option value="file11">codeberg.org/snonux/hexai/internal/logging/logging.go (0.0%)</option>
+				<option value="file11">codeberg.org/snonux/hexai/internal/logging/logging.go (90.9%)</option>
 				
 				<option value="file12">codeberg.org/snonux/hexai/internal/lsp/context.go (71.8%)</option>
 				
@@ -97,9 +97,9 @@
 				
 				<option value="file20">codeberg.org/snonux/hexai/internal/lsp/handlers_utils.go (65.3%)</option>
 				
-				<option value="file21">codeberg.org/snonux/hexai/internal/lsp/server.go (58.3%)</option>
+				<option value="file21">codeberg.org/snonux/hexai/internal/lsp/server.go (68.8%)</option>
 				
-				<option value="file22">codeberg.org/snonux/hexai/internal/lsp/transport.go (0.0%)</option>
+				<option value="file22">codeberg.org/snonux/hexai/internal/lsp/transport.go (17.1%)</option>
 				
 				</select>
 			</div>
@@ -230,7 +230,7 @@ type App struct {
 }
 
 // Constructor: defaults for App (kept first among functions)
-func newDefaultConfig() App <span class="cov0" title="0">{
+func newDefaultConfig() App <span class="cov5" title="8">{
         // Coding-friendly default temperature across providers
         // Users can override per provider in config.json (including 0.0).
         t := 0.2
@@ -252,18 +252,18 @@ func newDefaultConfig() App <span class="cov0" title="0">{
 
 // Load reads configuration from a file and merges with defaults.
 // It respects the XDG Base Directory Specification.
-func Load(logger *log.Logger) App <span class="cov0" title="0">{
+func Load(logger *log.Logger) App <span class="cov4" title="7">{
     cfg := newDefaultConfig()
-    if logger == nil </span><span class="cov0" title="0">{
+    if logger == nil </span><span class="cov3" title="3">{
         return cfg // Return defaults if no logger is provided (e.g. in tests)
     }</span>
 
-    <span class="cov0" title="0">configPath, err := getConfigPath()
+    <span class="cov3" title="4">configPath, err := getConfigPath()
     if err != nil </span><span class="cov0" title="0">{
         logger.Printf("%v", err)
         // Even if config path cannot be resolved, still allow env overrides below.
-    }</span> else<span class="cov0" title="0"> {
-        if fileCfg, err := loadFromFile(configPath, logger); err == nil &amp;&amp; fileCfg != nil </span><span class="cov0" title="0">{
+    }</span> else<span class="cov3" title="4"> {
+        if fileCfg, err := loadFromFile(configPath, logger); err == nil &amp;&amp; fileCfg != nil </span><span class="cov2" title="2">{
             cfg.mergeWith(fileCfg)
         }</span>
         // When the config file is missing or invalid, we keep defaults and still
@@ -271,203 +271,203 @@ func Load(logger *log.Logger) App <span class="cov0" title="0">{
     }
 
     // Environment overrides (take precedence over file)
-    <span class="cov0" title="0">if envCfg := loadFromEnv(logger); envCfg != nil </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if envCfg := loadFromEnv(logger); envCfg != nil </span><span class="cov1" title="1">{
         cfg.mergeWith(envCfg)
     }</span>
-    <span class="cov0" title="0">return cfg</span>
+    <span class="cov3" title="4">return cfg</span>
 }
 
 // Private helpers
-func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="cov0" title="0">{
+func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="cov4" title="5">{
         f, err := os.Open(path)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov2" title="2">{
                 if !os.IsNotExist(err) &amp;&amp; logger != nil </span><span class="cov0" title="0">{
                         logger.Printf("cannot open config file %s: %v", path, err)
                 }</span>
-                <span class="cov0" title="0">return nil, err</span>
+                <span class="cov2" title="2">return nil, err</span>
         }
-        <span class="cov0" title="0">defer f.Close()
+        <span class="cov3" title="3">defer f.Close()
 
         dec := json.NewDecoder(f)
         var fileCfg App
-        if err := dec.Decode(&amp;fileCfg); err != nil </span><span class="cov0" title="0">{
-                if logger != nil </span><span class="cov0" title="0">{
+        if err := dec.Decode(&amp;fileCfg); err != nil </span><span class="cov1" title="1">{
+                if logger != nil </span><span class="cov1" title="1">{
                         logger.Printf("invalid config file %s: %v", path, err)
                 }</span>
-                <span class="cov0" title="0">return nil, err</span>
+                <span class="cov1" title="1">return nil, err</span>
         }
-        <span class="cov0" title="0">return &amp;fileCfg, nil</span>
+        <span class="cov2" title="2">return &amp;fileCfg, nil</span>
 }
 
-func (a *App) mergeWith(other *App) <span class="cov0" title="0">{
+func (a *App) mergeWith(other *App) <span class="cov3" title="3">{
     a.mergeBasics(other)
     a.mergeProviderFields(other)
 }</span>
 
 // mergeBasics merges general (non-provider) fields.
-func (a *App) mergeBasics(other *App) <span class="cov0" title="0">{
-        if other.MaxTokens &gt; 0 </span><span class="cov0" title="0">{
+func (a *App) mergeBasics(other *App) <span class="cov3" title="3">{
+        if other.MaxTokens &gt; 0 </span><span class="cov3" title="3">{
                 a.MaxTokens = other.MaxTokens
         }</span>
-        <span class="cov0" title="0">if s := strings.TrimSpace(other.ContextMode); s != "" </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if s := strings.TrimSpace(other.ContextMode); s != "" </span><span class="cov3" title="3">{
                 a.ContextMode = s
         }</span>
-        <span class="cov0" title="0">if other.ContextWindowLines &gt; 0 </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if other.ContextWindowLines &gt; 0 </span><span class="cov3" title="3">{
                 a.ContextWindowLines = other.ContextWindowLines
         }</span>
-        <span class="cov0" title="0">if other.MaxContextTokens &gt; 0 </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if other.MaxContextTokens &gt; 0 </span><span class="cov3" title="3">{
                 a.MaxContextTokens = other.MaxContextTokens
         }</span>
-        <span class="cov0" title="0">if other.LogPreviewLimit &gt;= 0 </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if other.LogPreviewLimit &gt;= 0 </span><span class="cov3" title="3">{
                 a.LogPreviewLimit = other.LogPreviewLimit
         }</span>
-    <span class="cov0" title="0">if other.CodingTemperature != nil </span><span class="cov0" title="0">{ // allow explicit 0.0
+    <span class="cov3" title="3">if other.CodingTemperature != nil </span><span class="cov3" title="3">{ // allow explicit 0.0
         a.CodingTemperature = other.CodingTemperature
     }</span>
-    <span class="cov0" title="0">if other.ManualInvokeMinPrefix &gt;= 0 </span><span class="cov0" title="0">{
+    <span class="cov3" title="3">if other.ManualInvokeMinPrefix &gt;= 0 </span><span class="cov3" title="3">{
         a.ManualInvokeMinPrefix = other.ManualInvokeMinPrefix
     }</span>
-    <span class="cov0" title="0">if other.CompletionDebounceMs &gt; 0 </span><span class="cov0" title="0">{ a.CompletionDebounceMs = other.CompletionDebounceMs }</span>
-    <span class="cov0" title="0">if other.CompletionThrottleMs &gt; 0 </span><span class="cov0" title="0">{ a.CompletionThrottleMs = other.CompletionThrottleMs }</span>
-        <span class="cov0" title="0">if len(other.TriggerCharacters) &gt; 0 </span><span class="cov0" title="0">{
+    <span class="cov3" title="3">if other.CompletionDebounceMs &gt; 0 </span><span class="cov3" title="3">{ a.CompletionDebounceMs = other.CompletionDebounceMs }</span>
+    <span class="cov3" title="3">if other.CompletionThrottleMs &gt; 0 </span><span class="cov3" title="3">{ a.CompletionThrottleMs = other.CompletionThrottleMs }</span>
+        <span class="cov3" title="3">if len(other.TriggerCharacters) &gt; 0 </span><span class="cov3" title="3">{
                 a.TriggerCharacters = slices.Clone(other.TriggerCharacters)
         }</span>
-        <span class="cov0" title="0">if s := strings.TrimSpace(other.Provider); s != "" </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if s := strings.TrimSpace(other.Provider); s != "" </span><span class="cov3" title="3">{
                 a.Provider = s
         }</span>
 }
 
 // mergeProviderFields merges per-provider configuration.
-func (a *App) mergeProviderFields(other *App) <span class="cov0" title="0">{
-        if s := strings.TrimSpace(other.OpenAIBaseURL); s != "" </span><span class="cov0" title="0">{
+func (a *App) mergeProviderFields(other *App) <span class="cov3" title="3">{
+        if s := strings.TrimSpace(other.OpenAIBaseURL); s != "" </span><span class="cov3" title="3">{
                 a.OpenAIBaseURL = s
         }</span>
-        <span class="cov0" title="0">if s := strings.TrimSpace(other.OpenAIModel); s != "" </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if s := strings.TrimSpace(other.OpenAIModel); s != "" </span><span class="cov3" title="3">{
                 a.OpenAIModel = s
         }</span>
-        <span class="cov0" title="0">if other.OpenAITemperature != nil </span><span class="cov0" title="0">{ // allow explicit 0.0
+        <span class="cov3" title="3">if other.OpenAITemperature != nil </span><span class="cov3" title="3">{ // allow explicit 0.0
                 a.OpenAITemperature = other.OpenAITemperature
         }</span>
-        <span class="cov0" title="0">if s := strings.TrimSpace(other.OllamaBaseURL); s != "" </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if s := strings.TrimSpace(other.OllamaBaseURL); s != "" </span><span class="cov3" title="3">{
                 a.OllamaBaseURL = s
         }</span>
-        <span class="cov0" title="0">if s := strings.TrimSpace(other.OllamaModel); s != "" </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if s := strings.TrimSpace(other.OllamaModel); s != "" </span><span class="cov3" title="3">{
                 a.OllamaModel = s
         }</span>
-        <span class="cov0" title="0">if other.OllamaTemperature != nil </span><span class="cov0" title="0">{ // allow explicit 0.0
+        <span class="cov3" title="3">if other.OllamaTemperature != nil </span><span class="cov3" title="3">{ // allow explicit 0.0
                 a.OllamaTemperature = other.OllamaTemperature
         }</span>
-        <span class="cov0" title="0">if s := strings.TrimSpace(other.CopilotBaseURL); s != "" </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if s := strings.TrimSpace(other.CopilotBaseURL); s != "" </span><span class="cov3" title="3">{
                 a.CopilotBaseURL = s
         }</span>
-        <span class="cov0" title="0">if s := strings.TrimSpace(other.CopilotModel); s != "" </span><span class="cov0" title="0">{
+        <span class="cov3" title="3">if s := strings.TrimSpace(other.CopilotModel); s != "" </span><span class="cov3" title="3">{
                 a.CopilotModel = s
         }</span>
-        <span class="cov0" title="0">if other.CopilotTemperature != nil </span><span class="cov0" title="0">{ // allow explicit 0.0
+        <span class="cov3" title="3">if other.CopilotTemperature != nil </span><span class="cov3" title="3">{ // allow explicit 0.0
                 a.CopilotTemperature = other.CopilotTemperature
         }</span>
 }
 
-func getConfigPath() (string, error) <span class="cov0" title="0">{
+func getConfigPath() (string, error) <span class="cov4" title="5">{
         var configPath string
-        if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" </span><span class="cov0" title="0">{
+        if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" </span><span class="cov3" title="4">{
                 configPath = filepath.Join(xdgConfigHome, "hexai", "config.json")
-        }</span> else<span class="cov0" title="0"> {
+        }</span> else<span class="cov1" title="1"> {
                 home, err := os.UserHomeDir()
                 if err != nil </span><span class="cov0" title="0">{
                         return "", fmt.Errorf("cannot find user home directory: %v", err)
                 }</span>
-                <span class="cov0" title="0">configPath = filepath.Join(home, ".config", "hexai", "config.json")</span>
+                <span class="cov1" title="1">configPath = filepath.Join(home, ".config", "hexai", "config.json")</span>
         }
-    <span class="cov0" title="0">return configPath, nil</span>
+    <span class="cov4" title="5">return configPath, nil</span>
 }
 
 // --- Environment overrides ---
 
 // loadFromEnv constructs an App containing only fields set via HEXAI_* env vars.
 // These values should take precedence over file config when merged.
-func loadFromEnv(logger *log.Logger) *App <span class="cov0" title="0">{
+func loadFromEnv(logger *log.Logger) *App <span class="cov3" title="4">{
     var out App
     var any bool
 
     // helpers
-    getenv := func(k string) string </span><span class="cov0" title="0">{ return strings.TrimSpace(os.Getenv(k)) }</span>
-    <span class="cov0" title="0">parseInt := func(k string) (int, bool) </span><span class="cov0" title="0">{
+    getenv := func(k string) string </span><span class="cov10" title="80">{ return strings.TrimSpace(os.Getenv(k)) }</span>
+    <span class="cov3" title="4">parseInt := func(k string) (int, bool) </span><span class="cov7" title="28">{
         v := getenv(k)
-        if v == "" </span><span class="cov0" title="0">{ return 0, false }</span>
-        <span class="cov0" title="0">n, err := strconv.Atoi(v)
+        if v == "" </span><span class="cov7" title="21">{ return 0, false }</span>
+        <span class="cov4" title="7">n, err := strconv.Atoi(v)
         if err != nil </span><span class="cov0" title="0">{ if logger != nil </span><span class="cov0" title="0">{ logger.Printf("invalid %s: %v", k, err) }</span> ; <span class="cov0" title="0">return 0, false</span> }
-        <span class="cov0" title="0">return n, true</span>
+        <span class="cov4" title="7">return n, true</span>
     }
-    <span class="cov0" title="0">parseFloatPtr := func(k string) (*float64, bool) </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">parseFloatPtr := func(k string) (*float64, bool) </span><span class="cov6" title="16">{
         v := getenv(k)
-        if v == "" </span><span class="cov0" title="0">{ return nil, false }</span>
-        <span class="cov0" title="0">f, err := strconv.ParseFloat(v, 64)
+        if v == "" </span><span class="cov6" title="12">{ return nil, false }</span>
+        <span class="cov3" title="4">f, err := strconv.ParseFloat(v, 64)
         if err != nil </span><span class="cov0" title="0">{
             if logger != nil </span><span class="cov0" title="0">{ logger.Printf("invalid %s: %v", k, err) }</span>
             <span class="cov0" title="0">return nil, false</span>
         }
-        <span class="cov0" title="0">return &amp;f, true</span>
+        <span class="cov3" title="4">return &amp;f, true</span>
     }
 
-    <span class="cov0" title="0">if n, ok := parseInt("HEXAI_MAX_TOKENS"); ok </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if n, ok := parseInt("HEXAI_MAX_TOKENS"); ok </span><span class="cov1" title="1">{
         out.MaxTokens = n; any = true
     }</span>
-    <span class="cov0" title="0">if s := getenv("HEXAI_CONTEXT_MODE"); s != "" </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if s := getenv("HEXAI_CONTEXT_MODE"); s != "" </span><span class="cov1" title="1">{
         out.ContextMode = s; any = true
     }</span>
-    <span class="cov0" title="0">if n, ok := parseInt("HEXAI_CONTEXT_WINDOW_LINES"); ok </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if n, ok := parseInt("HEXAI_CONTEXT_WINDOW_LINES"); ok </span><span class="cov1" title="1">{
         out.ContextWindowLines = n; any = true
     }</span>
-    <span class="cov0" title="0">if n, ok := parseInt("HEXAI_MAX_CONTEXT_TOKENS"); ok </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if n, ok := parseInt("HEXAI_MAX_CONTEXT_TOKENS"); ok </span><span class="cov1" title="1">{
         out.MaxContextTokens = n; any = true
     }</span>
-    <span class="cov0" title="0">if n, ok := parseInt("HEXAI_LOG_PREVIEW_LIMIT"); ok </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if n, ok := parseInt("HEXAI_LOG_PREVIEW_LIMIT"); ok </span><span class="cov1" title="1">{
         out.LogPreviewLimit = n; any = true
     }</span>
-    <span class="cov0" title="0">if n, ok := parseInt("HEXAI_MANUAL_INVOKE_MIN_PREFIX"); ok </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if n, ok := parseInt("HEXAI_MANUAL_INVOKE_MIN_PREFIX"); ok </span><span class="cov1" title="1">{
         out.ManualInvokeMinPrefix = n; any = true
     }</span>
-    <span class="cov0" title="0">if n, ok := parseInt("HEXAI_COMPLETION_DEBOUNCE_MS"); ok </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if n, ok := parseInt("HEXAI_COMPLETION_DEBOUNCE_MS"); ok </span><span class="cov1" title="1">{
         out.CompletionDebounceMs = n; any = true
     }</span>
-    <span class="cov0" title="0">if n, ok := parseInt("HEXAI_COMPLETION_THROTTLE_MS"); ok </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if n, ok := parseInt("HEXAI_COMPLETION_THROTTLE_MS"); ok </span><span class="cov1" title="1">{
         out.CompletionThrottleMs = n; any = true
     }</span>
-    <span class="cov0" title="0">if f, ok := parseFloatPtr("HEXAI_CODING_TEMPERATURE"); ok </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if f, ok := parseFloatPtr("HEXAI_CODING_TEMPERATURE"); ok </span><span class="cov1" title="1">{
         out.CodingTemperature = f; any = true
     }</span>
-    <span class="cov0" title="0">if s := getenv("HEXAI_TRIGGER_CHARACTERS"); s != "" </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if s := getenv("HEXAI_TRIGGER_CHARACTERS"); s != "" </span><span class="cov1" title="1">{
         parts := strings.Split(s, ",")
         out.TriggerCharacters = nil
-        for _, p := range parts </span><span class="cov0" title="0">{
-            if t := strings.TrimSpace(p); t != "" </span><span class="cov0" title="0">{
+        for _, p := range parts </span><span class="cov3" title="3">{
+            if t := strings.TrimSpace(p); t != "" </span><span class="cov3" title="3">{
                 out.TriggerCharacters = append(out.TriggerCharacters, t)
             }</span>
         }
-        <span class="cov0" title="0">any = true</span>
+        <span class="cov1" title="1">any = true</span>
     }
-    <span class="cov0" title="0">if s := getenv("HEXAI_PROVIDER"); s != "" </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if s := getenv("HEXAI_PROVIDER"); s != "" </span><span class="cov1" title="1">{
         out.Provider = s; any = true
     }</span>
 
     // Provider-specific
-    <span class="cov0" title="0">if s := getenv("HEXAI_OPENAI_BASE_URL"); s != "" </span><span class="cov0" title="0">{ out.OpenAIBaseURL = s; any = true }</span>
-    <span class="cov0" title="0">if s := getenv("HEXAI_OPENAI_MODEL"); s != "" </span><span class="cov0" title="0">{ out.OpenAIModel = s; any = true }</span>
-    <span class="cov0" title="0">if f, ok := parseFloatPtr("HEXAI_OPENAI_TEMPERATURE"); ok </span><span class="cov0" title="0">{ out.OpenAITemperature = f; any = true }</span>
+    <span class="cov3" title="4">if s := getenv("HEXAI_OPENAI_BASE_URL"); s != "" </span><span class="cov1" title="1">{ out.OpenAIBaseURL = s; any = true }</span>
+    <span class="cov3" title="4">if s := getenv("HEXAI_OPENAI_MODEL"); s != "" </span><span class="cov1" title="1">{ out.OpenAIModel = s; any = true }</span>
+    <span class="cov3" title="4">if f, ok := parseFloatPtr("HEXAI_OPENAI_TEMPERATURE"); ok </span><span class="cov1" title="1">{ out.OpenAITemperature = f; any = true }</span>
 
-    <span class="cov0" title="0">if s := getenv("HEXAI_OLLAMA_BASE_URL"); s != "" </span><span class="cov0" title="0">{ out.OllamaBaseURL = s; any = true }</span>
-    <span class="cov0" title="0">if s := getenv("HEXAI_OLLAMA_MODEL"); s != "" </span><span class="cov0" title="0">{ out.OllamaModel = s; any = true }</span>
-    <span class="cov0" title="0">if f, ok := parseFloatPtr("HEXAI_OLLAMA_TEMPERATURE"); ok </span><span class="cov0" title="0">{ out.OllamaTemperature = f; any = true }</span>
+    <span class="cov3" title="4">if s := getenv("HEXAI_OLLAMA_BASE_URL"); s != "" </span><span class="cov1" title="1">{ out.OllamaBaseURL = s; any = true }</span>
+    <span class="cov3" title="4">if s := getenv("HEXAI_OLLAMA_MODEL"); s != "" </span><span class="cov1" title="1">{ out.OllamaModel = s; any = true }</span>
+    <span class="cov3" title="4">if f, ok := parseFloatPtr("HEXAI_OLLAMA_TEMPERATURE"); ok </span><span class="cov1" title="1">{ out.OllamaTemperature = f; any = true }</span>
 
-    <span class="cov0" title="0">if s := getenv("HEXAI_COPILOT_BASE_URL"); s != "" </span><span class="cov0" title="0">{ out.CopilotBaseURL = s; any = true }</span>
-    <span class="cov0" title="0">if s := getenv("HEXAI_COPILOT_MODEL"); s != "" </span><span class="cov0" title="0">{ out.CopilotModel = s; any = true }</span>
-    <span class="cov0" title="0">if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok </span><span class="cov0" title="0">{ out.CopilotTemperature = f; any = true }</span>
+    <span class="cov3" title="4">if s := getenv("HEXAI_COPILOT_BASE_URL"); s != "" </span><span class="cov1" title="1">{ out.CopilotBaseURL = s; any = true }</span>
+    <span class="cov3" title="4">if s := getenv("HEXAI_COPILOT_MODEL"); s != "" </span><span class="cov1" title="1">{ out.CopilotModel = s; any = true }</span>
+    <span class="cov3" title="4">if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok </span><span class="cov1" title="1">{ out.CopilotTemperature = f; any = true }</span>
 
-    <span class="cov0" title="0">if !any </span><span class="cov0" title="0">{
+    <span class="cov3" title="4">if !any </span><span class="cov3" title="3">{
         return nil
     }</span>
-    <span class="cov0" title="0">return &amp;out</span>
+    <span class="cov1" title="1">return &amp;out</span>
 }
 </pre>
 		
@@ -1386,14 +1386,14 @@ type oaStreamChunk struct {
 // Constructor (kept among the first functions by convention)
 // newOpenAI constructs an OpenAI client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
-func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) Client <span class="cov0" title="0">{
-        if strings.TrimSpace(baseURL) == "" </span><span class="cov0" title="0">{
+func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) Client <span class="cov10" title="5">{
+        if strings.TrimSpace(baseURL) == "" </span><span class="cov10" title="5">{
                 baseURL = "https://api.openai.com/v1"
         }</span>
-        <span class="cov0" title="0">if strings.TrimSpace(model) == "" </span><span class="cov0" title="0">{
+        <span class="cov10" title="5">if strings.TrimSpace(model) == "" </span><span class="cov10" title="5">{
                 model = "gpt-4.1"
         }</span>
-        <span class="cov0" title="0">return openAIClient{
+        <span class="cov10" title="5">return openAIClient{
                 httpClient:         &amp;http.Client{Timeout: 30 * time.Second},
                 apiKey:             apiKey,
                 baseURL:            baseURL,
@@ -1449,8 +1449,8 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 }
 
 // Provider metadata
-func (c openAIClient) Name() string         <span class="cov0" title="0">{ return "openai" }</span>
-func (c openAIClient) DefaultModel() string <span class="cov0" title="0">{ return c.defaultModel }</span>
+func (c openAIClient) Name() string         <span class="cov10" title="5">{ return "openai" }</span>
+func (c openAIClient) DefaultModel() string <span class="cov10" title="5">{ return c.defaultModel }</span>
 
 // Streaming support (optional)
 
@@ -1506,25 +1506,25 @@ func (c openAIClient) logStart(stream bool, o Options, messages []Message) <span
         <span class="cov0" title="0">c.chatLogger.LogStart(stream, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)</span>
 }
 
-func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, stream bool) oaChatRequest <span class="cov6" title="2">{
+func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, stream bool) oaChatRequest <span class="cov4" title="2">{
         req := oaChatRequest{Model: o.Model, Stream: stream}
         req.Messages = make([]oaMessage, len(messages))
-        for i, m := range messages </span><span class="cov6" title="2">{
+        for i, m := range messages </span><span class="cov4" title="2">{
                 req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
         }</span>
-        <span class="cov6" title="2">if o.Temperature != 0 </span><span class="cov0" title="0">{
+        <span class="cov4" title="2">if o.Temperature != 0 </span><span class="cov0" title="0">{
                 req.Temperature = &amp;o.Temperature
-        }</span> else<span class="cov6" title="2"> if defaultTemp != nil </span><span class="cov6" title="2">{
+        }</span> else<span class="cov4" title="2"> if defaultTemp != nil </span><span class="cov4" title="2">{
                 t := *defaultTemp
                 req.Temperature = &amp;t
         }</span>
-        <span class="cov6" title="2">if o.MaxTokens &gt; 0 </span><span class="cov6" title="2">{
+        <span class="cov4" title="2">if o.MaxTokens &gt; 0 </span><span class="cov4" title="2">{
                 req.MaxTokens = &amp;o.MaxTokens
         }</span>
-        <span class="cov6" title="2">if len(o.Stop) &gt; 0 </span><span class="cov6" title="2">{
+        <span class="cov4" title="2">if len(o.Stop) &gt; 0 </span><span class="cov4" title="2">{
                 req.Stop = o.Stop
         }</span>
-        <span class="cov6" title="2">return req</span>
+        <span class="cov4" title="2">return req</span>
 }
 
 func (c openAIClient) doJSON(ctx context.Context, url string, body []byte, headers map[string]string) (*http.Response, error) <span class="cov0" title="0">{
@@ -1581,12 +1581,12 @@ func parseOpenAIStream(resp *http.Response, start time.Time, onDelta func(string
         const maxBuf = 1024 * 1024
         buf := make([]byte, 0, 64*1024)
         scanner.Buffer(buf, maxBuf)
-        for scanner.Scan() </span><span class="cov10" title="3">{
+        for scanner.Scan() </span><span class="cov7" title="3">{
                 line := scanner.Text()
                 if !strings.HasPrefix(line, "data: ") </span><span class="cov1" title="1">{
                         continue</span>
                 }
-                <span class="cov6" title="2">payload := strings.TrimPrefix(line, "data: ")
+                <span class="cov4" title="2">payload := strings.TrimPrefix(line, "data: ")
                 if strings.TrimSpace(payload) == "[DONE]" </span><span class="cov1" title="1">{
                         break</span>
                 }
@@ -1671,7 +1671,7 @@ type RequestOption func(*Options)
 
 func WithModel(model string) RequestOption    <span class="cov0" title="0">{ return func(o *Options) </span><span class="cov0" title="0">{ o.Model = model }</span> }
 func WithTemperature(t float64) RequestOption <span class="cov0" title="0">{ return func(o *Options) </span><span class="cov0" title="0">{ o.Temperature = t }</span> }
-func WithMaxTokens(n int) RequestOption       <span class="cov0" title="0">{ return func(o *Options) </span><span class="cov0" title="0">{ o.MaxTokens = n }</span> }
+func WithMaxTokens(n int) RequestOption       <span class="cov10" title="9">{ return func(o *Options) </span><span class="cov0" title="0">{ o.MaxTokens = n }</span> }
 func WithStop(stop ...string) RequestOption <span class="cov0" title="0">{
         return func(o *Options) </span><span class="cov0" title="0">{ o.Stop = append([]string{}, stop...) }</span>
 }
@@ -1696,22 +1696,22 @@ type Config struct {
 // NewFromConfig creates an LLM client using only the supplied configuration.
 // The OpenAI API key is supplied separately and may be read from the environment
 // by the caller; other environment-based configuration is not used.
-func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, error) <span class="cov0" title="0">{
+func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, error) <span class="cov8" title="6">{
     p := strings.ToLower(strings.TrimSpace(cfg.Provider))
-    if p == "" </span><span class="cov0" title="0">{
+    if p == "" </span><span class="cov8" title="6">{
         p = "openai"
     }</span>
-    <span class="cov0" title="0">switch p </span>{
-    case "openai":<span class="cov0" title="0">
-        if strings.TrimSpace(openAIAPIKey) == "" </span><span class="cov0" title="0">{
+    <span class="cov8" title="6">switch p </span>{
+    case "openai":<span class="cov8" title="6">
+        if strings.TrimSpace(openAIAPIKey) == "" </span><span class="cov1" title="1">{
             return nil, errors.New("missing OPENAI_API_KEY for provider openai")
         }</span>
         // Set coding-friendly default temperature if none provided
-        <span class="cov0" title="0">if cfg.OpenAITemperature == nil </span><span class="cov0" title="0">{
+        <span class="cov7" title="5">if cfg.OpenAITemperature == nil </span><span class="cov5" title="3">{
             t := 0.2
             cfg.OpenAITemperature = &amp;t
         }</span>
-        <span class="cov0" title="0">return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature), nil</span>
+        <span class="cov7" title="5">return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature), nil</span>
     case "ollama":<span class="cov0" title="0">
         if cfg.OllamaTemperature == nil </span><span class="cov0" title="0">{
             t := 0.2
@@ -1749,7 +1749,7 @@ type ChatLogger struct {
 }
 
 // NewChatLogger creates a new ChatLogger for a given provider.
-func NewChatLogger(provider string) ChatLogger <span class="cov0" title="0">{
+func NewChatLogger(provider string) ChatLogger <span class="cov10" title="5">{
         return ChatLogger{Provider: provider}
 }</span>
 
@@ -1797,14 +1797,14 @@ const AnsiBase = AnsiBgBlack + AnsiGrey
 var std *log.Logger
 
 // Bind sets the underlying standard logger to use for Logf.
-func Bind(l *log.Logger) <span class="cov0" title="0">{ std = l }</span>
+func Bind(l *log.Logger) <span class="cov2" title="2">{ std = l }</span>
 
 // Logf prints a formatted message with a module prefix and base ANSI style.
-func Logf(prefix, format string, args ...any) <span class="cov0" title="0">{
-        if std == nil </span><span class="cov0" title="0">{
+func Logf(prefix, format string, args ...any) <span class="cov10" title="33">{
+        if std == nil </span><span class="cov6" title="7">{
                 return
         }</span>
-        <span class="cov0" title="0">msg := fmt.Sprintf(format, args...)
+        <span class="cov9" title="26">msg := fmt.Sprintf(format, args...)
         std.Print(AnsiBase + prefix + msg + AnsiReset)</span>
 }
 
@@ -1813,17 +1813,17 @@ var logPreviewLimit int // 0 means unlimited
 
 // SetLogPreviewLimit sets the maximum number of characters to log for
 // request/response previews. Set to 0 for unlimited.
-func SetLogPreviewLimit(n int) <span class="cov0" title="0">{ logPreviewLimit = n }</span>
+func SetLogPreviewLimit(n int) <span class="cov6" title="7">{ logPreviewLimit = n }</span>
 
 // PreviewForLog returns the string truncated to the configured preview limit.
-func PreviewForLog(s string) string <span class="cov0" title="0">{
-        if logPreviewLimit &gt; 0 </span><span class="cov0" title="0">{
+func PreviewForLog(s string) string <span class="cov2" title="2">{
+        if logPreviewLimit &gt; 0 </span><span class="cov1" title="1">{
                 if len(s) &lt;= logPreviewLimit </span><span class="cov0" title="0">{
                         return s
                 }</span>
-                <span class="cov0" title="0">return s[:logPreviewLimit] + "…"</span>
+                <span class="cov1" title="1">return s[:logPreviewLimit] + "…"</span>
         }
-        <span class="cov0" title="0">return s</span>
+        <span class="cov1" title="1">return s</span>
 }
 </pre>
 		
@@ -4302,48 +4302,48 @@ type ServerOptions struct {
     CompletionThrottleMs  int
 }
 
-func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server <span class="cov8" title="1">{
+func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server <span class="cov10" title="2">{
         s := &amp;Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: opts.LogContext}
         maxTokens := opts.MaxTokens
-        if maxTokens &lt;= 0 </span><span class="cov8" title="1">{
+        if maxTokens &lt;= 0 </span><span class="cov1" title="1">{
                 maxTokens = 500
         }</span>
-        <span class="cov8" title="1">s.maxTokens = maxTokens
+        <span class="cov10" title="2">s.maxTokens = maxTokens
         contextMode := opts.ContextMode
-        if contextMode == "" </span><span class="cov8" title="1">{
+        if contextMode == "" </span><span class="cov1" title="1">{
                 contextMode = "file-on-new-func"
         }</span>
-        <span class="cov8" title="1">windowLines := opts.WindowLines
-        if windowLines &lt;= 0 </span><span class="cov8" title="1">{
+        <span class="cov10" title="2">windowLines := opts.WindowLines
+        if windowLines &lt;= 0 </span><span class="cov1" title="1">{
                 windowLines = 120
         }</span>
-        <span class="cov8" title="1">maxContextTokens := opts.MaxContextTokens
-        if maxContextTokens &lt;= 0 </span><span class="cov8" title="1">{
+        <span class="cov10" title="2">maxContextTokens := opts.MaxContextTokens
+        if maxContextTokens &lt;= 0 </span><span class="cov1" title="1">{
                 maxContextTokens = 2000
         }</span>
-        <span class="cov8" title="1">s.contextMode = contextMode
+        <span class="cov10" title="2">s.contextMode = contextMode
         s.windowLines = windowLines
         s.maxContextTokens = maxContextTokens
 
         s.startTime = time.Now()
         s.llmClient = opts.Client
-        if len(opts.TriggerCharacters) == 0 </span><span class="cov8" title="1">{
+        if len(opts.TriggerCharacters) == 0 </span><span class="cov10" title="2">{
                 // Defaults (no space to avoid auto-trigger after whitespace)
                 s.triggerChars = []string{".", ":", "/", "_", ")", "{"}
         }</span> else<span class="cov0" title="0"> {
                 s.triggerChars = append([]string{}, opts.TriggerCharacters...)
         }</span>
-    <span class="cov8" title="1">s.codingTemperature = opts.CodingTemperature
+    <span class="cov10" title="2">s.codingTemperature = opts.CodingTemperature
     s.compCache = make(map[string]string)
     s.manualInvokeMinPrefix = opts.ManualInvokeMinPrefix
-    if opts.CompletionDebounceMs &gt; 0 </span><span class="cov0" title="0">{
+    if opts.CompletionDebounceMs &gt; 0 </span><span class="cov1" title="1">{
         s.completionDebounce = time.Duration(opts.CompletionDebounceMs) * time.Millisecond
     }</span>
-    <span class="cov8" title="1">if opts.CompletionThrottleMs &gt; 0 </span><span class="cov0" title="0">{
+    <span class="cov10" title="2">if opts.CompletionThrottleMs &gt; 0 </span><span class="cov0" title="0">{
         s.throttleInterval = time.Duration(opts.CompletionThrottleMs) * time.Millisecond
     }</span>
         // Initialize dispatch table
-        <span class="cov8" title="1">s.handlers = map[string]func(Request){
+        <span class="cov10" title="2">s.handlers = map[string]func(Request){
                 "initialize":              s.handleInitialize,
                 "initialized":             func(_ Request) </span><span class="cov0" title="0">{ s.handleInitialized() }</span>,
                 "shutdown":                s.handleShutdown,
@@ -4356,13 +4356,13 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
                 "codeAction/resolve":      s.handleCodeActionResolve,
                 "workspace/executeCommand": s.handleExecuteCommand,
         }
-        <span class="cov8" title="1">return s</span>
+        <span class="cov10" title="2">return s</span>
 }
 
-func (s *Server) Run() error <span class="cov0" title="0">{
-        for </span><span class="cov0" title="0">{
+func (s *Server) Run() error <span class="cov1" title="1">{
+        for </span><span class="cov1" title="1">{
                 body, err := s.readMessage()
-                if err == io.EOF </span><span class="cov0" title="0">{
+                if err == io.EOF </span><span class="cov1" title="1">{
                         return nil
                 }</span>
                 <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
@@ -4398,12 +4398,12 @@ import (
         "strings"
 )
 
-func (s *Server) readMessage() ([]byte, error) <span class="cov0" title="0">{
+func (s *Server) readMessage() ([]byte, error) <span class="cov8" title="1">{
         tp := textproto.NewReader(s.in)
         var contentLength int
-        for </span><span class="cov0" title="0">{
+        for </span><span class="cov8" title="1">{
                 line, err := tp.ReadLine()
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         return nil, err
                 }</span>
                 <span class="cov0" title="0">if line == "" </span><span class="cov0" title="0">{ // end of headers
