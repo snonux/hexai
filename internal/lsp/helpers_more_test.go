@@ -93,3 +93,15 @@ func TestIsBareDoubleSemicolon(t *testing.T) {
     if !isBareDoubleSemicolon(";;   ") { t.Fatalf("expected true") }
     if isBareDoubleSemicolon(";;x;") { t.Fatalf("expected false for content form") }
 }
+
+func TestIsDefiningNewFunction(t *testing.T) {
+    s := newTestServer()
+    uri := "file:///z.go"
+    s.setDocument(uri, "package p\n\nfunc add(a int) int\n{")
+    if !s.isDefiningNewFunction(uri, Position{Line:2, Character:10}) {
+        t.Fatalf("expected true before opening brace")
+    }
+    if s.isDefiningNewFunction(uri, Position{Line:3, Character:1}) {
+        t.Fatalf("expected false inside body")
+    }
+}
