@@ -8,6 +8,8 @@ import (
     "net/http/httptest"
     "testing"
     "time"
+    "strings"
+    "encoding/base64"
 )
 
 type rtFunc2 func(*http.Request) (*http.Response, error)
@@ -42,6 +44,41 @@ func TestCopilot_HandleNon2xx(t *testing.T) {
     b, _ := json.Marshal(map[string]any{"error": map[string]any{"message":"bad","type":"invalid"}})
     resp := &http.Response{StatusCode: 400, Body: io.NopCloser(bytesReader(b))}
     if err := handleCopilotNon2xx(resp, time.Now()); err == nil { t.Fatalf("expected error") }
+}
+
+func TestCopilot_CodeCompletion_Success(t *testing.T) {
+    c := newCopilot("https://api.githubcopilot.com", "gpt-4o-mini", "API", f64p(0.1)).(copilotClient)
+    tr := rtFunc2(func(r *http.Request) (*http.Response, error) {
+        // Token endpoint
+        if r.URL.Host == "api.github.com" && r.URL.Path == "/copilot_internal/v2/token" {
+            rw := httptest.NewRecorder()
+            _ = json.NewEncoder(rw).Encode(map[string]string{"token":"tok"})
+            res := rw.Result(); res.StatusCode = 200; return res, nil
+        }
+        // Codex completion endpoint
+        if r.URL.Host == "copilot-proxy.githubusercontent.com" && strings.HasSuffix(r.URL.Path, "/v1/engines/copilot-codex/completions") {
+            rw := httptest.NewRecorder()
+            // two choices for index 0 and 1
+            rw.WriteString("data: {\"choices\":[{\"index\":0,\"text\":\"A\"}]}\n")
+            rw.WriteString("data: {\"choices\":[{\"index\":1,\"text\":\"B\"}]}\n")
+            res := rw.Result(); res.StatusCode = 200; return res, nil
+        }
+        return http.DefaultTransport.RoundTrip(r)
+    })
+    c.httpClient = &http.Client{Transport: tr, Timeout: 5 * time.Second}
+    out, err := c.CodeCompletion(context.Background(), "p", "s", 2, "go", 0.1)
+    if err != nil || len(out) != 2 || out[0] != "A" || out[1] != "B" {
+        t.Fatalf("codex: %v %#v", err, out)
+    }
+}
+
+func TestParseJWTExp_AndParseInt64(t *testing.T) {
+    // Valid base64 payload
+    payload := `{"exp": 1700000000}`
+    b := base64.RawURLEncoding.EncodeToString([]byte(payload))
+    tok := "x." + b + ".y"
+    if tm := parseJWTExp(tok); tm.IsZero() { t.Fatalf("expected non-zero time") }
+    if n, err := parseInt64("123"); err != nil || n != 123 { t.Fatalf("parseInt64: %v %d", err, n) }
 }
 
 // bytesReader wraps a byte slice with an io.ReadCloser without importing extra.
