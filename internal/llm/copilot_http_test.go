@@ -108,6 +108,25 @@ func TestCopilot_Chat_MultiChoice_And_ErrorBody(t *testing.T) {
     }
 }
 
+func TestCopilot_Chat_DecodeError_StatusOK(t *testing.T) {
+    // Chat returns 200 but invalid JSON; expect decode error
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        io.WriteString(w, "{invalid")
+    }))
+    defer srv.Close()
+    c := newCopilot(srv.URL, "gpt-4o-mini", "KEY", f64p(0.1)).(copilotClient)
+    tr := rtFunc2(func(r *http.Request) (*http.Response, error) {
+        if r.URL.Host == "api.github.com" && r.URL.Path == "/copilot_internal/v2/token" {
+            rw := httptest.NewRecorder(); _ = json.NewEncoder(rw).Encode(map[string]string{"token":"tok"}); res := rw.Result(); res.StatusCode = 200; return res, nil
+        }
+        return http.DefaultTransport.RoundTrip(r)
+    })
+    c.httpClient = &http.Client{Transport: tr, Timeout: 5 * time.Second}
+    if _, err := c.Chat(context.Background(), []Message{{Role:"user", Content:"hi"}}); err == nil {
+        t.Fatalf("expected decode error for invalid body")
+    }
+}
+
 func TestCopilot_CodeCompletion_MalformedAndEmpty(t *testing.T) {
     c := newCopilot("https://api.githubcopilot.com", "gpt-4o-mini", "API", f64p(0.1)).(copilotClient)
     tr := rtFunc2(func(r *http.Request) (*http.Response, error) {
