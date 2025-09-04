@@ -2,3 +2,9 @@
 /hexai-lsp
 /.gocache/
 /.gomodcache/
+/*.out
+/*.html
+/docs/coverage/
+/docs/*.out
+/docs/*.html
+llm.out

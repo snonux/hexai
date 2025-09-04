@@ -87,6 +87,9 @@ func TestRun_OpenAI_NoKey_ShowsError(t *testing.T) {
     // write config with provider=openai
     writeJSON(t, filepath.Join(dir, "hexai", "config.json"), map[string]any{"provider":"openai", "openai_model":"gpt-x"})
     t.Setenv("XDG_CONFIG_HOME", dir)
+    // Ensure no OpenAI API key is present in environment
+    t.Setenv("HEXAI_OPENAI_API_KEY", "")
+    t.Setenv("OPENAI_API_KEY", "")
     var out, errb bytes.Buffer
     // Run expects parsed flags; here args irrelevant
     err := Run(context.Background(), []string{"hello"}, strings.NewReader(""), &out, &errb)
@@ -110,6 +113,8 @@ func TestNewClientFromConfig_Ollama(t *testing.T) {
 
 func TestNewClientFromConfig_OpenAI_MissingKey(t *testing.T) {
     cfg := appconfig.App{ Provider: "openai", OpenAIBaseURL: "https://api", OpenAIModel: "gpt" }
+    t.Setenv("HEXAI_OPENAI_API_KEY", "")
+    t.Setenv("OPENAI_API_KEY", "")
     if _, err := newClientFromConfig(cfg); err == nil {
         t.Fatalf("expected error for missing openai key")
     }
