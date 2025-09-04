@@ -6,9 +6,9 @@ import (
     "io"
     "net/http"
     "net/http/httptest"
+    "strings"
     "testing"
     "time"
-    "strings"
     "encoding/base64"
 )
 
@@ -69,6 +69,42 @@ func TestCopilot_CodeCompletion_Success(t *testing.T) {
     out, err := c.CodeCompletion(context.Background(), "p", "s", 2, "go", 0.1)
     if err != nil || len(out) != 2 || out[0] != "A" || out[1] != "B" {
         t.Fatalf("codex: %v %#v", err, out)
+    }
+}
+
+func TestCopilot_Chat_MultiChoice_And_ErrorBody(t *testing.T) {
+    // Chat multi-choice: return two choices; client returns first content
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        _ = json.NewEncoder(w).Encode(map[string]any{
+            "choices": []map[string]any{
+                {"index": 0, "finish_reason": "stop", "message": map[string]string{"role": "assistant", "content": "FIRST"}},
+                {"index": 1, "finish_reason": "length", "message": map[string]string{"role": "assistant", "content": "SECOND"}},
+            },
+        })
+    }))
+    defer srv.Close()
+    c := newCopilot(srv.URL, "gpt-4o-mini", "KEY", f64p(0.1)).(copilotClient)
+    // Token success
+    tr := rtFunc2(func(r *http.Request) (*http.Response, error) {
+        if r.URL.Host == "api.github.com" && r.URL.Path == "/copilot_internal/v2/token" {
+            rw := httptest.NewRecorder(); _ = json.NewEncoder(rw).Encode(map[string]string{"token":"tok"}); res := rw.Result(); res.StatusCode = 200; return res, nil
+        }
+        return http.DefaultTransport.RoundTrip(r)
+    })
+    c.httpClient = &http.Client{Transport: tr, Timeout: 5 * time.Second}
+    out, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}})
+    if err != nil || out != "FIRST" { t.Fatalf("copilot multi-choice: %v %q", err, out) }
+
+    // Non-2xx with error body
+    srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(403)
+        _ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"message":"denied","type":"forbidden"}})
+    }))
+    defer srv2.Close()
+    c2 := newCopilot(srv2.URL, "gpt-4o-mini", "KEY", f64p(0.1)).(copilotClient)
+    c2.httpClient = &http.Client{Transport: tr, Timeout: 5 * time.Second}
+    if _, err := c2.Chat(context.Background(), []Message{{Role:"user", Content:"hi"}}); err == nil {
+        t.Fatalf("expected error for copilot non-2xx with error body")
     }
 }
 

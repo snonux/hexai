@@ -9,6 +9,7 @@ import (
     "strings"
     "testing"
     "time"
+    tut "codeberg.org/snonux/hexai/internal/testutil"
 )
 
 // captureResponse decodes a single LSP Response from the server's output buffer.
@@ -190,7 +191,7 @@ func TestHandle_Dispatch_Initialize(t *testing.T) {
 func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
     var out bytes.Buffer
     s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
-    s.llmClient = fakeLLM{resp: "Hello"}
+    s.llmClient = fakeLLM{resp: tut.MultilineChatReply()}
     uri := "file:///chat.go"
     // Place a prompt line with a supported trigger at EOL, then a blank line
     s.setDocument(uri, "What time?>\n\n")
@@ -208,7 +209,9 @@ func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
     if len(we.Changes) == 0 { t.Fatalf("expected changes in edit") }
     edits := we.Changes[uri]
     if len(edits) != 2 { t.Fatalf("expected 2 edits (delete+insert), got %d", len(edits)) }
-    if !strings.Contains(edits[1].NewText, "> Hello") { t.Fatalf("expected reply insertion with '> Hello', got %q", edits[1].NewText) }
+    if !strings.Contains(edits[1].NewText, "> Hello") || !strings.Contains(edits[1].NewText, "multi-line reply") {
+        t.Fatalf("expected multi-line reply insertion, got %q", edits[1].NewText)
+    }
 }
 
 func TestHandleCodeActionResolve_Diagnostics(t *testing.T) {

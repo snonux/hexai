@@ -1,8 +1,9 @@
 package lsp
 
 import (
-	"encoding/json"
-	"testing"
+    "encoding/json"
+    "testing"
+    tut "codeberg.org/snonux/hexai/internal/testutil"
 )
 
 func TestStripDuplicateGeneralPrefix_ExactOverlap(t *testing.T) {
@@ -40,7 +41,7 @@ func TestStripDuplicateAssignmentPrefix_AssignAndWalrus(t *testing.T) {
 
 func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
 	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
-	s.llmClient = fakeLLM{resp: "() *CustData"}
+    s.llmClient = fakeLLM{resp: tut.MultilineFunctionSuggestion()}
 	line := "func fib(i int) " // cursor after space
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://x.go"}}
 	// Simulate manual user invocation (TriggerKind=1)

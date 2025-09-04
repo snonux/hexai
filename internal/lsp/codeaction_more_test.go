@@ -5,11 +5,12 @@ import (
     "path/filepath"
     "strings"
     "testing"
+    tut "codeberg.org/snonux/hexai/internal/testutil"
 )
 
 func TestBuildDocumentCodeAction_AndResolve(t *testing.T) {
     s := newTestServer()
-    s.llmClient = fakeLLM{resp: "// doc\nfunc add(a,b int) int { return a+b }"}
+    s.llmClient = fakeLLM{resp: tut.MultilineDocBlock()+"\n"+"func add(a,b int) int { return a+b }"}
     uri := "file:///doc.go"
     s.setDocument(uri, "package x\nfunc add(a,b int) int {return a+b}")
     p := CodeActionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Range: Range{Start: Position{Line:1, Character:0}, End: Position{Line:1, Character:10}}}
