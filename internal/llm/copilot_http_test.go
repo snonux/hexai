@@ -108,6 +108,46 @@ func TestCopilot_Chat_MultiChoice_And_ErrorBody(t *testing.T) {
     }
 }
 
+func TestCopilot_CodeCompletion_MalformedAndEmpty(t *testing.T) {
+    c := newCopilot("https://api.githubcopilot.com", "gpt-4o-mini", "API", f64p(0.1)).(copilotClient)
+    tr := rtFunc2(func(r *http.Request) (*http.Response, error) {
+        if r.URL.Host == "api.github.com" && r.URL.Path == "/copilot_internal/v2/token" {
+            rw := httptest.NewRecorder(); _ = json.NewEncoder(rw).Encode(map[string]string{"token":"tok"}); res := rw.Result(); res.StatusCode = 200; return res, nil
+        }
+        if r.URL.Host == "copilot-proxy.githubusercontent.com" && strings.HasSuffix(r.URL.Path, "/v1/engines/copilot-codex/completions") {
+            rw := httptest.NewRecorder()
+            // malformed line
+            rw.WriteString("data: {bad}\n")
+            // done; should produce empty suggestions
+            rw.WriteString("data: [DONE]\n")
+            res := rw.Result(); res.StatusCode = 200; return res, nil
+        }
+        return http.DefaultTransport.RoundTrip(r)
+    })
+    c.httpClient = &http.Client{Transport: tr, Timeout: 5 * time.Second}
+    out, err := c.CodeCompletion(context.Background(), "p", "s", 1, "go", 0.1)
+    if err != nil { t.Fatalf("unexpected error: %v", err) }
+    if len(out) != 0 { t.Fatalf("expected empty suggestions, got %#v", out) }
+
+    // Now include one good chunk after malformed
+    tr2 := rtFunc2(func(r *http.Request) (*http.Response, error) {
+        if r.URL.Host == "api.github.com" && r.URL.Path == "/copilot_internal/v2/token" {
+            rw := httptest.NewRecorder(); _ = json.NewEncoder(rw).Encode(map[string]string{"token":"tok"}); res := rw.Result(); res.StatusCode = 200; return res, nil
+        }
+        if r.URL.Host == "copilot-proxy.githubusercontent.com" && strings.HasSuffix(r.URL.Path, "/v1/engines/copilot-codex/completions") {
+            rw := httptest.NewRecorder()
+            rw.WriteString("data: {bad}\n")
+            rw.WriteString("data: {\"choices\":[{\"index\":0,\"text\":\"OK\"}]}\n")
+            rw.WriteString("data: [DONE]\n")
+            res := rw.Result(); res.StatusCode = 200; return res, nil
+        }
+        return http.DefaultTransport.RoundTrip(r)
+    })
+    c.httpClient = &http.Client{Transport: tr2, Timeout: 5 * time.Second}
+    out2, err := c.CodeCompletion(context.Background(), "p", "s", 1, "go", 0.1)
+    if err != nil || len(out2) != 1 || out2[0] != "OK" { t.Fatalf("unexpected: %v %#v", err, out2) }
+}
+
 func TestParseJWTExp_AndParseInt64(t *testing.T) {
     // Valid base64 payload
     payload := `{"exp": 1700000000}`

@@ -77,7 +77,7 @@ Legend: [ ] pending · [~] in progress · [x] done/partially done
 - [x] Expand Copilot mocked responses: multi-choice, error object in body; assert parsing and error propagation.
 
 6) General
-- [x] Convert repetitive tests to table-driven style where appropriate (e.g., completion prefix/strip; instruction markers; label/filter).
+- [x] Convert repetitive tests to table-driven style where appropriate (e.g., completion prefix/strip; instruction markers; label/filter; code fences/inline spans).
 - [ ] Introduce a shared set of realistic mock responses (multi-line code, markdown, malformed json) and reuse across tests.
 
 ## Progress (latest)
@@ -103,7 +103,7 @@ Legend: [ ] pending · [~] in progress · [x] done/partially done
 - [x] 3) lsp e2e chat/document: chat test now uses multi-line reply and validates insertion contains both lines; document resolve uses multi-line docblock.
 - [x] 4) lsp completion: manual-invoke test now uses a multi-line realistic function signature with body; still passes and exercises formatting.
 - [x] 5) llm providers: added OpenAI success + SSE stream and Copilot token+chat + Codex SSE tests; coverage ≥80%. Expanded with multi-choice and error-body cases.
-- [x] 6) General: introduced shared fixtures (internal/testutil) and added table-driven tests for code fences, inline spans, label selection, prefix stripping, and instruction markers.
+- [x] 6) General: introduced shared fixtures (internal/testutil) and added table-driven tests for code fences, inline spans, label selection, prefix stripping, and instruction markers. Documented patterns in docs/testing.md.
 - [x]    Added table-driven tests for instruction marker extraction and prefix stripping.
 
 ## Next actions (prioritized)

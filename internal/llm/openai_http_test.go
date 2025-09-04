@@ -63,6 +63,20 @@ func TestOpenAI_ChatStream_SSE_ErrorChunk(t *testing.T) {
     }
 }
 
+func TestOpenAI_Chat_DecodeError_StatusOK(t *testing.T) {
+    // Return status 200 but invalid JSON body; Chat should return an error
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(200)
+        io.WriteString(w, "{invalid")
+    }))
+    defer srv.Close()
+    c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+    c.httpClient = srv.Client()
+    if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}}); err == nil {
+        t.Fatalf("expected decode error for invalid JSON body")
+    }
+}
+
 func TestOpenAI_Chat_MultiChoiceAndErrorBody(t *testing.T) {
     // Multi-choice success: return two choices with different finish reasons
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
