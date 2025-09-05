@@ -62,8 +62,8 @@ Legend: [ ] pending · [~] in progress · [x] done/partially done
 - [ ] Document-code action: return realistic docblocks (multi-line) and assert formatting/placement.
 
 3) internal/lsp/handlers_end_to_end_test.go
-- [ ] Use multi-line replies in TestDetectAndHandleChat_InsertsReply; verify newline formatting and cursor placement in edits.
-- [ ] Use more realistic documentation blocks in TestHandleCodeActionResolve_Document; verify correct insertion range.
+ - [x] Use multi-line replies in TestDetectAndHandleChat_InsertsReply; verify newline formatting and insertion contains both lines.
+ - [x] Use more realistic documentation blocks in TestHandleCodeActionResolve_Document; verified multi-line insertion.
 
 4) internal/lsp/completion_prefix_strip_test.go
 - [ ] Replace short snippet ("() *CustData") with fuller realistic suggestions; add additional cases to exercise prefix/indent logic with longer outputs.
@@ -73,11 +73,12 @@ Legend: [ ] pending · [~] in progress · [x] done/partially done
 - [x] OpenAI stream: SSE delta accumulation in ChatStream.
 - [x] Copilot token + chat: ensureSession + /chat/completions success.
 - [x] Copilot CodeCompletion: SSE-style stream with multiple choices.
-- [x] Expand OpenAI mocked responses: multi-choice, different finish_reason, error objects; assert parsing.
-- [x] Expand Copilot mocked responses: multi-choice, error object in body; assert parsing and error propagation.
+ - [x] Expand OpenAI mocked responses: multi-choice, different finish_reason, error objects; assert parsing.
+ - [x] Expand Copilot mocked responses: multi-choice, error object in body; assert parsing and error propagation.
+ - [x] Additional negative cases: OpenAI no-choices and empty delta; Copilot chat no-choices; SSE malformed and decode-error paths.
 
 6) General
-- [x] Convert repetitive tests to table-driven style where appropriate (e.g., completion prefix/strip; instruction markers; label/filter; code fences/inline spans; buildPrompts variants; computeTextEditAndFilter variants).
+ - [x] Convert repetitive tests to table-driven style where appropriate (e.g., completion prefix/strip; instruction markers; label/filter; code fences/inline spans; buildPrompts variants; computeTextEditAndFilter variants).
 - [ ] Introduce a shared set of realistic mock responses (multi-line code, markdown, malformed json) and reuse across tests.
 
 ## Progress (latest)
