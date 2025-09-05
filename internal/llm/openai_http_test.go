@@ -63,6 +63,34 @@ func TestOpenAI_ChatStream_SSE_ErrorChunk(t *testing.T) {
     }
 }
 
+func TestOpenAI_Chat_NoChoices_Error(t *testing.T) {
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        _ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{}})
+    }))
+    defer srv.Close()
+    c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+    c.httpClient = srv.Client()
+    if _, err := c.Chat(context.Background(), []Message{{Role:"user", Content:"hi"}}); err == nil {
+        t.Fatalf("expected error when choices empty")
+    }
+}
+
+func TestOpenAI_ChatStream_SSE_EmptyDelta_NoError(t *testing.T) {
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "text/event-stream")
+        io.WriteString(w, "data: {\\\"choices\\\":[{\\\"delta\\\":{\\\"content\\\":\\\"\\\"}}]}\\n\\n")
+        io.WriteString(w, "data: [DONE]\\n")
+    }))
+    defer srv.Close()
+    c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+    c.httpClient = srv.Client()
+    var got string
+    if err := c.ChatStream(context.Background(), []Message{{Role:"user", Content:"hi"}}, func(s string){ got += s }); err != nil {
+        t.Fatalf("unexpected error for empty delta: %v", err)
+    }
+    if got != "" { t.Fatalf("expected no output for empty delta, got %q", got) }
+}
+
 func TestOpenAI_Chat_DecodeError_StatusOK(t *testing.T) {
     // Return status 200 but invalid JSON body; Chat should return an error
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
