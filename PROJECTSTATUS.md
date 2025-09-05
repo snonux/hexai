@@ -1,19 +1,22 @@
 # Ideas
 
-## Code qualoty
+## Code quality
 
 * [/] TODO's in the code to be addressed
 * [/] No more than 1000 LOC per source file
 * [/] No more than 50 LOC per function
 * [/] Each struct type in his own file
 * [/] Sufficient unit tests
+* [ ] Static code analyzer run and fix issues
 
 ## Features
 
 ### Improvements
 
+* [ ] Modify the LLM triggers to be more consistenc. E.g. use >>text here> or >text here> instead of semicolons?
 * [X] Include unit test coverage reports
 * [ ] Change inline triggers to include > to be more consistent with other triggers
+* [ ] Use are more stricter linter for auto-generated code (gofumpt i think is such a linter)
 
 ### New features
 
@@ -30,6 +33,7 @@
 * [ ] Be able to switch the underlying model via a prompt
 * [X] Fine tune when Large Language Model (LLM) completions trigger, as it seems that there are some cases where the Large Language Model (LLM) receives a request but Helix isn't suggesting any completions. There seems to be something odd with the in logic. Investigate the TriggerChar logic and make sure it matches Helix's expectations.
 * [X] Can anything else can be done with LSP?
+* [ ] Fish and zsh and bash shell integration for command completion? Have access to the current shell history (N last commands), current directory content, and current directory name.
 
 Be able to select code blocks and perform code actions on them
 
@@ -48,4 +52,15 @@ Be able to switch LLMs.
 
 * [ ] Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol` 
 
-## Usage notes
+Can Claude Code be used for Code Completion?
+
+> Yes, Claude (including Claude's coding capabilities, sometimes referred to as "Claude Code") can be used for code completion. You can provide Claude with a partial code snippet or function, and it can generate the next lines or complete the function based on context and intent. This works similarly to how other AI code assistants (like GitHub Copilot or ChatGPT) provide code completion.
+
+However, Claude is typically accessed via chat or API, rather than being directly integrated into IDEs for real-time, inline code completion. Some third-party tools or plugins may bridge this gap, but out of the box, Claude is best used for code completion via conversational prompts.
+
+**In summary:**  
+- Claude can perform code completion when prompted.
+- It is not natively integrated into IDEs for real-time completion, but can be used via chat or API.
+- You can use it to finish functions, suggest code, or generate boilerplate based on your input.
+
+j
