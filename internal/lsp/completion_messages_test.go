@@ -59,15 +59,15 @@ func TestBuildDocString_Contents(t *testing.T) {
 }
 
 func TestBuildCompletionMessages_InParams_UsesParamPrompts(t *testing.T) {
-    s := newTestServer()
-    p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x"}, Position: Position{Line: 0, Character: 5}}
-    msgs := s.buildCompletionMessages(false, false, "", true, p, "a", "func f(x)", "c", "func f(x)")
-    if len(msgs) < 2 || msgs[0].Role != "system" || msgs[1].Role != "user" {
-        t.Fatalf("unexpected messages")
-    }
-    if !contains(msgs[0].Content, "function signatures") || !contains(msgs[1].Content, "parameter list") {
-        t.Fatalf("unexpected in-params prompts: %#v", msgs)
-    }
+	s := newTestServer()
+	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x"}, Position: Position{Line: 0, Character: 5}}
+	msgs := s.buildCompletionMessages(false, false, "", true, p, "a", "func f(x)", "c", "func f(x)")
+	if len(msgs) < 2 || msgs[0].Role != "system" || msgs[1].Role != "user" {
+		t.Fatalf("unexpected messages")
+	}
+	if !contains(msgs[0].Content, "function signatures") || !contains(msgs[1].Content, "parameter list") {
+		t.Fatalf("unexpected in-params prompts: %#v", msgs)
+	}
 }
 
 func TestPostProcessCompletion_CodeFencesAndDuplicates(t *testing.T) {
@@ -87,6 +87,7 @@ func TestPostProcessCompletion_CodeFencesAndDuplicates(t *testing.T) {
 func contains(s, sub string) bool {
 	return len(s) >= len(sub) && (s == sub || (len(sub) > 0 && (stringIndex(s, sub) >= 0)))
 }
+
 func stringIndex(s, sub string) int {
 	return len([]rune(s[:])) - len([]rune(s[:])) + (func() int { return intIndex(s, sub) })()
 }

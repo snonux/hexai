@@ -2,9 +2,9 @@
 package lsp
 
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
+    "encoding/json"
+    "fmt"
+    "strings"
 )
 
 func (s *Server) handle(req Request) {
@@ -26,14 +26,14 @@ func (s *Server) handle(req Request) {
 // a line comment (//, #, --). Returns the instruction string and the selection
 // text cleaned of the matched instruction marker or comment.
 func instructionFromSelection(sel string) (string, string) {
-	lines := splitLines(sel)
-	for idx, line := range lines {
-		if instr, cleaned, ok := findFirstInstructionInLine(line); ok && strings.TrimSpace(instr) != "" {
-			lines[idx] = cleaned
-			return instr, strings.Join(lines, "\n")
-		}
-	}
-	return "", sel
+    lines := splitLines(sel)
+    for idx, line := range lines {
+        if instr, cleaned, ok := findFirstInstructionInLine(line); ok && strings.TrimSpace(instr) != "" {
+            lines[idx] = cleaned
+            return instr, strings.Join(lines, "\n")
+        }
+    }
+    return "", sel
 }
 
 // findFirstInstructionInLine returns the earliest instruction marker on the
@@ -46,51 +46,51 @@ func instructionFromSelection(sel string) (string, string) {
 // - # text
 // - -- text
 func findFirstInstructionInLine(line string) (instr string, cleaned string, ok bool) {
-	type cand struct {
-		start, end int
-		text       string
-	}
-	cands := []cand{}
-	if t, l, r, ok := findStrictInlineTag(line); ok {
-		cands = append(cands, cand{start: l, end: r, text: t})
-	}
-	if i := strings.Index(line, "/*"); i >= 0 {
-		if j := strings.Index(line[i+2:], "*/"); j >= 0 {
-			start := i
-			end := i + 2 + j + 2
-			text := strings.TrimSpace(line[i+2 : i+2+j])
-			cands = append(cands, cand{start: start, end: end, text: text})
-		}
-	}
-	if i := strings.Index(line, "<!--"); i >= 0 {
-		if j := strings.Index(line[i+4:], "-->"); j >= 0 {
-			start := i
-			end := i + 4 + j + 3
-			text := strings.TrimSpace(line[i+4 : i+4+j])
-			cands = append(cands, cand{start: start, end: end, text: text})
-		}
-	}
-	if i := strings.Index(line, "//"); i >= 0 {
-		cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+2:])})
-	}
-	if i := strings.Index(line, "#"); i >= 0 {
-		cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+1:])})
-	}
-	if i := strings.Index(line, "--"); i >= 0 {
-		cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+2:])})
-	}
-	if len(cands) == 0 {
-		return "", line, false
-	}
-	// pick earliest start index
-	best := cands[0]
-	for _, c := range cands[1:] {
-		if c.start >= 0 && (best.start < 0 || c.start < best.start) {
-			best = c
-		}
-	}
-	cleaned = strings.TrimRight(line[:best.start]+line[best.end:], " \t")
-	return best.text, cleaned, true
+    type cand struct {
+        start, end int
+        text       string
+    }
+    cands := []cand{}
+    if t, l, r, ok := findStrictInlineTag(line); ok {
+        cands = append(cands, cand{start: l, end: r, text: t})
+    }
+    if i := strings.Index(line, "/*"); i >= 0 {
+        if j := strings.Index(line[i+2:], "*/"); j >= 0 {
+            start := i
+            end := i + 2 + j + 2
+            text := strings.TrimSpace(line[i+2 : i+2+j])
+            cands = append(cands, cand{start: start, end: end, text: text})
+        }
+    }
+    if i := strings.Index(line, "<!--"); i >= 0 {
+        if j := strings.Index(line[i+4:], "-->"); j >= 0 {
+            start := i
+            end := i + 4 + j + 3
+            text := strings.TrimSpace(line[i+4 : i+4+j])
+            cands = append(cands, cand{start: start, end: end, text: text})
+        }
+    }
+    if i := strings.Index(line, "//"); i >= 0 {
+        cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+2:])})
+    }
+    if i := strings.Index(line, "#"); i >= 0 {
+        cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+1:])})
+    }
+    if i := strings.Index(line, "--"); i >= 0 {
+        cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+2:])})
+    }
+    if len(cands) == 0 {
+        return "", line, false
+    }
+    // pick earliest start index
+    best := cands[0]
+    for _, c := range cands[1:] {
+        if c.start >= 0 && (best.start < 0 || c.start < best.start) {
+            best = c
+        }
+    }
+    cleaned = strings.TrimRight(line[:best.start]+line[best.end:], " \t")
+    return best.text, cleaned, true
 }
 
 // diagnosticsInRange parses the CodeAction context and returns diagnostics

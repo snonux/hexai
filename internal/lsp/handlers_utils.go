@@ -7,6 +7,7 @@ import (
 
     "codeberg.org/snonux/hexai/internal/llm"
     "codeberg.org/snonux/hexai/internal/logging"
+    "codeberg.org/snonux/hexai/internal/textutil"
 )
 
 // Configurable inline trigger characters (default to '>') used by free helpers below.
@@ -73,17 +74,7 @@ func inParamList(current string, cursor int) bool {
 }
 
 // renderTemplate performs simple {{var}} replacement in a template string.
-func renderTemplate(t string, vars map[string]string) string {
-    if t == "" {
-        return t
-    }
-    out := t
-    for k, v := range vars {
-        placeholder := "{{" + k + "}}"
-        out = strings.ReplaceAll(out, placeholder, v)
-    }
-    return out
-}
+func renderTemplate(t string, vars map[string]string) string { return textutil.RenderTemplate(t, vars) }
 
 func computeTextEditAndFilter(cleaned string, inParams bool, current string, p CompletionParams) (*TextEdit, string) {
 	if inParams {
@@ -301,31 +292,7 @@ func isIdentBoundary(ch byte) bool {
 }
 
 // stripCodeFences removes surrounding Markdown code fences from a model response.
-func stripCodeFences(s string) string {
-	t := strings.TrimSpace(s)
-	if t == "" {
-		return t
-	}
-	lines := splitLines(t)
-	start := 0
-	for start < len(lines) && strings.TrimSpace(lines[start]) == "" {
-		start++
-	}
-	end := len(lines) - 1
-	for end >= 0 && strings.TrimSpace(lines[end]) == "" {
-		end--
-	}
-	if start >= len(lines) || end < 0 || start > end {
-		return t
-	}
-	first := strings.TrimSpace(lines[start])
-	last := strings.TrimSpace(lines[end])
-	if strings.HasPrefix(first, "```") && last == "```" && end > start {
-		inner := strings.Join(lines[start+1:end], "\n")
-		return inner
-	}
-	return t
-}
+func stripCodeFences(s string) string { return textutil.StripCodeFences(s) }
 
 // stripInlineCodeSpan returns the contents of the first inline backtick code span if present.
 func stripInlineCodeSpan(s string) string {

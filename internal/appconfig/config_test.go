@@ -52,9 +52,9 @@ func TestLoad_Defaults_WithLogger_NoFile_NoEnv(t *testing.T) {
 func TestLoad_FileMerge_And_EnvOverride(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
-    cfgPath := filepath.Join(dir, "hexai", "config.toml")
-    // file configuration in TOML (sectioned)
-    writeFile(t, cfgPath, `
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
+	// file configuration in TOML (sectioned)
+	writeFile(t, cfgPath, `
 [general]
 max_tokens = 123
 context_mode = "file-on-new-func"
@@ -144,13 +144,13 @@ temperature = 0.0
 		t.Fatalf("copilot overrides not applied: %+v", cfg)
 	}
 
-    // Ensure file values would have applied absent env
-    // Spot-check: reset env and reload
-    for _, k := range []string{
-        "HEXAI_MAX_TOKENS", "HEXAI_CONTEXT_MODE", "HEXAI_CONTEXT_WINDOW_LINES", "HEXAI_MAX_CONTEXT_TOKENS", "HEXAI_LOG_PREVIEW_LIMIT", "HEXAI_CODING_TEMPERATURE", "HEXAI_MANUAL_INVOKE_MIN_PREFIX", "HEXAI_COMPLETION_DEBOUNCE_MS", "HEXAI_COMPLETION_THROTTLE_MS", "HEXAI_TRIGGER_CHARACTERS", "HEXAI_PROVIDER", "HEXAI_OPENAI_BASE_URL", "HEXAI_OPENAI_MODEL", "HEXAI_OPENAI_TEMPERATURE", "HEXAI_OLLAMA_BASE_URL", "HEXAI_OLLAMA_MODEL", "HEXAI_OLLAMA_TEMPERATURE", "HEXAI_COPILOT_BASE_URL", "HEXAI_COPILOT_MODEL", "HEXAI_COPILOT_TEMPERATURE",
-    } {
-        t.Setenv(k, "")
-    }
+	// Ensure file values would have applied absent env
+	// Spot-check: reset env and reload
+	for _, k := range []string{
+		"HEXAI_MAX_TOKENS", "HEXAI_CONTEXT_MODE", "HEXAI_CONTEXT_WINDOW_LINES", "HEXAI_MAX_CONTEXT_TOKENS", "HEXAI_LOG_PREVIEW_LIMIT", "HEXAI_CODING_TEMPERATURE", "HEXAI_MANUAL_INVOKE_MIN_PREFIX", "HEXAI_COMPLETION_DEBOUNCE_MS", "HEXAI_COMPLETION_THROTTLE_MS", "HEXAI_TRIGGER_CHARACTERS", "HEXAI_PROVIDER", "HEXAI_OPENAI_BASE_URL", "HEXAI_OPENAI_MODEL", "HEXAI_OPENAI_TEMPERATURE", "HEXAI_OLLAMA_BASE_URL", "HEXAI_OLLAMA_MODEL", "HEXAI_OLLAMA_TEMPERATURE", "HEXAI_COPILOT_BASE_URL", "HEXAI_COPILOT_MODEL", "HEXAI_COPILOT_TEMPERATURE",
+	} {
+		t.Setenv(k, "")
+	}
 	cfg2 := Load(logger)
 	if cfg2.MaxTokens != 123 || cfg2.ContextMode != "file-on-new-func" || cfg2.ContextWindowLines != 50 || cfg2.MaxContextTokens != 999 || cfg2.LogPreviewLimit != 0 {
 		t.Fatalf("file merge not applied: %+v", cfg2)
@@ -192,10 +192,10 @@ func TestLoadFromFile_InvalidTOML(t *testing.T) {
 }
 
 func TestLoad_FileTables_Sectioned(t *testing.T) {
-    dir := t.TempDir()
-    t.Setenv("XDG_CONFIG_HOME", dir)
-    cfgPath := filepath.Join(dir, "hexai", "config.toml")
-    content := `
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
+	content := `
 [general]
 max_tokens = 111
 context_mode = "window"
@@ -240,44 +240,44 @@ model = "ghost"
 base_url = "http://copilot"
 temperature = 0.0
 `
-    writeFile(t, cfgPath, content)
+	writeFile(t, cfgPath, content)
 
-    // Ensure no env override interferes with manual_invoke_min_prefix in this test
-    t.Setenv("HEXAI_MANUAL_INVOKE_MIN_PREFIX", "")
-    logger := newLogger()
-    cfg := Load(logger)
+	// Ensure no env override interferes with manual_invoke_min_prefix in this test
+	t.Setenv("HEXAI_MANUAL_INVOKE_MIN_PREFIX", "")
+	logger := newLogger()
+	cfg := Load(logger)
 
-    if cfg.MaxTokens != 111 || cfg.ContextMode != "window" || cfg.ContextWindowLines != 42 || cfg.MaxContextTokens != 777 {
-        t.Fatalf("sectioned basics wrong: %+v", cfg)
-    }
-    if cfg.LogPreviewLimit != 9 || cfg.CompletionDebounceMs != 123 || cfg.CompletionThrottleMs != 456 || cfg.ManualInvokeMinPrefix != 3 {
-        t.Fatalf("sectioned ints wrong: %+v", cfg)
-    }
-    if cfg.CodingTemperature == nil || *cfg.CodingTemperature != 0.1 {
-        t.Fatalf("sectioned coding_temperature wrong: %+v", cfg.CodingTemperature)
-    }
-    if want := []string{".", ":"}; !reflect.DeepEqual(cfg.TriggerCharacters, want) {
-        t.Fatalf("sectioned trigger chars wrong: got %v", cfg.TriggerCharacters)
-    }
-    if cfg.Provider != "openai" {
-        t.Fatalf("sectioned provider name wrong: %q", cfg.Provider)
-    }
-    if cfg.OpenAIModel != "gpt-x" || cfg.OpenAIBaseURL != "https://api.example" || cfg.OpenAITemperature == nil || *cfg.OpenAITemperature != 0.0 {
-        t.Fatalf("sectioned openai wrong: %+v", cfg)
-    }
-    if cfg.OllamaModel != "mistral" || cfg.OllamaBaseURL != "http://ollama" || cfg.OllamaTemperature == nil || *cfg.OllamaTemperature != 0.0 {
-        t.Fatalf("sectioned ollama wrong: %+v", cfg)
-    }
-    if cfg.CopilotModel != "ghost" || cfg.CopilotBaseURL != "http://copilot" || cfg.CopilotTemperature == nil || *cfg.CopilotTemperature != 0.0 {
-        t.Fatalf("sectioned copilot wrong: %+v", cfg)
-    }
+	if cfg.MaxTokens != 111 || cfg.ContextMode != "window" || cfg.ContextWindowLines != 42 || cfg.MaxContextTokens != 777 {
+		t.Fatalf("sectioned basics wrong: %+v", cfg)
+	}
+	if cfg.LogPreviewLimit != 9 || cfg.CompletionDebounceMs != 123 || cfg.CompletionThrottleMs != 456 || cfg.ManualInvokeMinPrefix != 3 {
+		t.Fatalf("sectioned ints wrong: %+v", cfg)
+	}
+	if cfg.CodingTemperature == nil || *cfg.CodingTemperature != 0.1 {
+		t.Fatalf("sectioned coding_temperature wrong: %+v", cfg.CodingTemperature)
+	}
+	if want := []string{".", ":"}; !reflect.DeepEqual(cfg.TriggerCharacters, want) {
+		t.Fatalf("sectioned trigger chars wrong: got %v", cfg.TriggerCharacters)
+	}
+	if cfg.Provider != "openai" {
+		t.Fatalf("sectioned provider name wrong: %q", cfg.Provider)
+	}
+	if cfg.OpenAIModel != "gpt-x" || cfg.OpenAIBaseURL != "https://api.example" || cfg.OpenAITemperature == nil || *cfg.OpenAITemperature != 0.0 {
+		t.Fatalf("sectioned openai wrong: %+v", cfg)
+	}
+	if cfg.OllamaModel != "mistral" || cfg.OllamaBaseURL != "http://ollama" || cfg.OllamaTemperature == nil || *cfg.OllamaTemperature != 0.0 {
+		t.Fatalf("sectioned ollama wrong: %+v", cfg)
+	}
+	if cfg.CopilotModel != "ghost" || cfg.CopilotBaseURL != "http://copilot" || cfg.CopilotTemperature == nil || *cfg.CopilotTemperature != 0.0 {
+		t.Fatalf("sectioned copilot wrong: %+v", cfg)
+	}
 }
 
 func TestLoad_FileTables_Prompts_AllSections(t *testing.T) {
-    dir := t.TempDir()
-    t.Setenv("XDG_CONFIG_HOME", dir)
-    cfgPath := filepath.Join(dir, "hexai", "config.toml")
-    content := `
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
+	content := `
 [prompts.completion]
 system_general = "SYS-GENERAL"
 system_params  = "SYS-PARAMS"
@@ -306,37 +306,37 @@ go_test_user       = "GOTEST-USER {{function}}"
 default_system = "CLI-DEFAULT"
 explain_system = "CLI-EXPLAIN"
 `
-    writeFile(t, cfgPath, content)
+	writeFile(t, cfgPath, content)
 
-    cfg := Load(newLogger())
+	cfg := Load(newLogger())
 
-    // completion
-    if cfg.PromptCompletionSystemGeneral != "SYS-GENERAL" || cfg.PromptCompletionSystemParams != "SYS-PARAMS" || cfg.PromptCompletionSystemInline != "SYS-INLINE" {
-        t.Fatalf("completion system prompts wrong: %+v", cfg)
-    }
-    if cfg.PromptCompletionUserGeneral == "" || cfg.PromptCompletionUserParams == "" || cfg.PromptCompletionExtraHeader == "" {
-        t.Fatalf("completion user/extra prompts not loaded")
-    }
-    // provider-native
-    if cfg.PromptNativeCompletion != "NATIVE {{path}} {{before}}" {
-        t.Fatalf("provider-native prompt wrong: %q", cfg.PromptNativeCompletion)
-    }
-    // chat
-    if cfg.PromptChatSystem != "CHAT-SYS" {
-        t.Fatalf("chat system wrong: %q", cfg.PromptChatSystem)
-    }
-    // code action
-    if cfg.PromptCodeActionRewriteSystem != "REWRITE-SYS" || cfg.PromptCodeActionDiagnosticsSystem != "DIAG-SYS" || cfg.PromptCodeActionDocumentSystem != "DOC-SYS" {
-        t.Fatalf("code action system prompts wrong")
-    }
-    if cfg.PromptCodeActionRewriteUser == "" || cfg.PromptCodeActionDiagnosticsUser == "" || cfg.PromptCodeActionDocumentUser == "" {
-        t.Fatalf("code action user prompts not loaded")
-    }
-    if cfg.PromptCodeActionGoTestSystem != "GOTEST-SYS" || cfg.PromptCodeActionGoTestUser == "" {
-        t.Fatalf("go test prompts wrong")
-    }
-    // CLI
-    if cfg.PromptCLIDefaultSystem != "CLI-DEFAULT" || cfg.PromptCLIExplainSystem != "CLI-EXPLAIN" {
-        t.Fatalf("cli prompts wrong: %q %q", cfg.PromptCLIDefaultSystem, cfg.PromptCLIExplainSystem)
-    }
+	// completion
+	if cfg.PromptCompletionSystemGeneral != "SYS-GENERAL" || cfg.PromptCompletionSystemParams != "SYS-PARAMS" || cfg.PromptCompletionSystemInline != "SYS-INLINE" {
+		t.Fatalf("completion system prompts wrong: %+v", cfg)
+	}
+	if cfg.PromptCompletionUserGeneral == "" || cfg.PromptCompletionUserParams == "" || cfg.PromptCompletionExtraHeader == "" {
+		t.Fatalf("completion user/extra prompts not loaded")
+	}
+	// provider-native
+	if cfg.PromptNativeCompletion != "NATIVE {{path}} {{before}}" {
+		t.Fatalf("provider-native prompt wrong: %q", cfg.PromptNativeCompletion)
+	}
+	// chat
+	if cfg.PromptChatSystem != "CHAT-SYS" {
+		t.Fatalf("chat system wrong: %q", cfg.PromptChatSystem)
+	}
+	// code action
+	if cfg.PromptCodeActionRewriteSystem != "REWRITE-SYS" || cfg.PromptCodeActionDiagnosticsSystem != "DIAG-SYS" || cfg.PromptCodeActionDocumentSystem != "DOC-SYS" {
+		t.Fatalf("code action system prompts wrong")
+	}
+	if cfg.PromptCodeActionRewriteUser == "" || cfg.PromptCodeActionDiagnosticsUser == "" || cfg.PromptCodeActionDocumentUser == "" {
+		t.Fatalf("code action user prompts not loaded")
+	}
+	if cfg.PromptCodeActionGoTestSystem != "GOTEST-SYS" || cfg.PromptCodeActionGoTestUser == "" {
+		t.Fatalf("go test prompts wrong")
+	}
+	// CLI
+	if cfg.PromptCLIDefaultSystem != "CLI-DEFAULT" || cfg.PromptCLIExplainSystem != "CLI-EXPLAIN" {
+		t.Fatalf("cli prompts wrong: %q %q", cfg.PromptCLIDefaultSystem, cfg.PromptCLIExplainSystem)
+	}
 }

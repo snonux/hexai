@@ -98,12 +98,12 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		return ca, false
 	}
 	switch payload.Type {
-    case "rewrite":
-        sys := s.promptRewriteSystem
-        user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
-        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-        defer cancel()
-        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+	case "rewrite":
+		sys := s.promptRewriteSystem
+		user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
 		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
 			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
@@ -114,37 +114,37 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		} else {
 			logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
 		}
-    case "diagnostics":
-        sys := s.promptDiagnosticsSystem
-        var b strings.Builder
-        for i, dgn := range payload.Diagnostics {
-            if dgn.Source != "" {
-                fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
-            } else {
-                fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
-            }
-        }
-        diagList := b.String()
-        user := renderTemplate(s.promptDiagnosticsUser, map[string]string{"diagnostics": diagList, "selection": payload.Selection})
-        ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-        defer cancel()
-        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-        opts := s.llmRequestOpts()
-        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
-            if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-                ca.Edit = &edit
-                return ca, true
-            }
-        } else {
-            logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
-        }
-    case "document":
-        sys := s.promptDocumentSystem
-        user := renderTemplate(s.promptDocumentUser, map[string]string{"selection": payload.Selection})
-        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-        defer cancel()
-        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+	case "diagnostics":
+		sys := s.promptDiagnosticsSystem
+		var b strings.Builder
+		for i, dgn := range payload.Diagnostics {
+			if dgn.Source != "" {
+				fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
+			} else {
+				fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
+			}
+		}
+		diagList := b.String()
+		user := renderTemplate(s.promptDiagnosticsUser, map[string]string{"diagnostics": diagList, "selection": payload.Selection})
+		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		defer cancel()
+		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+		opts := s.llmRequestOpts()
+		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+				ca.Edit = &edit
+				return ca, true
+			}
+		} else {
+			logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
+		}
+	case "document":
+		sys := s.promptDocumentSystem
+		user := renderTemplate(s.promptDocumentUser, map[string]string{"selection": payload.Selection})
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
 		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
 			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
@@ -466,13 +466,13 @@ func findGoFunctionAtLine(lines []string, idx int) (int, int) {
 
 // generateGoTestFunction uses LLM to produce a test function; falls back to a stub when unavailable.
 func (s *Server) generateGoTestFunction(funcCode string) string {
-    if s.llmClient != nil {
-        sys := s.promptGoTestSystem
-        user := renderTemplate(s.promptGoTestUser, map[string]string{"function": funcCode})
-        ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-        defer cancel()
-        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-        opts := s.llmRequestOpts()
+	if s.llmClient != nil {
+		sys := s.promptGoTestSystem
+		user := renderTemplate(s.promptGoTestUser, map[string]string{"function": funcCode})
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+		opts := s.llmRequestOpts()
 		if out, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
 			cleaned := strings.TrimSpace(stripCodeFences(out))
 			if cleaned != "" {

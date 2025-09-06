@@ -3,18 +3,19 @@
 package hexaicli
 
 import (
-	"bufio"
-	"context"
-	"fmt"
-	"io"
-	"log"
-	"os"
-	"strings"
-	"time"
+    "bufio"
+    "context"
+    "fmt"
+    "io"
+    "log"
+    "os"
+    "strings"
+    "time"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/logging"
+    "codeberg.org/snonux/hexai/internal/appconfig"
+    "codeberg.org/snonux/hexai/internal/logging"
+    "codeberg.org/snonux/hexai/internal/llm"
+    "codeberg.org/snonux/hexai/internal/llmutils"
 )
 
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
@@ -23,24 +24,24 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	// Load configuration with a logger so file-based config is respected.
 	logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
 	cfg := appconfig.Load(logger)
-    client, err := newClientFromConfig(cfg)
-    if err != nil {
-        fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
-        return err
-    }
-    // Inline the flow here to use configured CLI prompts.
-    input, rerr := readInput(stdin, args)
-    if rerr != nil {
-        fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
-        return rerr
-    }
-    printProviderInfo(stderr, client)
-    msgs := buildMessagesFromConfig(cfg, input)
-    if err := runChat(ctx, client, msgs, input, stdout, stderr); err != nil {
-        fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
-        return err
-    }
-    return nil
+    client, err := llmutils.NewClientFromApp(cfg)
+	if err != nil {
+		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+		return err
+	}
+	// Inline the flow here to use configured CLI prompts.
+	input, rerr := readInput(stdin, args)
+	if rerr != nil {
+		fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
+		return rerr
+	}
+	printProviderInfo(stderr, client)
+	msgs := buildMessagesFromConfig(cfg, input)
+	if err := runChat(ctx, client, msgs, input, stdout, stderr); err != nil {
+		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
+		return err
+	}
+	return nil
 }
 
 // RunWithClient executes the CLI flow using an already-constructed client.
@@ -52,7 +53,7 @@ func RunWithClient(ctx context.Context, args []string, stdin io.Reader, stdout, 
 		return err
 	}
 	printProviderInfo(stderr, client)
-    msgs := buildMessages(input)
+	msgs := buildMessages(input)
 	if err := runChat(ctx, client, msgs, input, stdout, stderr); err != nil {
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
 		return err
@@ -81,31 +82,7 @@ func readInput(stdin io.Reader, args []string) (string, error) {
 }
 
 // newClientFromConfig builds an LLM client from the app config and env keys.
-func newClientFromConfig(cfg appconfig.App) (llm.Client, error) {
-	llmCfg := llm.Config{
-		Provider:           cfg.Provider,
-		OpenAIBaseURL:      cfg.OpenAIBaseURL,
-		OpenAIModel:        cfg.OpenAIModel,
-		OpenAITemperature:  cfg.OpenAITemperature,
-		OllamaBaseURL:      cfg.OllamaBaseURL,
-		OllamaModel:        cfg.OllamaModel,
-		OllamaTemperature:  cfg.OllamaTemperature,
-		CopilotBaseURL:     cfg.CopilotBaseURL,
-		CopilotModel:       cfg.CopilotModel,
-		CopilotTemperature: cfg.CopilotTemperature,
-	}
-	// Prefer HEXAI_OPENAI_API_KEY; fall back to OPENAI_API_KEY
-	oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
-	if strings.TrimSpace(oaKey) == "" {
-		oaKey = os.Getenv("OPENAI_API_KEY")
-	}
-	// Prefer HEXAI_COPILOT_API_KEY; fall back to COPILOT_API_KEY
-	cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
-	if strings.TrimSpace(cpKey) == "" {
-		cpKey = os.Getenv("COPILOT_API_KEY")
-	}
-	return llm.NewFromConfig(llmCfg, oaKey, cpKey)
-}
+// client construction moved to internal/llmutils
 
 // buildMessages creates system and user messages based on input content.
 func buildMessages(input string) []llm.Message {
@@ -122,17 +99,17 @@ func buildMessages(input string) []llm.Message {
 
 // buildMessagesFromConfig uses configured CLI system prompts.
 func buildMessagesFromConfig(cfg appconfig.App, input string) []llm.Message {
-    lower := strings.ToLower(input)
-    system := cfg.PromptCLIDefaultSystem
-    if strings.Contains(lower, "explain") {
-        if strings.TrimSpace(cfg.PromptCLIExplainSystem) != "" {
-            system = cfg.PromptCLIExplainSystem
-        }
-    }
-    return []llm.Message{
-        {Role: "system", Content: system},
-        {Role: "user", Content: input},
-    }
+	lower := strings.ToLower(input)
+	system := cfg.PromptCLIDefaultSystem
+	if strings.Contains(lower, "explain") {
+		if strings.TrimSpace(cfg.PromptCLIExplainSystem) != "" {
+			system = cfg.PromptCLIExplainSystem
+		}
+	}
+	return []llm.Message{
+		{Role: "system", Content: system},
+		{Role: "user", Content: input},
+	}
 }
 
 // runChat executes the chat request, handling streaming and summary output.
@@ -164,5 +141,10 @@ func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input s
 
 // printProviderInfo writes the provider/model line to stderr.
 func printProviderInfo(errw io.Writer, client llm.Client) {
-	fmt.Fprintf(errw, logging.AnsiBase+"provider=%s model=%s"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel())
+    fmt.Fprintf(errw, logging.AnsiBase+"provider=%s model=%s"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel())
+}
+
+// newClientFromConfig is kept for tests; delegates to llmutils.
+func newClientFromConfig(cfg appconfig.App) (llm.Client, error) {
+    return llmutils.NewClientFromApp(cfg)
 }

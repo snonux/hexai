@@ -17,16 +17,16 @@ import (
 )
 
 var (
-	Default                   = Build // Default target: build both binaries.
-	coverageThreshold float64 = 85
-	coveragePrinted           = make(chan struct{}, 1)
+    Default                   = Build // Default target: build all binaries.
+    coverageThreshold float64 = 85
+    coveragePrinted           = make(chan struct{}, 1)
 )
 
 // Build builds the Hexai LSP and CLI binaries.
 func Build() error {
-	mg.Deps(BuildHexaiLSP, BuildHexaiCLI)
-	printCoverage()
-	return nil
+    mg.Deps(BuildHexaiLSP, BuildHexaiCLI, BuildHexaiAction)
+    printCoverage()
+    return nil
 }
 
 // BuildHexaiLSP builds the LSP server binary.
@@ -37,18 +37,27 @@ func BuildHexaiLSP() error {
 
 // BuildHexaiCLI builds the CLI binary.
 func BuildHexaiCLI() error {
-	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai", "cmd/hexai/main.go")
+    printCoverage()
+    return sh.RunV("go", "build", "-o", "hexai", "cmd/hexai/main.go")
+}
+
+// BuildHexaiAction builds the hexai-action TUI binary.
+func BuildHexaiAction() error {
+    printCoverage()
+    return sh.RunV("go", "build", "-o", "hexai-action", "cmd/internal/hexai-action/main.go")
 }
 
 // Dev runs tests, vet, lint, then builds with race for both binaries.
 func Dev() error {
-	printCoverage()
-	mg.Deps(Test, Vet, Lint)
-	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp", "cmd/hexai-lsp/main.go"); err != nil {
-		return err
-	}
-	return sh.RunV("go", "build", "-race", "-o", "hexai", "cmd/hexai/main.go")
+    printCoverage()
+    mg.Deps(Test, Vet, Lint)
+    if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp", "cmd/hexai-lsp/main.go"); err != nil {
+        return err
+    }
+    if err := sh.RunV("go", "build", "-race", "-o", "hexai", "cmd/hexai/main.go"); err != nil {
+        return err
+    }
+    return sh.RunV("go", "build", "-race", "-o", "hexai-action", "cmd/internal/hexai-action/main.go")
 }
 
 // Run launches the LSP server via go run (useful during development).
@@ -68,8 +77,8 @@ func RunCLI() error {
 
 // Install copies built binaries to GOPATH/bin (defaults to ~/go/bin when GOPATH is unset).
 func Install() error {
-	printCoverage()
-	mg.Deps(Build)
+    printCoverage()
+    mg.Deps(Build)
 	gopath := os.Getenv("GOPATH")
 	if gopath == "" {
 		home, err := os.UserHomeDir()
@@ -82,10 +91,20 @@ func Install() error {
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		return err
 	}
-	if err := sh.RunV("cp", "-v", "./hexai-lsp", bin+"/"); err != nil {
-		return err
-	}
-	return sh.RunV("cp", "-v", "./hexai", bin+"/")
+    if err := sh.RunV("cp", "-v", "./hexai-lsp", bin+"/"); err != nil {
+        return err
+    }
+    if err := sh.RunV("cp", "-v", "./hexai", bin+"/"); err != nil {
+        return err
+    }
+    return sh.RunV("cp", "-v", "./hexai-action", bin+"/")
+}
+
+// RunAction runs the hexai-action TUI via go run (reads stdin).
+func RunAction() error {
+    printCoverage()
+    mg.Deps(Dev)
+    return sh.RunV("go", "run", "cmd/internal/hexai-action/main.go")
 }
 
 // printCoverage prints a warning if an existing coverage profile shows total < coverateThreshold.

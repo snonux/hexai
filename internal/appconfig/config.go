@@ -54,35 +54,35 @@ type App struct {
 	// Default temperature for Ollama requests (nil means use provider default)
 	OllamaTemperature *float64 `json:"ollama_temperature" toml:"ollama_temperature"`
 	CopilotBaseURL    string   `json:"copilot_base_url" toml:"copilot_base_url"`
-    CopilotModel      string   `json:"copilot_model" toml:"copilot_model"`
-    // Default temperature for Copilot requests (nil means use provider default)
-    CopilotTemperature *float64 `json:"copilot_temperature" toml:"copilot_temperature"`
+	CopilotModel      string   `json:"copilot_model" toml:"copilot_model"`
+	// Default temperature for Copilot requests (nil means use provider default)
+	CopilotTemperature *float64 `json:"copilot_temperature" toml:"copilot_temperature"`
 
-    // Prompt templates (configured only via file; no env overrides)
-    // Completion/chat/code action/CLI prompt strings. See config.toml.example for placeholders.
-    // Completion
-    PromptCompletionSystemGeneral string `json:"-" toml:"-"`
-    PromptCompletionSystemParams  string `json:"-" toml:"-"`
-    PromptCompletionSystemInline  string `json:"-" toml:"-"`
-    PromptCompletionUserGeneral   string `json:"-" toml:"-"`
-    PromptCompletionUserParams    string `json:"-" toml:"-"`
-    PromptCompletionExtraHeader   string `json:"-" toml:"-"`
-    // Provider-native code-completer
-    PromptNativeCompletion        string `json:"-" toml:"-"`
-    // In-editor chat
-    PromptChatSystem              string `json:"-" toml:"-"`
-    // Code actions
-    PromptCodeActionRewriteSystem     string `json:"-" toml:"-"`
-    PromptCodeActionDiagnosticsSystem string `json:"-" toml:"-"`
-    PromptCodeActionDocumentSystem    string `json:"-" toml:"-"`
-    PromptCodeActionRewriteUser       string `json:"-" toml:"-"`
-    PromptCodeActionDiagnosticsUser   string `json:"-" toml:"-"`
-    PromptCodeActionDocumentUser      string `json:"-" toml:"-"`
-    PromptCodeActionGoTestSystem      string `json:"-" toml:"-"`
-    PromptCodeActionGoTestUser        string `json:"-" toml:"-"`
-    // CLI
-    PromptCLIDefaultSystem string `json:"-" toml:"-"`
-    PromptCLIExplainSystem string `json:"-" toml:"-"`
+	// Prompt templates (configured only via file; no env overrides)
+	// Completion/chat/code action/CLI prompt strings. See config.toml.example for placeholders.
+	// Completion
+	PromptCompletionSystemGeneral string `json:"-" toml:"-"`
+	PromptCompletionSystemParams  string `json:"-" toml:"-"`
+	PromptCompletionSystemInline  string `json:"-" toml:"-"`
+	PromptCompletionUserGeneral   string `json:"-" toml:"-"`
+	PromptCompletionUserParams    string `json:"-" toml:"-"`
+	PromptCompletionExtraHeader   string `json:"-" toml:"-"`
+	// Provider-native code-completer
+	PromptNativeCompletion string `json:"-" toml:"-"`
+	// In-editor chat
+	PromptChatSystem string `json:"-" toml:"-"`
+	// Code actions
+	PromptCodeActionRewriteSystem     string `json:"-" toml:"-"`
+	PromptCodeActionDiagnosticsSystem string `json:"-" toml:"-"`
+	PromptCodeActionDocumentSystem    string `json:"-" toml:"-"`
+	PromptCodeActionRewriteUser       string `json:"-" toml:"-"`
+	PromptCodeActionDiagnosticsUser   string `json:"-" toml:"-"`
+	PromptCodeActionDocumentUser      string `json:"-" toml:"-"`
+	PromptCodeActionGoTestSystem      string `json:"-" toml:"-"`
+	PromptCodeActionGoTestUser        string `json:"-" toml:"-"`
+	// CLI
+	PromptCLIDefaultSystem string `json:"-" toml:"-"`
+	PromptCLIExplainSystem string `json:"-" toml:"-"`
 }
 
 // Constructor: defaults for App (kept first among functions)
@@ -90,7 +90,7 @@ func newDefaultConfig() App {
 	// Coding-friendly default temperature across providers
 	// Users can override per provider in config.toml (including 0.0).
 	t := 0.2
-    return App{
+	return App{
 		MaxTokens:             4000,
 		ContextMode:           "always-full",
 		ContextWindowLines:    120,
@@ -107,32 +107,32 @@ func newDefaultConfig() App {
 		InlineOpen:   ">",
 		InlineClose:  ">",
 		ChatSuffix:   ">",
-        ChatPrefixes: []string{"?", "!", ":", ";"},
+		ChatPrefixes: []string{"?", "!", ":", ";"},
 
-        // Default prompt templates (match current hard-coded strings)
-        PromptCompletionSystemParams:  "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types.",
-        PromptCompletionUserParams:    "Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: {{function}}\nCurrent line (cursor at {{char}}): {{current}}",
-        PromptCompletionSystemGeneral: "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks. Only continue from the cursor; never repeat characters already present to the left of the cursor on the current line (e.g., if 'name :=' is already typed, only return the right-hand side expression).",
-        PromptCompletionUserGeneral:   "Provide the next likely code to insert at the cursor.\nFile: {{file}}\nFunction/context: {{function}}\nAbove line: {{above}}\nCurrent line (cursor at character {{char}}): {{current}}\nBelow line: {{below}}\nOnly return the completion snippet.",
-        PromptCompletionSystemInline:  "You are a precise code completion/refactoring engine. Output only the code to insert with no prose, no comments, and no backticks. Return raw code only.",
-        PromptCompletionExtraHeader:   "Additional context:\n{{context}}",
+		// Default prompt templates (match current hard-coded strings)
+		PromptCompletionSystemParams:  "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types.",
+		PromptCompletionUserParams:    "Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: {{function}}\nCurrent line (cursor at {{char}}): {{current}}",
+		PromptCompletionSystemGeneral: "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks. Only continue from the cursor; never repeat characters already present to the left of the cursor on the current line (e.g., if 'name :=' is already typed, only return the right-hand side expression).",
+		PromptCompletionUserGeneral:   "Provide the next likely code to insert at the cursor.\nFile: {{file}}\nFunction/context: {{function}}\nAbove line: {{above}}\nCurrent line (cursor at character {{char}}): {{current}}\nBelow line: {{below}}\nOnly return the completion snippet.",
+		PromptCompletionSystemInline:  "You are a precise code completion/refactoring engine. Output only the code to insert with no prose, no comments, and no backticks. Return raw code only.",
+		PromptCompletionExtraHeader:   "Additional context:\n{{context}}",
 
-        PromptNativeCompletion: "// Path: {{path}}\n{{before}}",
+		PromptNativeCompletion: "// Path: {{path}}\n{{before}}",
 
-        PromptChatSystem: "You are a helpful coding assistant. Answer concisely and clearly.",
+		PromptChatSystem: "You are a helpful coding assistant. Answer concisely and clearly.",
 
-        PromptCodeActionRewriteSystem:     "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable.",
-        PromptCodeActionDiagnosticsSystem: "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes.",
-        PromptCodeActionDocumentSystem:    "You are a precise code documentation engine. Add idiomatic documentation comments to the given code. Preserve exact behavior and formatting as much as possible. Return only the updated code with comments, no prose or backticks.",
-        PromptCodeActionRewriteUser:       "Instruction: {{instruction}}\n\nSelected code to transform:\n{{selection}}",
-        PromptCodeActionDiagnosticsUser:   "Diagnostics to resolve (selection only):\n{{diagnostics}}\n\nSelected code:\n{{selection}}",
-        PromptCodeActionDocumentUser:      "Add documentation comments to this code:\n{{selection}}",
-        PromptCodeActionGoTestSystem:      "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic.",
-        PromptCodeActionGoTestUser:        "Function under test:\n{{function}}",
+		PromptCodeActionRewriteSystem:     "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable.",
+		PromptCodeActionDiagnosticsSystem: "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes.",
+		PromptCodeActionDocumentSystem:    "You are a precise code documentation engine. Add idiomatic documentation comments to the given code. Preserve exact behavior and formatting as much as possible. Return only the updated code with comments, no prose or backticks.",
+		PromptCodeActionRewriteUser:       "Instruction: {{instruction}}\n\nSelected code to transform:\n{{selection}}",
+		PromptCodeActionDiagnosticsUser:   "Diagnostics to resolve (selection only):\n{{diagnostics}}\n\nSelected code:\n{{selection}}",
+		PromptCodeActionDocumentUser:      "Add documentation comments to this code:\n{{selection}}",
+		PromptCodeActionGoTestSystem:      "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic.",
+		PromptCodeActionGoTestUser:        "Function under test:\n{{function}}",
 
-        PromptCLIDefaultSystem: "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation.",
-        PromptCLIExplainSystem: "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context.",
-    }
+		PromptCLIDefaultSystem: "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation.",
+		PromptCLIExplainSystem: "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context.",
+	}
 }
 
 // Load reads configuration from a file and merges with defaults.
@@ -165,350 +165,350 @@ func Load(logger *log.Logger) App {
 // Private helpers
 // Sectioned (table-based) file format only.
 type fileConfig struct {
-    // Section tables only (flat keys are not allowed)
-    General   sectionGeneral   `toml:"general"`
-    Logging   sectionLogging   `toml:"logging"`
-    Completion sectionCompletion `toml:"completion"`
-    Triggers  sectionTriggers  `toml:"triggers"`
-    Inline    sectionInline    `toml:"inline"`
-    Chat      sectionChat      `toml:"chat"`
-    Provider  sectionProvider  `toml:"provider"`
-    OpenAI    sectionOpenAI    `toml:"openai"`
-    Copilot   sectionCopilot   `toml:"copilot"`
-    Ollama    sectionOllama    `toml:"ollama"`
-    Prompts   sectionPrompts   `toml:"prompts"`
+	// Section tables only (flat keys are not allowed)
+	General    sectionGeneral    `toml:"general"`
+	Logging    sectionLogging    `toml:"logging"`
+	Completion sectionCompletion `toml:"completion"`
+	Triggers   sectionTriggers   `toml:"triggers"`
+	Inline     sectionInline     `toml:"inline"`
+	Chat       sectionChat       `toml:"chat"`
+	Provider   sectionProvider   `toml:"provider"`
+	OpenAI     sectionOpenAI     `toml:"openai"`
+	Copilot    sectionCopilot    `toml:"copilot"`
+	Ollama     sectionOllama     `toml:"ollama"`
+	Prompts    sectionPrompts    `toml:"prompts"`
 }
 
 type sectionGeneral struct {
-    MaxTokens          int      `toml:"max_tokens"`
-    ContextMode        string   `toml:"context_mode"`
-    ContextWindowLines int      `toml:"context_window_lines"`
-    MaxContextTokens   int      `toml:"max_context_tokens"`
-    CodingTemperature  *float64 `toml:"coding_temperature"`
+	MaxTokens          int      `toml:"max_tokens"`
+	ContextMode        string   `toml:"context_mode"`
+	ContextWindowLines int      `toml:"context_window_lines"`
+	MaxContextTokens   int      `toml:"max_context_tokens"`
+	CodingTemperature  *float64 `toml:"coding_temperature"`
 }
 
 type sectionLogging struct {
-    LogPreviewLimit int `toml:"log_preview_limit"`
+	LogPreviewLimit int `toml:"log_preview_limit"`
 }
 
 type sectionCompletion struct {
-    CompletionDebounceMs  int `toml:"completion_debounce_ms"`
-    CompletionThrottleMs  int `toml:"completion_throttle_ms"`
-    ManualInvokeMinPrefix int `toml:"manual_invoke_min_prefix"`
+	CompletionDebounceMs  int `toml:"completion_debounce_ms"`
+	CompletionThrottleMs  int `toml:"completion_throttle_ms"`
+	ManualInvokeMinPrefix int `toml:"manual_invoke_min_prefix"`
 }
 
 type sectionTriggers struct {
-    TriggerCharacters []string `toml:"trigger_characters"`
+	TriggerCharacters []string `toml:"trigger_characters"`
 }
 
 type sectionInline struct {
-    InlineOpen  string `toml:"inline_open"`
-    InlineClose string `toml:"inline_close"`
+	InlineOpen  string `toml:"inline_open"`
+	InlineClose string `toml:"inline_close"`
 }
 
 type sectionChat struct {
-    ChatSuffix   string   `toml:"chat_suffix"`
-    ChatPrefixes []string `toml:"chat_prefixes"`
+	ChatSuffix   string   `toml:"chat_suffix"`
+	ChatPrefixes []string `toml:"chat_prefixes"`
 }
 
 type sectionProvider struct {
-    Name string `toml:"name"`
+	Name string `toml:"name"`
 }
 
 type sectionOpenAI struct {
-    Model       string   `toml:"model"`
-    BaseURL     string   `toml:"base_url"`
-    Temperature *float64 `toml:"temperature"`
+	Model       string   `toml:"model"`
+	BaseURL     string   `toml:"base_url"`
+	Temperature *float64 `toml:"temperature"`
 }
 
 type sectionCopilot struct {
-    Model       string   `toml:"model"`
-    BaseURL     string   `toml:"base_url"`
-    Temperature *float64 `toml:"temperature"`
+	Model       string   `toml:"model"`
+	BaseURL     string   `toml:"base_url"`
+	Temperature *float64 `toml:"temperature"`
 }
 
 type sectionOllama struct {
-    Model       string   `toml:"model"`
-    BaseURL     string   `toml:"base_url"`
-    Temperature *float64 `toml:"temperature"`
+	Model       string   `toml:"model"`
+	BaseURL     string   `toml:"base_url"`
+	Temperature *float64 `toml:"temperature"`
 }
 
 // Prompts sections
 type sectionPrompts struct {
-    Completion     sectionPromptsCompletion     `toml:"completion"`
-    Chat           sectionPromptsChat           `toml:"chat"`
-    CodeAction     sectionPromptsCodeAction     `toml:"code_action"`
-    CLI            sectionPromptsCLI            `toml:"cli"`
-    ProviderNative sectionPromptsProviderNative `toml:"provider_native"`
+	Completion     sectionPromptsCompletion     `toml:"completion"`
+	Chat           sectionPromptsChat           `toml:"chat"`
+	CodeAction     sectionPromptsCodeAction     `toml:"code_action"`
+	CLI            sectionPromptsCLI            `toml:"cli"`
+	ProviderNative sectionPromptsProviderNative `toml:"provider_native"`
 }
 
 type sectionPromptsCompletion struct {
-    SystemGeneral string `toml:"system_general"`
-    SystemParams  string `toml:"system_params"`
-    SystemInline  string `toml:"system_inline"`
-    UserGeneral   string `toml:"user_general"`
-    UserParams    string `toml:"user_params"`
-    ExtraHeader   string `toml:"additional_context"`
+	SystemGeneral string `toml:"system_general"`
+	SystemParams  string `toml:"system_params"`
+	SystemInline  string `toml:"system_inline"`
+	UserGeneral   string `toml:"user_general"`
+	UserParams    string `toml:"user_params"`
+	ExtraHeader   string `toml:"additional_context"`
 }
 
 type sectionPromptsChat struct {
-    System string `toml:"system"`
+	System string `toml:"system"`
 }
 
 type sectionPromptsCodeAction struct {
-    RewriteSystem     string `toml:"rewrite_system"`
-    DiagnosticsSystem string `toml:"diagnostics_system"`
-    DocumentSystem    string `toml:"document_system"`
-    RewriteUser       string `toml:"rewrite_user"`
-    DiagnosticsUser   string `toml:"diagnostics_user"`
-    DocumentUser      string `toml:"document_user"`
-    GoTestSystem      string `toml:"go_test_system"`
-    GoTestUser        string `toml:"go_test_user"`
+	RewriteSystem     string `toml:"rewrite_system"`
+	DiagnosticsSystem string `toml:"diagnostics_system"`
+	DocumentSystem    string `toml:"document_system"`
+	RewriteUser       string `toml:"rewrite_user"`
+	DiagnosticsUser   string `toml:"diagnostics_user"`
+	DocumentUser      string `toml:"document_user"`
+	GoTestSystem      string `toml:"go_test_system"`
+	GoTestUser        string `toml:"go_test_user"`
 }
 
 type sectionPromptsCLI struct {
-    DefaultSystem string `toml:"default_system"`
-    ExplainSystem string `toml:"explain_system"`
+	DefaultSystem string `toml:"default_system"`
+	ExplainSystem string `toml:"explain_system"`
 }
 
 type sectionPromptsProviderNative struct {
-    Completion string `toml:"completion"`
+	Completion string `toml:"completion"`
 }
 
 func (fc *fileConfig) toApp() App {
-    out := App{}
+	out := App{}
 
-    // Merge section: general
-    if (fc.General != sectionGeneral{}) || fc.General.CodingTemperature != nil {
-        tmp := App{
-            MaxTokens:          fc.General.MaxTokens,
-            ContextMode:        fc.General.ContextMode,
-            ContextWindowLines: fc.General.ContextWindowLines,
-            MaxContextTokens:   fc.General.MaxContextTokens,
-            CodingTemperature:  fc.General.CodingTemperature,
-        }
-        out.mergeBasics(&tmp)
-    }
+	// Merge section: general
+	if (fc.General != sectionGeneral{}) || fc.General.CodingTemperature != nil {
+		tmp := App{
+			MaxTokens:          fc.General.MaxTokens,
+			ContextMode:        fc.General.ContextMode,
+			ContextWindowLines: fc.General.ContextWindowLines,
+			MaxContextTokens:   fc.General.MaxContextTokens,
+			CodingTemperature:  fc.General.CodingTemperature,
+		}
+		out.mergeBasics(&tmp)
+	}
 
-    // logging
-    if (fc.Logging != sectionLogging{}) {
-        tmp := App{LogPreviewLimit: fc.Logging.LogPreviewLimit}
-        out.mergeBasics(&tmp)
-    }
+	// logging
+	if (fc.Logging != sectionLogging{}) {
+		tmp := App{LogPreviewLimit: fc.Logging.LogPreviewLimit}
+		out.mergeBasics(&tmp)
+	}
 
-    // completion
-    if (fc.Completion != sectionCompletion{}) {
-        tmp := App{
-            CompletionDebounceMs:  fc.Completion.CompletionDebounceMs,
-            CompletionThrottleMs:  fc.Completion.CompletionThrottleMs,
-            ManualInvokeMinPrefix: fc.Completion.ManualInvokeMinPrefix,
-        }
-        out.mergeBasics(&tmp)
-    }
+	// completion
+	if (fc.Completion != sectionCompletion{}) {
+		tmp := App{
+			CompletionDebounceMs:  fc.Completion.CompletionDebounceMs,
+			CompletionThrottleMs:  fc.Completion.CompletionThrottleMs,
+			ManualInvokeMinPrefix: fc.Completion.ManualInvokeMinPrefix,
+		}
+		out.mergeBasics(&tmp)
+	}
 
-    // triggers
-    if len(fc.Triggers.TriggerCharacters) > 0 {
-        tmp := App{TriggerCharacters: fc.Triggers.TriggerCharacters}
-        out.mergeBasics(&tmp)
-    }
+	// triggers
+	if len(fc.Triggers.TriggerCharacters) > 0 {
+		tmp := App{TriggerCharacters: fc.Triggers.TriggerCharacters}
+		out.mergeBasics(&tmp)
+	}
 
-    // inline
-    if (fc.Inline != sectionInline{}) {
-        tmp := App{InlineOpen: fc.Inline.InlineOpen, InlineClose: fc.Inline.InlineClose}
-        out.mergeBasics(&tmp)
-    }
+	// inline
+	if (fc.Inline != sectionInline{}) {
+		tmp := App{InlineOpen: fc.Inline.InlineOpen, InlineClose: fc.Inline.InlineClose}
+		out.mergeBasics(&tmp)
+	}
 
-    // chat
-    if strings.TrimSpace(fc.Chat.ChatSuffix) != "" || len(fc.Chat.ChatPrefixes) > 0 {
-        tmp := App{ChatSuffix: fc.Chat.ChatSuffix, ChatPrefixes: fc.Chat.ChatPrefixes}
-        out.mergeBasics(&tmp)
-    }
+	// chat
+	if strings.TrimSpace(fc.Chat.ChatSuffix) != "" || len(fc.Chat.ChatPrefixes) > 0 {
+		tmp := App{ChatSuffix: fc.Chat.ChatSuffix, ChatPrefixes: fc.Chat.ChatPrefixes}
+		out.mergeBasics(&tmp)
+	}
 
-    // provider
-    if strings.TrimSpace(fc.Provider.Name) != "" {
-        tmp := App{Provider: fc.Provider.Name}
-        out.mergeBasics(&tmp)
-    }
+	// provider
+	if strings.TrimSpace(fc.Provider.Name) != "" {
+		tmp := App{Provider: fc.Provider.Name}
+		out.mergeBasics(&tmp)
+	}
 
-    // openai
-    if (fc.OpenAI != sectionOpenAI{}) || fc.OpenAI.Temperature != nil {
-        tmp := App{
-            OpenAIBaseURL:     fc.OpenAI.BaseURL,
-            OpenAIModel:       fc.OpenAI.Model,
-            OpenAITemperature: fc.OpenAI.Temperature,
-        }
-        out.mergeProviderFields(&tmp)
-    }
+	// openai
+	if (fc.OpenAI != sectionOpenAI{}) || fc.OpenAI.Temperature != nil {
+		tmp := App{
+			OpenAIBaseURL:     fc.OpenAI.BaseURL,
+			OpenAIModel:       fc.OpenAI.Model,
+			OpenAITemperature: fc.OpenAI.Temperature,
+		}
+		out.mergeProviderFields(&tmp)
+	}
 
-    // copilot
-    if (fc.Copilot != sectionCopilot{}) || fc.Copilot.Temperature != nil {
-        tmp := App{
-            CopilotBaseURL:     fc.Copilot.BaseURL,
-            CopilotModel:       fc.Copilot.Model,
-            CopilotTemperature: fc.Copilot.Temperature,
-        }
-        out.mergeProviderFields(&tmp)
-    }
+	// copilot
+	if (fc.Copilot != sectionCopilot{}) || fc.Copilot.Temperature != nil {
+		tmp := App{
+			CopilotBaseURL:     fc.Copilot.BaseURL,
+			CopilotModel:       fc.Copilot.Model,
+			CopilotTemperature: fc.Copilot.Temperature,
+		}
+		out.mergeProviderFields(&tmp)
+	}
 
-    // ollama
-    if (fc.Ollama != sectionOllama{}) || fc.Ollama.Temperature != nil {
-        tmp := App{
-            OllamaBaseURL:     fc.Ollama.BaseURL,
-            OllamaModel:       fc.Ollama.Model,
-            OllamaTemperature: fc.Ollama.Temperature,
-        }
-        out.mergeProviderFields(&tmp)
-    }
+	// ollama
+	if (fc.Ollama != sectionOllama{}) || fc.Ollama.Temperature != nil {
+		tmp := App{
+			OllamaBaseURL:     fc.Ollama.BaseURL,
+			OllamaModel:       fc.Ollama.Model,
+			OllamaTemperature: fc.Ollama.Temperature,
+		}
+		out.mergeProviderFields(&tmp)
+	}
 
-    // prompts
-    // completion
-    if (fc.Prompts.Completion != sectionPromptsCompletion{}) {
-        if strings.TrimSpace(fc.Prompts.Completion.SystemGeneral) != "" {
-            out.PromptCompletionSystemGeneral = fc.Prompts.Completion.SystemGeneral
-        }
-        if strings.TrimSpace(fc.Prompts.Completion.SystemParams) != "" {
-            out.PromptCompletionSystemParams = fc.Prompts.Completion.SystemParams
-        }
-        if strings.TrimSpace(fc.Prompts.Completion.SystemInline) != "" {
-            out.PromptCompletionSystemInline = fc.Prompts.Completion.SystemInline
-        }
-        if strings.TrimSpace(fc.Prompts.Completion.UserGeneral) != "" {
-            out.PromptCompletionUserGeneral = fc.Prompts.Completion.UserGeneral
-        }
-        if strings.TrimSpace(fc.Prompts.Completion.UserParams) != "" {
-            out.PromptCompletionUserParams = fc.Prompts.Completion.UserParams
-        }
-        if strings.TrimSpace(fc.Prompts.Completion.ExtraHeader) != "" {
-            out.PromptCompletionExtraHeader = fc.Prompts.Completion.ExtraHeader
-        }
-    }
-    // chat
-    if strings.TrimSpace(fc.Prompts.Chat.System) != "" {
-        out.PromptChatSystem = fc.Prompts.Chat.System
-    }
-    // code action
-    if (fc.Prompts.CodeAction != sectionPromptsCodeAction{}) {
-        if strings.TrimSpace(fc.Prompts.CodeAction.RewriteSystem) != "" {
-            out.PromptCodeActionRewriteSystem = fc.Prompts.CodeAction.RewriteSystem
-        }
-        if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsSystem) != "" {
-            out.PromptCodeActionDiagnosticsSystem = fc.Prompts.CodeAction.DiagnosticsSystem
-        }
-        if strings.TrimSpace(fc.Prompts.CodeAction.DocumentSystem) != "" {
-            out.PromptCodeActionDocumentSystem = fc.Prompts.CodeAction.DocumentSystem
-        }
-        if strings.TrimSpace(fc.Prompts.CodeAction.RewriteUser) != "" {
-            out.PromptCodeActionRewriteUser = fc.Prompts.CodeAction.RewriteUser
-        }
-        if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsUser) != "" {
-            out.PromptCodeActionDiagnosticsUser = fc.Prompts.CodeAction.DiagnosticsUser
-        }
-        if strings.TrimSpace(fc.Prompts.CodeAction.DocumentUser) != "" {
-            out.PromptCodeActionDocumentUser = fc.Prompts.CodeAction.DocumentUser
-        }
-        if strings.TrimSpace(fc.Prompts.CodeAction.GoTestSystem) != "" {
-            out.PromptCodeActionGoTestSystem = fc.Prompts.CodeAction.GoTestSystem
-        }
-        if strings.TrimSpace(fc.Prompts.CodeAction.GoTestUser) != "" {
-            out.PromptCodeActionGoTestUser = fc.Prompts.CodeAction.GoTestUser
-        }
-    }
-    // cli
-    if (fc.Prompts.CLI != sectionPromptsCLI{}) {
-        if strings.TrimSpace(fc.Prompts.CLI.DefaultSystem) != "" {
-            out.PromptCLIDefaultSystem = fc.Prompts.CLI.DefaultSystem
-        }
-        if strings.TrimSpace(fc.Prompts.CLI.ExplainSystem) != "" {
-            out.PromptCLIExplainSystem = fc.Prompts.CLI.ExplainSystem
-        }
-    }
-    // provider-native
-    if strings.TrimSpace(fc.Prompts.ProviderNative.Completion) != "" {
-        out.PromptNativeCompletion = fc.Prompts.ProviderNative.Completion
-    }
+	// prompts
+	// completion
+	if (fc.Prompts.Completion != sectionPromptsCompletion{}) {
+		if strings.TrimSpace(fc.Prompts.Completion.SystemGeneral) != "" {
+			out.PromptCompletionSystemGeneral = fc.Prompts.Completion.SystemGeneral
+		}
+		if strings.TrimSpace(fc.Prompts.Completion.SystemParams) != "" {
+			out.PromptCompletionSystemParams = fc.Prompts.Completion.SystemParams
+		}
+		if strings.TrimSpace(fc.Prompts.Completion.SystemInline) != "" {
+			out.PromptCompletionSystemInline = fc.Prompts.Completion.SystemInline
+		}
+		if strings.TrimSpace(fc.Prompts.Completion.UserGeneral) != "" {
+			out.PromptCompletionUserGeneral = fc.Prompts.Completion.UserGeneral
+		}
+		if strings.TrimSpace(fc.Prompts.Completion.UserParams) != "" {
+			out.PromptCompletionUserParams = fc.Prompts.Completion.UserParams
+		}
+		if strings.TrimSpace(fc.Prompts.Completion.ExtraHeader) != "" {
+			out.PromptCompletionExtraHeader = fc.Prompts.Completion.ExtraHeader
+		}
+	}
+	// chat
+	if strings.TrimSpace(fc.Prompts.Chat.System) != "" {
+		out.PromptChatSystem = fc.Prompts.Chat.System
+	}
+	// code action
+	if (fc.Prompts.CodeAction != sectionPromptsCodeAction{}) {
+		if strings.TrimSpace(fc.Prompts.CodeAction.RewriteSystem) != "" {
+			out.PromptCodeActionRewriteSystem = fc.Prompts.CodeAction.RewriteSystem
+		}
+		if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsSystem) != "" {
+			out.PromptCodeActionDiagnosticsSystem = fc.Prompts.CodeAction.DiagnosticsSystem
+		}
+		if strings.TrimSpace(fc.Prompts.CodeAction.DocumentSystem) != "" {
+			out.PromptCodeActionDocumentSystem = fc.Prompts.CodeAction.DocumentSystem
+		}
+		if strings.TrimSpace(fc.Prompts.CodeAction.RewriteUser) != "" {
+			out.PromptCodeActionRewriteUser = fc.Prompts.CodeAction.RewriteUser
+		}
+		if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsUser) != "" {
+			out.PromptCodeActionDiagnosticsUser = fc.Prompts.CodeAction.DiagnosticsUser
+		}
+		if strings.TrimSpace(fc.Prompts.CodeAction.DocumentUser) != "" {
+			out.PromptCodeActionDocumentUser = fc.Prompts.CodeAction.DocumentUser
+		}
+		if strings.TrimSpace(fc.Prompts.CodeAction.GoTestSystem) != "" {
+			out.PromptCodeActionGoTestSystem = fc.Prompts.CodeAction.GoTestSystem
+		}
+		if strings.TrimSpace(fc.Prompts.CodeAction.GoTestUser) != "" {
+			out.PromptCodeActionGoTestUser = fc.Prompts.CodeAction.GoTestUser
+		}
+	}
+	// cli
+	if (fc.Prompts.CLI != sectionPromptsCLI{}) {
+		if strings.TrimSpace(fc.Prompts.CLI.DefaultSystem) != "" {
+			out.PromptCLIDefaultSystem = fc.Prompts.CLI.DefaultSystem
+		}
+		if strings.TrimSpace(fc.Prompts.CLI.ExplainSystem) != "" {
+			out.PromptCLIExplainSystem = fc.Prompts.CLI.ExplainSystem
+		}
+	}
+	// provider-native
+	if strings.TrimSpace(fc.Prompts.ProviderNative.Completion) != "" {
+		out.PromptNativeCompletion = fc.Prompts.ProviderNative.Completion
+	}
 
-    return out
+	return out
 }
 
 func loadFromFile(path string, logger *log.Logger) (*App, error) {
-    b, err := os.ReadFile(path)
-    if err != nil {
-        if !os.IsNotExist(err) && logger != nil {
-            logger.Printf("cannot open TOML config file %s: %v", path, err)
-        }
-        return nil, err
-    }
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) && logger != nil {
+			logger.Printf("cannot open TOML config file %s: %v", path, err)
+		}
+		return nil, err
+	}
 
-    var tables fileConfig
-    errTables := toml.NewDecoder(strings.NewReader(string(b))).Decode(&tables)
-    // Raw map for validation/presence checks
-    var raw map[string]any
-    _ = toml.Unmarshal(b, &raw)
-    if errTables != nil {
-        if logger != nil {
-            logger.Printf("invalid TOML config file %s: %v", path, errTables)
-        }
-        return nil, errTables
-    }
+	var tables fileConfig
+	errTables := toml.NewDecoder(strings.NewReader(string(b))).Decode(&tables)
+	// Raw map for validation/presence checks
+	var raw map[string]any
+	_ = toml.Unmarshal(b, &raw)
+	if errTables != nil {
+		if logger != nil {
+			logger.Printf("invalid TOML config file %s: %v", path, errTables)
+		}
+		return nil, errTables
+	}
 
-    // Reject legacy flat keys at top-level (sectioned-only config is allowed)
-    legacy := map[string]struct{}{
-        "max_tokens": {}, "context_mode": {}, "context_window_lines": {}, "max_context_tokens": {},
-        "log_preview_limit": {}, "completion_debounce_ms": {}, "completion_throttle_ms": {},
-        "manual_invoke_min_prefix": {}, "trigger_characters": {}, "inline_open": {}, "inline_close": {},
-        "chat_suffix": {}, "chat_prefixes": {}, "coding_temperature": {}, "provider": {},
-        "openai_model": {}, "openai_base_url": {}, "openai_temperature": {},
-        "ollama_model": {}, "ollama_base_url": {}, "ollama_temperature": {},
-        "copilot_model": {}, "copilot_base_url": {}, "copilot_temperature": {},
-    }
-    for k := range raw {
-        if _, isTable := map[string]struct{}{"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {}, "chat": {}, "provider": {}, "openai": {}, "copilot": {}, "ollama": {}, "prompts": {}}[k]; isTable {
-            continue
-        }
-        if _, isLegacy := legacy[k]; isLegacy {
-            return nil, fmt.Errorf("unsupported flat key '%s' in config; use sectioned tables (see config.toml.example)", k)
-        }
-    }
+	// Reject legacy flat keys at top-level (sectioned-only config is allowed)
+	legacy := map[string]struct{}{
+		"max_tokens": {}, "context_mode": {}, "context_window_lines": {}, "max_context_tokens": {},
+		"log_preview_limit": {}, "completion_debounce_ms": {}, "completion_throttle_ms": {},
+		"manual_invoke_min_prefix": {}, "trigger_characters": {}, "inline_open": {}, "inline_close": {},
+		"chat_suffix": {}, "chat_prefixes": {}, "coding_temperature": {}, "provider": {},
+		"openai_model": {}, "openai_base_url": {}, "openai_temperature": {},
+		"ollama_model": {}, "ollama_base_url": {}, "ollama_temperature": {},
+		"copilot_model": {}, "copilot_base_url": {}, "copilot_temperature": {},
+	}
+	for k := range raw {
+		if _, isTable := map[string]struct{}{"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {}, "chat": {}, "provider": {}, "openai": {}, "copilot": {}, "ollama": {}, "prompts": {}}[k]; isTable {
+			continue
+		}
+		if _, isLegacy := legacy[k]; isLegacy {
+			return nil, fmt.Errorf("unsupported flat key '%s' in config; use sectioned tables (see config.toml.example)", k)
+		}
+	}
 
-    if logger != nil {
-        logger.Printf("loaded configuration from %s (TOML)", path)
-    }
+	if logger != nil {
+		logger.Printf("loaded configuration from %s (TOML)", path)
+	}
 
-    // Merge order: flat first, then tables (so tables win over zero flat values)
-    // Build App from tables only
-    tab := tables.toApp()
-    // Ensure explicit values from raw map are respected (defensive for ints)
-    if t, ok := raw["completion"].(map[string]any); ok {
-        if v, present := t["manual_invoke_min_prefix"]; present {
-            switch vv := v.(type) {
-            case int64:
-                tab.ManualInvokeMinPrefix = int(vv)
-            case int:
-                tab.ManualInvokeMinPrefix = vv
-            case float64:
-                tab.ManualInvokeMinPrefix = int(vv)
-            }
-        }
-    }
-    if t, ok := raw["logging"].(map[string]any); ok {
-        if v, present := t["log_preview_limit"]; present {
-            switch vv := v.(type) {
-            case int64:
-                tab.LogPreviewLimit = int(vv)
-            case int:
-                tab.LogPreviewLimit = vv
-            case float64:
-                tab.LogPreviewLimit = int(vv)
-            }
-        }
-    }
-    return &tab, nil
+	// Merge order: flat first, then tables (so tables win over zero flat values)
+	// Build App from tables only
+	tab := tables.toApp()
+	// Ensure explicit values from raw map are respected (defensive for ints)
+	if t, ok := raw["completion"].(map[string]any); ok {
+		if v, present := t["manual_invoke_min_prefix"]; present {
+			switch vv := v.(type) {
+			case int64:
+				tab.ManualInvokeMinPrefix = int(vv)
+			case int:
+				tab.ManualInvokeMinPrefix = vv
+			case float64:
+				tab.ManualInvokeMinPrefix = int(vv)
+			}
+		}
+	}
+	if t, ok := raw["logging"].(map[string]any); ok {
+		if v, present := t["log_preview_limit"]; present {
+			switch vv := v.(type) {
+			case int64:
+				tab.LogPreviewLimit = int(vv)
+			case int:
+				tab.LogPreviewLimit = vv
+			case float64:
+				tab.LogPreviewLimit = int(vv)
+			}
+		}
+	}
+	return &tab, nil
 }
 
 func (a *App) mergeWith(other *App) {
-    a.mergeBasics(other)
-    a.mergeProviderFields(other)
-    a.mergePrompts(other)
+	a.mergeBasics(other)
+	a.mergeProviderFields(other)
+	a.mergePrompts(other)
 }
 
 // mergeBasics merges general (non-provider) fields.
@@ -562,65 +562,65 @@ func (a *App) mergeBasics(other *App) {
 
 // mergePrompts copies non-empty prompt templates from other.
 func (a *App) mergePrompts(other *App) {
-    // Completion
-    if strings.TrimSpace(other.PromptCompletionSystemGeneral) != "" {
-        a.PromptCompletionSystemGeneral = other.PromptCompletionSystemGeneral
-    }
-    if strings.TrimSpace(other.PromptCompletionSystemParams) != "" {
-        a.PromptCompletionSystemParams = other.PromptCompletionSystemParams
-    }
-    if strings.TrimSpace(other.PromptCompletionSystemInline) != "" {
-        a.PromptCompletionSystemInline = other.PromptCompletionSystemInline
-    }
-    if strings.TrimSpace(other.PromptCompletionUserGeneral) != "" {
-        a.PromptCompletionUserGeneral = other.PromptCompletionUserGeneral
-    }
-    if strings.TrimSpace(other.PromptCompletionUserParams) != "" {
-        a.PromptCompletionUserParams = other.PromptCompletionUserParams
-    }
-    if strings.TrimSpace(other.PromptCompletionExtraHeader) != "" {
-        a.PromptCompletionExtraHeader = other.PromptCompletionExtraHeader
-    }
-    // Provider-native
-    if strings.TrimSpace(other.PromptNativeCompletion) != "" {
-        a.PromptNativeCompletion = other.PromptNativeCompletion
-    }
-    // Chat
-    if strings.TrimSpace(other.PromptChatSystem) != "" {
-        a.PromptChatSystem = other.PromptChatSystem
-    }
-    // Code actions
-    if strings.TrimSpace(other.PromptCodeActionRewriteSystem) != "" {
-        a.PromptCodeActionRewriteSystem = other.PromptCodeActionRewriteSystem
-    }
-    if strings.TrimSpace(other.PromptCodeActionDiagnosticsSystem) != "" {
-        a.PromptCodeActionDiagnosticsSystem = other.PromptCodeActionDiagnosticsSystem
-    }
-    if strings.TrimSpace(other.PromptCodeActionDocumentSystem) != "" {
-        a.PromptCodeActionDocumentSystem = other.PromptCodeActionDocumentSystem
-    }
-    if strings.TrimSpace(other.PromptCodeActionRewriteUser) != "" {
-        a.PromptCodeActionRewriteUser = other.PromptCodeActionRewriteUser
-    }
-    if strings.TrimSpace(other.PromptCodeActionDiagnosticsUser) != "" {
-        a.PromptCodeActionDiagnosticsUser = other.PromptCodeActionDiagnosticsUser
-    }
-    if strings.TrimSpace(other.PromptCodeActionDocumentUser) != "" {
-        a.PromptCodeActionDocumentUser = other.PromptCodeActionDocumentUser
-    }
-    if strings.TrimSpace(other.PromptCodeActionGoTestSystem) != "" {
-        a.PromptCodeActionGoTestSystem = other.PromptCodeActionGoTestSystem
-    }
-    if strings.TrimSpace(other.PromptCodeActionGoTestUser) != "" {
-        a.PromptCodeActionGoTestUser = other.PromptCodeActionGoTestUser
-    }
-    // CLI
-    if strings.TrimSpace(other.PromptCLIDefaultSystem) != "" {
-        a.PromptCLIDefaultSystem = other.PromptCLIDefaultSystem
-    }
-    if strings.TrimSpace(other.PromptCLIExplainSystem) != "" {
-        a.PromptCLIExplainSystem = other.PromptCLIExplainSystem
-    }
+	// Completion
+	if strings.TrimSpace(other.PromptCompletionSystemGeneral) != "" {
+		a.PromptCompletionSystemGeneral = other.PromptCompletionSystemGeneral
+	}
+	if strings.TrimSpace(other.PromptCompletionSystemParams) != "" {
+		a.PromptCompletionSystemParams = other.PromptCompletionSystemParams
+	}
+	if strings.TrimSpace(other.PromptCompletionSystemInline) != "" {
+		a.PromptCompletionSystemInline = other.PromptCompletionSystemInline
+	}
+	if strings.TrimSpace(other.PromptCompletionUserGeneral) != "" {
+		a.PromptCompletionUserGeneral = other.PromptCompletionUserGeneral
+	}
+	if strings.TrimSpace(other.PromptCompletionUserParams) != "" {
+		a.PromptCompletionUserParams = other.PromptCompletionUserParams
+	}
+	if strings.TrimSpace(other.PromptCompletionExtraHeader) != "" {
+		a.PromptCompletionExtraHeader = other.PromptCompletionExtraHeader
+	}
+	// Provider-native
+	if strings.TrimSpace(other.PromptNativeCompletion) != "" {
+		a.PromptNativeCompletion = other.PromptNativeCompletion
+	}
+	// Chat
+	if strings.TrimSpace(other.PromptChatSystem) != "" {
+		a.PromptChatSystem = other.PromptChatSystem
+	}
+	// Code actions
+	if strings.TrimSpace(other.PromptCodeActionRewriteSystem) != "" {
+		a.PromptCodeActionRewriteSystem = other.PromptCodeActionRewriteSystem
+	}
+	if strings.TrimSpace(other.PromptCodeActionDiagnosticsSystem) != "" {
+		a.PromptCodeActionDiagnosticsSystem = other.PromptCodeActionDiagnosticsSystem
+	}
+	if strings.TrimSpace(other.PromptCodeActionDocumentSystem) != "" {
+		a.PromptCodeActionDocumentSystem = other.PromptCodeActionDocumentSystem
+	}
+	if strings.TrimSpace(other.PromptCodeActionRewriteUser) != "" {
+		a.PromptCodeActionRewriteUser = other.PromptCodeActionRewriteUser
+	}
+	if strings.TrimSpace(other.PromptCodeActionDiagnosticsUser) != "" {
+		a.PromptCodeActionDiagnosticsUser = other.PromptCodeActionDiagnosticsUser
+	}
+	if strings.TrimSpace(other.PromptCodeActionDocumentUser) != "" {
+		a.PromptCodeActionDocumentUser = other.PromptCodeActionDocumentUser
+	}
+	if strings.TrimSpace(other.PromptCodeActionGoTestSystem) != "" {
+		a.PromptCodeActionGoTestSystem = other.PromptCodeActionGoTestSystem
+	}
+	if strings.TrimSpace(other.PromptCodeActionGoTestUser) != "" {
+		a.PromptCodeActionGoTestUser = other.PromptCodeActionGoTestUser
+	}
+	// CLI
+	if strings.TrimSpace(other.PromptCLIDefaultSystem) != "" {
+		a.PromptCLIDefaultSystem = other.PromptCLIDefaultSystem
+	}
+	if strings.TrimSpace(other.PromptCLIExplainSystem) != "" {
+		a.PromptCLIExplainSystem = other.PromptCLIExplainSystem
+	}
 }
 
 // mergeProviderFields merges per-provider configuration.

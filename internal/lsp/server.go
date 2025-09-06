@@ -58,29 +58,29 @@ type Server struct {
 	inlineOpen   string
 	inlineClose  string
 	chatSuffix   string
-    chatPrefixes []string
+	chatPrefixes []string
 
-    // Prompt templates
-    // Completion
-    promptCompSysGeneral string
-    promptCompSysParams  string
-    promptCompSysInline  string
-    promptCompUserGeneral string
-    promptCompUserParams  string
-    promptCompExtraHeader string
-    // Provider-native code completion
-    promptNativeCompletion string
-    // In-editor chat
-    promptChatSystem string
-    // Code actions
-    promptRewriteSystem     string
-    promptDiagnosticsSystem string
-    promptDocumentSystem    string
-    promptRewriteUser       string
-    promptDiagnosticsUser   string
-    promptDocumentUser      string
-    promptGoTestSystem      string
-    promptGoTestUser        string
+	// Prompt templates
+	// Completion
+	promptCompSysGeneral  string
+	promptCompSysParams   string
+	promptCompSysInline   string
+	promptCompUserGeneral string
+	promptCompUserParams  string
+	promptCompExtraHeader string
+	// Provider-native code completion
+	promptNativeCompletion string
+	// In-editor chat
+	promptChatSystem string
+	// Code actions
+	promptRewriteSystem     string
+	promptDiagnosticsSystem string
+	promptDocumentSystem    string
+	promptRewriteUser       string
+	promptDiagnosticsUser   string
+	promptDocumentUser      string
+	promptGoTestSystem      string
+	promptGoTestUser        string
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
@@ -101,26 +101,26 @@ type ServerOptions struct {
 	// Inline/chat triggers
 	InlineOpen   string
 	InlineClose  string
-    ChatSuffix   string
-    ChatPrefixes []string
+	ChatSuffix   string
+	ChatPrefixes []string
 
-    // Prompt templates
-    PromptCompSysGeneral  string
-    PromptCompSysParams   string
-    PromptCompSysInline   string
-    PromptCompUserGeneral string
-    PromptCompUserParams  string
-    PromptCompExtraHeader string
-    PromptNativeCompletion string
-    PromptChatSystem string
-    PromptRewriteSystem     string
-    PromptDiagnosticsSystem string
-    PromptDocumentSystem    string
-    PromptRewriteUser       string
-    PromptDiagnosticsUser   string
-    PromptDocumentUser      string
-    PromptGoTestSystem      string
-    PromptGoTestUser        string
+	// Prompt templates
+	PromptCompSysGeneral    string
+	PromptCompSysParams     string
+	PromptCompSysInline     string
+	PromptCompUserGeneral   string
+	PromptCompUserParams    string
+	PromptCompExtraHeader   string
+	PromptNativeCompletion  string
+	PromptChatSystem        string
+	PromptRewriteSystem     string
+	PromptDiagnosticsSystem string
+	PromptDocumentSystem    string
+	PromptRewriteUser       string
+	PromptDiagnosticsUser   string
+	PromptDocumentUser      string
+	PromptGoTestSystem      string
+	PromptGoTestUser        string
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -179,29 +179,29 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	} else {
 		s.chatSuffix = opts.ChatSuffix
 	}
-    if len(opts.ChatPrefixes) == 0 {
-        s.chatPrefixes = []string{"?", "!", ":", ";"}
-    } else {
-        s.chatPrefixes = append([]string{}, opts.ChatPrefixes...)
-    }
+	if len(opts.ChatPrefixes) == 0 {
+		s.chatPrefixes = []string{"?", "!", ":", ";"}
+	} else {
+		s.chatPrefixes = append([]string{}, opts.ChatPrefixes...)
+	}
 
-    // Prompts
-    s.promptCompSysGeneral = opts.PromptCompSysGeneral
-    s.promptCompSysParams = opts.PromptCompSysParams
-    s.promptCompSysInline = opts.PromptCompSysInline
-    s.promptCompUserGeneral = opts.PromptCompUserGeneral
-    s.promptCompUserParams = opts.PromptCompUserParams
-    s.promptCompExtraHeader = opts.PromptCompExtraHeader
-    s.promptNativeCompletion = opts.PromptNativeCompletion
-    s.promptChatSystem = opts.PromptChatSystem
-    s.promptRewriteSystem = opts.PromptRewriteSystem
-    s.promptDiagnosticsSystem = opts.PromptDiagnosticsSystem
-    s.promptDocumentSystem = opts.PromptDocumentSystem
-    s.promptRewriteUser = opts.PromptRewriteUser
-    s.promptDiagnosticsUser = opts.PromptDiagnosticsUser
-    s.promptDocumentUser = opts.PromptDocumentUser
-    s.promptGoTestSystem = opts.PromptGoTestSystem
-    s.promptGoTestUser = opts.PromptGoTestUser
+	// Prompts
+	s.promptCompSysGeneral = opts.PromptCompSysGeneral
+	s.promptCompSysParams = opts.PromptCompSysParams
+	s.promptCompSysInline = opts.PromptCompSysInline
+	s.promptCompUserGeneral = opts.PromptCompUserGeneral
+	s.promptCompUserParams = opts.PromptCompUserParams
+	s.promptCompExtraHeader = opts.PromptCompExtraHeader
+	s.promptNativeCompletion = opts.PromptNativeCompletion
+	s.promptChatSystem = opts.PromptChatSystem
+	s.promptRewriteSystem = opts.PromptRewriteSystem
+	s.promptDiagnosticsSystem = opts.PromptDiagnosticsSystem
+	s.promptDocumentSystem = opts.PromptDocumentSystem
+	s.promptRewriteUser = opts.PromptRewriteUser
+	s.promptDiagnosticsUser = opts.PromptDiagnosticsUser
+	s.promptDocumentUser = opts.PromptDocumentUser
+	s.promptGoTestSystem = opts.PromptGoTestSystem
+	s.promptGoTestUser = opts.PromptGoTestUser
 
 	// Assign package-level inline trigger chars for free helper functions
 	if s.inlineOpen != "" {
