@@ -47,54 +47,6 @@ graph TD
   V --> C
 ```
 
-## ASCII diagram
-
-```
-                          +----------------------+
-                          | internal/version.go  |
-                          +----------------------+
-                               |  provides Version
-                 +-------------+-------------+
-                 |                           |
-          +--------------+            +----------------+
-          | cmd/hexai    |            | cmd/hexai-lsp  |
-          | (CLI)        |            | (LSP server)   |
-          +--------------+            +----------------+
-                 |                           |
-                 v                           v
-        +------------------+          +------------------+
-        | internal/hexaicli|          | internal/hexailsp|
-        | (CLI runner)     |          | (LSP runner)     |
-        +------------------+          +------------------+
-            |    |    |                     |   |   |
-            |    |    |                     |   |   +----> logging
-            |    |    +----> logging        |   +--------> llm (client)
-            |    +--------> llm (client)    +-------------> appconfig
-            +-------------> appconfig                    |
-                                                       builds options
-                                                           v
-                                                    +------------------+
-                                                    | internal/lsp     |
-                                                    | (server, JSON-RPC|
-                                                    |  handlers, docs) |
-                                                    +------------------+
-                                                         |        |
-                                                         |        +----> logging
-                                                         +-------------> llm (client)
-
-  llm providers:
-    +-----------------------------+
-    | internal/llm/providers      |
-    |  - openai.go                |
-    |  - ollama.go                |
-    |  - copilot.go               |
-    +-----------------------------+
-
-  shared libs:
-    - internal/appconfig: config from file/env
-    - internal/logging: logger binding + helpers
-```
-
 ## Module overview
 
 - cmd/hexai: CLI binary that parses flags, prints version via `internal.Version`,
