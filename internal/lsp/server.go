@@ -2,14 +2,15 @@
 package lsp
 
 import (
-	"bufio"
-	"encoding/json"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/logging"
-	"io"
-	"log"
-	"sync"
-	"time"
+    "bufio"
+    "encoding/json"
+    "codeberg.org/snonux/hexai/internal/llm"
+    "codeberg.org/snonux/hexai/internal/logging"
+    "io"
+    "log"
+    "strings"
+    "sync"
+    "time"
 )
 
 // Server implements a minimal LSP over stdio.
@@ -51,6 +52,12 @@ type Server struct {
 
     // Dispatch table for JSON-RPC methods → handler functions
     handlers map[string]func(Request)
+
+    // Configurable trigger characters
+    inlineOpen   string
+    inlineClose  string
+    chatSuffix   string
+    chatPrefixes []string
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
@@ -67,6 +74,12 @@ type ServerOptions struct {
     ManualInvokeMinPrefix int
     CompletionDebounceMs  int
     CompletionThrottleMs  int
+
+    // Inline/chat triggers
+    InlineOpen   string
+    InlineClose  string
+    ChatSuffix   string
+    ChatPrefixes []string
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -109,6 +122,17 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
     if opts.CompletionThrottleMs > 0 {
         s.throttleInterval = time.Duration(opts.CompletionThrottleMs) * time.Millisecond
     }
+    // Trigger character config (with sane defaults if missing)
+    if strings.TrimSpace(opts.InlineOpen) == "" { s.inlineOpen = ">" } else { s.inlineOpen = opts.InlineOpen }
+    if strings.TrimSpace(opts.InlineClose) == "" { s.inlineClose = ">" } else { s.inlineClose = opts.InlineClose }
+    if strings.TrimSpace(opts.ChatSuffix) == "" { s.chatSuffix = ">" } else { s.chatSuffix = opts.ChatSuffix }
+    if len(opts.ChatPrefixes) == 0 { s.chatPrefixes = []string{"?","!",":",";"} } else { s.chatPrefixes = append([]string{}, opts.ChatPrefixes...) }
+
+    // Assign package-level inline trigger chars for free helper functions
+    if s.inlineOpen != "" { inlineOpenChar = s.inlineOpen[0] }
+    if s.inlineClose != "" { inlineCloseChar = s.inlineClose[0] }
+    if s.chatSuffix != "" { chatSuffixChar = s.chatSuffix[0] }
+    if len(s.chatPrefixes) > 0 { chatPrefixSingles = append([]string{}, s.chatPrefixes...) }
 	// Initialize dispatch table
 	s.handlers = map[string]func(Request){
 		"initialize":              s.handleInitialize,

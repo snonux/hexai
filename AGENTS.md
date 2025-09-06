@@ -18,7 +18,7 @@
 
 ## Coding Style & Naming Conventions
 
-- Aim for at least 80% unit test coverage of all source code.
+- Aim for at least 85% unit test coverage of all source code.
 - Ensure that all unit tests pass before merging any changes.
 - If possible, construct individual methods so that they can be unit tested. But only if it doesn't add too much boilerplate to the code base.
 - There should be no source code file larger than 1000 lines. If so, split it up into multiple.

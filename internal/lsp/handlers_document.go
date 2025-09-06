@@ -10,6 +10,11 @@ import (
     "time"
 )
 
+// Package-level chat trigger vars for helpers without Server receiver.
+// NewServer assigns these from configuration on startup.
+var chatSuffixChar byte = '>'
+var chatPrefixSingles = []string{"?", "!", ":", ";"}
+
 func (s *Server) handleDidOpen(req Request) {
 	var p DidOpenTextDocumentParams
 	if err := json.Unmarshal(req.Params, &p); err == nil {
@@ -92,7 +97,7 @@ func (s *Server) detectAndHandleChat(uri string) {
 	if d == nil || len(d.lines) == 0 {
 		return
 	}
-	for i, raw := range d.lines {
+    for i, raw := range d.lines {
 		// Find last non-space character index
 		j := len(raw) - 1
 		for j >= 0 {
@@ -102,14 +107,25 @@ func (s *Server) detectAndHandleChat(uri string) {
 			}
 			break
 		}
-		if j < 1 {
-			continue
-		} // need at least two chars
-		pair := raw[j-1 : j+1]
-		isTrigger := pair == "?>" || pair == "!>" || pair == ":>" || pair == ";>"
-		if !isTrigger {
-			continue
-		}
+        if j < 0 {
+            continue
+        }
+        // Check suffix/prefix according to configuration
+        if s.chatSuffix == "" {
+            continue
+        }
+        // Last non-space must equal suffix
+        if string(raw[j]) != s.chatSuffix {
+            continue
+        }
+        // Require at least one char before suffix and that char must be in chatPrefixes
+        if j < 1 { continue }
+        prev := string(raw[j-1])
+        isTrigger := false
+        for _, pfx := range s.chatPrefixes {
+            if prev == pfx { isTrigger = true; break }
+        }
+        if !isTrigger { continue }
 		// Avoid double-answering: if the next non-empty line starts with '>' we skip.
 		k := i + 1
 		for k < len(d.lines) && strings.TrimSpace(d.lines[k]) == "" {
@@ -119,9 +135,9 @@ func (s *Server) detectAndHandleChat(uri string) {
 			continue
 		}
 		// Derive prompt by removing only the trailing '>'
-		removeCount := 1
+        removeCount := len(s.chatSuffix)
 		base := raw[:j+1-removeCount]
-		prompt := strings.TrimSpace(base)
+        prompt := strings.TrimSpace(base)
 		if prompt == "" {
 			continue
 		}
@@ -230,26 +246,27 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
 
 // stripTrailingTrigger removes the trailing chat trigger punctuation from a line if present.
 func stripTrailingTrigger(sx string) string {
-	s := strings.TrimRight(sx, " \t")
-	if len(s) >= 2 && s[len(s)-1] == '>' { // new triggers
-		prev := s[len(s)-2]
-		if prev == '?' || prev == '!' || prev == ':' || prev == ';' {
-			return strings.TrimRight(s[:len(s)-1], " \t")
-		}
-	}
-	if strings.HasSuffix(s, ";;") { // legacy inline cleanup used in history building
-		return strings.TrimRight(strings.TrimSuffix(s, ";;"), " \t")
-	}
-	if len(s) == 0 {
-		return sx
-	}
-	last := s[len(s)-1]
-	switch last { // legacy: remove one trailing punctuation
-	case '?', '!', ':':
-		return strings.TrimRight(s[:len(s)-1], " \t")
-	default:
-		return sx
-	}
+    s := strings.TrimRight(sx, " \t")
+    if len(s) == 0 {
+        return sx
+    }
+    // Configurable suffix removal when preceded by configured prefixes
+    if len(s) >= 2 && s[len(s)-1] == chatSuffixChar {
+        prev := string(s[len(s)-2])
+        for _, pf := range chatPrefixSingles {
+            if prev == pf {
+                return strings.TrimRight(s[:len(s)-1], " \t")
+            }
+        }
+    }
+    // Legacy: remove one trailing punctuation (?, !, :) to build history nicely
+    last := s[len(s)-1]
+    switch last {
+    case '?', '!', ':':
+        return strings.TrimRight(s[:len(s)-1], " \t")
+    default:
+        return sx
+    }
 }
 
 // clientApplyEdit sends a workspace/applyEdit request to the client.

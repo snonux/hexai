@@ -90,6 +90,8 @@ func Install() error {
 
 // printCoverage prints a warning if an existing coverage profile shows total < coverateThreshold.
 func printCoverage() {
+	// Ensure the top-level coverage profile is refreshed at least once per day.
+	ensureDailyCoverage(24 * time.Hour)
 	select {
 	case coveragePrinted <- struct{}{}:
 	default:
@@ -114,6 +116,23 @@ func printCoverage() {
 		fmt.Printf("[coverage] WARNING: total test coverage is %.1f%% (< %.1f%%)\n", pct, coverageThreshold)
 	} else {
 		fmt.Printf("[coverage] total test coverage: %.1f%% (>= %.1f%%)\n", pct, coverageThreshold)
+	}
+}
+
+// ensureDailyCoverage regenerates the main coverage profile when it's missing
+// or older than maxAge. It writes to docs/coverage.out via the Coverage target.
+func ensureDailyCoverage(maxAge time.Duration) {
+	const prof = "docs/coverage.out"
+	st, err := os.Stat(prof)
+	if err == nil {
+		age := time.Since(st.ModTime())
+		if age <= maxAge {
+			return // fresh enough
+		}
+	}
+	// Missing or stale; attempt to refresh. Do not hard-fail builds if coverage fails.
+	if err := Coverage(); err != nil {
+		fmt.Println("[coverage] refresh skipped due to error:", err)
 	}
 }
 
@@ -196,16 +215,9 @@ func DevInstall() error {
 }
 
 // CoverCheck enforces minimum per-package coverage.
-// Default threshold is 80.0; override with HEXAI_COVER_THRESH.
 // Exceptions: any package whose import path contains "/cmd/" and any substring
 // provided via HEXAI_COVER_EXCEPT (comma-separated).
 func CoverCheck() error {
-	threshold := 80.0
-	if v := strings.TrimSpace(os.Getenv("HEXAI_COVER_THRESH")); v != "" {
-		if f, err := strconv.ParseFloat(v, 64); err == nil {
-			threshold = f
-		}
-	}
 	except := []string{"/cmd/"}
 	if v := strings.TrimSpace(os.Getenv("HEXAI_COVER_EXCEPT")); v != "" {
 		parts := strings.Split(v, ",")
@@ -256,12 +268,12 @@ func CoverCheck() error {
 			total = 0
 		}
 		all = append(all, res{pkg, total})
-		if total < threshold {
+		if total < coverageThreshold {
 			bad = append(bad, res{pkg, total})
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	fmt.Printf("Per-package coverage (threshold %.1f%%)\n", threshold)
+	fmt.Printf("Per-package coverage (threshold %.1f%%)\n", coverageThreshold)
 	for _, r := range all {
 		fmt.Printf("- %s: %.1f%%\n", r.pkg, r.total)
 	}
@@ -270,7 +282,7 @@ func CoverCheck() error {
 		for _, r := range bad {
 			fmt.Printf("- %s: %.1f%%\n", r.pkg, r.total)
 		}
-		return fmt.Errorf("coverage check failed (%d package(s) < %.1f%%)", len(bad), threshold)
+		return fmt.Errorf("coverage check failed (%d package(s) < %.1f%%)", len(bad), coverageThreshold)
 	}
 	fmt.Println("All packages meet coverage threshold.")
 	return nil

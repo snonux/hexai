@@ -9,9 +9,11 @@ import (
     "testing"
     "strings"
     "time"
+    "os"
 )
 
 func TestOpenAI_Chat_Success(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         if r.URL.Path != "/chat/completions" { t.Fatalf("unexpected path: %s", r.URL.Path) }
         _ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"index":0, "message": map[string]string{"role":"assistant","content":"OK"}}}})
@@ -29,6 +31,7 @@ func TestOpenAI_Chat_MissingKey(t *testing.T) {
 }
 
 func TestOpenAI_ChatStream_SSE(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         // Return SSE-like stream
         w.Header().Set("Content-Type", "text/event-stream")
@@ -49,6 +52,7 @@ func TestHandleOpenAINon2xx_NoErrorBody(t *testing.T) {
 }
 
 func TestOpenAI_ChatStream_SSE_ErrorChunk(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "text/event-stream")
         io.WriteString(w, "data: {\"error\":{\"message\":\"oops\"}}\n\n")
@@ -64,6 +68,7 @@ func TestOpenAI_ChatStream_SSE_ErrorChunk(t *testing.T) {
 }
 
 func TestOpenAI_Chat_NoChoices_Error(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         _ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{}})
     }))
@@ -76,6 +81,7 @@ func TestOpenAI_Chat_NoChoices_Error(t *testing.T) {
 }
 
 func TestOpenAI_ChatStream_SSE_EmptyDelta_NoError(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "text/event-stream")
         io.WriteString(w, "data: {\\\"choices\\\":[{\\\"delta\\\":{\\\"content\\\":\\\"\\\"}}]}\\n\\n")
@@ -92,6 +98,7 @@ func TestOpenAI_ChatStream_SSE_EmptyDelta_NoError(t *testing.T) {
 }
 
 func TestOpenAI_Chat_DecodeError_StatusOK(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     // Return status 200 but invalid JSON body; Chat should return an error
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(200)
@@ -106,6 +113,7 @@ func TestOpenAI_Chat_DecodeError_StatusOK(t *testing.T) {
 }
 
 func TestOpenAI_Chat_MultiChoiceAndErrorBody(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     // Multi-choice success: return two choices with different finish reasons
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         _ = json.NewEncoder(w).Encode(map[string]any{

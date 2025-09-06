@@ -14,8 +14,8 @@ func TestFindFirstInstructionInLine_NoMarker(t *testing.T) {
 	}
 }
 
-func TestFindFirstInstructionInLine_StrictSemicolon_Basic(t *testing.T) {
-	line := "prefix ;rename var; suffix"
+func TestFindFirstInstructionInLine_StrictInline_Basic(t *testing.T) {
+    line := "prefix >rename var> suffix"
 	instr, cleaned, ok := findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
@@ -29,8 +29,8 @@ func TestFindFirstInstructionInLine_StrictSemicolon_Basic(t *testing.T) {
 	}
 }
 
-func TestFindFirstInstructionInLine_StrictSemicolon_TrailingSpacesTrimmed(t *testing.T) {
-	line := "code;fix;   \t\t"
+func TestFindFirstInstructionInLine_StrictInline_TrailingSpacesTrimmed(t *testing.T) {
+    line := "code>fix>   \t\t"
 	instr, cleaned, ok := findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
@@ -43,17 +43,17 @@ func TestFindFirstInstructionInLine_StrictSemicolon_TrailingSpacesTrimmed(t *tes
 	}
 }
 
-func TestFindFirstInstructionInLine_Semicolon_InvalidPatterns(t *testing.T) {
-	cases := []string{
-		"prefix ; bad; suffix", // space after first ';' ⇒ invalid
-		"prefix ;bad ; suffix", // space before closing ';' ⇒ invalid
-		"prefix ; ; suffix",    // empty inner ⇒ invalid
-	}
-	for _, line := range cases {
-		if instr, _, ok := findFirstInstructionInLine(line); ok && instr != "" {
-			t.Fatalf("%q: expected no semicolon instruction; got instr=%q", line, instr)
-		}
-	}
+func TestFindFirstInstructionInLine_Inline_InvalidPatterns(t *testing.T) {
+    cases := []string{
+        "prefix > bad> suffix", // space after first '>' ⇒ invalid
+        "prefix >bad > suffix", // space before closing '>' ⇒ invalid
+        "prefix > > suffix",    // empty inner ⇒ invalid
+    }
+    for _, line := range cases {
+        if instr, _, ok := findFirstInstructionInLine(line); ok && instr != "" {
+            t.Fatalf("%q: expected no inline instruction; got instr=%q", line, instr)
+        }
+    }
 }
 
 func TestFindFirstInstructionInLine_CBlockComment(t *testing.T) {
@@ -126,22 +126,22 @@ func TestFindFirstInstructionInLine_DoubleDash(t *testing.T) {
 	}
 }
 
-func TestFindFirstInstructionInLine_EarliestWins_CommentOverSemicolon(t *testing.T) {
-	line := "aa // comment ;not this; trailing"
+func TestFindFirstInstructionInLine_EarliestWins_CommentOverInline(t *testing.T) {
+    line := "aa // comment >not this> trailing"
 	instr, cleaned, ok := findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
-	if instr != "comment ;not this; trailing" {
-		t.Fatalf("instr got %q want %q", instr, "comment ;not this; trailing")
-	}
+    if instr != "comment >not this> trailing" {
+        t.Fatalf("instr got %q want %q", instr, "comment >not this> trailing")
+    }
 	if cleaned != "aa" {
 		t.Fatalf("cleaned got %q want %q", cleaned, "aa")
 	}
 }
 
-func TestFindFirstInstructionInLine_EarliestWins_SemicolonOverComment(t *testing.T) {
-	line := "aa ;short; // comment"
+func TestFindFirstInstructionInLine_EarliestWins_InlineOverComment(t *testing.T) {
+    line := "aa >short> // comment"
 	instr, cleaned, ok := findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
@@ -155,21 +155,21 @@ func TestFindFirstInstructionInLine_EarliestWins_SemicolonOverComment(t *testing
 	}
 }
 
-func TestFindStrictSemicolonTag_Various(t *testing.T) {
-	// basic
-	if text, l, r, ok := findStrictSemicolonTag("pre;do it;post"); !ok || text != "do it" || l != 3 || r != 10 {
-		t.Fatalf("unexpected: ok=%v text=%q l=%d r=%d", ok, text, l, r)
-	}
-	// at start
-	if text, l, r, ok := findStrictSemicolonTag(";x;"); !ok || text != "x" || l != 0 || r != 3 {
-		t.Fatalf("unexpected at start: ok=%v text=%q l=%d r=%d", ok, text, l, r)
-	}
-	// double opening ';' should still allow a tag starting at the second ';'
-	if text, _, _, ok := findStrictSemicolonTag("prefix ;;bad; suffix"); !ok || text != "bad" {
-		t.Fatalf("unexpected double-open handling: ok=%v text=%q", ok, text)
-	}
-	// inner spaces directly after first ';' or before last ';' invalidate the tag
-	if _, _, _, ok := findStrictSemicolonTag("a;  inner  ;b"); ok {
-		t.Fatalf("expected invalid strict tag due to spaces at boundaries")
-	}
+func TestFindStrictInlineTag_Various(t *testing.T) {
+    // basic
+    if text, l, r, ok := findStrictInlineTag("pre>do it>post"); !ok || text != "do it" || l != 3 || r != 10 {
+        t.Fatalf("unexpected: ok=%v text=%q l=%d r=%d", ok, text, l, r)
+    }
+    // at start
+    if text, l, r, ok := findStrictInlineTag(">x>"); !ok || text != "x" || l != 0 || r != 3 {
+        t.Fatalf("unexpected at start: ok=%v text=%q l=%d r=%d", ok, text, l, r)
+    }
+    // double opening '>>' should still allow a tag starting at the second '>'
+    if text, _, _, ok := findStrictInlineTag("prefix >>bad> suffix"); !ok || text != "bad" {
+        t.Fatalf("unexpected double-open handling: ok=%v text=%q", ok, text)
+    }
+    // inner spaces directly after first '>' or before last '>' invalidate the tag
+    if _, _, _, ok := findStrictInlineTag("a>  inner  >b"); ok {
+        t.Fatalf("expected invalid strict tag due to spaces at boundaries")
+    }
 }

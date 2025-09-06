@@ -51,7 +51,7 @@ func findFirstInstructionInLine(line string) (instr string, cleaned string, ok b
 		text       string
 	}
 	cands := []cand{}
-	if t, l, r, ok := findStrictSemicolonTag(line); ok {
+    if t, l, r, ok := findStrictInlineTag(line); ok {
 		cands = append(cands, cand{start: l, end: r, text: t})
 	}
 	if i := strings.Index(line, "/*"); i >= 0 {
@@ -298,8 +298,9 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 			b, _ := json.Marshal(p.Context)
 			_ = json.Unmarshal(b, &ctx)
 		}
-        // If the line contains a bare ';;' (no ';;text;'), do not treat as a trigger source.
-        if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
+        // If configured and the line contains a bare double-open marker (e.g., '>>' with no '>>text>'),
+        // do not treat as a trigger source.
+        if s.inlineOpen != "" && strings.Contains(current, s.inlineOpen+s.inlineOpen) && !hasDoubleOpenTrigger(current) {
             return false
         }
         // TriggerKind 1 = Invoked (manual). Always allow manual invoke.
@@ -326,10 +327,10 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 	if idx <= 0 || idx > len(current) {
 		return false
 	}
-	// Bare ';;' should not trigger via fallback char either
-	if strings.Contains(current, ";;") && !hasDoubleSemicolonTrigger(current) {
-		return false
-	}
+    // Bare double-open should not trigger via fallback char either (only when configured)
+    if s.inlineOpen != "" && strings.Contains(current, s.inlineOpen+s.inlineOpen) && !hasDoubleOpenTrigger(current) {
+        return false
+    }
 	ch := string(current[idx-1])
 	for _, c := range s.triggerChars {
 		if c == ch {

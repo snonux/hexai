@@ -9,6 +9,7 @@ import (
     "strings"
     "testing"
     "time"
+    "os"
 )
 
 func TestBuildOllamaRequest_OptionsAndStream(t *testing.T) {
@@ -40,6 +41,7 @@ func TestOllama_NameAndModel(t *testing.T) {
 }
 
 func TestOllamaChat_Success(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost || r.URL.Path != "/api/chat" { t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path) }
         w.Header().Set("Content-Type", "application/json")
@@ -54,6 +56,7 @@ func TestOllamaChat_Success(t *testing.T) {
 }
 
 func TestOllamaChat_EmptyContent(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         _ = json.NewEncoder(w).Encode(map[string]any{"message": map[string]string{"role":"assistant","content":""}, "done": true})
     }))
@@ -66,6 +69,7 @@ func TestOllamaChat_EmptyContent(t *testing.T) {
 }
 
 func TestOllamaChat_Non2xx(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     // API error string
     ts1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(400)
@@ -102,6 +106,7 @@ func TestOllamaChat_HTTPError(t *testing.T) {
 }
 
 func TestOllamaChat_DecodeError(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         _, _ = w.Write([]byte("{bad json}"))
     }))
@@ -119,6 +124,7 @@ func TestHandleOllamaNon2xx_OK(t *testing.T) {
 }
 
 func TestOllamaChatStream_Success(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/json")
         // two JSON objects back-to-back
@@ -136,6 +142,7 @@ func TestOllamaChatStream_Success(t *testing.T) {
 }
 
 func TestOllamaChatStream_ErrorEvent(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         _ = json.NewEncoder(w).Encode(map[string]any{"error":"oops"})
     }))
@@ -148,6 +155,7 @@ func TestOllamaChatStream_ErrorEvent(t *testing.T) {
 }
 
 func TestOllamaChatStream_DecodeError(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         _, _ = w.Write([]byte("{not json}"))
     }))

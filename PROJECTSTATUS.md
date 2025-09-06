@@ -2,7 +2,7 @@
 
 ## Code quality
 
-* [/] TODO's in the code to be addressed
+* [X] TODO's in the code to be addressed
 * [/] No more than 1000 LOC per source file
 * [/] No more than 50 LOC per function
 * [/] Each struct type in his own file
@@ -13,7 +13,7 @@
 
 ### Improvements
 
-* [ ] Modify the LLM triggers to be more consistenc. E.g. use >>text here> or >text here> instead of semicolons?
+* [X] Modify the LLM triggers to be more consistenc. E.g. use >>text here> or >text here> instead of semicolons?
 * [X] Include unit test coverage reports
 * [ ] Change inline triggers to include > to be more consistent with other triggers
 * [ ] Use are more stricter linter for auto-generated code (gofumpt i think is such a linter)

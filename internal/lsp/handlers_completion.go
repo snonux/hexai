@@ -93,10 +93,10 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 			logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
 		return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
 	}
-	if (isBareDoubleSemicolon(current) || isBareDoubleSemicolon(below)) && !manualInvoke {
-		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-		return []CompletionItem{}, true
-	}
+    if (isBareDoubleOpen(current) || isBareDoubleOpen(below)) {
+        logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+        return []CompletionItem{}, true
+    }
 
 	if !inParams && !s.prefixHeuristicAllows(inlinePrompt, current, p, manualInvoke) {
 		logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
@@ -163,14 +163,19 @@ func parseManualInvoke(ctx any) bool {
 
 // shouldSuppressForChatTriggerEOL returns true when a chat trigger like ">" follows ?, !, :, or ; at EOL.
 func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionParams) bool {
-	if t := strings.TrimRight(current, " \t"); len(t) >= 2 && t[len(t)-1] == '>' {
-		prev := t[len(t)-2]
-		if prev == '?' || prev == '!' || prev == ':' || prev == ';' {
-			logging.Logf("lsp ", "completion skip=chat-trigger-eol uri=%s line=%d", p.TextDocument.URI, p.Position.Line)
-			return true
-		}
-	}
-	return false
+    t := strings.TrimRight(current, " \t")
+    if s.chatSuffix == "" { return false }
+    if strings.HasSuffix(t, s.chatSuffix) {
+        if len(t) < len(s.chatSuffix)+1 { return false }
+        prev := string(t[len(t)-len(s.chatSuffix)-1])
+        for _, pf := range s.chatPrefixes {
+            if prev == pf {
+                logging.Logf("lsp ", "completion skip=chat-trigger-eol uri=%s line=%d", p.TextDocument.URI, p.Position.Line)
+                return true
+            }
+        }
+    }
+    return false
 }
 
 // prefixHeuristicAllows applies minimal prefix rules unless inlinePrompt or structural triggers apply.
@@ -244,12 +249,12 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 			if cleaned != "" {
 				cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
 			}
-			if cleaned != "" && hasDoubleSemicolonTrigger(current) {
-				indent := leadingIndent(current)
-				if indent != "" {
-					cleaned = applyIndent(indent, cleaned)
-				}
-			}
+            if cleaned != "" && hasDoubleOpenTrigger(current) {
+                indent := leadingIndent(current)
+                if indent != "" {
+                    cleaned = applyIndent(indent, cleaned)
+                }
+            }
 			if strings.TrimSpace(cleaned) != "" {
 				key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
 				s.completionCachePut(key, cleaned)
@@ -354,10 +359,10 @@ func (s *Server) postProcessCompletion(text string, leftOfCursor string, current
 	if cleaned != "" {
 		cleaned = stripDuplicateGeneralPrefix(leftOfCursor, cleaned)
 	}
-	if cleaned != "" && hasDoubleSemicolonTrigger(currentLine) {
-		if indent := leadingIndent(currentLine); indent != "" {
-			cleaned = applyIndent(indent, cleaned)
-		}
-	}
+    if cleaned != "" && hasDoubleOpenTrigger(currentLine) {
+        if indent := leadingIndent(currentLine); indent != "" {
+            cleaned = applyIndent(indent, cleaned)
+        }
+    }
 	return cleaned
 }

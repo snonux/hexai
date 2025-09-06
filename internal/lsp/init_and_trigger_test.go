@@ -45,8 +45,7 @@ func TestIsTriggerEvent_Variants(t *testing.T) {
     // 3) Fallback char left of cursor
     p3 := CompletionParams{Position: Position{Line:0, Character:3}}
     if !s.isTriggerEvent(p3, "ab:") { t.Fatalf("fallback char should trigger") }
-    // 4) Bare ';;' disables trigger
+    // 4) Bare double-open disables trigger
     p4 := CompletionParams{Position: Position{Line:0, Character:2}}
-    if s.isTriggerEvent(p4, ";;") { t.Fatalf("bare ;; should not trigger") }
+    if s.isTriggerEvent(p4, ">>") { t.Fatalf("bare double-open should not trigger") }
 }
-

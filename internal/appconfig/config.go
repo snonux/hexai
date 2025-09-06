@@ -36,6 +36,13 @@ type App struct {
 	TriggerCharacters []string `json:"trigger_characters"`
 	Provider          string   `json:"provider"`
 
+	// Inline prompt trigger characters (default: >text> and >>text>)
+	InlineOpen  string   `json:"inline_open"`
+	InlineClose string   `json:"inline_close"`
+	// In-editor chat triggers (default: suffix ">" after one of [?, !, :, ;])
+	ChatSuffix   string   `json:"chat_suffix"`
+	ChatPrefixes []string `json:"chat_prefixes"`
+
 	// Provider-specific options
 	OpenAIBaseURL string `json:"openai_base_url"`
 	OpenAIModel   string `json:"openai_model"`
@@ -69,6 +76,11 @@ func newDefaultConfig() App {
         ManualInvokeMinPrefix: 0,
         CompletionDebounceMs: 200,
         CompletionThrottleMs: 0,
+        // Inline/chat trigger defaults
+        InlineOpen:  ">",
+        InlineClose: ">",
+        ChatSuffix:  ">",
+        ChatPrefixes: []string{"?", "!", ":", ";"},
     }
 }
 
@@ -151,12 +163,24 @@ func (a *App) mergeBasics(other *App) {
     }
     if other.CompletionDebounceMs > 0 { a.CompletionDebounceMs = other.CompletionDebounceMs }
     if other.CompletionThrottleMs > 0 { a.CompletionThrottleMs = other.CompletionThrottleMs }
-	if len(other.TriggerCharacters) > 0 {
-		a.TriggerCharacters = slices.Clone(other.TriggerCharacters)
-	}
-	if s := strings.TrimSpace(other.Provider); s != "" {
-		a.Provider = s
-	}
+    if len(other.TriggerCharacters) > 0 {
+        a.TriggerCharacters = slices.Clone(other.TriggerCharacters)
+    }
+    if s := strings.TrimSpace(other.InlineOpen); s != "" {
+        a.InlineOpen = s
+    }
+    if s := strings.TrimSpace(other.InlineClose); s != "" {
+        a.InlineClose = s
+    }
+    if s := strings.TrimSpace(other.ChatSuffix); s != "" {
+        a.ChatSuffix = s
+    }
+    if len(other.ChatPrefixes) > 0 {
+        a.ChatPrefixes = slices.Clone(other.ChatPrefixes)
+    }
+    if s := strings.TrimSpace(other.Provider); s != "" {
+        a.Provider = s
+    }
 }
 
 // mergeProviderFields merges per-provider configuration.
@@ -265,6 +289,19 @@ func loadFromEnv(logger *log.Logger) *App {
         for _, p := range parts {
             if t := strings.TrimSpace(p); t != "" {
                 out.TriggerCharacters = append(out.TriggerCharacters, t)
+            }
+        }
+        any = true
+    }
+    if s := getenv("HEXAI_INLINE_OPEN"); s != "" { out.InlineOpen = s; any = true }
+    if s := getenv("HEXAI_INLINE_CLOSE"); s != "" { out.InlineClose = s; any = true }
+    if s := getenv("HEXAI_CHAT_SUFFIX"); s != "" { out.ChatSuffix = s; any = true }
+    if s := getenv("HEXAI_CHAT_PREFIXES"); s != "" {
+        parts := strings.Split(s, ",")
+        out.ChatPrefixes = nil
+        for _, p := range parts {
+            if t := strings.TrimSpace(p); t != "" {
+                out.ChatPrefixes = append(out.ChatPrefixes, t)
             }
         }
         any = true

@@ -10,12 +10,14 @@ import (
     "testing"
     "time"
     "encoding/base64"
+    "os"
 )
 
 type rtFunc2 func(*http.Request) (*http.Response, error)
 func (f rtFunc2) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestCopilot_EnsureSession_AndChat_Success(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     // Mock chat endpoint
     chatSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         if r.URL.Path != "/chat/completions" { t.Fatalf("unexpected path: %s", r.URL.Path) }
@@ -73,6 +75,7 @@ func TestCopilot_CodeCompletion_Success(t *testing.T) {
 }
 
 func TestCopilot_Chat_MultiChoice_And_ErrorBody(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     // Chat multi-choice: return two choices; client returns first content
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         _ = json.NewEncoder(w).Encode(map[string]any{
@@ -109,6 +112,7 @@ func TestCopilot_Chat_MultiChoice_And_ErrorBody(t *testing.T) {
 }
 
 func TestCopilot_Chat_NoChoices_Error(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         _ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{}})
     }))
@@ -127,6 +131,7 @@ func TestCopilot_Chat_NoChoices_Error(t *testing.T) {
 }
 
 func TestCopilot_Chat_DecodeError_StatusOK(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     // Chat returns 200 but invalid JSON; expect decode error
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         io.WriteString(w, "{invalid")

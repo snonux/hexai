@@ -66,6 +66,8 @@ func TestHandleCodeAction_ListsHexaiActions(t *testing.T) {
     // Prepare server
     var out bytes.Buffer
     s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+    s.chatSuffix = ">"
+    s.chatPrefixes = []string{"?","!",":",";"}
     s.llmClient = fakeLLM{resp: "// doc\nfunc add(a,b int) int { return a+b }"}
 
     // Document with a function
@@ -190,7 +192,7 @@ func TestHandle_Dispatch_Initialize(t *testing.T) {
 
 func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
     var out bytes.Buffer
-    s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+    s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{})
     s.llmClient = fakeLLM{resp: tut.MultilineChatReply()}
     uri := "file:///chat.go"
     // Place a prompt line with a supported trigger at EOL, then a blank line

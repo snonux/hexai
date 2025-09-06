@@ -6,9 +6,11 @@ import (
     "net/http"
     "net/http/httptest"
     "testing"
+    "os"
 )
 
 func TestOpenAI_ChatStream_SSE_MalformedChunk(t *testing.T) {
+    if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" { t.Skip("skip network-bound tests in restricted environments") }
     // Malformed JSON chunk should be skipped; no onDelta calls; no error.
     srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "text/event-stream")
@@ -24,4 +26,3 @@ func TestOpenAI_ChatStream_SSE_MalformedChunk(t *testing.T) {
     }
     if got != "" { t.Fatalf("expected no deltas for malformed chunk, got %q", got) }
 }
-

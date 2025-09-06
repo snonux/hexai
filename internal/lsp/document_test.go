@@ -9,10 +9,20 @@ import (
 )
 
 func newTestServer() *Server {
-	return &Server{
-		logger: log.New(io.Discard, "", 0),
-		docs:   make(map[string]*document),
-	}
+    s := &Server{
+        logger: log.New(io.Discard, "", 0),
+        docs:   make(map[string]*document),
+        inlineOpen: ">",
+        inlineClose: ">",
+        chatSuffix: ">",
+        chatPrefixes: []string{"?","!",":",";"},
+    }
+    // Keep package-level helpers in sync for tests using free functions
+    inlineOpenChar = '>'
+    inlineCloseChar = '>'
+    chatSuffixChar = '>'
+    chatPrefixSingles = []string{"?","!",":",";"}
+    return s
 }
 
 func TestSplitLines(t *testing.T) {
@@ -58,6 +68,15 @@ func TestLineContext_EmptyDoc(t *testing.T) {
 	if a != "" || b != "" || c != "" || f != "" {
 		t.Fatalf("expected all empty for missing doc; got above=%q current=%q below=%q func=%q", a, c, b, f)
 	}
+}
+
+func TestDocBeforeAfter_ClampsIndices(t *testing.T) {
+    s := newTestServer()
+    uri := "file:///clamp.go"
+    s.setDocument(uri, "abc\nxyz")
+    // Position beyond document length should be clamped safely
+    before, after := s.docBeforeAfter(uri, Position{Line: 99, Character: 99})
+    if before == "" && after == "" { t.Fatalf("expected some text with clamped indices") }
 }
 
 func TestTrimLen(t *testing.T) {

@@ -13,12 +13,10 @@ It has got improved capabilities for Go code understanding (for example, create 
 * Stand-alone command line tool for LLM interaction
 * Support for OpenAI, GitHub Copilot, and Ollama
 
-AI coded it under human orchestration and supervision following best practices with manual code reviews.
-
 ## Documentation
 
 * [Configuration guide](docs/configuration.md)  
-* [Usage examples](docs/usage-examples.md)
+* [Usage examples](docs/usage.md)
 * [Source structure](docs/source-structure.md)
 
 ## Build and tasks
@@ -29,6 +27,9 @@ Hexai uses Mage for developer tasks. Install Mage, then run targets like build, 
 - Build binaries: `mage build` (produces `hexai` and `hexai-lsp`)
 - Dev build (+ tests, vet, lint): `mage dev`
 - Run tests: `mage test`
+- Run tests with coverage: `go test ./... -cover`
+- In restricted sandboxes/CI (no sockets), skip network-based tests:
+  - `HEXAI_TEST_SKIP_NET=1 go test ./... -cover`
 - Install binaries to `GOPATH/bin`: `mage install`
 
 Note: `mage lint` uses `golangci-lint`. Install via `mage devinstall` if needed.

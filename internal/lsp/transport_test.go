@@ -17,6 +17,20 @@ func TestReadMessage_ParsesContentLength(t *testing.T) {
     if err != nil || string(got) != string(body) { t.Fatalf("readMessage failed: %v %q", err, string(got)) }
 }
 
+func TestWriteMessage_FramesJSON(t *testing.T) {
+    var out bytes.Buffer
+    s := &Server{out: &out}
+    payload := struct{ JSONRPC string `json:"jsonrpc"`; Ping string `json:"ping"` }{JSONRPC: "2.0", Ping: "pong"}
+    s.writeMessage(payload)
+    got := out.String()
+    if !bytes.HasPrefix([]byte(got), []byte("Content-Length: ")) { t.Fatalf("missing Content-Length header: %q", got) }
+    // Header/body delimiter must be present
+    idx := bytes.Index([]byte(got), []byte("\r\n\r\n"))
+    if idx < 0 { t.Fatalf("missing CRLFCRLF delimiter: %q", got) }
+    body := got[idx+4:]
+    if body == "" || body[0] != '{' || body[len(body)-1] != '}' { t.Fatalf("body not JSON: %q", body) }
+}
+
 func stringInt(n int) string {
     if n == 0 { return "0" }
     var b [20]byte
@@ -24,4 +38,3 @@ func stringInt(n int) string {
     for n > 0 { i--; b[i] = byte('0' + n%10); n /= 10 }
     return string(b[i:])
 }
-

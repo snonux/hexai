@@ -21,6 +21,10 @@ The config file is optional.
   "completion_throttle_ms": 0,
   "no_disk_io": true,
   "trigger_characters": [".", ":", "/", "_", " " ],
+  "inline_open": ">",
+  "inline_close": ">",
+  "chat_suffix": ">",
+  "chat_prefixes": ["?", "!", ":", ";"],
   "coding_temperature": 0.2,
   "provider": "ollama",
   "copilot_model": "gpt-4o-mini",
@@ -47,8 +51,28 @@ Key fields:
 - manual_invoke_min_prefix: minimum typed identifier chars required for manual invoke to proceed without structural triggers (0 allows always).
 - no_disk_io: avoid reading files from disk when building context.
 - trigger_characters: LSP completion trigger characters.
+- inline_open / inline_close: characters that bracket inline prompts (default `>`/`>`). Inline prompts support `>text>` and a double-open variant `>>text>`. Single-character markers are required.
+- chat_suffix / chat_prefixes: in-editor chat triggers (default suffix `>` and prefixes `["?","!",":",";"]`). A line ending with one of these prefixes immediately followed by the suffix triggers a chat reply (e.g., `What?>`). Prefixes must be single characters.
 - coding_temperature: optional override for LSP calls.
 - provider: `openai` | `copilot` | `ollama`.
+
+### Trigger customization
+
+Defaults use `>` for inline prompts and chat suffix. You can change them, e.g.:
+
+```json
+{
+  "inline_open": "<",
+  "inline_close": ">",
+  "chat_suffix": "/",
+  "chat_prefixes": ["?", "!"],
+  "trigger_characters": [".", ":", "/", "_", " "]
+}
+```
+
+Notes:
+- `inline_open`/`inline_close` must be single characters; `>>text>` is the double‑open variant.
+- `chat_prefixes` items must be single characters.
 
 ## Environment overrides
 
@@ -59,6 +83,8 @@ Key fields:
   - `HEXAI_CODING_TEMPERATURE`
   - `HEXAI_COMPLETION_DEBOUNCE_MS`, `HEXAI_COMPLETION_THROTTLE_MS`
   - `HEXAI_TRIGGER_CHARACTERS` (comma-separated, e.g., `".,:,_ , "`)
+  - `HEXAI_INLINE_OPEN`, `HEXAI_INLINE_CLOSE`
+  - `HEXAI_CHAT_SUFFIX`, `HEXAI_CHAT_PREFIXES` (comma-separated)
   - `HEXAI_OPENAI_MODEL`, `HEXAI_OPENAI_BASE_URL`, `HEXAI_OPENAI_TEMPERATURE`
   - `HEXAI_COPILOT_MODEL`, `HEXAI_COPILOT_BASE_URL`, `HEXAI_COPILOT_TEMPERATURE`
   - `HEXAI_OLLAMA_MODEL`, `HEXAI_OLLAMA_BASE_URL`, `HEXAI_OLLAMA_TEMPERATURE`

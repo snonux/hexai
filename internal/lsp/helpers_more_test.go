@@ -14,9 +14,9 @@ func TestLeadingAndApplyIndent(t *testing.T) {
     if out == "" || out[:2] != "  " { t.Fatalf("applyIndent failed: %q", out) }
 }
 
-func TestFindStrictSemicolonTag(t *testing.T) {
-    if _, _, _, ok := findStrictSemicolonTag(";do this; next"); !ok { t.Fatalf("expected strict tag") }
-    if _, _, _, ok := findStrictSemicolonTag("; spaced ;"); ok { t.Fatalf("should ignore spaced tag") }
+func TestFindStrictInlineTag(t *testing.T) {
+    if _, _, _, ok := findStrictInlineTag(">do this> next"); !ok { t.Fatalf("expected strict tag") }
+    if _, _, _, ok := findStrictInlineTag("> spaced >"); ok { t.Fatalf("should ignore spaced tag") }
 }
 
 // hasDoubleSemicolonTrigger tested elsewhere
@@ -34,6 +34,10 @@ func TestExtractRangeText(t *testing.T) {
     // multi-line
     got = extractRangeText(d, Range{Start: Position{Line:0, Character:0}, End: Position{Line:2, Character:2}})
     if got != "a\nbc\nxy" { t.Fatalf("got %q", got) }
+    // invalid range (start after end) returns empty string
+    if got := extractRangeText(d, Range{Start: Position{Line:1, Character:5}, End: Position{Line:1, Character:2}}); got != "" {
+        t.Fatalf("expected empty for invalid range, got %q", got)
+    }
 }
 
 func TestRangesOverlapAndOrder(t *testing.T) {
@@ -47,18 +51,18 @@ func TestRangesOverlapAndOrder(t *testing.T) {
 }
 
 func TestPromptRemovalEditsForLine(t *testing.T) {
-    edits := promptRemovalEditsForLine(";;do thing;", 3)
+    edits := promptRemovalEditsForLine(">>do thing>", 3)
     if len(edits) != 1 || edits[0].Range.Start.Line != 3 {
         t.Fatalf("expected full-line removal for double-semicolon")
     }
-    edits2 := promptRemovalEditsForLine(";act; and ;b;", 1)
+    edits2 := promptRemovalEditsForLine(">act> and >b>", 1)
     if len(edits2) == 0 { t.Fatalf("expected edits to remove strict markers") }
 }
 
 func TestCollectPromptRemovalEdits_MultiLine(t *testing.T) {
     s := newTestServer()
     uri := "file:///t.go"
-    s.setDocument(uri, "a\n;do; x\n;;wipe;\nend")
+    s.setDocument(uri, "a\n>do> x\n>>wipe>\nend")
     edits := s.collectPromptRemovalEdits(uri)
     if len(edits) < 2 { t.Fatalf("expected >=2 edits, got %d", len(edits)) }
 }
@@ -89,9 +93,9 @@ func TestComputeTextEditAndFilter(t *testing.T) {
     if te2 == nil || te2.Range.Start.Character == 0 { t.Fatalf("expected param-range edit") }
 }
 
-func TestIsBareDoubleSemicolon(t *testing.T) {
-    if !isBareDoubleSemicolon(";;   ") { t.Fatalf("expected true") }
-    if isBareDoubleSemicolon(";;x;") { t.Fatalf("expected false for content form") }
+func TestIsBareDoubleOpen(t *testing.T) {
+    if !isBareDoubleOpen(">>   ") { t.Fatalf("expected true") }
+    if isBareDoubleOpen(">>x>") { t.Fatalf("expected false for content form") }
 }
 
 func TestIsDefiningNewFunction(t *testing.T) {
