@@ -5,7 +5,7 @@ This page explains where the config lives and how to choose a style; the authori
 Config file
 
 - Location: `$XDG_CONFIG_HOME/hexai/config.toml` (usually `~/.config/hexai/config.toml`).
-- Style: sectioned tables only — see `config.toml.example` for a complete, commented reference.
+- Style: sectioned tables only — see [config.toml.example](../config.toml.example) for a complete, commented reference.
 
 Environment overrides
 
@@ -35,7 +35,7 @@ Selecting a provider
 
 Provider-specific options
 
-- See `config.toml.example` for the per-provider tables and defaults.
+- See [config.toml.example](../config.toml.example) for the per-provider tables and defaults.
 
 Notes:
 
@@ -45,8 +45,8 @@ Notes:
 
 LSP completion tuning
 
-- See the [completion] section in `config.toml.example`.
+- See the [completion] section in [config.toml.example](../config.toml.example).
 
 Temperature behavior
 
-- Defaults and recommended ranges are commented inline in `config.toml.example` under [general] and provider tables.
+- Defaults and recommended ranges are commented inline in [config.toml.example](../config.toml.example) under [general] and provider tables.
