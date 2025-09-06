@@ -4,26 +4,22 @@
 
 ### New features
 
-* [X] Create "generate unit test" code action for selected code block => write test to FILE_test.go file
+* [ ] Have all text LLM prompts be configurable. With defaults as of now.
 * [ ] implement a code action for selected code block the way via a unix pipe as faster access in helix
+  - pipe selected code to external command and replace selection with output
+  - the external command should open a menu to select an action (e.g. "format", "refactor", "explain", "test", etc.) and then apply it to the selected code
+  - the external menu can be opened in a separate tmux pane
+* [ ] Fish and zsh and bash shell integration for command completion? Have access to the current shell history (N last commands), current directory content, and current directory name.
+* [X] Create "generate unit test" code action for selected code block => write test to FILE_test.go file
 * [X] Use hexai as a gh copilot... CLI replacemant for command line questions
 * [X] Resolve diagnostics code action feature
 * [X] LSP server to be used with the Helix text editor
 * [X] Code completion using LLMs
-* [ ] Have all text LLM prompts be configurable. With defaults as of now.
 * [X] Text completion in general
 * [/] Be a replacement for 'github copilot cli'
 * [X] Be able to perform inline chats (keeping history in the document)
-* [ ] Be able to switch the underlying model via a prompt
 * [X] Fine tune when Large Language Model (LLM) completions trigger, as it seems that there are some cases where the Large Language Model (LLM) receives a request but Helix isn't suggesting any completions. There seems to be something odd with the in logic. Investigate the TriggerChar logic and make sure it matches Helix's expectations.
 * [X] Can anything else can be done with LSP?
-* [ ] Fish and zsh and bash shell integration for command completion? Have access to the current shell history (N last commands), current directory content, and current directory name.
-
-Be able to select code blocks and perform code actions on them
-
-* [X] Commenting exiting code
-* [X] Add unit test (for Go)
-* [X] Code refactoring (via comment instruction)
 
 Be able to switch LLMs. 
 

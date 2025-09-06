@@ -7,36 +7,39 @@ environment overrides, provider selection, and temperature behavior.
 
 The config file is optional. 
 
-- Location: `$XDG_CONFIG_HOME/hexai/config.json` (usually `~/.config/hexai/config.json`).
+- Location: `$XDG_CONFIG_HOME/hexai/config.toml` (usually `~/.config/hexai/config.toml`).
 - Example:
 
-```json
-{
-  "max_tokens": 4000,
-  "context_mode": "always-full",
-  "context_window_lines": 120,
-  "max_context_tokens": 4000,
-  "log_preview_limit": 100,
-  "completion_debounce_ms": 200,
-  "completion_throttle_ms": 0,
-  "no_disk_io": true,
-  "trigger_characters": [".", ":", "/", "_", " " ],
-  "inline_open": ">",
-  "inline_close": ">",
-  "chat_suffix": ">",
-  "chat_prefixes": ["?", "!", ":", ";"],
-  "coding_temperature": 0.2,
-  "provider": "ollama",
-  "copilot_model": "gpt-4o-mini",
-  "copilot_base_url": "https://api.githubcopilot.com",
-  "copilot_temperature": 0.2,
-  "openai_model": "gpt-4.1",
-  "openai_base_url": "https://api.openai.com/v1",
-  "openai_temperature": 0.2,
-  "ollama_model": "qwen3-coder:30b-a3b-q4_K_M",
-  "ollama_base_url": "http://localhost:11434",
-  "ollama_temperature": 0.2
-}
+```toml
+max_tokens = 4000
+context_mode = "always-full"
+context_window_lines = 120
+max_context_tokens = 4000
+log_preview_limit = 100
+completion_debounce_ms = 200
+completion_throttle_ms = 0
+# no_disk_io is reserved for future use
+trigger_characters = [".", ":", "/", "_", " "]
+inline_open = ">"
+inline_close = ">"
+chat_suffix = ">"
+chat_prefixes = ["?", "!", ":", ";"]
+coding_temperature = 0.2
+
+# choose one provider: openai | copilot | ollama
+provider = "ollama"
+
+copilot_model = "gpt-4o-mini"
+copilot_base_url = "https://api.githubcopilot.com"
+copilot_temperature = 0.2
+
+openai_model = "gpt-4.1"
+openai_base_url = "https://api.openai.com/v1"
+openai_temperature = 0.2
+
+ollama_model = "qwen3-coder:30b-a3b-q4_K_M"
+ollama_base_url = "http://localhost:11434"
+ollama_temperature = 0.2
 ```
 
 Key fields:
@@ -60,14 +63,12 @@ Key fields:
 
 Defaults use `>` for inline prompts and chat suffix. You can change them, e.g.:
 
-```json
-{
-  "inline_open": "<",
-  "inline_close": ">",
-  "chat_suffix": "/",
-  "chat_prefixes": ["?", "!"],
-  "trigger_characters": [".", ":", "/", "_", " "]
-}
+```toml
+inline_open = "<"
+inline_close = ">"
+chat_suffix = "/"
+chat_prefixes = ["?", "!"]
+trigger_characters = [".", ":", "/", "_", " "]
 ```
 
 Notes:
@@ -77,7 +78,7 @@ Notes:
 ## Environment overrides
 
 - All config-file options can be overridden by environment variables prefixed with `HEXAI_`.
-- Env values take precedence over `config.json`.
+- Env values take precedence over `config.toml`.
 - Examples:
   - `HEXAI_PROVIDER`, `HEXAI_MAX_TOKENS`, `HEXAI_CONTEXT_MODE`, `HEXAI_CONTEXT_WINDOW_LINES`, `HEXAI_MAX_CONTEXT_TOKENS`, `HEXAI_LOG_PREVIEW_LIMIT`
   - `HEXAI_CODING_TEMPERATURE`

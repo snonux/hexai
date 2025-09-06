@@ -1,8 +1,7 @@
-// Summary: Application configuration model and loader; reads ~/.config/hexai/config.json and merges defaults.
+// Summary: Application configuration model and loader; reads ~/.config/hexai/config.toml and merges defaults.
 package appconfig
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -10,58 +9,60 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/pelletier/go-toml/v2"
 )
 
-// App holds user-configurable settings read from ~/.config/hexai/config.json.
+// App holds user-configurable settings read from ~/.config/hexai/config.toml.
 type App struct {
-	MaxTokens          int    `json:"max_tokens"`
-	ContextMode        string `json:"context_mode"`
-	ContextWindowLines int    `json:"context_window_lines"`
-	MaxContextTokens   int    `json:"max_context_tokens"`
-	LogPreviewLimit    int    `json:"log_preview_limit"`
+	MaxTokens          int    `json:"max_tokens" toml:"max_tokens"`
+	ContextMode        string `json:"context_mode" toml:"context_mode"`
+	ContextWindowLines int    `json:"context_window_lines" toml:"context_window_lines"`
+	MaxContextTokens   int    `json:"max_context_tokens" toml:"max_context_tokens"`
+	LogPreviewLimit    int    `json:"log_preview_limit" toml:"log_preview_limit"`
 	// Single knob for LSP requests; if set, overrides hardcoded temps in LSP.
-	CodingTemperature *float64 `json:"coding_temperature"`
+	CodingTemperature *float64 `json:"coding_temperature" toml:"coding_temperature"`
 	// Minimum identifier characters required for manual (TriggerKind=1) invoke
 	// to proceed without structural triggers. 0 means always allow.
-	ManualInvokeMinPrefix int `json:"manual_invoke_min_prefix"`
+	ManualInvokeMinPrefix int `json:"manual_invoke_min_prefix" toml:"manual_invoke_min_prefix"`
 
 	// Completion debounce in milliseconds. When > 0, the server waits until
 	// there has been no text change for at least this duration before sending
 	// an LLM completion request.
-	CompletionDebounceMs int `json:"completion_debounce_ms"`
+	CompletionDebounceMs int `json:"completion_debounce_ms" toml:"completion_debounce_ms"`
 	// Completion throttle in milliseconds. When > 0, caps the minimum spacing
 	// between LLM requests (both chat and code-completer paths).
-	CompletionThrottleMs int `json:"completion_throttle_ms"`
+	CompletionThrottleMs int `json:"completion_throttle_ms" toml:"completion_throttle_ms"`
 
-	TriggerCharacters []string `json:"trigger_characters"`
-	Provider          string   `json:"provider"`
+	TriggerCharacters []string `json:"trigger_characters" toml:"trigger_characters"`
+	Provider          string   `json:"provider" toml:"provider"`
 
 	// Inline prompt trigger characters (default: >text> and >>text>)
-	InlineOpen  string `json:"inline_open"`
-	InlineClose string `json:"inline_close"`
+	InlineOpen  string `json:"inline_open" toml:"inline_open"`
+	InlineClose string `json:"inline_close" toml:"inline_close"`
 	// In-editor chat triggers (default: suffix ">" after one of [?, !, :, ;])
-	ChatSuffix   string   `json:"chat_suffix"`
-	ChatPrefixes []string `json:"chat_prefixes"`
+	ChatSuffix   string   `json:"chat_suffix" toml:"chat_suffix"`
+	ChatPrefixes []string `json:"chat_prefixes" toml:"chat_prefixes"`
 
 	// Provider-specific options
-	OpenAIBaseURL string `json:"openai_base_url"`
-	OpenAIModel   string `json:"openai_model"`
+	OpenAIBaseURL string `json:"openai_base_url" toml:"openai_base_url"`
+	OpenAIModel   string `json:"openai_model" toml:"openai_model"`
 	// Default temperature for OpenAI requests (nil means use provider default)
-	OpenAITemperature *float64 `json:"openai_temperature"`
-	OllamaBaseURL     string   `json:"ollama_base_url"`
-	OllamaModel       string   `json:"ollama_model"`
+	OpenAITemperature *float64 `json:"openai_temperature" toml:"openai_temperature"`
+	OllamaBaseURL     string   `json:"ollama_base_url" toml:"ollama_base_url"`
+	OllamaModel       string   `json:"ollama_model" toml:"ollama_model"`
 	// Default temperature for Ollama requests (nil means use provider default)
-	OllamaTemperature *float64 `json:"ollama_temperature"`
-	CopilotBaseURL    string   `json:"copilot_base_url"`
-	CopilotModel      string   `json:"copilot_model"`
+	OllamaTemperature *float64 `json:"ollama_temperature" toml:"ollama_temperature"`
+	CopilotBaseURL    string   `json:"copilot_base_url" toml:"copilot_base_url"`
+	CopilotModel      string   `json:"copilot_model" toml:"copilot_model"`
 	// Default temperature for Copilot requests (nil means use provider default)
-	CopilotTemperature *float64 `json:"copilot_temperature"`
+	CopilotTemperature *float64 `json:"copilot_temperature" toml:"copilot_temperature"`
 }
 
 // Constructor: defaults for App (kept first among functions)
 func newDefaultConfig() App {
 	// Coding-friendly default temperature across providers
-	// Users can override per provider in config.json (including 0.0).
+	// Users can override per provider in config.toml (including 0.0).
 	t := 0.2
 	return App{
 		MaxTokens:             4000,
@@ -116,19 +117,22 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if !os.IsNotExist(err) && logger != nil {
-			logger.Printf("cannot open config file %s: %v", path, err)
+			logger.Printf("cannot open TOML config file %s: %v", path, err)
 		}
 		return nil, err
 	}
 	defer f.Close()
 
-	dec := json.NewDecoder(f)
+	dec := toml.NewDecoder(f)
 	var fileCfg App
 	if err := dec.Decode(&fileCfg); err != nil {
 		if logger != nil {
-			logger.Printf("invalid config file %s: %v", path, err)
+			logger.Printf("invalid TOML config file %s: %v", path, err)
 		}
 		return nil, err
+	}
+	if logger != nil {
+		logger.Printf("loaded configuration from %s (TOML)", path)
 	}
 	return &fileCfg, nil
 }
@@ -221,13 +225,13 @@ func (a *App) mergeProviderFields(other *App) {
 func getConfigPath() (string, error) {
 	var configPath string
 	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
-		configPath = filepath.Join(xdgConfigHome, "hexai", "config.json")
+		configPath = filepath.Join(xdgConfigHome, "hexai", "config.toml")
 	} else {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("cannot find user home directory: %v", err)
 		}
-		configPath = filepath.Join(home, ".config", "hexai", "config.json")
+		configPath = filepath.Join(home, ".config", "hexai", "config.toml")
 	}
 	return configPath, nil
 }

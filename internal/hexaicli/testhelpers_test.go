@@ -3,7 +3,6 @@ package hexaicli
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -62,8 +61,8 @@ func (s *fakeStreamer) ChatStream(ctx context.Context, messages []llm.Message, o
 	return nil
 }
 
-// small JSON writer for tests
-func writeJSON(t *testing.T, path string, v any) {
+// small TOML writer for tests (string values only)
+func writeTOML(t *testing.T, path string, m map[string]string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
@@ -73,8 +72,10 @@ func writeJSON(t *testing.T, path string, v any) {
 		t.Fatalf("create: %v", err)
 	}
 	defer f.Close()
-	if err := json.NewEncoder(f).Encode(v); err != nil {
-		t.Fatalf("encode: %v", err)
+	for k, v := range m {
+		if _, err := f.WriteString(k + " = \"" + v + "\"\n"); err != nil {
+			t.Fatalf("write: %v", err)
+		}
 	}
 }
 

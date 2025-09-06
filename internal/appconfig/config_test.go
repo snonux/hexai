@@ -1,7 +1,6 @@
 package appconfig
 
 import (
-	"encoding/json"
 	"io"
 	"log"
 	"os"
@@ -13,19 +12,13 @@ import (
 
 func newLogger() *log.Logger { return log.New(io.Discard, "", 0) }
 
-func writeJSON(t *testing.T, path string, v any) {
+func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	defer f.Close()
-	enc := json.NewEncoder(f)
-	if err := enc.Encode(v); err != nil {
-		t.Fatalf("encode json: %v", err)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
 	}
 }
 
@@ -59,31 +52,30 @@ func TestLoad_Defaults_WithLogger_NoFile_NoEnv(t *testing.T) {
 func TestLoad_FileMerge_And_EnvOverride(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
-	cfgPath := filepath.Join(dir, "hexai", "config.json")
-	temp0 := 0.0
-	fileCfg := App{
-		MaxTokens:             123,
-		ContextMode:           "file-on-new-func",
-		ContextWindowLines:    50,
-		MaxContextTokens:      999,
-		LogPreviewLimit:       0,
-		CodingTemperature:     &temp0,
-		ManualInvokeMinPrefix: 2,
-		CompletionDebounceMs:  150,
-		CompletionThrottleMs:  300,
-		TriggerCharacters:     []string{".", ":"},
-		Provider:              "openai",
-		OpenAIBaseURL:         "https://api.example",
-		OpenAIModel:           "gpt-x",
-		OpenAITemperature:     &temp0,
-		OllamaBaseURL:         "http://ollama",
-		OllamaModel:           "llama",
-		OllamaTemperature:     &temp0,
-		CopilotBaseURL:        "http://copilot",
-		CopilotModel:          "ghost",
-		CopilotTemperature:    &temp0,
-	}
-	writeJSON(t, cfgPath, fileCfg)
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
+	// file configuration in TOML
+	writeFile(t, cfgPath, `
+max_tokens = 123
+context_mode = "file-on-new-func"
+context_window_lines = 50
+max_context_tokens = 999
+log_preview_limit = 0
+coding_temperature = 0.0
+manual_invoke_min_prefix = 2
+completion_debounce_ms = 150
+completion_throttle_ms = 300
+trigger_characters = [".", ":"]
+provider = "openai"
+openai_base_url = "https://api.example"
+openai_model = "gpt-x"
+openai_temperature = 0.0
+ollama_base_url = "http://ollama"
+ollama_model = "llama"
+ollama_temperature = 0.0
+copilot_base_url = "http://copilot"
+copilot_model = "ghost"
+copilot_temperature = 0.0
+`)
 
 	// Env overrides take precedence
 	withEnv(t, "HEXAI_MAX_TOKENS", "321")
@@ -163,23 +155,23 @@ func TestGetConfigPath_XDG(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getConfigPath: %v", err)
 	}
-	if !strings.HasPrefix(path, filepath.Join(dir, "hexai")) || !strings.HasSuffix(path, "config.json") {
+	if !strings.HasPrefix(path, filepath.Join(dir, "hexai")) || !strings.HasSuffix(path, "config.toml") {
 		t.Fatalf("unexpected path: %s", path)
 	}
 }
 
-func TestLoadFromFile_InvalidJSON(t *testing.T) {
+func TestLoadFromFile_InvalidTOML(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
-	cfgPath := filepath.Join(dir, "hexai", "config.json")
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(cfgPath, []byte("{ invalid"), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte("invalid ="), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	_, err := loadFromFile(cfgPath, newLogger())
 	if err == nil {
-		t.Fatalf("expected error for invalid JSON")
+		t.Fatalf("expected error for invalid TOML")
 	}
 }

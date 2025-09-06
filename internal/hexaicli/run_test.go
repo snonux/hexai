@@ -107,7 +107,7 @@ func TestRunWithClient_ErrorPrint(t *testing.T) {
 func TestRun_OpenAI_NoKey_ShowsError(t *testing.T) {
 	dir := testingTempDir(t)
 	// write config with provider=openai
-	writeJSON(t, filepath.Join(dir, "hexai", "config.json"), map[string]any{"provider": "openai", "openai_model": "gpt-x"})
+	writeTOML(t, filepath.Join(dir, "hexai", "config.toml"), map[string]string{"provider": "openai", "openai_model": "gpt-x"})
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	// Ensure no OpenAI API key is present in environment
 	t.Setenv("HEXAI_OPENAI_API_KEY", "")

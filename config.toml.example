@@ -1,0 +1,34 @@
+max_tokens = 4000
+context_mode = "file-on-new-func"
+context_window_lines = 120
+max_context_tokens = 4000
+log_preview_limit = 100
+completion_debounce_ms = 200
+completion_throttle_ms = 0
+# Optional: disable disk IO while building context (reserved)
+# no_disk_io = true
+trigger_characters = [".", ":", "/", "_", " "]
+inline_open = ">"
+inline_close = ">"
+chat_suffix = ">"
+chat_prefixes = ["?", "!", ":", ";"]
+coding_temperature = 0.2
+
+# Provider: openai | copilot | ollama
+provider = "openai"
+
+# OpenAI
+openai_model = "gpt-4.1"
+openai_base_url = "https://api.openai.com/v1"
+openai_temperature = 0.2
+
+# Ollama
+ollama_model = "qwen3-coder:30b-a3b-q4_K_M"
+ollama_base_url = "http://localhost:11434"
+ollama_temperature = 0.2
+
+# GitHub Copilot
+copilot_model = "gpt-4o-mini"
+copilot_base_url = "https://api.githubcopilot.com"
+copilot_temperature = 0.2
+
