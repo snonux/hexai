@@ -1,5 +1,6 @@
 /hexai
 /hexai-lsp
+/hexai-action
 /.gocache/
 /.gomodcache/
 /*.out
