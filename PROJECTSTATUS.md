@@ -30,7 +30,6 @@ And then generate a menu with all the code actions hexai-lsp knows of and includ
   - the external menu can be opened in a separate tmux pane
 * [ ] Fish and zsh and bash shell integration for command completion? Have access to the current shell history (N last commands), current directory content, and current directory name.
 * [ ] Be able to re-configure the temperature in-editor
-* [ ] Unit test config loading
 
 Be able to switch LLMs. 
 
