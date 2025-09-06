@@ -8,6 +8,7 @@
 
 ## Coding Style & Naming Conventions
 
+- Avoid duplication of code when the functions are larger than 5 lines.
 - If possible, construct individual methods so that they can be unit tested. But only if it doesn't add too much boilerplate to the code base.
 - Aim for at least 85% unit test coverage of all source code.
 - Ensure that all unit tests pass before commiting any changes.
