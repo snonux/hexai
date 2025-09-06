@@ -14,3 +14,17 @@ Suggested additions:
 - Expand table‑driven coverage for completion edit computations and label/filter selection.
 - Add more negative tests (malformed SSE/JSON payloads) to assert robust error handling.
 
+## Running Tests
+
+- Full suite with coverage:
+  - `HEXAI_TEST_SKIP_NET=1 go test ./... -cover`
+  - The `HEXAI_TEST_SKIP_NET=1` env var disables any tests that require network access, keeping runs deterministic in CI/sandboxes.
+
+- Package-specific runs:
+  - `HEXAI_TEST_SKIP_NET=1 go test ./cmd/internal/hexai-action -cover`
+  - `HEXAI_TEST_SKIP_NET=1 go test ./internal/hexaiaction -cover`
+
+Notes
+
+- Some environments restrict writes to the Go build cache; if you see cache permission errors, re-run in a less-restricted shell or allow the command to write to the cache.
+- Always format Go code before committing: `gofumpt -w .`

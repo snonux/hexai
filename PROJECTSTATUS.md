@@ -4,7 +4,7 @@ This documents shows future items and in progress items. Already completed ones 
 
 ## Features
 
-### AI menu
+### [/] AI menu
 
 ```
 [keys.normal]
@@ -23,8 +23,7 @@ And then generate a menu with all the code actions hexai-lsp knows of and includ
 
 ### More features
 
-* [ ] Have all text LLM prompts be configurable. With defaults as of now.
-* [ ] implement a code action for selected code block the way via a unix pipe as faster access in helix
+* [/] implement a code action for selected code block the way via a unix pipe as faster access in helix
   - pipe selected code to external command and replace selection with output
   - the external command should open a menu to select an action (e.g. "format", "refactor", "explain", "test", etc.) and then apply it to the selected code
   - the external menu can be opened in a separate tmux pane

@@ -96,3 +96,9 @@ Run:
 
 - `cat input.go | ./hexai-action`
 - or `./hexai-action < input.go`
+- or with files: `./hexai-action --infile input.go --outfile output.go`
+
+Flags
+
+- `--infile`  Read input from the given file instead of stdin.
+- `--outfile` Write output to the given file instead of stdout (truncates/creates).

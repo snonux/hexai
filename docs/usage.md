@@ -102,3 +102,25 @@ hexai 'install ripgrep on macOS'
 # Verbose explanation
 hexai 'install ripgrep on macOS and explain'
 ```
+
+## Hexai Action (TUI)
+
+`hexai-action` runs code actions over a selection or diagnostics+selection piped from stdin, or read from a file.
+
+- Choose an action with arrow keys, `j/k`, `g/G`, Enter, or hotkeys `[s] [r] [c] [t]`.
+- Output is written to stdout by default, or to a file via `--outfile`.
+
+Input formats are the same as described in the README (inline instruction markers for rewrite; optional `Diagnostics:` header block).
+
+Examples
+
+```sh
+# From stdin
+cat input.go | hexai-action
+
+# From file to file
+hexai-action --infile input.go --outfile output.go
+
+# Using shell redirection
+hexai-action < input.go > output.go
+```
