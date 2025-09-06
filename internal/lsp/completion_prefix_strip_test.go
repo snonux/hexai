@@ -1,9 +1,10 @@
 package lsp
 
 import (
-    "encoding/json"
-    "testing"
-    tut "codeberg.org/snonux/hexai/internal/testutil"
+	"encoding/json"
+	"testing"
+
+	tut "codeberg.org/snonux/hexai/internal/testutil"
 )
 
 func TestStripDuplicateGeneralPrefix_ExactOverlap(t *testing.T) {
@@ -41,7 +42,7 @@ func TestStripDuplicateAssignmentPrefix_AssignAndWalrus(t *testing.T) {
 
 func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
 	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
-    s.llmClient = fakeLLM{resp: tut.MultilineFunctionSuggestion()}
+	s.llmClient = fakeLLM{resp: tut.MultilineFunctionSuggestion()}
 	line := "func fib(i int) " // cursor after space
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://x.go"}}
 	// Simulate manual user invocation (TriggerKind=1)
@@ -56,15 +57,15 @@ func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
 }
 
 func TestTryLLMCompletion_InlinePromptAlwaysTriggers(t *testing.T) {
-    s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
-    s.llmClient = fakeLLM{resp: "replacement"}
-    line := "prefix >do something> suffix"
-    // No trigger char immediately before cursor; place cursor at end
-    p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://inline.go"}}
-    items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
-    if !ok || len(items) == 0 {
-        t.Fatalf("expected completion to trigger on inline >text> prompt")
-    }
+	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	s.llmClient = fakeLLM{resp: "replacement"}
+	line := "prefix >do something> suffix"
+	// No trigger char immediately before cursor; place cursor at end
+	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://inline.go"}}
+	items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+	if !ok || len(items) == 0 {
+		t.Fatalf("expected completion to trigger on inline >text> prompt")
+	}
 }
 
 func TestTryLLMCompletion_DoubleOpenEmpty_DoesNotAutoTrigger(t *testing.T) {
@@ -86,63 +87,63 @@ func TestTryLLMCompletion_DoubleOpenEmpty_DoesNotAutoTrigger(t *testing.T) {
 }
 
 func TestHasDoubleSemicolonTrigger_Variants(t *testing.T) {
-    if hasDoubleOpenTrigger(">>") {
-        t.Fatalf("bare double-open should not trigger")
-    }
-    if hasDoubleOpenTrigger(">> ") {
-        t.Fatalf("double-open followed by space should not trigger")
-    }
-    if hasDoubleOpenTrigger(">>>") {
-        t.Fatalf("';;;' should not trigger (no content)")
-    }
-    if !hasDoubleOpenTrigger(">>x>") {
-        t.Fatalf("expected trigger for ';;x;' pattern")
-    }
+	if hasDoubleOpenTrigger(">>") {
+		t.Fatalf("bare double-open should not trigger")
+	}
+	if hasDoubleOpenTrigger(">> ") {
+		t.Fatalf("double-open followed by space should not trigger")
+	}
+	if hasDoubleOpenTrigger(">>>") {
+		t.Fatalf("';;;' should not trigger (no content)")
+	}
+	if !hasDoubleOpenTrigger(">>x>") {
+		t.Fatalf("expected trigger for ';;x;' pattern")
+	}
 }
 
 func TestBareDoubleOpenPreventsAutoTriggerEvenWithOtherTriggers(t *testing.T) {
-    s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
-    fake := &countingLLM{}
-    s.llmClient = fake
-    // Place a '.' earlier but also include bare double-open at end; should not auto-trigger
-    line := "obj. call >>"
+	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	fake := &countingLLM{}
+	s.llmClient = fake
+	// Place a '.' earlier but also include bare double-open at end; should not auto-trigger
+	line := "obj. call >>"
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://bare-ds.go"}}
 	items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
 	if !ok {
 		t.Fatalf("expected ok=true (handled), but not auto-triggering")
 	}
-    if len(items) != 0 {
-        t.Fatalf("expected no items due to bare double-open")
-    }
+	if len(items) != 0 {
+		t.Fatalf("expected no items due to bare double-open")
+	}
 	if fake.calls != 0 {
 		t.Fatalf("LLM should not be called; calls=%d", fake.calls)
 	}
 }
 
 func TestBareDoubleOpenOnNextLine_PreventsAutoTrigger(t *testing.T) {
-    s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
-    fake := &countingLLM{}
-    s.llmClient = fake
-    current := "expression := flag.String(\"expression\", \"\", \"Expression to evaluate\")"
-    below := ">>"
+	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	fake := &countingLLM{}
+	s.llmClient = fake
+	current := "expression := flag.String(\"expression\", \"\", \"Expression to evaluate\")"
+	below := ">>"
 	p := CompletionParams{Position: Position{Line: 0, Character: len(current)}, TextDocument: TextDocumentIdentifier{URI: "file://nextline.go"}}
 	items, ok := s.tryLLMCompletion(p, "", current, below, "", "", false, "")
 	if !ok {
 		t.Fatalf("expected ok=true handled")
 	}
-    if len(items) != 0 {
-        t.Fatalf("expected no items due to bare double-open on next line")
-    }
+	if len(items) != 0 {
+		t.Fatalf("expected no items due to bare double-open on next line")
+	}
 	if fake.calls != 0 {
 		t.Fatalf("LLM should not be called; calls=%d", fake.calls)
 	}
 }
 
 func TestBareDoubleOpenPreventsManualInvoke(t *testing.T) {
-    s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
-    fake := &countingLLM{}
-    s.llmClient = fake
-    line := ">>"
+	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	fake := &countingLLM{}
+	s.llmClient = fake
+	line := ">>"
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://bare-ds-manual.go"}}
 	// Simulate manual invoke
 	p.Context = json.RawMessage([]byte(`{"triggerKind":1}`))
@@ -150,9 +151,9 @@ func TestBareDoubleOpenPreventsManualInvoke(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected ok=true (handled)")
 	}
-    if len(items) != 0 {
-        t.Fatalf("expected no items for bare double-open even with manual invoke")
-    }
+	if len(items) != 0 {
+		t.Fatalf("expected no items for bare double-open even with manual invoke")
+	}
 	if fake.calls != 0 {
 		t.Fatalf("LLM should not be called; calls=%d", fake.calls)
 	}

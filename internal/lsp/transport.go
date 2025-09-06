@@ -4,11 +4,12 @@ package lsp
 import (
 	"encoding/json"
 	"fmt"
-	"codeberg.org/snonux/hexai/internal/logging"
 	"io"
 	"net/textproto"
 	"strconv"
 	"strings"
+
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
 func (s *Server) readMessage() ([]byte, error) {

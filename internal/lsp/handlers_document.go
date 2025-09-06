@@ -2,18 +2,21 @@
 package lsp
 
 import (
-    "context"
-    "encoding/json"
-    "codeberg.org/snonux/hexai/internal/llm"
-    "codeberg.org/snonux/hexai/internal/logging"
-    "strings"
-    "time"
+	"context"
+	"encoding/json"
+	"strings"
+	"time"
+
+	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
 // Package-level chat trigger vars for helpers without Server receiver.
 // NewServer assigns these from configuration on startup.
-var chatSuffixChar byte = '>'
-var chatPrefixSingles = []string{"?", "!", ":", ";"}
+var (
+	chatSuffixChar    byte = '>'
+	chatPrefixSingles      = []string{"?", "!", ":", ";"}
+)
 
 func (s *Server) handleDidOpen(req Request) {
 	var p DidOpenTextDocumentParams
@@ -97,7 +100,7 @@ func (s *Server) detectAndHandleChat(uri string) {
 	if d == nil || len(d.lines) == 0 {
 		return
 	}
-    for i, raw := range d.lines {
+	for i, raw := range d.lines {
 		// Find last non-space character index
 		j := len(raw) - 1
 		for j >= 0 {
@@ -107,25 +110,32 @@ func (s *Server) detectAndHandleChat(uri string) {
 			}
 			break
 		}
-        if j < 0 {
-            continue
-        }
-        // Check suffix/prefix according to configuration
-        if s.chatSuffix == "" {
-            continue
-        }
-        // Last non-space must equal suffix
-        if string(raw[j]) != s.chatSuffix {
-            continue
-        }
-        // Require at least one char before suffix and that char must be in chatPrefixes
-        if j < 1 { continue }
-        prev := string(raw[j-1])
-        isTrigger := false
-        for _, pfx := range s.chatPrefixes {
-            if prev == pfx { isTrigger = true; break }
-        }
-        if !isTrigger { continue }
+		if j < 0 {
+			continue
+		}
+		// Check suffix/prefix according to configuration
+		if s.chatSuffix == "" {
+			continue
+		}
+		// Last non-space must equal suffix
+		if string(raw[j]) != s.chatSuffix {
+			continue
+		}
+		// Require at least one char before suffix and that char must be in chatPrefixes
+		if j < 1 {
+			continue
+		}
+		prev := string(raw[j-1])
+		isTrigger := false
+		for _, pfx := range s.chatPrefixes {
+			if prev == pfx {
+				isTrigger = true
+				break
+			}
+		}
+		if !isTrigger {
+			continue
+		}
 		// Avoid double-answering: if the next non-empty line starts with '>' we skip.
 		k := i + 1
 		for k < len(d.lines) && strings.TrimSpace(d.lines[k]) == "" {
@@ -135,9 +145,9 @@ func (s *Server) detectAndHandleChat(uri string) {
 			continue
 		}
 		// Derive prompt by removing only the trailing '>'
-        removeCount := len(s.chatSuffix)
+		removeCount := len(s.chatSuffix)
 		base := raw[:j+1-removeCount]
-        prompt := strings.TrimSpace(base)
+		prompt := strings.TrimSpace(base)
 		if prompt == "" {
 			continue
 		}
@@ -246,37 +256,37 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
 
 // stripTrailingTrigger removes the trailing chat trigger punctuation from a line if present.
 func stripTrailingTrigger(sx string) string {
-    s := strings.TrimRight(sx, " \t")
-    if len(s) == 0 {
-        return sx
-    }
-    // Configurable suffix removal when preceded by configured prefixes
-    if len(s) >= 2 && s[len(s)-1] == chatSuffixChar {
-        prev := string(s[len(s)-2])
-        for _, pf := range chatPrefixSingles {
-            if prev == pf {
-                return strings.TrimRight(s[:len(s)-1], " \t")
-            }
-        }
-    }
-    // Legacy: remove one trailing punctuation (?, !, :) to build history nicely
-    last := s[len(s)-1]
-    switch last {
-    case '?', '!', ':':
-        return strings.TrimRight(s[:len(s)-1], " \t")
-    default:
-        return sx
-    }
+	s := strings.TrimRight(sx, " \t")
+	if len(s) == 0 {
+		return sx
+	}
+	// Configurable suffix removal when preceded by configured prefixes
+	if len(s) >= 2 && s[len(s)-1] == chatSuffixChar {
+		prev := string(s[len(s)-2])
+		for _, pf := range chatPrefixSingles {
+			if prev == pf {
+				return strings.TrimRight(s[:len(s)-1], " \t")
+			}
+		}
+	}
+	// Legacy: remove one trailing punctuation (?, !, :) to build history nicely
+	last := s[len(s)-1]
+	switch last {
+	case '?', '!', ':':
+		return strings.TrimRight(s[:len(s)-1], " \t")
+	default:
+		return sx
+	}
 }
 
 // clientApplyEdit sends a workspace/applyEdit request to the client.
 func (s *Server) clientApplyEdit(label string, edit WorkspaceEdit) {
-    params := ApplyWorkspaceEditParams{Label: label, Edit: edit}
-    id := s.nextReqID()
-    req := Request{JSONRPC: "2.0", ID: id, Method: "workspace/applyEdit"}
-    b, _ := json.Marshal(params)
-    req.Params = b
-    s.writeMessage(req)
+	params := ApplyWorkspaceEditParams{Label: label, Edit: edit}
+	id := s.nextReqID()
+	req := Request{JSONRPC: "2.0", ID: id, Method: "workspace/applyEdit"}
+	b, _ := json.Marshal(params)
+	req.Params = b
+	s.writeMessage(req)
 }
 
 // nextReqID returns a unique json.RawMessage id for server-initiated requests.
@@ -291,27 +301,27 @@ func (s *Server) nextReqID() json.RawMessage {
 
 // clientShowDocument asks the client to open/focus a document and select a range.
 func (s *Server) clientShowDocument(uri string, sel *Range) {
-    var params struct {
-        URI       string `json:"uri"`
-        External  bool   `json:"external,omitempty"`
-        TakeFocus bool   `json:"takeFocus,omitempty"`
-        Selection *Range `json:"selection,omitempty"`
-    }
-    params.URI = uri
-    params.TakeFocus = true
-    params.Selection = sel
-    id := s.nextReqID()
-    req := Request{JSONRPC: "2.0", ID: id, Method: "window/showDocument"}
-    b, _ := json.Marshal(params)
-    req.Params = b
-    s.writeMessage(req)
+	var params struct {
+		URI       string `json:"uri"`
+		External  bool   `json:"external,omitempty"`
+		TakeFocus bool   `json:"takeFocus,omitempty"`
+		Selection *Range `json:"selection,omitempty"`
+	}
+	params.URI = uri
+	params.TakeFocus = true
+	params.Selection = sel
+	id := s.nextReqID()
+	req := Request{JSONRPC: "2.0", ID: id, Method: "window/showDocument"}
+	b, _ := json.Marshal(params)
+	req.Params = b
+	s.writeMessage(req)
 }
 
 // deferShowDocument schedules a showDocument after a short delay to allow the client
 // time to apply any pending edits (e.g., create the file before focusing it).
 func (s *Server) deferShowDocument(uri string, sel Range) {
-    go func() {
-        time.Sleep(120 * time.Millisecond)
-        s.clientShowDocument(uri, &sel)
-    }()
+	go func() {
+		time.Sleep(120 * time.Millisecond)
+		s.clientShowDocument(uri, &sel)
+	}()
 }

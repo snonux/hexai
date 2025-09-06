@@ -3,14 +3,14 @@
 package hexaicli
 
 import (
-    "bufio"
-    "context"
-    "fmt"
-    "io"
-    "log"
-    "os"
-    "strings"
-    "time"
+	"bufio"
+	"context"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"strings"
+	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
@@ -20,14 +20,14 @@ import (
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
 // It assumes flags have already been parsed by the caller.
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-    // Load configuration with a logger so file-based config is respected.
-    logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
-    cfg := appconfig.Load(logger)
-    client, err := newClientFromConfig(cfg)
-    if err != nil {
-        fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
-        return err
-    }
+	// Load configuration with a logger so file-based config is respected.
+	logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
+	cfg := appconfig.Load(logger)
+	client, err := newClientFromConfig(cfg)
+	if err != nil {
+		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+		return err
+	}
 
 	return RunWithClient(ctx, args, stdin, stdout, stderr, client)
 }
@@ -71,29 +71,29 @@ func readInput(stdin io.Reader, args []string) (string, error) {
 
 // newClientFromConfig builds an LLM client from the app config and env keys.
 func newClientFromConfig(cfg appconfig.App) (llm.Client, error) {
-    llmCfg := llm.Config{
-        Provider:       cfg.Provider,
-        OpenAIBaseURL:  cfg.OpenAIBaseURL,
-        OpenAIModel:    cfg.OpenAIModel,
-        OpenAITemperature: cfg.OpenAITemperature,
-        OllamaBaseURL:  cfg.OllamaBaseURL,
-        OllamaModel:    cfg.OllamaModel,
-        OllamaTemperature: cfg.OllamaTemperature,
-        CopilotBaseURL: cfg.CopilotBaseURL,
-        CopilotModel:   cfg.CopilotModel,
-        CopilotTemperature: cfg.CopilotTemperature,
-    }
-    // Prefer HEXAI_OPENAI_API_KEY; fall back to OPENAI_API_KEY
-    oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
-    if strings.TrimSpace(oaKey) == "" {
-        oaKey = os.Getenv("OPENAI_API_KEY")
-    }
-    // Prefer HEXAI_COPILOT_API_KEY; fall back to COPILOT_API_KEY
-    cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
-    if strings.TrimSpace(cpKey) == "" {
-        cpKey = os.Getenv("COPILOT_API_KEY")
-    }
-    return llm.NewFromConfig(llmCfg, oaKey, cpKey)
+	llmCfg := llm.Config{
+		Provider:           cfg.Provider,
+		OpenAIBaseURL:      cfg.OpenAIBaseURL,
+		OpenAIModel:        cfg.OpenAIModel,
+		OpenAITemperature:  cfg.OpenAITemperature,
+		OllamaBaseURL:      cfg.OllamaBaseURL,
+		OllamaModel:        cfg.OllamaModel,
+		OllamaTemperature:  cfg.OllamaTemperature,
+		CopilotBaseURL:     cfg.CopilotBaseURL,
+		CopilotModel:       cfg.CopilotModel,
+		CopilotTemperature: cfg.CopilotTemperature,
+	}
+	// Prefer HEXAI_OPENAI_API_KEY; fall back to OPENAI_API_KEY
+	oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
+	if strings.TrimSpace(oaKey) == "" {
+		oaKey = os.Getenv("OPENAI_API_KEY")
+	}
+	// Prefer HEXAI_COPILOT_API_KEY; fall back to COPILOT_API_KEY
+	cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
+	if strings.TrimSpace(cpKey) == "" {
+		cpKey = os.Getenv("COPILOT_API_KEY")
+	}
+	return llm.NewFromConfig(llmCfg, oaKey, cpKey)
 }
 
 // buildMessages creates system and user messages based on input content.

@@ -28,20 +28,20 @@ type Client interface {
 // token-by-token streaming responses. Callers can type-assert to Streamer and
 // fall back to Client.Chat when not implemented.
 type Streamer interface {
-    // ChatStream sends chat messages and invokes onDelta with incremental text
-    // chunks as they are produced by the model. Implementations should call
-    // onDelta with empty strings sparingly (prefer only non-empty chunks).
-    ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error
+	// ChatStream sends chat messages and invokes onDelta with incremental text
+	// chunks as they are produced by the model. Implementations should call
+	// onDelta with empty strings sparingly (prefer only non-empty chunks).
+	ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error
 }
 
 // CodeCompleter is an optional interface for providers that support a
 // prompt/suffix code-completion API (e.g., Copilot Codex endpoint). Clients
 // can type-assert to this and prefer it over chat when available.
 type CodeCompleter interface {
-    // CodeCompletion requests up to n suggestions given a left-hand prompt and
-    // right-hand suffix around the cursor. Language is advisory and may be
-    // ignored. Temperature applies when provider supports it.
-    CodeCompletion(ctx context.Context, prompt string, suffix string, n int, language string, temperature float64) ([]string, error)
+	// CodeCompletion requests up to n suggestions given a left-hand prompt and
+	// right-hand suffix around the cursor. Language is advisory and may be
+	// ignored. Temperature applies when provider supports it.
+	CodeCompletion(ctx context.Context, prompt string, suffix string, n int, language string, temperature float64) ([]string, error)
 }
 
 // Options for a request. Providers may ignore unsupported fields.
@@ -64,56 +64,56 @@ func WithStop(stop ...string) RequestOption {
 
 // Config defines provider configuration read from the Hexai config file.
 type Config struct {
-    Provider string
-    // OpenAI options
-    OpenAIBaseURL string
-    OpenAIModel   string
-    OpenAITemperature *float64
-    // Ollama options
-    OllamaBaseURL string
-    OllamaModel   string
-    OllamaTemperature *float64
-    // Copilot options
-    CopilotBaseURL string
-    CopilotModel   string
-    CopilotTemperature *float64
+	Provider string
+	// OpenAI options
+	OpenAIBaseURL     string
+	OpenAIModel       string
+	OpenAITemperature *float64
+	// Ollama options
+	OllamaBaseURL     string
+	OllamaModel       string
+	OllamaTemperature *float64
+	// Copilot options
+	CopilotBaseURL     string
+	CopilotModel       string
+	CopilotTemperature *float64
 }
 
 // NewFromConfig creates an LLM client using only the supplied configuration.
 // The OpenAI API key is supplied separately and may be read from the environment
 // by the caller; other environment-based configuration is not used.
 func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, error) {
-    p := strings.ToLower(strings.TrimSpace(cfg.Provider))
-    if p == "" {
-        p = "openai"
-    }
-    switch p {
-    case "openai":
-        if strings.TrimSpace(openAIAPIKey) == "" {
-            return nil, errors.New("missing OPENAI_API_KEY for provider openai")
-        }
-        // Set coding-friendly default temperature if none provided
-        if cfg.OpenAITemperature == nil {
-            t := 0.2
-            cfg.OpenAITemperature = &t
-        }
-        return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature), nil
-    case "ollama":
-        if cfg.OllamaTemperature == nil {
-            t := 0.2
-            cfg.OllamaTemperature = &t
-        }
-        return newOllama(cfg.OllamaBaseURL, cfg.OllamaModel, cfg.OllamaTemperature), nil
-    case "copilot":
-        if strings.TrimSpace(copilotAPIKey) == "" {
-            return nil, errors.New("missing COPILOT_API_KEY for provider copilot")
-        }
-        if cfg.CopilotTemperature == nil {
-            t := 0.2
-            cfg.CopilotTemperature = &t
-        }
-        return newCopilot(cfg.CopilotBaseURL, cfg.CopilotModel, copilotAPIKey, cfg.CopilotTemperature), nil
-    default:
-        return nil, errors.New("unknown LLM provider: " + p)
-    }
+	p := strings.ToLower(strings.TrimSpace(cfg.Provider))
+	if p == "" {
+		p = "openai"
+	}
+	switch p {
+	case "openai":
+		if strings.TrimSpace(openAIAPIKey) == "" {
+			return nil, errors.New("missing OPENAI_API_KEY for provider openai")
+		}
+		// Set coding-friendly default temperature if none provided
+		if cfg.OpenAITemperature == nil {
+			t := 0.2
+			cfg.OpenAITemperature = &t
+		}
+		return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature), nil
+	case "ollama":
+		if cfg.OllamaTemperature == nil {
+			t := 0.2
+			cfg.OllamaTemperature = &t
+		}
+		return newOllama(cfg.OllamaBaseURL, cfg.OllamaModel, cfg.OllamaTemperature), nil
+	case "copilot":
+		if strings.TrimSpace(copilotAPIKey) == "" {
+			return nil, errors.New("missing COPILOT_API_KEY for provider copilot")
+		}
+		if cfg.CopilotTemperature == nil {
+			t := 0.2
+			cfg.CopilotTemperature = &t
+		}
+		return newCopilot(cfg.CopilotBaseURL, cfg.CopilotModel, copilotAPIKey, cfg.CopilotTemperature), nil
+	default:
+		return nil, errors.New("unknown LLM provider: " + p)
+	}
 }

@@ -25,7 +25,7 @@ type ServerFactory func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.S
 func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	logger := log.New(stderr, "hexai-lsp ", log.LstdFlags|log.Lmsgprefix)
 	if strings.TrimSpace(logPath) != "" {
-		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 		if err != nil {
 			logger.Fatalf("failed to open log file: %v", err)
 		}
@@ -77,16 +77,16 @@ func buildClientIfNil(cfg appconfig.App, client llm.Client) llm.Client {
 		CopilotModel:       cfg.CopilotModel,
 		CopilotTemperature: cfg.CopilotTemperature,
 	}
-    // Prefer HEXAI_OPENAI_API_KEY; fall back to OPENAI_API_KEY
-    oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
-    if strings.TrimSpace(oaKey) == "" {
-        oaKey = os.Getenv("OPENAI_API_KEY")
-    }
-    // Prefer HEXAI_COPILOT_API_KEY; fall back to COPILOT_API_KEY
-    cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
-    if strings.TrimSpace(cpKey) == "" {
-        cpKey = os.Getenv("COPILOT_API_KEY")
-    }
+	// Prefer HEXAI_OPENAI_API_KEY; fall back to OPENAI_API_KEY
+	oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
+	if strings.TrimSpace(oaKey) == "" {
+		oaKey = os.Getenv("OPENAI_API_KEY")
+	}
+	// Prefer HEXAI_COPILOT_API_KEY; fall back to COPILOT_API_KEY
+	cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
+	if strings.TrimSpace(cpKey) == "" {
+		cpKey = os.Getenv("COPILOT_API_KEY")
+	}
 	if c, err := llm.NewFromConfig(llmCfg, oaKey, cpKey); err != nil {
 		logging.Logf("lsp ", "llm disabled: %v", err)
 		return nil
@@ -106,21 +106,21 @@ func ensureFactory(factory ServerFactory) ServerFactory {
 }
 
 func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) lsp.ServerOptions {
-    return lsp.ServerOptions{
-        LogContext:        logContext,
-        MaxTokens:         cfg.MaxTokens,
-        ContextMode:       cfg.ContextMode,
-        WindowLines:       cfg.ContextWindowLines,
-        MaxContextTokens:  cfg.MaxContextTokens,
-        CodingTemperature: cfg.CodingTemperature,
-        Client:            client,
-        TriggerCharacters: cfg.TriggerCharacters,
-        ManualInvokeMinPrefix: cfg.ManualInvokeMinPrefix,
-        CompletionDebounceMs:  cfg.CompletionDebounceMs,
-        CompletionThrottleMs:  cfg.CompletionThrottleMs,
-        InlineOpen:   cfg.InlineOpen,
-        InlineClose:  cfg.InlineClose,
-        ChatSuffix:   cfg.ChatSuffix,
-        ChatPrefixes: cfg.ChatPrefixes,
-    }
+	return lsp.ServerOptions{
+		LogContext:            logContext,
+		MaxTokens:             cfg.MaxTokens,
+		ContextMode:           cfg.ContextMode,
+		WindowLines:           cfg.ContextWindowLines,
+		MaxContextTokens:      cfg.MaxContextTokens,
+		CodingTemperature:     cfg.CodingTemperature,
+		Client:                client,
+		TriggerCharacters:     cfg.TriggerCharacters,
+		ManualInvokeMinPrefix: cfg.ManualInvokeMinPrefix,
+		CompletionDebounceMs:  cfg.CompletionDebounceMs,
+		CompletionThrottleMs:  cfg.CompletionThrottleMs,
+		InlineOpen:            cfg.InlineOpen,
+		InlineClose:           cfg.InlineClose,
+		ChatSuffix:            cfg.ChatSuffix,
+		ChatPrefixes:          cfg.ChatPrefixes,
+	}
 }

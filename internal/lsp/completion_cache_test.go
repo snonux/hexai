@@ -1,12 +1,12 @@
 package lsp
 
 import (
-    "bytes"
-    "log"
-    "strings"
-    "testing"
+	"bytes"
+	"log"
+	"strings"
+	"testing"
 
-    "codeberg.org/snonux/hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
 func TestCompletionCache_IgnoresWhitespaceBeforeCursor(t *testing.T) {

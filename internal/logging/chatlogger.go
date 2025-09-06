@@ -14,7 +14,8 @@ func NewChatLogger(provider string) ChatLogger {
 func (cl ChatLogger) LogStart(stream bool, model string, temp float64, maxTokens int, stop []string, messages []struct {
 	Role    string
 	Content string
-}) {
+},
+) {
 	chatOrStream := "chat"
 	if stream {
 		chatOrStream = "stream"

@@ -2,13 +2,13 @@
 package hexaicli
 
 import (
-    "context"
-    "encoding/json"
-    "os"
-    "path/filepath"
-    "testing"
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
 
-    "codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llm"
 )
 
 // setStdin sets os.Stdin from a string and returns a restore func and reader.
@@ -55,21 +55,27 @@ type fakeStreamer struct {
 }
 
 func (s *fakeStreamer) ChatStream(ctx context.Context, messages []llm.Message, onDelta func(string), opts ...llm.RequestOption) error {
-    s.sMsgs = append([]llm.Message{}, messages...)
-    for _, c := range s.chunks {
-        onDelta(c)
-    }
-    return nil
+	s.sMsgs = append([]llm.Message{}, messages...)
+	for _, c := range s.chunks {
+		onDelta(c)
+	}
+	return nil
 }
 
 // small JSON writer for tests
 func writeJSON(t *testing.T, path string, v any) {
-    t.Helper()
-    if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { t.Fatalf("mkdir: %v", err) }
-    f, err := os.Create(path)
-    if err != nil { t.Fatalf("create: %v", err) }
-    defer f.Close()
-    if err := json.NewEncoder(f).Encode(v); err != nil { t.Fatalf("encode: %v", err) }
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	defer f.Close()
+	if err := json.NewEncoder(f).Encode(v); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
 }
 
 func testingTempDir(t *testing.T) string { t.Helper(); return t.TempDir() }

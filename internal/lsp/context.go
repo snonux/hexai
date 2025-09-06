@@ -2,8 +2,9 @@
 package lsp
 
 import (
-	"codeberg.org/snonux/hexai/internal/logging"
 	"strings"
+
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
 // buildAdditionalContext builds extra context messages based on the configured mode.

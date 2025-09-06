@@ -2,13 +2,14 @@
 package lsp
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "codeberg.org/snonux/hexai/internal/llm"
-    "codeberg.org/snonux/hexai/internal/logging"
-    "strings"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+
+	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
 func (s *Server) handleCompletion(req Request) {
@@ -70,8 +71,8 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 }
 
 func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) {
-    ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
 
 	inlinePrompt := lineHasInlinePrompt(current)
 	if !inlinePrompt && !s.isTriggerEvent(p, current) {
@@ -93,20 +94,20 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 			logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
 		return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
 	}
-    if (isBareDoubleOpen(current) || isBareDoubleOpen(below)) {
-        logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-        return []CompletionItem{}, true
-    }
+	if isBareDoubleOpen(current) || isBareDoubleOpen(below) {
+		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+		return []CompletionItem{}, true
+	}
 
 	if !inParams && !s.prefixHeuristicAllows(inlinePrompt, current, p, manualInvoke) {
 		logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return []CompletionItem{}, true
 	}
 
-    // Provider-native path
-    if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, inParams); ok {
-        return items, true
-    }
+	// Provider-native path
+	if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, inParams); ok {
+		return items, true
+	}
 
 	// Chat path
 	messages := s.buildCompletionMessages(inlinePrompt, hasExtra, extraText, inParams, p, above, current, below, funcCtx)
@@ -120,12 +121,12 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	if s.codingTemperature != nil {
 		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
 	}
-    // Debounce and throttle before making the LLM call
-    s.waitForDebounce(ctx)
-    if !s.waitForThrottle(ctx) {
-        return nil, false
-    }
-    logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
+	// Debounce and throttle before making the LLM call
+	s.waitForDebounce(ctx)
+	if !s.waitForThrottle(ctx) {
+		return nil, false
+	}
+	logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
 
 	text, err := s.llmClient.Chat(ctx, messages, opts...)
 	if err != nil {
@@ -163,19 +164,23 @@ func parseManualInvoke(ctx any) bool {
 
 // shouldSuppressForChatTriggerEOL returns true when a chat trigger like ">" follows ?, !, :, or ; at EOL.
 func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionParams) bool {
-    t := strings.TrimRight(current, " \t")
-    if s.chatSuffix == "" { return false }
-    if strings.HasSuffix(t, s.chatSuffix) {
-        if len(t) < len(s.chatSuffix)+1 { return false }
-        prev := string(t[len(t)-len(s.chatSuffix)-1])
-        for _, pf := range s.chatPrefixes {
-            if prev == pf {
-                logging.Logf("lsp ", "completion skip=chat-trigger-eol uri=%s line=%d", p.TextDocument.URI, p.Position.Line)
-                return true
-            }
-        }
-    }
-    return false
+	t := strings.TrimRight(current, " \t")
+	if s.chatSuffix == "" {
+		return false
+	}
+	if strings.HasSuffix(t, s.chatSuffix) {
+		if len(t) < len(s.chatSuffix)+1 {
+			return false
+		}
+		prev := string(t[len(t)-len(s.chatSuffix)-1])
+		for _, pf := range s.chatPrefixes {
+			if prev == pf {
+				logging.Logf("lsp ", "completion skip=chat-trigger-eol uri=%s line=%d", p.TextDocument.URI, p.Position.Line)
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // prefixHeuristicAllows applies minimal prefix rules unless inlinePrompt or structural triggers apply.
@@ -233,15 +238,15 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 		prov = s.llmClient.Name()
 	}
 	logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
-    ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
-    defer cancel2()
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel2()
 
-    // Debounce and throttle prior to provider-native call
-    s.waitForDebounce(ctx2)
-    if !s.waitForThrottle(ctx2) {
-        return nil, false
-    }
-    suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
+	// Debounce and throttle prior to provider-native call
+	s.waitForDebounce(ctx2)
+	if !s.waitForThrottle(ctx2) {
+		return nil, false
+	}
+	suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
 	if err == nil && len(suggestions) > 0 {
 		cleaned := strings.TrimSpace(suggestions[0])
 		if cleaned != "" {
@@ -249,12 +254,12 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 			if cleaned != "" {
 				cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
 			}
-            if cleaned != "" && hasDoubleOpenTrigger(current) {
-                indent := leadingIndent(current)
-                if indent != "" {
-                    cleaned = applyIndent(indent, cleaned)
-                }
-            }
+			if cleaned != "" && hasDoubleOpenTrigger(current) {
+				indent := leadingIndent(current)
+				if indent != "" {
+					cleaned = applyIndent(indent, cleaned)
+				}
+			}
 			if strings.TrimSpace(cleaned) != "" {
 				key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
 				s.completionCachePut(key, cleaned)
@@ -270,63 +275,63 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 // waitForDebounce sleeps until there has been no input activity for at least
 // completionDebounce. If debounce is zero or ctx is done, it returns promptly.
 func (s *Server) waitForDebounce(ctx context.Context) {
-    d := s.completionDebounce
-    if d <= 0 {
-        return
-    }
-    for {
-        s.mu.RLock()
-        last := s.lastInput
-        s.mu.RUnlock()
-        if last.IsZero() {
-            return
-        }
-        since := time.Since(last)
-        if since >= d {
-            return
-        }
-        rem := d - since
-        timer := time.NewTimer(rem)
-        select {
-        case <-ctx.Done():
-            timer.Stop()
-            return
-        case <-timer.C:
-            // loop and re-evaluate in case input occurred during sleep
-        }
-    }
+	d := s.completionDebounce
+	if d <= 0 {
+		return
+	}
+	for {
+		s.mu.RLock()
+		last := s.lastInput
+		s.mu.RUnlock()
+		if last.IsZero() {
+			return
+		}
+		since := time.Since(last)
+		if since >= d {
+			return
+		}
+		rem := d - since
+		timer := time.NewTimer(rem)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+			// loop and re-evaluate in case input occurred during sleep
+		}
+	}
 }
 
 // waitForThrottle enforces a minimum spacing between LLM calls. Returns false
 // if the context is canceled while waiting.
 func (s *Server) waitForThrottle(ctx context.Context) bool {
-    interval := s.throttleInterval
-    if interval <= 0 {
-        return true
-    }
-    var wait time.Duration
-    for {
-        s.mu.Lock()
-        next := s.lastLLMCall.Add(interval)
-        now := time.Now()
-        if now.Before(next) {
-            wait = next.Sub(now)
-            s.mu.Unlock()
-            timer := time.NewTimer(wait)
-            select {
-            case <-ctx.Done():
-                timer.Stop()
-                return false
-            case <-timer.C:
-                // try again to set the next call time
-                continue
-            }
-        }
-        // we are allowed to proceed now; record this call as the latest
-        s.lastLLMCall = now
-        s.mu.Unlock()
-        return true
-    }
+	interval := s.throttleInterval
+	if interval <= 0 {
+		return true
+	}
+	var wait time.Duration
+	for {
+		s.mu.Lock()
+		next := s.lastLLMCall.Add(interval)
+		now := time.Now()
+		if now.Before(next) {
+			wait = next.Sub(now)
+			s.mu.Unlock()
+			timer := time.NewTimer(wait)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return false
+			case <-timer.C:
+				// try again to set the next call time
+				continue
+			}
+		}
+		// we are allowed to proceed now; record this call as the latest
+		s.lastLLMCall = now
+		s.mu.Unlock()
+		return true
+	}
 }
 
 // buildCompletionMessages constructs the LLM messages for completion.
@@ -359,10 +364,10 @@ func (s *Server) postProcessCompletion(text string, leftOfCursor string, current
 	if cleaned != "" {
 		cleaned = stripDuplicateGeneralPrefix(leftOfCursor, cleaned)
 	}
-    if cleaned != "" && hasDoubleOpenTrigger(currentLine) {
-        if indent := leadingIndent(currentLine); indent != "" {
-            cleaned = applyIndent(indent, cleaned)
-        }
-    }
+	if cleaned != "" && hasDoubleOpenTrigger(currentLine) {
+		if indent := leadingIndent(currentLine); indent != "" {
+			cleaned = applyIndent(indent, cleaned)
+		}
+	}
 	return cleaned
 }

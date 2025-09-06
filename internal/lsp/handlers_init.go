@@ -2,9 +2,10 @@
 package lsp
 
 import (
+	"os"
+
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/logging"
-	"os"
 )
 
 func (s *Server) handleInitialize(req Request) {

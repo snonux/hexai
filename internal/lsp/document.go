@@ -68,7 +68,7 @@ func (s *Server) lineContext(uri string, pos Position) (above, current, below, f
 			break
 		}
 	}
-	return
+	return above, current, below, funcCtx
 }
 
 // isDefiningNewFunction returns true when the cursor appears to be within

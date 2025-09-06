@@ -9,16 +9,10 @@
 - `tests/`: Future test suites mirroring `src/` paths.
 - `scripts/`: Helper tools and maintenance scripts.
 
-## Build, Test, and Development Commands
-
-- Lint Markdown: `markdownlint **/*.md` — checks heading/style rules.
-- Spellcheck: `codespell` — catches common typos.
-- Optimize images: `pngquant --quality=70-85 input.png -o assets/input.png`.
-- No build step required for docs-only changes.
-
 ## Coding Style & Naming Conventions
 
 - Aim for at least 85% unit test coverage of all source code.
+- Always run the gofumpt code reformater on all go files modified.
 - Ensure that all unit tests pass before merging any changes.
 - If possible, construct individual methods so that they can be unit tested. But only if it doesn't add too much boilerplate to the code base.
 - There should be no source code file larger than 1000 lines. If so, split it up into multiple.

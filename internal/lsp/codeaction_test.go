@@ -1,10 +1,11 @@
 package lsp
 
 import (
-    "context"
-    "encoding/json"
-    "codeberg.org/snonux/hexai/internal/llm"
-    "testing"
+	"context"
+	"encoding/json"
+	"testing"
+
+	"codeberg.org/snonux/hexai/internal/llm"
 )
 
 type fakeLLM struct {
@@ -22,7 +23,7 @@ func TestBuildRewriteCodeAction_LazyAndResolves(t *testing.T) {
 	s := newTestServer()
 	s.llmClient = fakeLLM{resp: "REWRITTEN"}
 	p := CodeActionParams{TextDocument: TextDocumentIdentifier{URI: "file:///t.go"}, Range: Range{Start: Position{Line: 1, Character: 2}, End: Position{Line: 3, Character: 4}}}
-    sel := ">rewrite>\nold code"
+	sel := ">rewrite>\nold code"
 	ca := s.buildRewriteCodeAction(p, sel)
 	if ca == nil {
 		t.Fatalf("expected code action")
