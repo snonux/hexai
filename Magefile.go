@@ -10,34 +10,40 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-    "time"
+	"time"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
 
-// Default target: build both binaries.
-var Default = Build
+var (
+	Default                   = Build // Default target: build both binaries.
+	coverageThreshold float64 = 85
+	coveragePrinted           = make(chan struct{}, 1)
+)
 
 // Build builds the Hexai LSP and CLI binaries.
 func Build() error {
 	mg.Deps(BuildHexaiLSP, BuildHexaiCLI)
-	warnIfLowCoverage(80.0)
+	printCoverage()
 	return nil
 }
 
 // BuildHexaiLSP builds the LSP server binary.
 func BuildHexaiLSP() error {
+	printCoverage()
 	return sh.RunV("go", "build", "-o", "hexai-lsp", "cmd/hexai-lsp/main.go")
 }
 
 // BuildHexaiCLI builds the CLI binary.
 func BuildHexaiCLI() error {
+	printCoverage()
 	return sh.RunV("go", "build", "-o", "hexai", "cmd/hexai/main.go")
 }
 
 // Dev runs tests, vet, lint, then builds with race for both binaries.
 func Dev() error {
+	printCoverage()
 	mg.Deps(Test, Vet, Lint)
 	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp", "cmd/hexai-lsp/main.go"); err != nil {
 		return err
@@ -47,12 +53,14 @@ func Dev() error {
 
 // Run launches the LSP server via go run (useful during development).
 func Run() error {
+	printCoverage()
 	mg.Deps(Dev)
 	return sh.RunV("go", "run", "cmd/hexai-lsp/main.go")
 }
 
 // RunCLI runs the CLI with a small test input.
 func RunCLI() error {
+	printCoverage()
 	mg.Deps(Dev)
 	cmd := "echo 'test' | go run cmd/hexai/main.go"
 	return sh.RunV("bash", "-lc", cmd)
@@ -60,6 +68,7 @@ func RunCLI() error {
 
 // Install copies built binaries to GOPATH/bin (defaults to ~/go/bin when GOPATH is unset).
 func Install() error {
+	printCoverage()
 	mg.Deps(Build)
 	gopath := os.Getenv("GOPATH")
 	if gopath == "" {
@@ -79,8 +88,15 @@ func Install() error {
 	return sh.RunV("cp", "-v", "./hexai", bin+"/")
 }
 
-// warnIfLowCoverage prints a warning if an existing coverage profile shows total < threshold.
-func warnIfLowCoverage(threshold float64) {
+// printCoverage prints a warning if an existing coverage profile shows total < coverateThreshold.
+func printCoverage() {
+	select {
+	case coveragePrinted <- struct{}{}:
+	default:
+		// Coverage already printed
+		return
+	}
+
 	profile := ""
 	if _, err := os.Stat("docs/coverage.out"); err == nil {
 		profile = "docs/coverage.out"
@@ -94,10 +110,10 @@ func warnIfLowCoverage(threshold float64) {
 		fmt.Println("[coverage] Could not parse total coverage from", profile)
 		return
 	}
-	if pct < threshold {
-		fmt.Printf("WARNING: total test coverage is %.1f%% (< %.1f%%)\n", pct, threshold)
+	if pct < coverageThreshold {
+		fmt.Printf("[coverage] WARNING: total test coverage is %.1f%% (< %.1f%%)\n", pct, coverageThreshold)
 	} else {
-		fmt.Printf("[coverage] total test coverage: %.1f%% (>= %.1f%%)\n", pct, threshold)
+		fmt.Printf("[coverage] total test coverage: %.1f%% (>= %.1f%%)\n", pct, coverageThreshold)
 	}
 }
 
@@ -173,10 +189,10 @@ func Lint() error {
 
 // DevInstall installs helpful developer tools.
 func DevInstall() error {
-    if err := sh.RunV("go", "install", "golang.org/x/tools/gopls@latest"); err != nil {
-        return err
-    }
-    return sh.RunV("go", "install", "github.com/golangci/golangci-lint/cmd/golangci-lint@latest")
+	if err := sh.RunV("go", "install", "golang.org/x/tools/gopls@latest"); err != nil {
+		return err
+	}
+	return sh.RunV("go", "install", "github.com/golangci/golangci-lint/cmd/golangci-lint@latest")
 }
 
 // CoverCheck enforces minimum per-package coverage.
@@ -184,51 +200,85 @@ func DevInstall() error {
 // Exceptions: any package whose import path contains "/cmd/" and any substring
 // provided via HEXAI_COVER_EXCEPT (comma-separated).
 func CoverCheck() error {
-    threshold := 80.0
-    if v := strings.TrimSpace(os.Getenv("HEXAI_COVER_THRESH")); v != "" {
-        if f, err := strconv.ParseFloat(v, 64); err == nil { threshold = f }
-    }
-    except := []string{"/cmd/"}
-    if v := strings.TrimSpace(os.Getenv("HEXAI_COVER_EXCEPT")); v != "" {
-        parts := strings.Split(v, ",")
-        for _, p := range parts { if s := strings.TrimSpace(p); s != "" { except = append(except, s) } }
-    }
-    list, err := sh.Output("go", "list", "./...")
-    if err != nil { return err }
-    pkgs := strings.Split(strings.TrimSpace(list), "\n")
-    mod := modulePathGuess()
-    _ = os.MkdirAll("docs/coverage", 0o755)
-    type res struct{ pkg string; total float64 }
-    var all, bad []res
-    for _, pkg := range pkgs {
-        if pkg == "" { continue }
-        skip := false
-        for _, ex := range except { if strings.Contains(pkg, ex) { skip = true; break } }
-        if skip { continue }
-        safe := strings.ReplaceAll(strings.TrimPrefix(pkg, mod), "/", "_")
-        if safe == pkg { if i := strings.LastIndex(pkg, "/"); i >= 0 { safe = pkg[i+1:] } }
-        prof := filepath.Join("docs", "coverage", safe+".out")
-        // Per-package run; ignore errors to allow packages without tests
-        _, _ = sh.Output("go", "test", "-covermode=count", "-coverprofile", prof, pkg)
-        // Read total
-        total, ok := totalCoveragePercent(prof)
-        if !ok { total = 0 }
-        all = append(all, res{pkg, total})
-        if total < threshold { bad = append(bad, res{pkg, total}) }
-        time.Sleep(10 * time.Millisecond)
-    }
-    fmt.Printf("Per-package coverage (threshold %.1f%%)\n", threshold)
-    for _, r := range all { fmt.Printf("- %s: %.1f%%\n", r.pkg, r.total) }
-    if len(bad) > 0 {
-        fmt.Println("\nPackages below threshold:")
-        for _, r := range bad { fmt.Printf("- %s: %.1f%%\n", r.pkg, r.total) }
-        return fmt.Errorf("coverage check failed (%d package(s) < %.1f%%)", len(bad), threshold)
-    }
-    fmt.Println("All packages meet coverage threshold.")
-    return nil
+	threshold := 80.0
+	if v := strings.TrimSpace(os.Getenv("HEXAI_COVER_THRESH")); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			threshold = f
+		}
+	}
+	except := []string{"/cmd/"}
+	if v := strings.TrimSpace(os.Getenv("HEXAI_COVER_EXCEPT")); v != "" {
+		parts := strings.Split(v, ",")
+		for _, p := range parts {
+			if s := strings.TrimSpace(p); s != "" {
+				except = append(except, s)
+			}
+		}
+	}
+	list, err := sh.Output("go", "list", "./...")
+	if err != nil {
+		return err
+	}
+	pkgs := strings.Split(strings.TrimSpace(list), "\n")
+	mod := modulePathGuess()
+	_ = os.MkdirAll("docs/coverage", 0o755)
+	type res struct {
+		pkg   string
+		total float64
+	}
+	var all, bad []res
+	for _, pkg := range pkgs {
+		if pkg == "" {
+			continue
+		}
+		skip := false
+		for _, ex := range except {
+			if strings.Contains(pkg, ex) {
+				skip = true
+				break
+			}
+		}
+		if skip {
+			continue
+		}
+		safe := strings.ReplaceAll(strings.TrimPrefix(pkg, mod), "/", "_")
+		if safe == pkg {
+			if i := strings.LastIndex(pkg, "/"); i >= 0 {
+				safe = pkg[i+1:]
+			}
+		}
+		prof := filepath.Join("docs", "coverage", safe+".out")
+		// Per-package run; ignore errors to allow packages without tests
+		_, _ = sh.Output("go", "test", "-covermode=count", "-coverprofile", prof, pkg)
+		// Read total
+		total, ok := totalCoveragePercent(prof)
+		if !ok {
+			total = 0
+		}
+		all = append(all, res{pkg, total})
+		if total < threshold {
+			bad = append(bad, res{pkg, total})
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	fmt.Printf("Per-package coverage (threshold %.1f%%)\n", threshold)
+	for _, r := range all {
+		fmt.Printf("- %s: %.1f%%\n", r.pkg, r.total)
+	}
+	if len(bad) > 0 {
+		fmt.Println("\nPackages below threshold:")
+		for _, r := range bad {
+			fmt.Printf("- %s: %.1f%%\n", r.pkg, r.total)
+		}
+		return fmt.Errorf("coverage check failed (%d package(s) < %.1f%%)", len(bad), threshold)
+	}
+	fmt.Println("All packages meet coverage threshold.")
+	return nil
 }
 
 func modulePathGuess() string {
-    if out, err := sh.Output("go", "list", "-m"); err == nil { return strings.TrimSpace(out) }
-    return ""
+	if out, err := sh.Output("go", "list", "-m"); err == nil {
+		return strings.TrimSpace(out)
+	}
+	return ""
 }
