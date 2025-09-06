@@ -98,12 +98,12 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		return ca, false
 	}
 	switch payload.Type {
-	case "rewrite":
-		sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
-		user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", payload.Instruction, payload.Selection)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+    case "rewrite":
+        sys := s.promptRewriteSystem
+        user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
 		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
 			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
@@ -114,38 +114,37 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		} else {
 			logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
 		}
-	case "diagnostics":
-		sys := "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes."
-		var b strings.Builder
-		b.WriteString("Diagnostics to resolve (selection only):\n")
-		for i, dgn := range payload.Diagnostics {
-			if dgn.Source != "" {
-				fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
-			} else {
-				fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
-			}
-		}
-		b.WriteString("\nSelected code:\n")
-		b.WriteString(payload.Selection)
-		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: b.String()}}
-		opts := s.llmRequestOpts()
-		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
-			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-				ca.Edit = &edit
-				return ca, true
-			}
-		} else {
-			logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
-		}
-	case "document":
-		sys := "You are a precise code documentation engine. Add idiomatic documentation comments to the given code. Preserve exact behavior and formatting as much as possible. Return only the updated code with comments, no prose or backticks."
-		user := "Add documentation comments to this code:\n" + payload.Selection
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+    case "diagnostics":
+        sys := s.promptDiagnosticsSystem
+        var b strings.Builder
+        for i, dgn := range payload.Diagnostics {
+            if dgn.Source != "" {
+                fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
+            } else {
+                fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
+            }
+        }
+        diagList := b.String()
+        user := renderTemplate(s.promptDiagnosticsUser, map[string]string{"diagnostics": diagList, "selection": payload.Selection})
+        ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+        opts := s.llmRequestOpts()
+        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+            if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+                ca.Edit = &edit
+                return ca, true
+            }
+        } else {
+            logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
+        }
+    case "document":
+        sys := s.promptDocumentSystem
+        user := renderTemplate(s.promptDocumentUser, map[string]string{"selection": payload.Selection})
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
 		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
 			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
@@ -467,13 +466,13 @@ func findGoFunctionAtLine(lines []string, idx int) (int, int) {
 
 // generateGoTestFunction uses LLM to produce a test function; falls back to a stub when unavailable.
 func (s *Server) generateGoTestFunction(funcCode string) string {
-	if s.llmClient != nil {
-		sys := "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic."
-		user := "Function under test:\n" + funcCode
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-		opts := s.llmRequestOpts()
+    if s.llmClient != nil {
+        sys := s.promptGoTestSystem
+        user := renderTemplate(s.promptGoTestUser, map[string]string{"function": funcCode})
+        ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+        opts := s.llmRequestOpts()
 		if out, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
 			cleaned := strings.TrimSpace(stripCodeFences(out))
 			if cleaned != "" {

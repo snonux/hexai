@@ -1,34 +1,79 @@
+# Hexai sectioned config example
+
+[general]
 max_tokens = 4000
-context_mode = "file-on-new-func"
-context_window_lines = 120
 max_context_tokens = 4000
-log_preview_limit = 100
-completion_debounce_ms = 200
-completion_throttle_ms = 0
-# Optional: disable disk IO while building context (reserved)
-# no_disk_io = true
+context_mode = "always-full"        # minimal | window | file-on-new-func | always-full
+context_window_lines = 120
+coding_temperature = 0.2             # single knob for LSP calls (optional)
+
+[logging]
+# Flatten to: log_preview_limit
+log_preview_limit = 100              # chars shown in log previews
+
+[completion]
+completion_debounce_ms = 200         # idle ms before sending a request
+completion_throttle_ms = 0           # min ms between requests (0 disables)
+manual_invoke_min_prefix = 0         # required identifier chars for manual invoke
+
+[triggers]
 trigger_characters = [".", ":", "/", "_", " "]
-inline_open = ">"
-inline_close = ">"
-chat_suffix = ">"
-chat_prefixes = ["?", "!", ":", ";"]
-coding_temperature = 0.2
 
-# Provider: openai | copilot | ollama
-provider = "openai"
+[inline]
+inline_open  = ">"                  # single-character
+inline_close = ">"                  # single-character
 
-# OpenAI
-openai_model = "gpt-4.1"
-openai_base_url = "https://api.openai.com/v1"
-openai_temperature = 0.2
+[chat]
+chat_suffix   = ">"                 # single-character
+chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 
-# Ollama
-ollama_model = "qwen3-coder:30b-a3b-q4_K_M"
-ollama_base_url = "http://localhost:11434"
-ollama_temperature = 0.2
+[provider]
+name = "openai"                      # openai | copilot | ollama
 
-# GitHub Copilot
-copilot_model = "gpt-4o-mini"
-copilot_base_url = "https://api.githubcopilot.com"
-copilot_temperature = 0.2
+[openai]
+model       = "gpt-4.1"
+base_url    = "https://api.openai.com/v1"
+temperature = 0.2
 
+[copilot]
+model       = "gpt-4o-mini"
+base_url    = "https://api.githubcopilot.com"
+temperature = 0.2
+
+[ollama]
+model       = "qwen3-coder:30b-a3b-q4_K_M"
+base_url    = "http://localhost:11434"
+temperature = 0.2
+
+# Prompt templates (optional). Leave commented to use defaults.
+[prompts]
+
+[prompts.completion]
+# Templates support {{file}}, {{function}}, {{above}}, {{current}}, {{below}}, {{char}}
+# and for additional context: {{context}}
+# system_general = "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks. Only continue from the cursor; never repeat characters already present to the left of the cursor on the current line (e.g., if 'name :=' is already typed, only return the right-hand side expression)."
+# system_params  = "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."
+# system_inline  = "You are a precise code completion/refactoring engine. Output only the code to insert with no prose, no comments, and no backticks. Return raw code only."
+# user_general   = "Provide the next likely code to insert at the cursor.\nFile: {{file}}\nFunction/context: {{function}}\nAbove line: {{above}}\nCurrent line (cursor at character {{char}}): {{current}}\nBelow line: {{below}}\nOnly return the completion snippet."
+# user_params    = "Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: {{function}}\nCurrent line (cursor at {{char}}): {{current}}"
+# additional_context = "Additional context:\n{{context}}"
+
+[prompts.provider_native]
+# completion = "// Path: {{path}}\n{{before}}"
+
+[prompts.chat]
+# system = "You are a helpful coding assistant. Answer concisely and clearly."
+
+[prompts.code_action]
+# rewrite_system     = "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
+# diagnostics_system = "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes."
+# document_system    = "You are a precise code documentation engine. Add idiomatic documentation comments to the given code. Preserve exact behavior and formatting as much as possible. Return only the updated code with comments, no prose or backticks."
+# rewrite_user       = "Instruction: {{instruction}}\n\nSelected code to transform:\n{{selection}}"
+# diagnostics_user   = "Diagnostics to resolve (selection only):\n{{diagnostics}}\n\nSelected code:\n{{selection}}"
+# document_user      = "Add documentation comments to this code:\n{{selection}}"
+# go_test_system     = "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic."
+# go_test_user       = "Function under test:\n{{function}}"
+
+[prompts.cli]
+# default_system = "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation."
+# explain_system = "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context."

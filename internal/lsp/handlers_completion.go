@@ -225,9 +225,13 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 	if !ok {
 		return nil, false
 	}
-	before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
-	path := strings.TrimPrefix(p.TextDocument.URI, "file://")
-	prompt := "// Path: " + path + "\n" + before
+    before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
+    path := strings.TrimPrefix(p.TextDocument.URI, "file://")
+    // Build provider-native prompt from template
+    prompt := renderTemplate(s.promptNativeCompletion, map[string]string{
+        "path":   path,
+        "before": before,
+    })
 	lang := ""
 	temp := 0.0
 	if s.codingTemperature != nil {
@@ -336,18 +340,34 @@ func (s *Server) waitForThrottle(ctx context.Context) bool {
 
 // buildCompletionMessages constructs the LLM messages for completion.
 func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText string, inParams bool, p CompletionParams, above, current, below, funcCtx string) []llm.Message {
-	sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
-	messages := []llm.Message{
-		{Role: "system", Content: sysPrompt},
-		{Role: "user", Content: userPrompt},
-	}
-	if hasExtra && extraText != "" {
-		messages = append(messages, llm.Message{Role: "user", Content: "Additional context:\n" + extraText})
-	}
-	if inlinePrompt {
-		messages[0].Content = "You are a precise code completion/refactoring engine. Output only the code to insert with no prose, no comments, and no backticks. Return raw code only."
-	}
-	return messages
+    // Vars for templates
+    vars := map[string]string{
+        "file":     p.TextDocument.URI,
+        "function": funcCtx,
+        "above":    above,
+        "current":  current,
+        "below":    below,
+        "char":     fmt.Sprintf("%d", p.Position.Character),
+    }
+    sys := s.promptCompSysGeneral
+    userTpl := s.promptCompUserGeneral
+    if inParams {
+        sys = s.promptCompSysParams
+        userTpl = s.promptCompUserParams
+    }
+    if inlinePrompt && strings.TrimSpace(s.promptCompSysInline) != "" {
+        sys = s.promptCompSysInline
+    }
+    user := renderTemplate(userTpl, vars)
+    messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+    if hasExtra && strings.TrimSpace(extraText) != "" {
+        extra := renderTemplate(s.promptCompExtraHeader, map[string]string{"context": extraText})
+        if strings.TrimSpace(extra) == "" {
+            extra = extraText
+        }
+        messages = append(messages, llm.Message{Role: "user", Content: extra})
+    }
+    return messages
 }
 
 // postProcessCompletion normalizes and deduplicates completion text and applies indentation rules.

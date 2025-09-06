@@ -58,12 +58,16 @@ func TestBuildDocString_Contents(t *testing.T) {
 	}
 }
 
-func TestBuildPrompts_InParams(t *testing.T) {
-	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x"}, Position: Position{Line: 0, Character: 5}}
-	sys, user := buildPrompts(true, p, "a", "func f(x)", "c", "func f(x)")
-	if !contains(sys, "function signatures") || !contains(user, "parameter list") {
-		t.Fatalf("unexpected in-params prompts")
-	}
+func TestBuildCompletionMessages_InParams_UsesParamPrompts(t *testing.T) {
+    s := newTestServer()
+    p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x"}, Position: Position{Line: 0, Character: 5}}
+    msgs := s.buildCompletionMessages(false, false, "", true, p, "a", "func f(x)", "c", "func f(x)")
+    if len(msgs) < 2 || msgs[0].Role != "system" || msgs[1].Role != "user" {
+        t.Fatalf("unexpected messages")
+    }
+    if !contains(msgs[0].Content, "function signatures") || !contains(msgs[1].Content, "parameter list") {
+        t.Fatalf("unexpected in-params prompts: %#v", msgs)
+    }
 }
 
 func TestPostProcessCompletion_CodeFencesAndDuplicates(t *testing.T) {

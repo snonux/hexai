@@ -23,13 +23,24 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	// Load configuration with a logger so file-based config is respected.
 	logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
 	cfg := appconfig.Load(logger)
-	client, err := newClientFromConfig(cfg)
-	if err != nil {
-		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
-		return err
-	}
-
-	return RunWithClient(ctx, args, stdin, stdout, stderr, client)
+    client, err := newClientFromConfig(cfg)
+    if err != nil {
+        fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+        return err
+    }
+    // Inline the flow here to use configured CLI prompts.
+    input, rerr := readInput(stdin, args)
+    if rerr != nil {
+        fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
+        return rerr
+    }
+    printProviderInfo(stderr, client)
+    msgs := buildMessagesFromConfig(cfg, input)
+    if err := runChat(ctx, client, msgs, input, stdout, stderr); err != nil {
+        fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
+        return err
+    }
+    return nil
 }
 
 // RunWithClient executes the CLI flow using an already-constructed client.
@@ -41,7 +52,7 @@ func RunWithClient(ctx context.Context, args []string, stdin io.Reader, stdout, 
 		return err
 	}
 	printProviderInfo(stderr, client)
-	msgs := buildMessages(input)
+    msgs := buildMessages(input)
 	if err := runChat(ctx, client, msgs, input, stdout, stderr); err != nil {
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
 		return err
@@ -107,6 +118,21 @@ func buildMessages(input string) []llm.Message {
 		{Role: "system", Content: system},
 		{Role: "user", Content: input},
 	}
+}
+
+// buildMessagesFromConfig uses configured CLI system prompts.
+func buildMessagesFromConfig(cfg appconfig.App, input string) []llm.Message {
+    lower := strings.ToLower(input)
+    system := cfg.PromptCLIDefaultSystem
+    if strings.Contains(lower, "explain") {
+        if strings.TrimSpace(cfg.PromptCLIExplainSystem) != "" {
+            system = cfg.PromptCLIExplainSystem
+        }
+    }
+    return []llm.Message{
+        {Role: "system", Content: system},
+        {Role: "user", Content: input},
+    }
 }
 
 // runChat executes the chat request, handling streaming and summary output.

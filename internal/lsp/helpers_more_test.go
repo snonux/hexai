@@ -101,16 +101,17 @@ func TestCollectPromptRemovalEdits_MultiLine(t *testing.T) {
 	}
 }
 
-func TestInParamListAndBuildPrompts(t *testing.T) {
-	cur := "func add(a int, b string) int"
-	if !inParamList(cur, 12) {
-		t.Fatalf("expected in param list")
-	}
-	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x.go"}, Position: Position{Line: 0, Character: 5}}
-	sys, user := buildPrompts(false, p, "above", "current", "below", "func add")
-	if sys == "" || user == "" {
-		t.Fatalf("prompts empty")
-	}
+func TestInParamListAndBuildCompletionMessages(t *testing.T) {
+    cur := "func add(a int, b string) int"
+    if !inParamList(cur, 12) {
+        t.Fatalf("expected in param list")
+    }
+    s := newTestServer()
+    p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x.go"}, Position: Position{Line: 0, Character: 5}}
+    msgs := s.buildCompletionMessages(false, false, "", false, p, "above", "current", "below", "func add")
+    if len(msgs) < 2 || msgs[0].Content == "" || msgs[1].Content == "" {
+        t.Fatalf("messages empty")
+    }
 }
 
 func TestLabelForCompletion(t *testing.T) {

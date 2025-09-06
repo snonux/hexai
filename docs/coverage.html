@@ -59,9 +59,9 @@
 				
 				<option value="file1">codeberg.org/snonux/hexai/cmd/hexai/main.go (0.0%)</option>
 				
-				<option value="file2">codeberg.org/snonux/hexai/internal/appconfig/config.go (87.0%)</option>
+				<option value="file2">codeberg.org/snonux/hexai/internal/appconfig/config.go (91.6%)</option>
 				
-				<option value="file3">codeberg.org/snonux/hexai/internal/hexaicli/run.go (91.4%)</option>
+				<option value="file3">codeberg.org/snonux/hexai/internal/hexaicli/run.go (72.6%)</option>
 				
 				<option value="file4">codeberg.org/snonux/hexai/internal/hexailsp/run.go (92.5%)</option>
 				
@@ -83,11 +83,11 @@
 				
 				<option value="file13">codeberg.org/snonux/hexai/internal/lsp/document.go (90.1%)</option>
 				
-				<option value="file14">codeberg.org/snonux/hexai/internal/lsp/handlers.go (92.1%)</option>
+				<option value="file14">codeberg.org/snonux/hexai/internal/lsp/handlers.go (92.9%)</option>
 				
 				<option value="file15">codeberg.org/snonux/hexai/internal/lsp/handlers_codeaction.go (81.2%)</option>
 				
-				<option value="file16">codeberg.org/snonux/hexai/internal/lsp/handlers_completion.go (87.5%)</option>
+				<option value="file16">codeberg.org/snonux/hexai/internal/lsp/handlers_completion.go (87.6%)</option>
 				
 				<option value="file17">codeberg.org/snonux/hexai/internal/lsp/handlers_document.go (88.9%)</option>
 				
@@ -97,7 +97,7 @@
 				
 				<option value="file20">codeberg.org/snonux/hexai/internal/lsp/handlers_utils.go (88.5%)</option>
 				
-				<option value="file21">codeberg.org/snonux/hexai/internal/lsp/server.go (77.9%)</option>
+				<option value="file21">codeberg.org/snonux/hexai/internal/lsp/server.go (82.1%)</option>
 				
 				<option value="file22">codeberg.org/snonux/hexai/internal/lsp/transport.go (71.4%)</option>
 				
@@ -234,17 +234,43 @@ type App struct {
         // Default temperature for Ollama requests (nil means use provider default)
         OllamaTemperature *float64 `json:"ollama_temperature" toml:"ollama_temperature"`
         CopilotBaseURL    string   `json:"copilot_base_url" toml:"copilot_base_url"`
-        CopilotModel      string   `json:"copilot_model" toml:"copilot_model"`
-        // Default temperature for Copilot requests (nil means use provider default)
-        CopilotTemperature *float64 `json:"copilot_temperature" toml:"copilot_temperature"`
+    CopilotModel      string   `json:"copilot_model" toml:"copilot_model"`
+    // Default temperature for Copilot requests (nil means use provider default)
+    CopilotTemperature *float64 `json:"copilot_temperature" toml:"copilot_temperature"`
+
+    // Prompt templates (configured only via file; no env overrides)
+    // Completion/chat/code action/CLI prompt strings. See config.toml.example for placeholders.
+    // Completion
+    PromptCompletionSystemGeneral string `json:"-" toml:"-"`
+    PromptCompletionSystemParams  string `json:"-" toml:"-"`
+    PromptCompletionSystemInline  string `json:"-" toml:"-"`
+    PromptCompletionUserGeneral   string `json:"-" toml:"-"`
+    PromptCompletionUserParams    string `json:"-" toml:"-"`
+    PromptCompletionExtraHeader   string `json:"-" toml:"-"`
+    // Provider-native code-completer
+    PromptNativeCompletion        string `json:"-" toml:"-"`
+    // In-editor chat
+    PromptChatSystem              string `json:"-" toml:"-"`
+    // Code actions
+    PromptCodeActionRewriteSystem     string `json:"-" toml:"-"`
+    PromptCodeActionDiagnosticsSystem string `json:"-" toml:"-"`
+    PromptCodeActionDocumentSystem    string `json:"-" toml:"-"`
+    PromptCodeActionRewriteUser       string `json:"-" toml:"-"`
+    PromptCodeActionDiagnosticsUser   string `json:"-" toml:"-"`
+    PromptCodeActionDocumentUser      string `json:"-" toml:"-"`
+    PromptCodeActionGoTestSystem      string `json:"-" toml:"-"`
+    PromptCodeActionGoTestUser        string `json:"-" toml:"-"`
+    // CLI
+    PromptCLIDefaultSystem string `json:"-" toml:"-"`
+    PromptCLIExplainSystem string `json:"-" toml:"-"`
 }
 
 // Constructor: defaults for App (kept first among functions)
-func newDefaultConfig() App <span class="cov5" title="9">{
+func newDefaultConfig() App <span class="cov5" title="11">{
         // Coding-friendly default temperature across providers
         // Users can override per provider in config.toml (including 0.0).
         t := 0.2
-        return App{
+    return App{
                 MaxTokens:             4000,
                 ContextMode:           "always-full",
                 ContextWindowLines:    120,
@@ -261,24 +287,48 @@ func newDefaultConfig() App <span class="cov5" title="9">{
                 InlineOpen:   "&gt;",
                 InlineClose:  "&gt;",
                 ChatSuffix:   "&gt;",
-                ChatPrefixes: []string{"?", "!", ":", ";"},
-        }
+        ChatPrefixes: []string{"?", "!", ":", ";"},
+
+        // Default prompt templates (match current hard-coded strings)
+        PromptCompletionSystemParams:  "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types.",
+        PromptCompletionUserParams:    "Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: {{function}}\nCurrent line (cursor at {{char}}): {{current}}",
+        PromptCompletionSystemGeneral: "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks. Only continue from the cursor; never repeat characters already present to the left of the cursor on the current line (e.g., if 'name :=' is already typed, only return the right-hand side expression).",
+        PromptCompletionUserGeneral:   "Provide the next likely code to insert at the cursor.\nFile: {{file}}\nFunction/context: {{function}}\nAbove line: {{above}}\nCurrent line (cursor at character {{char}}): {{current}}\nBelow line: {{below}}\nOnly return the completion snippet.",
+        PromptCompletionSystemInline:  "You are a precise code completion/refactoring engine. Output only the code to insert with no prose, no comments, and no backticks. Return raw code only.",
+        PromptCompletionExtraHeader:   "Additional context:\n{{context}}",
+
+        PromptNativeCompletion: "// Path: {{path}}\n{{before}}",
+
+        PromptChatSystem: "You are a helpful coding assistant. Answer concisely and clearly.",
+
+        PromptCodeActionRewriteSystem:     "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable.",
+        PromptCodeActionDiagnosticsSystem: "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes.",
+        PromptCodeActionDocumentSystem:    "You are a precise code documentation engine. Add idiomatic documentation comments to the given code. Preserve exact behavior and formatting as much as possible. Return only the updated code with comments, no prose or backticks.",
+        PromptCodeActionRewriteUser:       "Instruction: {{instruction}}\n\nSelected code to transform:\n{{selection}}",
+        PromptCodeActionDiagnosticsUser:   "Diagnostics to resolve (selection only):\n{{diagnostics}}\n\nSelected code:\n{{selection}}",
+        PromptCodeActionDocumentUser:      "Add documentation comments to this code:\n{{selection}}",
+        PromptCodeActionGoTestSystem:      "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic.",
+        PromptCodeActionGoTestUser:        "Function under test:\n{{function}}",
+
+        PromptCLIDefaultSystem: "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation.",
+        PromptCLIExplainSystem: "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context.",
+    }
 }</span>
 
 // Load reads configuration from a file and merges with defaults.
 // It respects the XDG Base Directory Specification.
-func Load(logger *log.Logger) App <span class="cov4" title="8">{
+func Load(logger *log.Logger) App <span class="cov5" title="10">{
         cfg := newDefaultConfig()
-        if logger == nil </span><span class="cov3" title="3">{
+        if logger == nil </span><span class="cov2" title="3">{
                 return cfg // Return defaults if no logger is provided (e.g. in tests)
         }</span>
 
-        <span class="cov4" title="5">configPath, err := getConfigPath()
+        <span class="cov4" title="7">configPath, err := getConfigPath()
         if err != nil </span><span class="cov0" title="0">{
                 logger.Printf("%v", err)
                 // Even if config path cannot be resolved, still allow env overrides below.
-        }</span> else<span class="cov4" title="5"> {
-                if fileCfg, err := loadFromFile(configPath, logger); err == nil &amp;&amp; fileCfg != nil </span><span class="cov3" title="3">{
+        }</span> else<span class="cov4" title="7"> {
+                if fileCfg, err := loadFromFile(configPath, logger); err == nil &amp;&amp; fileCfg != nil </span><span class="cov3" title="4">{
                         cfg.mergeWith(fileCfg)
                 }</span>
                 // When the config file is missing or invalid, we keep defaults and still
@@ -286,125 +336,507 @@ func Load(logger *log.Logger) App <span class="cov4" title="8">{
         }
 
         // Environment overrides (take precedence over file)
-        <span class="cov4" title="5">if envCfg := loadFromEnv(logger); envCfg != nil </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if envCfg := loadFromEnv(logger); envCfg != nil </span><span class="cov1" title="1">{
                 cfg.mergeWith(envCfg)
         }</span>
-        <span class="cov4" title="5">return cfg</span>
+        <span class="cov4" title="7">return cfg</span>
 }
 
 // Private helpers
-func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="cov4" title="6">{
-        f, err := os.Open(path)
-        if err != nil </span><span class="cov2" title="2">{
-                if !os.IsNotExist(err) &amp;&amp; logger != nil </span><span class="cov0" title="0">{
-                        logger.Printf("cannot open TOML config file %s: %v", path, err)
-                }</span>
-                <span class="cov2" title="2">return nil, err</span>
-        }
-        <span class="cov3" title="4">defer f.Close()
-
-        dec := toml.NewDecoder(f)
-        var fileCfg App
-        if err := dec.Decode(&amp;fileCfg); err != nil </span><span class="cov1" title="1">{
-                if logger != nil </span><span class="cov1" title="1">{
-                        logger.Printf("invalid TOML config file %s: %v", path, err)
-                }</span>
-                <span class="cov1" title="1">return nil, err</span>
-        }
-        <span class="cov3" title="3">if logger != nil </span><span class="cov3" title="3">{
-                logger.Printf("loaded configuration from %s (TOML)", path)
-        }</span>
-        <span class="cov3" title="3">return &amp;fileCfg, nil</span>
+// Sectioned (table-based) file format only.
+type fileConfig struct {
+    // Section tables only (flat keys are not allowed)
+    General   sectionGeneral   `toml:"general"`
+    Logging   sectionLogging   `toml:"logging"`
+    Completion sectionCompletion `toml:"completion"`
+    Triggers  sectionTriggers  `toml:"triggers"`
+    Inline    sectionInline    `toml:"inline"`
+    Chat      sectionChat      `toml:"chat"`
+    Provider  sectionProvider  `toml:"provider"`
+    OpenAI    sectionOpenAI    `toml:"openai"`
+    Copilot   sectionCopilot   `toml:"copilot"`
+    Ollama    sectionOllama    `toml:"ollama"`
+    Prompts   sectionPrompts   `toml:"prompts"`
 }
 
-func (a *App) mergeWith(other *App) <span class="cov3" title="4">{
-        a.mergeBasics(other)
-        a.mergeProviderFields(other)
+type sectionGeneral struct {
+    MaxTokens          int      `toml:"max_tokens"`
+    ContextMode        string   `toml:"context_mode"`
+    ContextWindowLines int      `toml:"context_window_lines"`
+    MaxContextTokens   int      `toml:"max_context_tokens"`
+    CodingTemperature  *float64 `toml:"coding_temperature"`
+}
+
+type sectionLogging struct {
+    LogPreviewLimit int `toml:"log_preview_limit"`
+}
+
+type sectionCompletion struct {
+    CompletionDebounceMs  int `toml:"completion_debounce_ms"`
+    CompletionThrottleMs  int `toml:"completion_throttle_ms"`
+    ManualInvokeMinPrefix int `toml:"manual_invoke_min_prefix"`
+}
+
+type sectionTriggers struct {
+    TriggerCharacters []string `toml:"trigger_characters"`
+}
+
+type sectionInline struct {
+    InlineOpen  string `toml:"inline_open"`
+    InlineClose string `toml:"inline_close"`
+}
+
+type sectionChat struct {
+    ChatSuffix   string   `toml:"chat_suffix"`
+    ChatPrefixes []string `toml:"chat_prefixes"`
+}
+
+type sectionProvider struct {
+    Name string `toml:"name"`
+}
+
+type sectionOpenAI struct {
+    Model       string   `toml:"model"`
+    BaseURL     string   `toml:"base_url"`
+    Temperature *float64 `toml:"temperature"`
+}
+
+type sectionCopilot struct {
+    Model       string   `toml:"model"`
+    BaseURL     string   `toml:"base_url"`
+    Temperature *float64 `toml:"temperature"`
+}
+
+type sectionOllama struct {
+    Model       string   `toml:"model"`
+    BaseURL     string   `toml:"base_url"`
+    Temperature *float64 `toml:"temperature"`
+}
+
+// Prompts sections
+type sectionPrompts struct {
+    Completion     sectionPromptsCompletion     `toml:"completion"`
+    Chat           sectionPromptsChat           `toml:"chat"`
+    CodeAction     sectionPromptsCodeAction     `toml:"code_action"`
+    CLI            sectionPromptsCLI            `toml:"cli"`
+    ProviderNative sectionPromptsProviderNative `toml:"provider_native"`
+}
+
+type sectionPromptsCompletion struct {
+    SystemGeneral string `toml:"system_general"`
+    SystemParams  string `toml:"system_params"`
+    SystemInline  string `toml:"system_inline"`
+    UserGeneral   string `toml:"user_general"`
+    UserParams    string `toml:"user_params"`
+    ExtraHeader   string `toml:"additional_context"`
+}
+
+type sectionPromptsChat struct {
+    System string `toml:"system"`
+}
+
+type sectionPromptsCodeAction struct {
+    RewriteSystem     string `toml:"rewrite_system"`
+    DiagnosticsSystem string `toml:"diagnostics_system"`
+    DocumentSystem    string `toml:"document_system"`
+    RewriteUser       string `toml:"rewrite_user"`
+    DiagnosticsUser   string `toml:"diagnostics_user"`
+    DocumentUser      string `toml:"document_user"`
+    GoTestSystem      string `toml:"go_test_system"`
+    GoTestUser        string `toml:"go_test_user"`
+}
+
+type sectionPromptsCLI struct {
+    DefaultSystem string `toml:"default_system"`
+    ExplainSystem string `toml:"explain_system"`
+}
+
+type sectionPromptsProviderNative struct {
+    Completion string `toml:"completion"`
+}
+
+func (fc *fileConfig) toApp() App <span class="cov3" title="4">{
+    out := App{}
+
+    // Merge section: general
+    if (fc.General != sectionGeneral{}) || fc.General.CodingTemperature != nil </span><span class="cov2" title="3">{
+        tmp := App{
+            MaxTokens:          fc.General.MaxTokens,
+            ContextMode:        fc.General.ContextMode,
+            ContextWindowLines: fc.General.ContextWindowLines,
+            MaxContextTokens:   fc.General.MaxContextTokens,
+            CodingTemperature:  fc.General.CodingTemperature,
+        }
+        out.mergeBasics(&amp;tmp)
+    }</span>
+
+    // logging
+    <span class="cov3" title="4">if (fc.Logging != sectionLogging{}) </span><span class="cov1" title="1">{
+        tmp := App{LogPreviewLimit: fc.Logging.LogPreviewLimit}
+        out.mergeBasics(&amp;tmp)
+    }</span>
+
+    // completion
+    <span class="cov3" title="4">if (fc.Completion != sectionCompletion{}) </span><span class="cov2" title="3">{
+        tmp := App{
+            CompletionDebounceMs:  fc.Completion.CompletionDebounceMs,
+            CompletionThrottleMs:  fc.Completion.CompletionThrottleMs,
+            ManualInvokeMinPrefix: fc.Completion.ManualInvokeMinPrefix,
+        }
+        out.mergeBasics(&amp;tmp)
+    }</span>
+
+    // triggers
+    <span class="cov3" title="4">if len(fc.Triggers.TriggerCharacters) &gt; 0 </span><span class="cov2" title="3">{
+        tmp := App{TriggerCharacters: fc.Triggers.TriggerCharacters}
+        out.mergeBasics(&amp;tmp)
+    }</span>
+
+    // inline
+    <span class="cov3" title="4">if (fc.Inline != sectionInline{}) </span><span class="cov1" title="1">{
+        tmp := App{InlineOpen: fc.Inline.InlineOpen, InlineClose: fc.Inline.InlineClose}
+        out.mergeBasics(&amp;tmp)
+    }</span>
+
+    // chat
+    <span class="cov3" title="4">if strings.TrimSpace(fc.Chat.ChatSuffix) != "" || len(fc.Chat.ChatPrefixes) &gt; 0 </span><span class="cov1" title="1">{
+        tmp := App{ChatSuffix: fc.Chat.ChatSuffix, ChatPrefixes: fc.Chat.ChatPrefixes}
+        out.mergeBasics(&amp;tmp)
+    }</span>
+
+    // provider
+    <span class="cov3" title="4">if strings.TrimSpace(fc.Provider.Name) != "" </span><span class="cov2" title="3">{
+        tmp := App{Provider: fc.Provider.Name}
+        out.mergeBasics(&amp;tmp)
+    }</span>
+
+    // openai
+    <span class="cov3" title="4">if (fc.OpenAI != sectionOpenAI{}) || fc.OpenAI.Temperature != nil </span><span class="cov2" title="3">{
+        tmp := App{
+            OpenAIBaseURL:     fc.OpenAI.BaseURL,
+            OpenAIModel:       fc.OpenAI.Model,
+            OpenAITemperature: fc.OpenAI.Temperature,
+        }
+        out.mergeProviderFields(&amp;tmp)
+    }</span>
+
+    // copilot
+    <span class="cov3" title="4">if (fc.Copilot != sectionCopilot{}) || fc.Copilot.Temperature != nil </span><span class="cov2" title="3">{
+        tmp := App{
+            CopilotBaseURL:     fc.Copilot.BaseURL,
+            CopilotModel:       fc.Copilot.Model,
+            CopilotTemperature: fc.Copilot.Temperature,
+        }
+        out.mergeProviderFields(&amp;tmp)
+    }</span>
+
+    // ollama
+    <span class="cov3" title="4">if (fc.Ollama != sectionOllama{}) || fc.Ollama.Temperature != nil </span><span class="cov2" title="3">{
+        tmp := App{
+            OllamaBaseURL:     fc.Ollama.BaseURL,
+            OllamaModel:       fc.Ollama.Model,
+            OllamaTemperature: fc.Ollama.Temperature,
+        }
+        out.mergeProviderFields(&amp;tmp)
+    }</span>
+
+    // prompts
+    // completion
+    <span class="cov3" title="4">if (fc.Prompts.Completion != sectionPromptsCompletion{}) </span><span class="cov1" title="1">{
+        if strings.TrimSpace(fc.Prompts.Completion.SystemGeneral) != "" </span><span class="cov1" title="1">{
+            out.PromptCompletionSystemGeneral = fc.Prompts.Completion.SystemGeneral
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.Completion.SystemParams) != "" </span><span class="cov1" title="1">{
+            out.PromptCompletionSystemParams = fc.Prompts.Completion.SystemParams
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.Completion.SystemInline) != "" </span><span class="cov1" title="1">{
+            out.PromptCompletionSystemInline = fc.Prompts.Completion.SystemInline
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.Completion.UserGeneral) != "" </span><span class="cov1" title="1">{
+            out.PromptCompletionUserGeneral = fc.Prompts.Completion.UserGeneral
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.Completion.UserParams) != "" </span><span class="cov1" title="1">{
+            out.PromptCompletionUserParams = fc.Prompts.Completion.UserParams
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.Completion.ExtraHeader) != "" </span><span class="cov1" title="1">{
+            out.PromptCompletionExtraHeader = fc.Prompts.Completion.ExtraHeader
+        }</span>
+    }
+    // chat
+    <span class="cov3" title="4">if strings.TrimSpace(fc.Prompts.Chat.System) != "" </span><span class="cov1" title="1">{
+        out.PromptChatSystem = fc.Prompts.Chat.System
+    }</span>
+    // code action
+    <span class="cov3" title="4">if (fc.Prompts.CodeAction != sectionPromptsCodeAction{}) </span><span class="cov1" title="1">{
+        if strings.TrimSpace(fc.Prompts.CodeAction.RewriteSystem) != "" </span><span class="cov1" title="1">{
+            out.PromptCodeActionRewriteSystem = fc.Prompts.CodeAction.RewriteSystem
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsSystem) != "" </span><span class="cov1" title="1">{
+            out.PromptCodeActionDiagnosticsSystem = fc.Prompts.CodeAction.DiagnosticsSystem
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.CodeAction.DocumentSystem) != "" </span><span class="cov1" title="1">{
+            out.PromptCodeActionDocumentSystem = fc.Prompts.CodeAction.DocumentSystem
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.CodeAction.RewriteUser) != "" </span><span class="cov1" title="1">{
+            out.PromptCodeActionRewriteUser = fc.Prompts.CodeAction.RewriteUser
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsUser) != "" </span><span class="cov1" title="1">{
+            out.PromptCodeActionDiagnosticsUser = fc.Prompts.CodeAction.DiagnosticsUser
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.CodeAction.DocumentUser) != "" </span><span class="cov1" title="1">{
+            out.PromptCodeActionDocumentUser = fc.Prompts.CodeAction.DocumentUser
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.CodeAction.GoTestSystem) != "" </span><span class="cov1" title="1">{
+            out.PromptCodeActionGoTestSystem = fc.Prompts.CodeAction.GoTestSystem
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.CodeAction.GoTestUser) != "" </span><span class="cov1" title="1">{
+            out.PromptCodeActionGoTestUser = fc.Prompts.CodeAction.GoTestUser
+        }</span>
+    }
+    // cli
+    <span class="cov3" title="4">if (fc.Prompts.CLI != sectionPromptsCLI{}) </span><span class="cov1" title="1">{
+        if strings.TrimSpace(fc.Prompts.CLI.DefaultSystem) != "" </span><span class="cov1" title="1">{
+            out.PromptCLIDefaultSystem = fc.Prompts.CLI.DefaultSystem
+        }</span>
+        <span class="cov1" title="1">if strings.TrimSpace(fc.Prompts.CLI.ExplainSystem) != "" </span><span class="cov1" title="1">{
+            out.PromptCLIExplainSystem = fc.Prompts.CLI.ExplainSystem
+        }</span>
+    }
+    // provider-native
+    <span class="cov3" title="4">if strings.TrimSpace(fc.Prompts.ProviderNative.Completion) != "" </span><span class="cov1" title="1">{
+        out.PromptNativeCompletion = fc.Prompts.ProviderNative.Completion
+    }</span>
+
+    <span class="cov3" title="4">return out</span>
+}
+
+func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="cov4" title="8">{
+    b, err := os.ReadFile(path)
+    if err != nil </span><span class="cov2" title="2">{
+        if !os.IsNotExist(err) &amp;&amp; logger != nil </span><span class="cov0" title="0">{
+            logger.Printf("cannot open TOML config file %s: %v", path, err)
+        }</span>
+        <span class="cov2" title="2">return nil, err</span>
+    }
+
+    <span class="cov4" title="6">var tables fileConfig
+    errTables := toml.NewDecoder(strings.NewReader(string(b))).Decode(&amp;tables)
+    // Raw map for validation/presence checks
+    var raw map[string]any
+    _ = toml.Unmarshal(b, &amp;raw)
+    if errTables != nil </span><span class="cov2" title="2">{
+        if logger != nil </span><span class="cov2" title="2">{
+            logger.Printf("invalid TOML config file %s: %v", path, errTables)
+        }</span>
+        <span class="cov2" title="2">return nil, errTables</span>
+    }
+
+    // Reject legacy flat keys at top-level (sectioned-only config is allowed)
+    <span class="cov3" title="4">legacy := map[string]struct{}{
+        "max_tokens": {}, "context_mode": {}, "context_window_lines": {}, "max_context_tokens": {},
+        "log_preview_limit": {}, "completion_debounce_ms": {}, "completion_throttle_ms": {},
+        "manual_invoke_min_prefix": {}, "trigger_characters": {}, "inline_open": {}, "inline_close": {},
+        "chat_suffix": {}, "chat_prefixes": {}, "coding_temperature": {}, "provider": {},
+        "openai_model": {}, "openai_base_url": {}, "openai_temperature": {},
+        "ollama_model": {}, "ollama_base_url": {}, "ollama_temperature": {},
+        "copilot_model": {}, "copilot_base_url": {}, "copilot_temperature": {},
+    }
+    for k := range raw </span><span class="cov6" title="27">{
+        if _, isTable := map[string]struct{}{"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {}, "chat": {}, "provider": {}, "openai": {}, "copilot": {}, "ollama": {}, "prompts": {}}[k]; isTable </span><span class="cov6" title="27">{
+            continue</span>
+        }
+        <span class="cov0" title="0">if _, isLegacy := legacy[k]; isLegacy </span><span class="cov0" title="0">{
+            return nil, fmt.Errorf("unsupported flat key '%s' in config; use sectioned tables (see config.toml.example)", k)
+        }</span>
+    }
+
+    <span class="cov3" title="4">if logger != nil </span><span class="cov3" title="4">{
+        logger.Printf("loaded configuration from %s (TOML)", path)
+    }</span>
+
+    // Merge order: flat first, then tables (so tables win over zero flat values)
+    // Build App from tables only
+    <span class="cov3" title="4">tab := tables.toApp()
+    // Ensure explicit values from raw map are respected (defensive for ints)
+    if t, ok := raw["completion"].(map[string]any); ok </span><span class="cov2" title="3">{
+        if v, present := t["manual_invoke_min_prefix"]; present </span><span class="cov2" title="3">{
+            switch vv := v.(type) </span>{
+            case int64:<span class="cov2" title="3">
+                tab.ManualInvokeMinPrefix = int(vv)</span>
+            case int:<span class="cov0" title="0">
+                tab.ManualInvokeMinPrefix = vv</span>
+            case float64:<span class="cov0" title="0">
+                tab.ManualInvokeMinPrefix = int(vv)</span>
+            }
+        }
+    }
+    <span class="cov3" title="4">if t, ok := raw["logging"].(map[string]any); ok </span><span class="cov2" title="3">{
+        if v, present := t["log_preview_limit"]; present </span><span class="cov2" title="3">{
+            switch vv := v.(type) </span>{
+            case int64:<span class="cov2" title="3">
+                tab.LogPreviewLimit = int(vv)</span>
+            case int:<span class="cov0" title="0">
+                tab.LogPreviewLimit = vv</span>
+            case float64:<span class="cov0" title="0">
+                tab.LogPreviewLimit = int(vv)</span>
+            }
+        }
+    }
+    <span class="cov3" title="4">return &amp;tab, nil</span>
+}
+
+func (a *App) mergeWith(other *App) <span class="cov3" title="5">{
+    a.mergeBasics(other)
+    a.mergeProviderFields(other)
+    a.mergePrompts(other)
 }</span>
 
 // mergeBasics merges general (non-provider) fields.
-func (a *App) mergeBasics(other *App) <span class="cov3" title="4">{
-        if other.MaxTokens &gt; 0 </span><span class="cov3" title="3">{
+func (a *App) mergeBasics(other *App) <span class="cov6" title="20">{
+        if other.MaxTokens &gt; 0 </span><span class="cov4" title="7">{
                 a.MaxTokens = other.MaxTokens
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.ContextMode); s != "" </span><span class="cov3" title="3">{
+        <span class="cov6" title="20">if s := strings.TrimSpace(other.ContextMode); s != "" </span><span class="cov4" title="7">{
                 a.ContextMode = s
         }</span>
-        <span class="cov3" title="4">if other.ContextWindowLines &gt; 0 </span><span class="cov3" title="3">{
+        <span class="cov6" title="20">if other.ContextWindowLines &gt; 0 </span><span class="cov4" title="7">{
                 a.ContextWindowLines = other.ContextWindowLines
         }</span>
-        <span class="cov3" title="4">if other.MaxContextTokens &gt; 0 </span><span class="cov3" title="3">{
+        <span class="cov6" title="20">if other.MaxContextTokens &gt; 0 </span><span class="cov4" title="7">{
                 a.MaxContextTokens = other.MaxContextTokens
         }</span>
-        <span class="cov3" title="4">if other.LogPreviewLimit &gt;= 0 </span><span class="cov3" title="4">{
+        <span class="cov6" title="20">if other.LogPreviewLimit &gt;= 0 </span><span class="cov6" title="20">{
                 a.LogPreviewLimit = other.LogPreviewLimit
         }</span>
-        <span class="cov3" title="4">if other.CodingTemperature != nil </span><span class="cov3" title="3">{ // allow explicit 0.0
+        <span class="cov6" title="20">if other.CodingTemperature != nil </span><span class="cov4" title="7">{ // allow explicit 0.0
                 a.CodingTemperature = other.CodingTemperature
         }</span>
-        <span class="cov3" title="4">if other.ManualInvokeMinPrefix &gt;= 0 </span><span class="cov3" title="4">{
+        <span class="cov6" title="20">if other.ManualInvokeMinPrefix &gt;= 0 </span><span class="cov6" title="20">{
                 a.ManualInvokeMinPrefix = other.ManualInvokeMinPrefix
         }</span>
-        <span class="cov3" title="4">if other.CompletionDebounceMs &gt; 0 </span><span class="cov3" title="3">{
+        <span class="cov6" title="20">if other.CompletionDebounceMs &gt; 0 </span><span class="cov4" title="7">{
                 a.CompletionDebounceMs = other.CompletionDebounceMs
         }</span>
-        <span class="cov3" title="4">if other.CompletionThrottleMs &gt; 0 </span><span class="cov3" title="3">{
+        <span class="cov6" title="20">if other.CompletionThrottleMs &gt; 0 </span><span class="cov4" title="7">{
                 a.CompletionThrottleMs = other.CompletionThrottleMs
         }</span>
-        <span class="cov3" title="4">if len(other.TriggerCharacters) &gt; 0 </span><span class="cov3" title="3">{
+        <span class="cov6" title="20">if len(other.TriggerCharacters) &gt; 0 </span><span class="cov4" title="7">{
                 a.TriggerCharacters = slices.Clone(other.TriggerCharacters)
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.InlineOpen); s != "" </span><span class="cov0" title="0">{
+        <span class="cov6" title="20">if s := strings.TrimSpace(other.InlineOpen); s != "" </span><span class="cov2" title="2">{
                 a.InlineOpen = s
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.InlineClose); s != "" </span><span class="cov0" title="0">{
+        <span class="cov6" title="20">if s := strings.TrimSpace(other.InlineClose); s != "" </span><span class="cov2" title="2">{
                 a.InlineClose = s
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.ChatSuffix); s != "" </span><span class="cov0" title="0">{
+        <span class="cov6" title="20">if s := strings.TrimSpace(other.ChatSuffix); s != "" </span><span class="cov2" title="2">{
                 a.ChatSuffix = s
         }</span>
-        <span class="cov3" title="4">if len(other.ChatPrefixes) &gt; 0 </span><span class="cov0" title="0">{
+        <span class="cov6" title="20">if len(other.ChatPrefixes) &gt; 0 </span><span class="cov2" title="2">{
                 a.ChatPrefixes = slices.Clone(other.ChatPrefixes)
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.Provider); s != "" </span><span class="cov3" title="4">{
+        <span class="cov6" title="20">if s := strings.TrimSpace(other.Provider); s != "" </span><span class="cov4" title="7">{
                 a.Provider = s
         }</span>
 }
 
+// mergePrompts copies non-empty prompt templates from other.
+func (a *App) mergePrompts(other *App) <span class="cov3" title="5">{
+    // Completion
+    if strings.TrimSpace(other.PromptCompletionSystemGeneral) != "" </span><span class="cov1" title="1">{
+        a.PromptCompletionSystemGeneral = other.PromptCompletionSystemGeneral
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCompletionSystemParams) != "" </span><span class="cov1" title="1">{
+        a.PromptCompletionSystemParams = other.PromptCompletionSystemParams
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCompletionSystemInline) != "" </span><span class="cov1" title="1">{
+        a.PromptCompletionSystemInline = other.PromptCompletionSystemInline
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCompletionUserGeneral) != "" </span><span class="cov1" title="1">{
+        a.PromptCompletionUserGeneral = other.PromptCompletionUserGeneral
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCompletionUserParams) != "" </span><span class="cov1" title="1">{
+        a.PromptCompletionUserParams = other.PromptCompletionUserParams
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCompletionExtraHeader) != "" </span><span class="cov1" title="1">{
+        a.PromptCompletionExtraHeader = other.PromptCompletionExtraHeader
+    }</span>
+    // Provider-native
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptNativeCompletion) != "" </span><span class="cov1" title="1">{
+        a.PromptNativeCompletion = other.PromptNativeCompletion
+    }</span>
+    // Chat
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptChatSystem) != "" </span><span class="cov1" title="1">{
+        a.PromptChatSystem = other.PromptChatSystem
+    }</span>
+    // Code actions
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCodeActionRewriteSystem) != "" </span><span class="cov1" title="1">{
+        a.PromptCodeActionRewriteSystem = other.PromptCodeActionRewriteSystem
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCodeActionDiagnosticsSystem) != "" </span><span class="cov1" title="1">{
+        a.PromptCodeActionDiagnosticsSystem = other.PromptCodeActionDiagnosticsSystem
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCodeActionDocumentSystem) != "" </span><span class="cov1" title="1">{
+        a.PromptCodeActionDocumentSystem = other.PromptCodeActionDocumentSystem
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCodeActionRewriteUser) != "" </span><span class="cov1" title="1">{
+        a.PromptCodeActionRewriteUser = other.PromptCodeActionRewriteUser
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCodeActionDiagnosticsUser) != "" </span><span class="cov1" title="1">{
+        a.PromptCodeActionDiagnosticsUser = other.PromptCodeActionDiagnosticsUser
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCodeActionDocumentUser) != "" </span><span class="cov1" title="1">{
+        a.PromptCodeActionDocumentUser = other.PromptCodeActionDocumentUser
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCodeActionGoTestSystem) != "" </span><span class="cov1" title="1">{
+        a.PromptCodeActionGoTestSystem = other.PromptCodeActionGoTestSystem
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCodeActionGoTestUser) != "" </span><span class="cov1" title="1">{
+        a.PromptCodeActionGoTestUser = other.PromptCodeActionGoTestUser
+    }</span>
+    // CLI
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCLIDefaultSystem) != "" </span><span class="cov1" title="1">{
+        a.PromptCLIDefaultSystem = other.PromptCLIDefaultSystem
+    }</span>
+    <span class="cov3" title="5">if strings.TrimSpace(other.PromptCLIExplainSystem) != "" </span><span class="cov1" title="1">{
+        a.PromptCLIExplainSystem = other.PromptCLIExplainSystem
+    }</span>
+}
+
 // mergeProviderFields merges per-provider configuration.
-func (a *App) mergeProviderFields(other *App) <span class="cov3" title="4">{
-        if s := strings.TrimSpace(other.OpenAIBaseURL); s != "" </span><span class="cov3" title="3">{
+func (a *App) mergeProviderFields(other *App) <span class="cov5" title="14">{
+        if s := strings.TrimSpace(other.OpenAIBaseURL); s != "" </span><span class="cov4" title="7">{
                 a.OpenAIBaseURL = s
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.OpenAIModel); s != "" </span><span class="cov3" title="4">{
+        <span class="cov5" title="14">if s := strings.TrimSpace(other.OpenAIModel); s != "" </span><span class="cov4" title="7">{
                 a.OpenAIModel = s
         }</span>
-        <span class="cov3" title="4">if other.OpenAITemperature != nil </span><span class="cov3" title="3">{ // allow explicit 0.0
+        <span class="cov5" title="14">if other.OpenAITemperature != nil </span><span class="cov4" title="7">{ // allow explicit 0.0
                 a.OpenAITemperature = other.OpenAITemperature
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.OllamaBaseURL); s != "" </span><span class="cov3" title="3">{
+        <span class="cov5" title="14">if s := strings.TrimSpace(other.OllamaBaseURL); s != "" </span><span class="cov4" title="7">{
                 a.OllamaBaseURL = s
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.OllamaModel); s != "" </span><span class="cov3" title="3">{
+        <span class="cov5" title="14">if s := strings.TrimSpace(other.OllamaModel); s != "" </span><span class="cov4" title="7">{
                 a.OllamaModel = s
         }</span>
-        <span class="cov3" title="4">if other.OllamaTemperature != nil </span><span class="cov3" title="3">{ // allow explicit 0.0
+        <span class="cov5" title="14">if other.OllamaTemperature != nil </span><span class="cov4" title="7">{ // allow explicit 0.0
                 a.OllamaTemperature = other.OllamaTemperature
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.CopilotBaseURL); s != "" </span><span class="cov3" title="3">{
+        <span class="cov5" title="14">if s := strings.TrimSpace(other.CopilotBaseURL); s != "" </span><span class="cov4" title="7">{
                 a.CopilotBaseURL = s
         }</span>
-        <span class="cov3" title="4">if s := strings.TrimSpace(other.CopilotModel); s != "" </span><span class="cov3" title="3">{
+        <span class="cov5" title="14">if s := strings.TrimSpace(other.CopilotModel); s != "" </span><span class="cov4" title="7">{
                 a.CopilotModel = s
         }</span>
-        <span class="cov3" title="4">if other.CopilotTemperature != nil </span><span class="cov3" title="3">{ // allow explicit 0.0
+        <span class="cov5" title="14">if other.CopilotTemperature != nil </span><span class="cov4" title="7">{ // allow explicit 0.0
                 a.CopilotTemperature = other.CopilotTemperature
         }</span>
 }
 
-func getConfigPath() (string, error) <span class="cov4" title="6">{
+func getConfigPath() (string, error) <span class="cov4" title="8">{
         var configPath string
-        if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" </span><span class="cov4" title="5">{
+        if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" </span><span class="cov4" title="7">{
                 configPath = filepath.Join(xdgConfigHome, "hexai", "config.toml")
         }</span> else<span class="cov1" title="1"> {
                 home, err := os.UserHomeDir()
@@ -413,22 +845,22 @@ func getConfigPath() (string, error) <span class="cov4" title="6">{
                 }</span>
                 <span class="cov1" title="1">configPath = filepath.Join(home, ".config", "hexai", "config.toml")</span>
         }
-        <span class="cov4" title="6">return configPath, nil</span>
+        <span class="cov4" title="8">return configPath, nil</span>
 }
 
 // --- Environment overrides ---
 
 // loadFromEnv constructs an App containing only fields set via HEXAI_* env vars.
 // These values should take precedence over file config when merged.
-func loadFromEnv(logger *log.Logger) *App <span class="cov4" title="5">{
+func loadFromEnv(logger *log.Logger) *App <span class="cov4" title="7">{
         var out App
         var any bool
 
         // helpers
-        getenv := func(k string) string </span><span class="cov10" title="120">{ return strings.TrimSpace(os.Getenv(k)) }</span>
-        <span class="cov4" title="5">parseInt := func(k string) (int, bool) </span><span class="cov7" title="35">{
+        getenv := func(k string) string </span><span class="cov10" title="168">{ return strings.TrimSpace(os.Getenv(k)) }</span>
+        <span class="cov4" title="7">parseInt := func(k string) (int, bool) </span><span class="cov7" title="49">{
                 v := getenv(k)
-                if v == "" </span><span class="cov7" title="28">{
+                if v == "" </span><span class="cov7" title="42">{
                         return 0, false
                 }</span>
                 <span class="cov4" title="7">n, err := strconv.Atoi(v)
@@ -440,9 +872,9 @@ func loadFromEnv(logger *log.Logger) *App <span class="cov4" title="5">{
                 }
                 <span class="cov4" title="7">return n, true</span>
         }
-        <span class="cov4" title="5">parseFloatPtr := func(k string) (*float64, bool) </span><span class="cov6" title="20">{
+        <span class="cov4" title="7">parseFloatPtr := func(k string) (*float64, bool) </span><span class="cov6" title="28">{
                 v := getenv(k)
-                if v == "" </span><span class="cov6" title="16">{
+                if v == "" </span><span class="cov6" title="24">{
                         return nil, false
                 }</span>
                 <span class="cov3" title="4">f, err := strconv.ParseFloat(v, 64)
@@ -455,65 +887,65 @@ func loadFromEnv(logger *log.Logger) *App <span class="cov4" title="5">{
                 <span class="cov3" title="4">return &amp;f, true</span>
         }
 
-        <span class="cov4" title="5">if n, ok := parseInt("HEXAI_MAX_TOKENS"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if n, ok := parseInt("HEXAI_MAX_TOKENS"); ok </span><span class="cov1" title="1">{
                 out.MaxTokens = n
                 any = true
         }</span>
-        <span class="cov4" title="5">if s := getenv("HEXAI_CONTEXT_MODE"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_CONTEXT_MODE"); s != "" </span><span class="cov1" title="1">{
                 out.ContextMode = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if n, ok := parseInt("HEXAI_CONTEXT_WINDOW_LINES"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if n, ok := parseInt("HEXAI_CONTEXT_WINDOW_LINES"); ok </span><span class="cov1" title="1">{
                 out.ContextWindowLines = n
                 any = true
         }</span>
-        <span class="cov4" title="5">if n, ok := parseInt("HEXAI_MAX_CONTEXT_TOKENS"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if n, ok := parseInt("HEXAI_MAX_CONTEXT_TOKENS"); ok </span><span class="cov1" title="1">{
                 out.MaxContextTokens = n
                 any = true
         }</span>
-        <span class="cov4" title="5">if n, ok := parseInt("HEXAI_LOG_PREVIEW_LIMIT"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if n, ok := parseInt("HEXAI_LOG_PREVIEW_LIMIT"); ok </span><span class="cov1" title="1">{
                 out.LogPreviewLimit = n
                 any = true
         }</span>
-        <span class="cov4" title="5">if n, ok := parseInt("HEXAI_MANUAL_INVOKE_MIN_PREFIX"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if n, ok := parseInt("HEXAI_MANUAL_INVOKE_MIN_PREFIX"); ok </span><span class="cov1" title="1">{
                 out.ManualInvokeMinPrefix = n
                 any = true
         }</span>
-        <span class="cov4" title="5">if n, ok := parseInt("HEXAI_COMPLETION_DEBOUNCE_MS"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if n, ok := parseInt("HEXAI_COMPLETION_DEBOUNCE_MS"); ok </span><span class="cov1" title="1">{
                 out.CompletionDebounceMs = n
                 any = true
         }</span>
-        <span class="cov4" title="5">if n, ok := parseInt("HEXAI_COMPLETION_THROTTLE_MS"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if n, ok := parseInt("HEXAI_COMPLETION_THROTTLE_MS"); ok </span><span class="cov1" title="1">{
                 out.CompletionThrottleMs = n
                 any = true
         }</span>
-        <span class="cov4" title="5">if f, ok := parseFloatPtr("HEXAI_CODING_TEMPERATURE"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if f, ok := parseFloatPtr("HEXAI_CODING_TEMPERATURE"); ok </span><span class="cov1" title="1">{
                 out.CodingTemperature = f
                 any = true
         }</span>
-        <span class="cov4" title="5">if s := getenv("HEXAI_TRIGGER_CHARACTERS"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_TRIGGER_CHARACTERS"); s != "" </span><span class="cov1" title="1">{
                 parts := strings.Split(s, ",")
                 out.TriggerCharacters = nil
-                for _, p := range parts </span><span class="cov3" title="3">{
-                        if t := strings.TrimSpace(p); t != "" </span><span class="cov3" title="3">{
+                for _, p := range parts </span><span class="cov2" title="3">{
+                        if t := strings.TrimSpace(p); t != "" </span><span class="cov2" title="3">{
                                 out.TriggerCharacters = append(out.TriggerCharacters, t)
                         }</span>
                 }
                 <span class="cov1" title="1">any = true</span>
         }
-        <span class="cov4" title="5">if s := getenv("HEXAI_INLINE_OPEN"); s != "" </span><span class="cov0" title="0">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_INLINE_OPEN"); s != "" </span><span class="cov0" title="0">{
                 out.InlineOpen = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if s := getenv("HEXAI_INLINE_CLOSE"); s != "" </span><span class="cov0" title="0">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_INLINE_CLOSE"); s != "" </span><span class="cov0" title="0">{
                 out.InlineClose = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if s := getenv("HEXAI_CHAT_SUFFIX"); s != "" </span><span class="cov0" title="0">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_CHAT_SUFFIX"); s != "" </span><span class="cov0" title="0">{
                 out.ChatSuffix = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if s := getenv("HEXAI_CHAT_PREFIXES"); s != "" </span><span class="cov0" title="0">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_CHAT_PREFIXES"); s != "" </span><span class="cov0" title="0">{
                 parts := strings.Split(s, ",")
                 out.ChatPrefixes = nil
                 for _, p := range parts </span><span class="cov0" title="0">{
@@ -523,52 +955,52 @@ func loadFromEnv(logger *log.Logger) *App <span class="cov4" title="5">{
                 }
                 <span class="cov0" title="0">any = true</span>
         }
-        <span class="cov4" title="5">if s := getenv("HEXAI_PROVIDER"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_PROVIDER"); s != "" </span><span class="cov1" title="1">{
                 out.Provider = s
                 any = true
         }</span>
 
         // Provider-specific
-        <span class="cov4" title="5">if s := getenv("HEXAI_OPENAI_BASE_URL"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_OPENAI_BASE_URL"); s != "" </span><span class="cov1" title="1">{
                 out.OpenAIBaseURL = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if s := getenv("HEXAI_OPENAI_MODEL"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_OPENAI_MODEL"); s != "" </span><span class="cov1" title="1">{
                 out.OpenAIModel = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if f, ok := parseFloatPtr("HEXAI_OPENAI_TEMPERATURE"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if f, ok := parseFloatPtr("HEXAI_OPENAI_TEMPERATURE"); ok </span><span class="cov1" title="1">{
                 out.OpenAITemperature = f
                 any = true
         }</span>
 
-        <span class="cov4" title="5">if s := getenv("HEXAI_OLLAMA_BASE_URL"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_OLLAMA_BASE_URL"); s != "" </span><span class="cov1" title="1">{
                 out.OllamaBaseURL = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if s := getenv("HEXAI_OLLAMA_MODEL"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_OLLAMA_MODEL"); s != "" </span><span class="cov1" title="1">{
                 out.OllamaModel = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if f, ok := parseFloatPtr("HEXAI_OLLAMA_TEMPERATURE"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if f, ok := parseFloatPtr("HEXAI_OLLAMA_TEMPERATURE"); ok </span><span class="cov1" title="1">{
                 out.OllamaTemperature = f
                 any = true
         }</span>
 
-        <span class="cov4" title="5">if s := getenv("HEXAI_COPILOT_BASE_URL"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_COPILOT_BASE_URL"); s != "" </span><span class="cov1" title="1">{
                 out.CopilotBaseURL = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if s := getenv("HEXAI_COPILOT_MODEL"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if s := getenv("HEXAI_COPILOT_MODEL"); s != "" </span><span class="cov1" title="1">{
                 out.CopilotModel = s
                 any = true
         }</span>
-        <span class="cov4" title="5">if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok </span><span class="cov1" title="1">{
+        <span class="cov4" title="7">if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok </span><span class="cov1" title="1">{
                 out.CopilotTemperature = f
                 any = true
         }</span>
 
-        <span class="cov4" title="5">if !any </span><span class="cov3" title="4">{
+        <span class="cov4" title="7">if !any </span><span class="cov4" title="6">{
                 return nil
         }</span>
         <span class="cov1" title="1">return &amp;out</span>
@@ -600,13 +1032,24 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
         // Load configuration with a logger so file-based config is respected.
         logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
         cfg := appconfig.Load(logger)
-        client, err := newClientFromConfig(cfg)
-        if err != nil </span><span class="cov1" title="1">{
-                fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
-                return err
-        }</span>
-
-        <span class="cov0" title="0">return RunWithClient(ctx, args, stdin, stdout, stderr, client)</span>
+    client, err := newClientFromConfig(cfg)
+    if err != nil </span><span class="cov1" title="1">{
+        fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+        return err
+    }</span>
+    // Inline the flow here to use configured CLI prompts.
+    <span class="cov0" title="0">input, rerr := readInput(stdin, args)
+    if rerr != nil </span><span class="cov0" title="0">{
+        fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
+        return rerr
+    }</span>
+    <span class="cov0" title="0">printProviderInfo(stderr, client)
+    msgs := buildMessagesFromConfig(cfg, input)
+    if err := runChat(ctx, client, msgs, input, stdout, stderr); err != nil </span><span class="cov0" title="0">{
+        fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
+        return err
+    }</span>
+    <span class="cov0" title="0">return nil</span>
 }
 
 // RunWithClient executes the CLI flow using an already-constructed client.
@@ -618,7 +1061,7 @@ func RunWithClient(ctx context.Context, args []string, stdin io.Reader, stdout, 
                 return err
         }</span>
         <span class="cov1" title="1">printProviderInfo(stderr, client)
-        msgs := buildMessages(input)
+    msgs := buildMessages(input)
         if err := runChat(ctx, client, msgs, input, stdout, stderr); err != nil </span><span class="cov1" title="1">{
                 fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
                 return err
@@ -684,6 +1127,21 @@ func buildMessages(input string) []llm.Message <span class="cov10" title="6">{
                 {Role: "system", Content: system},
                 {Role: "user", Content: input},
         }</span>
+}
+
+// buildMessagesFromConfig uses configured CLI system prompts.
+func buildMessagesFromConfig(cfg appconfig.App, input string) []llm.Message <span class="cov0" title="0">{
+    lower := strings.ToLower(input)
+    system := cfg.PromptCLIDefaultSystem
+    if strings.Contains(lower, "explain") </span><span class="cov0" title="0">{
+        if strings.TrimSpace(cfg.PromptCLIExplainSystem) != "" </span><span class="cov0" title="0">{
+            system = cfg.PromptCLIExplainSystem
+        }</span>
+    }
+    <span class="cov0" title="0">return []llm.Message{
+        {Role: "system", Content: system},
+        {Role: "user", Content: input},
+    }</span>
 }
 
 // runChat executes the chat request, handling streaming and summary output.
@@ -827,23 +1285,41 @@ func ensureFactory(factory ServerFactory) ServerFactory <span class="cov10" titl
 }
 
 func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) lsp.ServerOptions <span class="cov10" title="6">{
-        return lsp.ServerOptions{
-                LogContext:            logContext,
-                MaxTokens:             cfg.MaxTokens,
-                ContextMode:           cfg.ContextMode,
-                WindowLines:           cfg.ContextWindowLines,
-                MaxContextTokens:      cfg.MaxContextTokens,
-                CodingTemperature:     cfg.CodingTemperature,
-                Client:                client,
-                TriggerCharacters:     cfg.TriggerCharacters,
-                ManualInvokeMinPrefix: cfg.ManualInvokeMinPrefix,
-                CompletionDebounceMs:  cfg.CompletionDebounceMs,
-                CompletionThrottleMs:  cfg.CompletionThrottleMs,
-                InlineOpen:            cfg.InlineOpen,
-                InlineClose:           cfg.InlineClose,
-                ChatSuffix:            cfg.ChatSuffix,
-                ChatPrefixes:          cfg.ChatPrefixes,
-        }
+    return lsp.ServerOptions{
+        LogContext:            logContext,
+        MaxTokens:             cfg.MaxTokens,
+        ContextMode:           cfg.ContextMode,
+        WindowLines:           cfg.ContextWindowLines,
+        MaxContextTokens:      cfg.MaxContextTokens,
+        CodingTemperature:     cfg.CodingTemperature,
+        Client:                client,
+        TriggerCharacters:     cfg.TriggerCharacters,
+        ManualInvokeMinPrefix: cfg.ManualInvokeMinPrefix,
+        CompletionDebounceMs:  cfg.CompletionDebounceMs,
+        CompletionThrottleMs:  cfg.CompletionThrottleMs,
+        InlineOpen:            cfg.InlineOpen,
+        InlineClose:           cfg.InlineClose,
+        ChatSuffix:            cfg.ChatSuffix,
+        ChatPrefixes:          cfg.ChatPrefixes,
+
+        // Prompts
+        PromptCompSysGeneral:   cfg.PromptCompletionSystemGeneral,
+        PromptCompSysParams:    cfg.PromptCompletionSystemParams,
+        PromptCompSysInline:    cfg.PromptCompletionSystemInline,
+        PromptCompUserGeneral:  cfg.PromptCompletionUserGeneral,
+        PromptCompUserParams:   cfg.PromptCompletionUserParams,
+        PromptCompExtraHeader:  cfg.PromptCompletionExtraHeader,
+        PromptNativeCompletion: cfg.PromptNativeCompletion,
+        PromptChatSystem:       cfg.PromptChatSystem,
+        PromptRewriteSystem:    cfg.PromptCodeActionRewriteSystem,
+        PromptDiagnosticsSystem: cfg.PromptCodeActionDiagnosticsSystem,
+        PromptDocumentSystem:   cfg.PromptCodeActionDocumentSystem,
+        PromptRewriteUser:      cfg.PromptCodeActionRewriteUser,
+        PromptDiagnosticsUser:  cfg.PromptCodeActionDiagnosticsUser,
+        PromptDocumentUser:     cfg.PromptCodeActionDocumentUser,
+        PromptGoTestSystem:     cfg.PromptCodeActionGoTestSystem,
+        PromptGoTestUser:       cfg.PromptCodeActionGoTestUser,
+    }
 }</span>
 </pre>
 		
@@ -1822,7 +2298,7 @@ type RequestOption func(*Options)
 
 func WithModel(model string) RequestOption    <span class="cov1" title="1">{ return func(o *Options) </span><span class="cov1" title="1">{ o.Model = model }</span> }
 func WithTemperature(t float64) RequestOption <span class="cov1" title="1">{ return func(o *Options) </span><span class="cov1" title="1">{ o.Temperature = t }</span> }
-func WithMaxTokens(n int) RequestOption       <span class="cov10" title="20">{ return func(o *Options) </span><span class="cov1" title="1">{ o.MaxTokens = n }</span> }
+func WithMaxTokens(n int) RequestOption       <span class="cov10" title="25">{ return func(o *Options) </span><span class="cov1" title="1">{ o.MaxTokens = n }</span> }
 func WithStop(stop ...string) RequestOption <span class="cov1" title="1">{
         return func(o *Options) </span><span class="cov1" title="1">{ o.Stop = append([]string{}, stop...) }</span>
 }
@@ -1849,16 +2325,16 @@ type Config struct {
 // by the caller; other environment-based configuration is not used.
 func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, error) <span class="cov8" title="14">{
         p := strings.ToLower(strings.TrimSpace(cfg.Provider))
-        if p == "" </span><span class="cov6" title="6">{
+        if p == "" </span><span class="cov6" title="7">{
                 p = "openai"
         }</span>
         <span class="cov8" title="14">switch p </span>{
         case "openai":<span class="cov7" title="10">
-                if strings.TrimSpace(openAIAPIKey) == "" </span><span class="cov5" title="4">{
+                if strings.TrimSpace(openAIAPIKey) == "" </span><span class="cov4" title="4">{
                         return nil, errors.New("missing OPENAI_API_KEY for provider openai")
                 }</span>
                 // Set coding-friendly default temperature if none provided
-                <span class="cov6" title="6">if cfg.OpenAITemperature == nil </span><span class="cov5" title="4">{
+                <span class="cov6" title="6">if cfg.OpenAITemperature == nil </span><span class="cov4" title="4">{
                         t := 0.2
                         cfg.OpenAITemperature = &amp;t
                 }</span>
@@ -1869,7 +2345,7 @@ func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, erro
                         cfg.OllamaTemperature = &amp;t
                 }</span>
                 <span class="cov1" title="1">return newOllama(cfg.OllamaBaseURL, cfg.OllamaModel, cfg.OllamaTemperature), nil</span>
-        case "copilot":<span class="cov3" title="2">
+        case "copilot":<span class="cov2" title="2">
                 if strings.TrimSpace(copilotAPIKey) == "" </span><span class="cov1" title="1">{
                         return nil, errors.New("missing COPILOT_API_KEY for provider copilot")
                 }</span>
@@ -1952,11 +2428,11 @@ var std *log.Logger
 func Bind(l *log.Logger) <span class="cov3" title="4">{ std = l }</span>
 
 // Logf prints a formatted message with a module prefix and base ANSI style.
-func Logf(prefix, format string, args ...any) <span class="cov10" title="141">{
-        if std == nil </span><span class="cov9" title="101">{
+func Logf(prefix, format string, args ...any) <span class="cov10" title="143">{
+        if std == nil </span><span class="cov9" title="102">{
                 return
         }</span>
-        <span class="cov7" title="40">msg := fmt.Sprintf(format, args...)
+        <span class="cov7" title="41">msg := fmt.Sprintf(format, args...)
         std.Print(AnsiBase + prefix + msg + AnsiReset)</span>
 }
 
@@ -2079,7 +2555,7 @@ type document struct {
         lines []string
 }
 
-func (s *Server) setDocument(uri, text string) <span class="cov8" title="27">{
+func (s *Server) setDocument(uri, text string) <span class="cov8" title="32">{
         s.mu.Lock()
         defer s.mu.Unlock()
         s.docs[uri] = &amp;document{uri: uri, text: text, lines: splitLines(text)}
@@ -2097,14 +2573,14 @@ func (s *Server) markActivity() <span class="cov3" title="4">{
         s.mu.Unlock()
 }</span>
 
-func (s *Server) getDocument(uri string) *document <span class="cov9" title="46">{
+func (s *Server) getDocument(uri string) *document <span class="cov9" title="51">{
         s.mu.RLock()
         defer s.mu.RUnlock()
         return s.docs[uri]
 }</span>
 
 // splitLines splits the input string into lines, normalizing line endings to '\n'.
-func splitLines(sx string) []string <span class="cov10" title="66">{
+func splitLines(sx string) []string <span class="cov10" title="76">{
         sx = strings.ReplaceAll(sx, "\r\n", "\n")
         return strings.Split(sx, "\n")
 }</span>
@@ -2195,20 +2671,20 @@ func hasAny(s string, needles []string) bool <span class="cov4" title="6">{
         <span class="cov2" title="2">return false</span>
 }
 
-func trimLen(s string) string <span class="cov8" title="39">{
+func trimLen(s string) string <span class="cov8" title="40">{
         s = strings.TrimSpace(s)
         if len(s) &gt; 200 </span><span class="cov1" title="1">{
                 return s[:200] + "…"
         }</span>
-        <span class="cov8" title="38">return s</span>
+        <span class="cov8" title="39">return s</span>
 }
 
-func firstLine(s string) string <span class="cov7" title="21">{
+func firstLine(s string) string <span class="cov7" title="22">{
         s = strings.ReplaceAll(s, "\r\n", "\n")
         if idx := strings.IndexByte(s, '\n'); idx &gt;= 0 </span><span class="cov4" title="5">{
                 return s[:idx]
         }</span>
-        <span class="cov6" title="16">return s</span>
+        <span class="cov6" title="17">return s</span>
 }
 </pre>
 		
@@ -2402,33 +2878,33 @@ func (s *Server) reply(id json.RawMessage, result any, err *RespError) <span cla
 
 // --- small completion cache (last ~10 entries) ---
 
-func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string <span class="cov7" title="13">{
+func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string <span class="cov7" title="14">{
         // Normalize left-of-cursor by trimming trailing spaces/tabs
         idx := p.Position.Character
         if idx &gt; len(current) </span><span class="cov0" title="0">{
                 idx = len(current)
         }</span>
-        <span class="cov7" title="13">left := strings.TrimRight(current[:idx], " \t")
+        <span class="cov7" title="14">left := strings.TrimRight(current[:idx], " \t")
         right := ""
-        if idx &lt; len(current) </span><span class="cov0" title="0">{
+        if idx &lt; len(current) </span><span class="cov1" title="1">{
                 right = current[idx:]
         }</span>
-        <span class="cov7" title="13">prov := ""
+        <span class="cov7" title="14">prov := ""
         model := ""
-        if s.llmClient != nil </span><span class="cov7" title="13">{
+        if s.llmClient != nil </span><span class="cov7" title="14">{
                 prov = s.llmClient.Name()
                 model = s.llmClient.DefaultModel()
         }</span>
-        <span class="cov7" title="13">temp := ""
+        <span class="cov7" title="14">temp := ""
         if s.codingTemperature != nil </span><span class="cov0" title="0">{
                 temp = fmt.Sprintf("%.3f", *s.codingTemperature)
         }</span>
-        <span class="cov7" title="13">extra := ""
+        <span class="cov7" title="14">extra := ""
         if hasExtra </span><span class="cov0" title="0">{
                 extra = strings.TrimSpace(extraText)
         }</span>
         // Compose a key from essential context parts
-        <span class="cov7" title="13">return strings.Join([]string{
+        <span class="cov7" title="14">return strings.Join([]string{
                 "v1", // version for future-proofing
                 prov,
                 model,
@@ -2457,13 +2933,13 @@ func (s *Server) completionCacheGet(key string) (string, bool) <span class="cov6
         return v, true</span>
 }
 
-func (s *Server) completionCachePut(key, value string) <span class="cov6" title="10">{
+func (s *Server) completionCachePut(key, value string) <span class="cov7" title="11">{
         s.mu.Lock()
         defer s.mu.Unlock()
-        if s.compCache == nil </span><span class="cov2" title="2">{
+        if s.compCache == nil </span><span class="cov3" title="3">{
                 s.compCache = make(map[string]string)
         }</span>
-        <span class="cov6" title="10">if _, exists := s.compCache[key]; !exists </span><span class="cov6" title="10">{
+        <span class="cov7" title="11">if _, exists := s.compCache[key]; !exists </span><span class="cov7" title="11">{
                 s.compCacheOrder = append(s.compCacheOrder, key)
                 s.compCache[key] = value
                 if len(s.compCacheOrder) &gt; 10 </span><span class="cov0" title="0">{
@@ -2472,7 +2948,7 @@ func (s *Server) completionCachePut(key, value string) <span class="cov6" title=
                         s.compCacheOrder = s.compCacheOrder[1:]
                         delete(s.compCache, old)
                 }</span>
-                <span class="cov6" title="10">return</span>
+                <span class="cov7" title="11">return</span>
         }
         // update existing and mark most-recent
         <span class="cov0" title="0">s.compCache[key] = value
@@ -2554,15 +3030,15 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool <span c
         <span class="cov6" title="8">return false</span>
 }
 
-func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string) []CompletionItem <span class="cov7" title="11">{
+func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string) []CompletionItem <span class="cov7" title="12">{
         te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
         rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
         label := labelForCompletion(cleaned, filter)
         detail := "Hexai LLM completion"
-        if s.llmClient != nil </span><span class="cov7" title="11">{
+        if s.llmClient != nil </span><span class="cov7" title="12">{
                 detail = "Hexai " + s.llmClient.Name() + ":" + s.llmClient.DefaultModel()
         }</span>
-        <span class="cov7" title="11">return []CompletionItem{{
+        <span class="cov7" title="12">return []CompletionItem{{
                 Label:               label,
                 Kind:                1,
                 Detail:              detail,
@@ -2743,11 +3219,11 @@ func (s *Server) buildDiagnosticsCodeAction(p CodeActionParams, sel string) *Cod
         return &amp;ca</span>
 }
 
-func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) <span class="cov6" title="9">{
+func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) <span class="cov6" title="12">{
         if s.llmClient == nil || len(ca.Data) == 0 </span><span class="cov0" title="0">{
                 return ca, false
         }</span>
-        <span class="cov6" title="9">var payload struct {
+        <span class="cov6" title="12">var payload struct {
                 Type        string       `json:"type"`
                 URI         string       `json:"uri"`
                 Range       Range        `json:"range"`
@@ -2758,39 +3234,13 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) <span class
         if err := json.Unmarshal(ca.Data, &amp;payload); err != nil </span><span class="cov0" title="0">{
                 return ca, false
         }</span>
-        <span class="cov6" title="9">switch payload.Type </span>{
-        case "rewrite":<span class="cov3" title="3">
-                sys := "You are a precise code refactoring engine. Rewrite the given code strictly according to the instruction. Return only the updated code with no prose or backticks. Preserve formatting where reasonable."
-                user := fmt.Sprintf("Instruction: %s\n\nSelected code to transform:\n%s", payload.Instruction, payload.Selection)
-                ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-                defer cancel()
-                messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-                opts := s.llmRequestOpts()
-                if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil </span><span class="cov3" title="3">{
-                        if out := stripCodeFences(strings.TrimSpace(text)); out != "" </span><span class="cov3" title="3">{
-                                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-                                ca.Edit = &amp;edit
-                                return ca, true
-                        }</span>
-                } else<span class="cov0" title="0"> {
-                        logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
-                }</span>
-        case "diagnostics":<span class="cov4" title="4">
-                sys := "You are a precise code fixer. Resolve the given diagnostics by editing only the selected code. Return only the corrected code with no prose or backticks. Keep behavior and style, and avoid unrelated changes."
-                var b strings.Builder
-                b.WriteString("Diagnostics to resolve (selection only):\n")
-                for i, dgn := range payload.Diagnostics </span><span class="cov4" title="4">{
-                        if dgn.Source != "" </span><span class="cov0" title="0">{
-                                fmt.Fprintf(&amp;b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
-                        }</span> else<span class="cov4" title="4"> {
-                                fmt.Fprintf(&amp;b, "%d. %s\n", i+1, dgn.Message)
-                        }</span>
-                }
-                <span class="cov4" title="4">b.WriteString("\nSelected code:\n")
-                b.WriteString(payload.Selection)
-                ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-                defer cancel()
-                messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: b.String()}}
+        <span class="cov6" title="12">switch payload.Type </span>{
+    case "rewrite":<span class="cov4" title="4">
+        sys := s.promptRewriteSystem
+        user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
                 opts := s.llmRequestOpts()
                 if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil </span><span class="cov4" title="4">{
                         if out := stripCodeFences(strings.TrimSpace(text)); out != "" </span><span class="cov4" title="4">{
@@ -2799,17 +3249,42 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) <span class
                                 return ca, true
                         }</span>
                 } else<span class="cov0" title="0"> {
-                        logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
+                        logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
                 }</span>
-        case "document":<span class="cov2" title="2">
-                sys := "You are a precise code documentation engine. Add idiomatic documentation comments to the given code. Preserve exact behavior and formatting as much as possible. Return only the updated code with comments, no prose or backticks."
-                user := "Add documentation comments to this code:\n" + payload.Selection
-                ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-                defer cancel()
-                messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+    case "diagnostics":<span class="cov4" title="5">
+        sys := s.promptDiagnosticsSystem
+        var b strings.Builder
+        for i, dgn := range payload.Diagnostics </span><span class="cov5" title="6">{
+            if dgn.Source != "" </span><span class="cov0" title="0">{
+                fmt.Fprintf(&amp;b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
+            }</span> else<span class="cov5" title="6"> {
+                fmt.Fprintf(&amp;b, "%d. %s\n", i+1, dgn.Message)
+            }</span>
+        }
+        <span class="cov4" title="5">diagList := b.String()
+        user := renderTemplate(s.promptDiagnosticsUser, map[string]string{"diagnostics": diagList, "selection": payload.Selection})
+        ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+        opts := s.llmRequestOpts()
+        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil </span><span class="cov4" title="5">{
+            if out := stripCodeFences(strings.TrimSpace(text)); out != "" </span><span class="cov4" title="5">{
+                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+                ca.Edit = &amp;edit
+                return ca, true
+            }</span>
+        } else<span class="cov0" title="0"> {
+            logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
+        }</span>
+    case "document":<span class="cov3" title="3">
+        sys := s.promptDocumentSystem
+        user := renderTemplate(s.promptDocumentUser, map[string]string{"selection": payload.Selection})
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
                 opts := s.llmRequestOpts()
-                if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil </span><span class="cov2" title="2">{
-                        if out := stripCodeFences(strings.TrimSpace(text)); out != "" </span><span class="cov2" title="2">{
+                if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil </span><span class="cov3" title="3">{
+                        if out := stripCodeFences(strings.TrimSpace(text)); out != "" </span><span class="cov3" title="3">{
                                 edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
                                 ca.Edit = &amp;edit
                                 return ca, true
@@ -3127,17 +3602,17 @@ func findGoFunctionAtLine(lines []string, idx int) (int, int) <span class="cov2"
 }
 
 // generateGoTestFunction uses LLM to produce a test function; falls back to a stub when unavailable.
-func (s *Server) generateGoTestFunction(funcCode string) string <span class="cov2" title="2">{
-        if s.llmClient != nil </span><span class="cov1" title="1">{
-                sys := "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic."
-                user := "Function under test:\n" + funcCode
-                ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-                defer cancel()
-                messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-                opts := s.llmRequestOpts()
-                if out, err := s.llmClient.Chat(ctx, messages, opts...); err == nil </span><span class="cov1" title="1">{
+func (s *Server) generateGoTestFunction(funcCode string) string <span class="cov3" title="3">{
+    if s.llmClient != nil </span><span class="cov2" title="2">{
+        sys := s.promptGoTestSystem
+        user := renderTemplate(s.promptGoTestUser, map[string]string{"function": funcCode})
+        ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+        defer cancel()
+        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+        opts := s.llmRequestOpts()
+                if out, err := s.llmClient.Chat(ctx, messages, opts...); err == nil </span><span class="cov2" title="2">{
                         cleaned := strings.TrimSpace(stripCodeFences(out))
-                        if cleaned != "" </span><span class="cov1" title="1">{
+                        if cleaned != "" </span><span class="cov2" title="2">{
                                 return cleaned
                         }</span>
                 } else<span class="cov0" title="0"> {
@@ -3409,24 +3884,28 @@ func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p Comp
 }
 
 // tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
-func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams, above, below, funcCtx, docStr string, hasExtra bool, extraText string, inParams bool) ([]CompletionItem, bool) <span class="cov8" title="10">{
+func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams, above, below, funcCtx, docStr string, hasExtra bool, extraText string, inParams bool) ([]CompletionItem, bool) <span class="cov8" title="11">{
         cc, ok := s.llmClient.(llm.CodeCompleter)
         if !ok </span><span class="cov6" title="6">{
                 return nil, false
         }</span>
-        <span class="cov5" title="4">before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
-        path := strings.TrimPrefix(p.TextDocument.URI, "file://")
-        prompt := "// Path: " + path + "\n" + before
+    <span class="cov6" title="5">before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
+    path := strings.TrimPrefix(p.TextDocument.URI, "file://")
+    // Build provider-native prompt from template
+    prompt := renderTemplate(s.promptNativeCompletion, map[string]string{
+        "path":   path,
+        "before": before,
+    })
         lang := ""
         temp := 0.0
         if s.codingTemperature != nil </span><span class="cov0" title="0">{
                 temp = *s.codingTemperature
         }</span>
-        <span class="cov5" title="4">prov := ""
-        if s.llmClient != nil </span><span class="cov5" title="4">{
+        <span class="cov6" title="5">prov := ""
+        if s.llmClient != nil </span><span class="cov6" title="5">{
                 prov = s.llmClient.Name()
         }</span>
-        <span class="cov5" title="4">logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
+        <span class="cov6" title="5">logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
         ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
         defer cancel2()
 
@@ -3435,21 +3914,21 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
         if !s.waitForThrottle(ctx2) </span><span class="cov0" title="0">{
                 return nil, false
         }</span>
-        <span class="cov5" title="4">suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
-        if err == nil &amp;&amp; len(suggestions) &gt; 0 </span><span class="cov4" title="3">{
+        <span class="cov6" title="5">suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
+        if err == nil &amp;&amp; len(suggestions) &gt; 0 </span><span class="cov5" title="4">{
                 cleaned := strings.TrimSpace(suggestions[0])
-                if cleaned != "" </span><span class="cov4" title="3">{
+                if cleaned != "" </span><span class="cov5" title="4">{
                         cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
-                        if cleaned != "" </span><span class="cov4" title="3">{
+                        if cleaned != "" </span><span class="cov5" title="4">{
                                 cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
                         }</span>
-                        <span class="cov4" title="3">if cleaned != "" &amp;&amp; hasDoubleOpenTrigger(current) </span><span class="cov1" title="1">{
+                        <span class="cov5" title="4">if cleaned != "" &amp;&amp; hasDoubleOpenTrigger(current) </span><span class="cov1" title="1">{
                                 indent := leadingIndent(current)
                                 if indent != "" </span><span class="cov1" title="1">{
                                         cleaned = applyIndent(indent, cleaned)
                                 }</span>
                         }
-                        <span class="cov4" title="3">if strings.TrimSpace(cleaned) != "" </span><span class="cov4" title="3">{
+                        <span class="cov5" title="4">if strings.TrimSpace(cleaned) != "" </span><span class="cov5" title="4">{
                                 key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
                                 s.completionCachePut(key, cleaned)
                                 return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
@@ -3463,9 +3942,9 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 
 // waitForDebounce sleeps until there has been no input activity for at least
 // completionDebounce. If debounce is zero or ctx is done, it returns promptly.
-func (s *Server) waitForDebounce(ctx context.Context) <span class="cov8" title="12">{
+func (s *Server) waitForDebounce(ctx context.Context) <span class="cov8" title="13">{
         d := s.completionDebounce
-        if d &lt;= 0 </span><span class="cov8" title="10">{
+        if d &lt;= 0 </span><span class="cov8" title="11">{
                 return
         }</span>
         <span class="cov3" title="2">for </span><span class="cov5" title="4">{
@@ -3493,9 +3972,9 @@ func (s *Server) waitForDebounce(ctx context.Context) <span class="cov8" title="
 
 // waitForThrottle enforces a minimum spacing between LLM calls. Returns false
 // if the context is canceled while waiting.
-func (s *Server) waitForThrottle(ctx context.Context) bool <span class="cov8" title="12">{
+func (s *Server) waitForThrottle(ctx context.Context) bool <span class="cov8" title="13">{
         interval := s.throttleInterval
-        if interval &lt;= 0 </span><span class="cov7" title="9">{
+        if interval &lt;= 0 </span><span class="cov8" title="10">{
                 return true
         }</span>
         <span class="cov4" title="3">var wait time.Duration
@@ -3524,19 +4003,35 @@ func (s *Server) waitForThrottle(ctx context.Context) bool <span class="cov8" ti
 }
 
 // buildCompletionMessages constructs the LLM messages for completion.
-func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText string, inParams bool, p CompletionParams, above, current, below, funcCtx string) []llm.Message <span class="cov7" title="9">{
-        sysPrompt, userPrompt := buildPrompts(inParams, p, above, current, below, funcCtx)
-        messages := []llm.Message{
-                {Role: "system", Content: sysPrompt},
-                {Role: "user", Content: userPrompt},
-        }
-        if hasExtra &amp;&amp; extraText != "" </span><span class="cov1" title="1">{
-                messages = append(messages, llm.Message{Role: "user", Content: "Additional context:\n" + extraText})
+func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText string, inParams bool, p CompletionParams, above, current, below, funcCtx string) []llm.Message <span class="cov8" title="13">{
+    // Vars for templates
+    vars := map[string]string{
+        "file":     p.TextDocument.URI,
+        "function": funcCtx,
+        "above":    above,
+        "current":  current,
+        "below":    below,
+        "char":     fmt.Sprintf("%d", p.Position.Character),
+    }
+    sys := s.promptCompSysGeneral
+    userTpl := s.promptCompUserGeneral
+    if inParams </span><span class="cov3" title="2">{
+        sys = s.promptCompSysParams
+        userTpl = s.promptCompUserParams
+    }</span>
+    <span class="cov8" title="13">if inlinePrompt &amp;&amp; strings.TrimSpace(s.promptCompSysInline) != "" </span><span class="cov1" title="1">{
+        sys = s.promptCompSysInline
+    }</span>
+    <span class="cov8" title="13">user := renderTemplate(userTpl, vars)
+    messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+    if hasExtra &amp;&amp; strings.TrimSpace(extraText) != "" </span><span class="cov1" title="1">{
+        extra := renderTemplate(s.promptCompExtraHeader, map[string]string{"context": extraText})
+        if strings.TrimSpace(extra) == "" </span><span class="cov0" title="0">{
+            extra = extraText
         }</span>
-        <span class="cov7" title="9">if inlinePrompt </span><span class="cov3" title="2">{
-                messages[0].Content = "You are a precise code completion/refactoring engine. Output only the code to insert with no prose, no comments, and no backticks. Return raw code only."
-        }</span>
-        <span class="cov7" title="9">return messages</span>
+        <span class="cov1" title="1">messages = append(messages, llm.Message{Role: "user", Content: extra})</span>
+    }
+    <span class="cov8" title="13">return messages</span>
 }
 
 // postProcessCompletion normalizes and deduplicates completion text and applies indentation rules.
@@ -3613,42 +4108,42 @@ func (s *Server) handleDidClose(req Request) <span class="cov1" title="1">{
 // docBeforeAfter returns the full document text split at the given position.
 // The returned strings are the text before the cursor (inclusive of anything
 // left of the position) and the text after the cursor.
-func (s *Server) docBeforeAfter(uri string, pos Position) (string, string) <span class="cov7" title="6">{
+func (s *Server) docBeforeAfter(uri string, pos Position) (string, string) <span class="cov8" title="7">{
         d := s.getDocument(uri)
         if d == nil </span><span class="cov6" title="4">{
                 return "", ""
         }</span>
         // Clamp indices
-        <span class="cov3" title="2">line := pos.Line
+        <span class="cov5" title="3">line := pos.Line
         if line &lt; 0 </span><span class="cov0" title="0">{
                 line = 0
         }</span>
-        <span class="cov3" title="2">if line &gt;= len(d.lines) </span><span class="cov1" title="1">{
+        <span class="cov5" title="3">if line &gt;= len(d.lines) </span><span class="cov1" title="1">{
                 line = len(d.lines) - 1
         }</span>
-        <span class="cov3" title="2">col := pos.Character
+        <span class="cov5" title="3">col := pos.Character
         if col &lt; 0 </span><span class="cov0" title="0">{
                 col = 0
         }</span>
-        <span class="cov3" title="2">if col &gt; len(d.lines[line]) </span><span class="cov1" title="1">{
+        <span class="cov5" title="3">if col &gt; len(d.lines[line]) </span><span class="cov1" title="1">{
                 col = len(d.lines[line])
         }</span>
         // Build before
-        <span class="cov3" title="2">var b strings.Builder
-        for i := 0; i &lt; line; i++ </span><span class="cov3" title="2">{
+        <span class="cov5" title="3">var b strings.Builder
+        for i := 0; i &lt; line; i++ </span><span class="cov5" title="3">{
                 b.WriteString(d.lines[i])
                 b.WriteByte('\n')
         }</span>
-        <span class="cov3" title="2">b.WriteString(d.lines[line][:col])
+        <span class="cov5" title="3">b.WriteString(d.lines[line][:col])
         before := b.String()
         // Build after
         var a strings.Builder
         a.WriteString(d.lines[line][col:])
-        for i := line + 1; i &lt; len(d.lines); i++ </span><span class="cov1" title="1">{
+        for i := line + 1; i &lt; len(d.lines); i++ </span><span class="cov3" title="2">{
                 a.WriteByte('\n')
                 a.WriteString(d.lines[i])
         }</span>
-        <span class="cov3" title="2">return before, a.String()</span>
+        <span class="cov5" title="3">return before, a.String()</span>
 }
 
 // --- in-editor chat (";C ...") ---
@@ -3656,73 +4151,73 @@ func (s *Server) docBeforeAfter(uri string, pos Position) (string, string) <span
 // detectAndHandleChat scans the current document for any line that starts with
 // a new trigger pair (e.g., "?&gt;" ",&gt;" ":&gt;" ";&gt;") at EOL and inserts the LLM
 // reply below.
-func (s *Server) detectAndHandleChat(uri string) <span class="cov6" title="4">{
+func (s *Server) detectAndHandleChat(uri string) <span class="cov7" title="5">{
         if s.llmClient == nil </span><span class="cov1" title="1">{
                 return
         }</span>
-        <span class="cov5" title="3">d := s.getDocument(uri)
+        <span class="cov6" title="4">d := s.getDocument(uri)
         if d == nil || len(d.lines) == 0 </span><span class="cov0" title="0">{
                 return
         }</span>
-        <span class="cov5" title="3">for i, raw := range d.lines </span><span class="cov7" title="5">{
+        <span class="cov6" title="4">for i, raw := range d.lines </span><span class="cov7" title="6">{
                 // Find last non-space character index
                 j := len(raw) - 1
-                for j &gt;= 0 </span><span class="cov6" title="4">{
+                for j &gt;= 0 </span><span class="cov7" title="5">{
                         if raw[j] == ' ' || raw[j] == '\t' </span><span class="cov0" title="0">{
                                 j--
                                 continue</span>
                         }
-                        <span class="cov6" title="4">break</span>
+                        <span class="cov7" title="5">break</span>
                 }
-                <span class="cov7" title="5">if j &lt; 0 </span><span class="cov1" title="1">{
+                <span class="cov7" title="6">if j &lt; 0 </span><span class="cov1" title="1">{
                         continue</span>
                 }
                 // Check suffix/prefix according to configuration
-                <span class="cov6" title="4">if s.chatSuffix == "" </span><span class="cov3" title="2">{
+                <span class="cov7" title="5">if s.chatSuffix == "" </span><span class="cov3" title="2">{
                         continue</span>
                 }
                 // Last non-space must equal suffix
-                <span class="cov3" title="2">if string(raw[j]) != s.chatSuffix </span><span class="cov0" title="0">{
+                <span class="cov5" title="3">if string(raw[j]) != s.chatSuffix </span><span class="cov0" title="0">{
                         continue</span>
                 }
                 // Require at least one char before suffix and that char must be in chatPrefixes
-                <span class="cov3" title="2">if j &lt; 1 </span><span class="cov0" title="0">{
+                <span class="cov5" title="3">if j &lt; 1 </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov3" title="2">prev := string(raw[j-1])
+                <span class="cov5" title="3">prev := string(raw[j-1])
                 isTrigger := false
-                for _, pfx := range s.chatPrefixes </span><span class="cov3" title="2">{
-                        if prev == pfx </span><span class="cov3" title="2">{
+                for _, pfx := range s.chatPrefixes </span><span class="cov5" title="3">{
+                        if prev == pfx </span><span class="cov5" title="3">{
                                 isTrigger = true
                                 break</span>
                         }
                 }
-                <span class="cov3" title="2">if !isTrigger </span><span class="cov0" title="0">{
+                <span class="cov5" title="3">if !isTrigger </span><span class="cov0" title="0">{
                         continue</span>
                 }
                 // Avoid double-answering: if the next non-empty line starts with '&gt;' we skip.
-                <span class="cov3" title="2">k := i + 1
-                for k &lt; len(d.lines) &amp;&amp; strings.TrimSpace(d.lines[k]) == "" </span><span class="cov6" title="4">{
+                <span class="cov5" title="3">k := i + 1
+                for k &lt; len(d.lines) &amp;&amp; strings.TrimSpace(d.lines[k]) == "" </span><span class="cov7" title="5">{
                         k++
                 }</span>
-                <span class="cov3" title="2">if k &lt; len(d.lines) &amp;&amp; strings.HasPrefix(strings.TrimSpace(d.lines[k]), "&gt;") </span><span class="cov0" title="0">{
+                <span class="cov5" title="3">if k &lt; len(d.lines) &amp;&amp; strings.HasPrefix(strings.TrimSpace(d.lines[k]), "&gt;") </span><span class="cov0" title="0">{
                         continue</span>
                 }
                 // Derive prompt by removing only the trailing '&gt;'
-                <span class="cov3" title="2">removeCount := len(s.chatSuffix)
+                <span class="cov5" title="3">removeCount := len(s.chatSuffix)
                 base := raw[:j+1-removeCount]
                 prompt := strings.TrimSpace(base)
                 if prompt == "" </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov3" title="2">lineIdx := i
+                <span class="cov5" title="3">lineIdx := i
                 lastIdx := j
-                go func(prompt string, remove int) </span><span class="cov3" title="2">{
+                go func(prompt string, remove int) </span><span class="cov5" title="3">{
                         ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
                         defer cancel()
-                        sys := "You are a helpful coding assistant. Answer concisely and clearly."
-                        // Build short conversation history from the document above this line
-                        history := s.buildChatHistory(uri, lineIdx, prompt)
+            sys := s.promptChatSystem
+            // Build short conversation history from the document above this line
+            history := s.buildChatHistory(uri, lineIdx, prompt)
                         msgs := append([]llm.Message{{Role: "system", Content: sys}}, history...)
                         opts := s.llmRequestOpts()
                         logging.Logf("lsp ", "chat llm=requesting model=%s", s.llmClient.DefaultModel())
@@ -3731,26 +4226,26 @@ func (s *Server) detectAndHandleChat(uri string) <span class="cov6" title="4">{
                                 logging.Logf("lsp ", "chat llm error: %v", err)
                                 return
                         }</span>
-                        <span class="cov3" title="2">out := strings.TrimSpace(stripCodeFences(text))
+                        <span class="cov5" title="3">out := strings.TrimSpace(stripCodeFences(text))
                         if out == "" </span><span class="cov0" title="0">{
                                 return
                         }</span>
-                        <span class="cov3" title="2">s.applyChatEdits(uri, lineIdx, lastIdx, remove, "&gt; "+out)</span>
+                        <span class="cov5" title="3">s.applyChatEdits(uri, lineIdx, lastIdx, remove, "&gt; "+out)</span>
                 }(prompt, removeCount)
                 // Only handle one per change tick to avoid flooding
-                <span class="cov3" title="2">break</span>
+                <span class="cov5" title="3">break</span>
         }
 }
 
 // applyChatEdits removes the triggering punctuation at end of the line and
 // inserts two newlines followed by a new line with the response prefixed.
-func (s *Server) applyChatEdits(uri string, lineIdx int, lastNonSpace int, removeCount int, response string) <span class="cov3" title="2">{
+func (s *Server) applyChatEdits(uri string, lineIdx int, lastNonSpace int, removeCount int, response string) <span class="cov5" title="3">{
         d := s.getDocument(uri)
         if d == nil </span><span class="cov0" title="0">{
                 return
         }</span>
         // 1) Delete the trailing punctuation (1 or 2 chars)
-        <span class="cov3" title="2">delStart := Position{Line: lineIdx, Character: lastNonSpace + 1 - removeCount}
+        <span class="cov5" title="3">delStart := Position{Line: lineIdx, Character: lastNonSpace + 1 - removeCount}
         delEnd := Position{Line: lineIdx, Character: lastNonSpace + 1}
         // 2) Insert two newlines and the response at end-of-line, then one extra blank line
         insPos := Position{Line: lineIdx, Character: len(d.lines[lineIdx])}
@@ -3766,12 +4261,12 @@ func (s *Server) applyChatEdits(uri string, lineIdx int, lastNonSpace int, remov
 
 // buildChatHistory walks upwards from the current line to collect the most recent
 // Q/A pairs in the in-editor transcript. Returns messages ending with current prompt.
-func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string) []llm.Message <span class="cov5" title="3">{
+func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string) []llm.Message <span class="cov6" title="4">{
         d := s.getDocument(uri)
         if d == nil </span><span class="cov0" title="0">{
                 return []llm.Message{{Role: "user", Content: currentPrompt}}
         }</span>
-        <span class="cov5" title="3">type pair struct{ q, a string }
+        <span class="cov6" title="4">type pair struct{ q, a string }
         pairs := []pair{}
         i := lineIdx - 1
         for i &gt;= 0 &amp;&amp; len(pairs) &lt; 3 </span><span class="cov3" title="2">{
@@ -3805,7 +4300,7 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
                 pairs = append([]pair{{q: q, a: strings.Join(replyLines, "\n")}}, pairs...)
                 i--</span>
         }
-        <span class="cov5" title="3">msgs := make([]llm.Message, 0, len(pairs)*2+1)
+        <span class="cov6" title="4">msgs := make([]llm.Message, 0, len(pairs)*2+1)
         for _, p := range pairs </span><span class="cov3" title="2">{
                 if strings.TrimSpace(p.q) != "" </span><span class="cov3" title="2">{
                         msgs = append(msgs, llm.Message{Role: "user", Content: p.q})
@@ -3814,7 +4309,7 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
                         msgs = append(msgs, llm.Message{Role: "assistant", Content: p.a})
                 }</span>
         }
-        <span class="cov5" title="3">msgs = append(msgs, llm.Message{Role: "user", Content: currentPrompt})
+        <span class="cov6" title="4">msgs = append(msgs, llm.Message{Role: "user", Content: currentPrompt})
         return msgs</span>
 }
 
@@ -3844,7 +4339,7 @@ func stripTrailingTrigger(sx string) string <span class="cov8" title="8">{
 }
 
 // clientApplyEdit sends a workspace/applyEdit request to the client.
-func (s *Server) clientApplyEdit(label string, edit WorkspaceEdit) <span class="cov3" title="2">{
+func (s *Server) clientApplyEdit(label string, edit WorkspaceEdit) <span class="cov5" title="3">{
         params := ApplyWorkspaceEditParams{Label: label, Edit: edit}
         id := s.nextReqID()
         req := Request{JSONRPC: "2.0", ID: id, Method: "workspace/applyEdit"}
@@ -3854,7 +4349,7 @@ func (s *Server) clientApplyEdit(label string, edit WorkspaceEdit) <span class="
 }</span>
 
 // nextReqID returns a unique json.RawMessage id for server-initiated requests.
-func (s *Server) nextReqID() json.RawMessage <span class="cov7" title="5">{
+func (s *Server) nextReqID() json.RawMessage <span class="cov7" title="6">{
         s.mu.Lock()
         s.nextID++
         idNum := s.nextID
@@ -3974,12 +4469,11 @@ func (s *Server) handleExit() <span class="cov0" title="0">{
 package lsp
 
 import (
-        "fmt"
-        "strings"
-        "time"
+    "strings"
+    "time"
 
-        "codeberg.org/snonux/hexai/internal/llm"
-        "codeberg.org/snonux/hexai/internal/logging"
+    "codeberg.org/snonux/hexai/internal/llm"
+    "codeberg.org/snonux/hexai/internal/logging"
 )
 
 // Configurable inline trigger characters (default to '&gt;') used by free helpers below.
@@ -3990,12 +4484,12 @@ var (
 )
 
 // llmRequestOpts builds request options from server settings.
-func (s *Server) llmRequestOpts() []llm.RequestOption <span class="cov5" title="12">{
+func (s *Server) llmRequestOpts() []llm.RequestOption <span class="cov6" title="17">{
         opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens)}
         if s.codingTemperature != nil </span><span class="cov0" title="0">{
                 opts = append(opts, llm.WithTemperature(*s.codingTemperature))
         }</span>
-        <span class="cov5" title="12">return opts</span>
+        <span class="cov6" title="17">return opts</span>
 }
 
 // small helpers for LLM traffic stats
@@ -4045,18 +4539,20 @@ func inParamList(current string, cursor int) bool <span class="cov5" title="11">
         return open &gt;= 0 &amp;&amp; cursor &gt; open &amp;&amp; (close == -1 || cursor &lt;= close)</span>
 }
 
-func buildPrompts(inParams bool, p CompletionParams, above, current, below, funcCtx string) (string, string) <span class="cov6" title="13">{
-        if inParams </span><span class="cov2" title="2">{
-                sys := "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."
-                user := fmt.Sprintf("Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: %s\nCurrent line (cursor at %d): %s", funcCtx, p.Position.Character, current)
-                return sys, user
-        }</span>
-        <span class="cov5" title="11">sys := "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks. Only continue from the cursor; never repeat characters already present to the left of the cursor on the current line (e.g., if 'name :=' is already typed, only return the right-hand side expression)."
-        user := fmt.Sprintf("Provide the next likely code to insert at the cursor.\nFile: %s\nFunction/context: %s\nAbove line: %s\nCurrent line (cursor at character %d): %s\nBelow line: %s\nOnly return the completion snippet.", p.TextDocument.URI, funcCtx, above, p.Position.Character, current, below)
-        return sys, user</span>
+// renderTemplate performs simple {{var}} replacement in a template string.
+func renderTemplate(t string, vars map[string]string) string <span class="cov7" title="33">{
+    if t == "" </span><span class="cov5" title="9">{
+        return t
+    }</span>
+    <span class="cov7" title="24">out := t
+    for k, v := range vars </span><span class="cov9" title="79">{
+        placeholder := "{{" + k + "}}"
+        out = strings.ReplaceAll(out, placeholder, v)
+    }</span>
+    <span class="cov7" title="24">return out</span>
 }
 
-func computeTextEditAndFilter(cleaned string, inParams bool, current string, p CompletionParams) (*TextEdit, string) <span class="cov6" title="16">{
+func computeTextEditAndFilter(cleaned string, inParams bool, current string, p CompletionParams) (*TextEdit, string) <span class="cov6" title="17">{
         if inParams </span><span class="cov3" title="3">{
                 open := strings.Index(current, "(")
                 close := strings.Index(current, ")")
@@ -4077,25 +4573,25 @@ func computeTextEditAndFilter(cleaned string, inParams bool, current string, p C
                         <span class="cov3" title="3">return te, filter</span>
                 }
         }
-        <span class="cov6" title="13">startChar := computeWordStart(current, p.Position.Character)
+        <span class="cov6" title="14">startChar := computeWordStart(current, p.Position.Character)
         te := &amp;TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: startChar}, End: Position{Line: p.Position.Line, Character: p.Position.Character}}, NewText: cleaned}
         filter := strings.TrimLeft(current[startChar:p.Position.Character], " \t")
         return te, filter</span>
 }
 
-func computeWordStart(current string, at int) int <span class="cov7" title="22">{
+func computeWordStart(current string, at int) int <span class="cov7" title="23">{
         if at &gt; len(current) </span><span class="cov0" title="0">{
                 at = len(current)
         }</span>
-        <span class="cov7" title="22">for at &gt; 0 </span><span class="cov8" title="38">{
+        <span class="cov7" title="23">for at &gt; 0 </span><span class="cov8" title="39">{
                 ch := current[at-1]
-                if (ch &gt;= 'a' &amp;&amp; ch &lt;= 'z') || (ch &gt;= 'A' &amp;&amp; ch &lt;= 'Z') || (ch &gt;= '0' &amp;&amp; ch &lt;= '9') || ch == '_' </span><span class="cov6" title="20">{
+                if (ch &gt;= 'a' &amp;&amp; ch &lt;= 'z') || (ch &gt;= 'A' &amp;&amp; ch &lt;= 'Z') || (ch &gt;= '0' &amp;&amp; ch &lt;= '9') || ch == '_' </span><span class="cov6" title="21">{
                         at--
                         continue</span>
                 }
                 <span class="cov6" title="18">break</span>
         }
-        <span class="cov7" title="22">return at</span>
+        <span class="cov7" title="23">return at</span>
 }
 
 func isIdentChar(ch byte) bool <span class="cov7" title="24">{
@@ -4205,7 +4701,7 @@ func isBareDoubleOpen(line string) bool <span class="cov6" title="19">{
 }
 
 // stripDuplicateAssignmentPrefix removes a duplicated assignment prefix from the suggestion.
-func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) string <span class="cov6" title="18">{
+func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) string <span class="cov6" title="19">{
         s2 := strings.TrimLeft(suggestion, " \t")
         // Prefer := if present at end of prefix
         if idx := strings.LastIndex(prefixBeforeCursor, ":="); idx &gt;= 0 &amp;&amp; idx+2 &lt;= len(prefixBeforeCursor) </span><span class="cov3" title="4">{
@@ -4223,7 +4719,7 @@ func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) strin
                 }
         }
         // Fallback to plain '=' if present
-        <span class="cov6" title="14">if idx := strings.LastIndex(prefixBeforeCursor, "="); idx &gt;= 0 </span><span class="cov2" title="2">{
+        <span class="cov6" title="15">if idx := strings.LastIndex(prefixBeforeCursor, "="); idx &gt;= 0 </span><span class="cov2" title="2">{
                 if !(idx &gt; 0 &amp;&amp; prefixBeforeCursor[idx-1] == ':') </span><span class="cov2" title="2">{ // not :=
                         tail := prefixBeforeCursor[idx+1:]
                         if strings.TrimSpace(tail) == "" </span><span class="cov2" title="2">{
@@ -4239,20 +4735,20 @@ func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) strin
                         }
                 }
         }
-        <span class="cov5" title="12">return suggestion</span>
+        <span class="cov6" title="13">return suggestion</span>
 }
 
 // stripDuplicateGeneralPrefix removes any already-typed prefix that the model repeated.
-func stripDuplicateGeneralPrefix(prefixBeforeCursor, suggestion string) string <span class="cov6" title="18">{
+func stripDuplicateGeneralPrefix(prefixBeforeCursor, suggestion string) string <span class="cov6" title="19">{
         if suggestion == "" </span><span class="cov0" title="0">{
                 return suggestion
         }</span>
-        <span class="cov6" title="18">s := strings.TrimLeft(suggestion, " \t")
+        <span class="cov6" title="19">s := strings.TrimLeft(suggestion, " \t")
         p := strings.TrimRight(prefixBeforeCursor, " \t")
         if p != "" &amp;&amp; strings.HasPrefix(s, p) </span><span class="cov4" title="5">{
                 return strings.TrimLeft(s[len(p):], " \t")
         }</span>
-        <span class="cov6" title="13">for k := len(p) - 1; k &gt; 0; k-- </span><span class="cov10" title="100">{
+        <span class="cov6" title="14">for k := len(p) - 1; k &gt; 0; k-- </span><span class="cov10" title="100">{
                 if !isIdentBoundary(p[k-1]) </span><span class="cov9" title="77">{
                         continue</span>
                 }
@@ -4264,7 +4760,7 @@ func stripDuplicateGeneralPrefix(prefixBeforeCursor, suggestion string) string <
                         return strings.TrimLeft(s[len(suf):], " \t")
                 }</span>
         }
-        <span class="cov6" title="13">return suggestion</span>
+        <span class="cov6" title="14">return suggestion</span>
 }
 
 func isIdentBoundary(ch byte) bool <span class="cov10" title="100">{
@@ -4272,30 +4768,30 @@ func isIdentBoundary(ch byte) bool <span class="cov10" title="100">{
 }</span>
 
 // stripCodeFences removes surrounding Markdown code fences from a model response.
-func stripCodeFences(s string) string <span class="cov7" title="31">{
+func stripCodeFences(s string) string <span class="cov8" title="36">{
         t := strings.TrimSpace(s)
         if t == "" </span><span class="cov0" title="0">{
                 return t
         }</span>
-        <span class="cov7" title="31">lines := splitLines(t)
+        <span class="cov8" title="36">lines := splitLines(t)
         start := 0
         for start &lt; len(lines) &amp;&amp; strings.TrimSpace(lines[start]) == "" </span><span class="cov0" title="0">{
                 start++
         }</span>
-        <span class="cov7" title="31">end := len(lines) - 1
+        <span class="cov8" title="36">end := len(lines) - 1
         for end &gt;= 0 &amp;&amp; strings.TrimSpace(lines[end]) == "" </span><span class="cov0" title="0">{
                 end--
         }</span>
-        <span class="cov7" title="31">if start &gt;= len(lines) || end &lt; 0 || start &gt; end </span><span class="cov0" title="0">{
+        <span class="cov8" title="36">if start &gt;= len(lines) || end &lt; 0 || start &gt; end </span><span class="cov0" title="0">{
                 return t
         }</span>
-        <span class="cov7" title="31">first := strings.TrimSpace(lines[start])
+        <span class="cov8" title="36">first := strings.TrimSpace(lines[start])
         last := strings.TrimSpace(lines[end])
         if strings.HasPrefix(first, "```") &amp;&amp; last == "```" &amp;&amp; end &gt; start </span><span class="cov5" title="8">{
                 inner := strings.Join(lines[start+1:end], "\n")
                 return inner
         }</span>
-        <span class="cov7" title="23">return t</span>
+        <span class="cov7" title="28">return t</span>
 }
 
 // stripInlineCodeSpan returns the contents of the first inline backtick code span if present.
@@ -4317,9 +4813,9 @@ func stripInlineCodeSpan(s string) string <span class="cov5" title="10">{
 }
 
 // labelForCompletion picks a short, readable label for the completion list.
-func labelForCompletion(cleaned, filter string) string <span class="cov6" title="17">{
+func labelForCompletion(cleaned, filter string) string <span class="cov6" title="18">{
         label := trimLen(firstLine(cleaned))
-        if filter != "" &amp;&amp; !strings.HasPrefix(strings.ToLower(label), strings.ToLower(filter)) </span><span class="cov3" title="3">{
+        if filter != "" &amp;&amp; !strings.HasPrefix(strings.ToLower(label), strings.ToLower(filter)) </span><span class="cov3" title="4">{
                 return filter
         }</span>
         <span class="cov6" title="14">return label</span>
@@ -4371,32 +4867,32 @@ func extractRangeText(d *document, r Range) string <span class="cov3" title="4">
 }
 
 // collectPromptRemovalEdits returns edits to remove all inline prompt markers.
-func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit <span class="cov5" title="12">{
+func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit <span class="cov6" title="13">{
         d := s.getDocument(uri)
         if d == nil || len(d.lines) == 0 </span><span class="cov5" title="11">{
                 return nil
         }</span>
-        <span class="cov1" title="1">var edits []TextEdit
-        for i, line := range d.lines </span><span class="cov3" title="4">{
+        <span class="cov2" title="2">var edits []TextEdit
+        for i, line := range d.lines </span><span class="cov4" title="7">{
                 edits = append(edits, promptRemovalEditsForLine(line, i)...)
         }</span>
-        <span class="cov1" title="1">return edits</span>
+        <span class="cov2" title="2">return edits</span>
 }
 
-func promptRemovalEditsForLine(line string, lineNum int) []TextEdit <span class="cov4" title="7">{
+func promptRemovalEditsForLine(line string, lineNum int) []TextEdit <span class="cov5" title="10">{
         if hasDoubleOpenTrigger(line) </span><span class="cov3" title="3">{
                 return []TextEdit{{Range: Range{Start: Position{Line: lineNum, Character: 0}, End: Position{Line: lineNum, Character: len(line)}}, NewText: ""}}
         }</span>
-        <span class="cov3" title="4">return collectSemicolonMarkers(line, lineNum)</span>
+        <span class="cov4" title="7">return collectSemicolonMarkers(line, lineNum)</span>
 }
 
-func hasDoubleOpenTrigger(line string) bool <span class="cov8" title="51">{
+func hasDoubleOpenTrigger(line string) bool <span class="cov8" title="55">{
         pos := 0
-        for pos &lt; len(line) </span><span class="cov8" title="53">{
+        for pos &lt; len(line) </span><span class="cov8" title="57">{
                 // look for double-open sequence
                 dbl := string([]byte{inlineOpenChar, inlineOpenChar})
                 j := strings.Index(line[pos:], dbl)
-                if j &lt; 0 </span><span class="cov7" title="32">{
+                if j &lt; 0 </span><span class="cov8" title="36">{
                         return false
                 }</span>
                 <span class="cov6" title="21">j += pos
@@ -4424,12 +4920,12 @@ func hasDoubleOpenTrigger(line string) bool <span class="cov8" title="51">{
         <span class="cov3" title="3">return false</span>
 }
 
-func collectSemicolonMarkers(line string, lineNum int) []TextEdit <span class="cov4" title="5">{
+func collectSemicolonMarkers(line string, lineNum int) []TextEdit <span class="cov5" title="8">{
         var edits []TextEdit
         startSemi := 0
-        for startSemi &lt; len(line) </span><span class="cov5" title="9">{
+        for startSemi &lt; len(line) </span><span class="cov5" title="12">{
                 j := strings.IndexByte(line[startSemi:], inlineOpenChar)
-                if j &lt; 0 </span><span class="cov3" title="4">{
+                if j &lt; 0 </span><span class="cov4" title="7">{
                         break</span>
                 }
                 <span class="cov4" title="5">j += startSemi
@@ -4461,7 +4957,7 @@ func collectSemicolonMarkers(line string, lineNum int) []TextEdit <span class="c
                 <span class="cov4" title="5">edits = append(edits, TextEdit{Range: Range{Start: Position{Line: lineNum, Character: j}, End: Position{Line: lineNum, Character: endChar}}, NewText: ""})
                 startSemi = endChar</span>
         }
-        <span class="cov4" title="5">return edits</span>
+        <span class="cov5" title="8">return edits</span>
 }
 </pre>
 		
@@ -4525,7 +5021,29 @@ type Server struct {
         inlineOpen   string
         inlineClose  string
         chatSuffix   string
-        chatPrefixes []string
+    chatPrefixes []string
+
+    // Prompt templates
+    // Completion
+    promptCompSysGeneral string
+    promptCompSysParams  string
+    promptCompSysInline  string
+    promptCompUserGeneral string
+    promptCompUserParams  string
+    promptCompExtraHeader string
+    // Provider-native code completion
+    promptNativeCompletion string
+    // In-editor chat
+    promptChatSystem string
+    // Code actions
+    promptRewriteSystem     string
+    promptDiagnosticsSystem string
+    promptDocumentSystem    string
+    promptRewriteUser       string
+    promptDiagnosticsUser   string
+    promptDocumentUser      string
+    promptGoTestSystem      string
+    promptGoTestUser        string
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
@@ -4546,8 +5064,26 @@ type ServerOptions struct {
         // Inline/chat triggers
         InlineOpen   string
         InlineClose  string
-        ChatSuffix   string
-        ChatPrefixes []string
+    ChatSuffix   string
+    ChatPrefixes []string
+
+    // Prompt templates
+    PromptCompSysGeneral  string
+    PromptCompSysParams   string
+    PromptCompSysInline   string
+    PromptCompUserGeneral string
+    PromptCompUserParams  string
+    PromptCompExtraHeader string
+    PromptNativeCompletion string
+    PromptChatSystem string
+    PromptRewriteSystem     string
+    PromptDiagnosticsSystem string
+    PromptDocumentSystem    string
+    PromptRewriteUser       string
+    PromptDiagnosticsUser   string
+    PromptDocumentUser      string
+    PromptGoTestSystem      string
+    PromptGoTestUser        string
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server <span class="cov10" title="6">{
@@ -4606,14 +5142,32 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
         }</span> else<span class="cov6" title="3"> {
                 s.chatSuffix = opts.ChatSuffix
         }</span>
-        <span class="cov10" title="6">if len(opts.ChatPrefixes) == 0 </span><span class="cov6" title="3">{
-                s.chatPrefixes = []string{"?", "!", ":", ";"}
-        }</span> else<span class="cov6" title="3"> {
-                s.chatPrefixes = append([]string{}, opts.ChatPrefixes...)
-        }</span>
+    <span class="cov10" title="6">if len(opts.ChatPrefixes) == 0 </span><span class="cov6" title="3">{
+        s.chatPrefixes = []string{"?", "!", ":", ";"}
+    }</span> else<span class="cov6" title="3"> {
+        s.chatPrefixes = append([]string{}, opts.ChatPrefixes...)
+    }</span>
+
+    // Prompts
+    <span class="cov10" title="6">s.promptCompSysGeneral = opts.PromptCompSysGeneral
+    s.promptCompSysParams = opts.PromptCompSysParams
+    s.promptCompSysInline = opts.PromptCompSysInline
+    s.promptCompUserGeneral = opts.PromptCompUserGeneral
+    s.promptCompUserParams = opts.PromptCompUserParams
+    s.promptCompExtraHeader = opts.PromptCompExtraHeader
+    s.promptNativeCompletion = opts.PromptNativeCompletion
+    s.promptChatSystem = opts.PromptChatSystem
+    s.promptRewriteSystem = opts.PromptRewriteSystem
+    s.promptDiagnosticsSystem = opts.PromptDiagnosticsSystem
+    s.promptDocumentSystem = opts.PromptDocumentSystem
+    s.promptRewriteUser = opts.PromptRewriteUser
+    s.promptDiagnosticsUser = opts.PromptDiagnosticsUser
+    s.promptDocumentUser = opts.PromptDocumentUser
+    s.promptGoTestSystem = opts.PromptGoTestSystem
+    s.promptGoTestUser = opts.PromptGoTestUser
 
         // Assign package-level inline trigger chars for free helper functions
-        <span class="cov10" title="6">if s.inlineOpen != "" </span><span class="cov10" title="6">{
+        if s.inlineOpen != "" </span><span class="cov10" title="6">{
                 inlineOpenChar = s.inlineOpen[0]
         }</span>
         <span class="cov10" title="6">if s.inlineClose != "" </span><span class="cov10" title="6">{
@@ -4718,18 +5272,18 @@ func (s *Server) readMessage() ([]byte, error) <span class="cov3" title="2">{
         <span class="cov1" title="1">return buf, nil</span>
 }
 
-func (s *Server) writeMessage(v any) <span class="cov10" title="17">{
+func (s *Server) writeMessage(v any) <span class="cov10" title="18">{
         data, err := json.Marshal(v)
         if err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "marshal error: %v", err)
                 return
         }</span>
-        <span class="cov10" title="17">header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(data))
+        <span class="cov10" title="18">header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(data))
         if _, err := io.WriteString(s.out, header); err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "write header error: %v", err)
                 return
         }</span>
-        <span class="cov10" title="17">if _, err := s.out.Write(data); err != nil </span><span class="cov0" title="0">{
+        <span class="cov10" title="18">if _, err := s.out.Write(data); err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "write body error: %v", err)
                 return
         }</span>

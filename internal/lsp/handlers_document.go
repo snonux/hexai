@@ -156,9 +156,9 @@ func (s *Server) detectAndHandleChat(uri string) {
 		go func(prompt string, remove int) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
-			sys := "You are a helpful coding assistant. Answer concisely and clearly."
-			// Build short conversation history from the document above this line
-			history := s.buildChatHistory(uri, lineIdx, prompt)
+            sys := s.promptChatSystem
+            // Build short conversation history from the document above this line
+            history := s.buildChatHistory(uri, lineIdx, prompt)
 			msgs := append([]llm.Message{{Role: "system", Content: sys}}, history...)
 			opts := s.llmRequestOpts()
 			logging.Logf("lsp ", "chat llm=requesting model=%s", s.llmClient.DefaultModel())

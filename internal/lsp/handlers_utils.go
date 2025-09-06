@@ -2,12 +2,11 @@
 package lsp
 
 import (
-	"fmt"
-	"strings"
-	"time"
+    "strings"
+    "time"
 
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/logging"
+    "codeberg.org/snonux/hexai/internal/llm"
+    "codeberg.org/snonux/hexai/internal/logging"
 )
 
 // Configurable inline trigger characters (default to '>') used by free helpers below.
@@ -73,15 +72,17 @@ func inParamList(current string, cursor int) bool {
 	return open >= 0 && cursor > open && (close == -1 || cursor <= close)
 }
 
-func buildPrompts(inParams bool, p CompletionParams, above, current, below, funcCtx string) (string, string) {
-	if inParams {
-		sys := "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."
-		user := fmt.Sprintf("Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: %s\nCurrent line (cursor at %d): %s", funcCtx, p.Position.Character, current)
-		return sys, user
-	}
-	sys := "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks. Only continue from the cursor; never repeat characters already present to the left of the cursor on the current line (e.g., if 'name :=' is already typed, only return the right-hand side expression)."
-	user := fmt.Sprintf("Provide the next likely code to insert at the cursor.\nFile: %s\nFunction/context: %s\nAbove line: %s\nCurrent line (cursor at character %d): %s\nBelow line: %s\nOnly return the completion snippet.", p.TextDocument.URI, funcCtx, above, p.Position.Character, current, below)
-	return sys, user
+// renderTemplate performs simple {{var}} replacement in a template string.
+func renderTemplate(t string, vars map[string]string) string {
+    if t == "" {
+        return t
+    }
+    out := t
+    for k, v := range vars {
+        placeholder := "{{" + k + "}}"
+        out = strings.ReplaceAll(out, placeholder, v)
+    }
+    return out
 }
 
 func computeTextEditAndFilter(cleaned string, inParams bool, current string, p CompletionParams) (*TextEdit, string) {
