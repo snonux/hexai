@@ -49,3 +49,16 @@ Either use the Mage method as mentioned above, or install directly with:
 
 - When invoked without arguments, `hexai` opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary `.md` file to capture a prompt, and combines it with any piped stdin.
 - With arguments, behavior is unchanged (no editor spawn).
+
+## Tmux Status Line
+
+Hexai can surface live progress in tmux's status line via a user option. Add this to your `~/.tmux.conf`:
+
+```
+set -g status-right '#{@hexai_status} #[fg=colour8]| %H:%M'
+```
+
+- CLI updates `@hexai_status` at start (⏳ provider:model) and on completion (✅ model duration).
+- LSP sends a short heartbeat after logging aggregate LLM stats.
+- The TUI action runner sets a ready message and a completion message.
+- Toggle with `HEXAI_TMUX_STATUS=0` to disable (enabled by default).
