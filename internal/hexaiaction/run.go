@@ -13,15 +13,19 @@ import (
 )
 
 // Run executes the hexai-action command flow.
+// seams for testability
+var chooseActionFn = RunTUI
+var newClientFromApp = llmutils.NewClientFromApp
+
 func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
-	logger := log.New(stderr, "hexai-action ", log.LstdFlags|log.Lmsgprefix)
-	cfg := appconfig.Load(logger)
-    client, err := llmutils.NewClientFromApp(cfg)
-	if err != nil {
-		fmt.Fprintf(stderr, logging.AnsiBase+"hexai-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
-		return err
-	}
-	parts, err := ParseInput(stdin)
+    logger := log.New(stderr, "hexai-action ", log.LstdFlags|log.Lmsgprefix)
+    cfg := appconfig.Load(logger)
+    client, err := newClientFromApp(cfg)
+    if err != nil {
+        fmt.Fprintf(stderr, logging.AnsiBase+"hexai-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+        return err
+    }
+    parts, err := ParseInput(stdin)
 	if err != nil {
 		fmt.Fprintln(stderr, logging.AnsiBase+"hexai-action: failed to read input"+logging.AnsiReset)
 		return err
@@ -29,10 +33,10 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	if strings.TrimSpace(parts.Selection) == "" {
 		return fmt.Errorf("hexai-action: no input provided on stdin")
 	}
-	kind, err := RunTUI()
-	if err != nil {
-		return err
-	}
+    kind, err := chooseActionFn()
+    if err != nil {
+        return err
+    }
 	out, err := executeAction(ctx, kind, parts, cfg, client, stderr)
 	if err != nil {
 		return err
