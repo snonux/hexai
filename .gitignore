@@ -1,17 +1,11 @@
 /hexai
 /hexai-lsp
-/hexai-action
 /hexai-tmux-action
-/# Built binaries and local bin dir
 /bin/
 /.gocache/
 /.gocache*
 /.gomodcache/
 /*.out
 /*.html
-/docs/coverage/
-/docs/*.out
-/docs/*.html
-/llminputs
 llm.out
 /tmp/
