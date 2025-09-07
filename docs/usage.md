@@ -109,6 +109,7 @@ hexai 'install ripgrep on macOS and explain'
 
 - Choose an action with arrow keys, `j/k`, `g/G`, Enter, or hotkeys `[s] [r] [c] [t]`.
   - Includes: Rewrite selection, Simplify and improve, Document code, Generate Go unit test(s), Skip.
+  - “Custom prompt” (hotkey `[p]`) opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary `.md` file to write a free-form instruction.
 - Output is written to stdout by default, or to a file via `--outfile`.
 
 Input formats

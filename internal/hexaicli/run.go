@@ -25,7 +25,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
     // Load configuration with a logger so file-based config is respected.
     logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
     cfg := appconfig.Load(logger)
-    client, err := llmutils.NewClientFromApp(cfg)
+    client, err := newClientFromApp(cfg)
 	if err != nil {
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
 		return err
@@ -154,6 +154,7 @@ func printProviderInfo(errw io.Writer, client llm.Client) {
 }
 
 // newClientFromConfig is kept for tests; delegates to llmutils.
-func newClientFromConfig(cfg appconfig.App) (llm.Client, error) {
-    return llmutils.NewClientFromApp(cfg)
-}
+var newClientFromApp = llmutils.NewClientFromApp
+
+// Backcompat for tests referencing the older helper name.
+func newClientFromConfig(cfg appconfig.App) (llm.Client, error) { return newClientFromApp(cfg) }

@@ -56,6 +56,12 @@ This is mostly useful when Helix runs in a [tmux](https://tmux.github.io/) sessi
   - `--tmux-percent N` split size percentage (default: `33`).
   - `--ui-child` internal; used by the parent process when spawning inside tmux.
 
+Editor integration
+
+- Hexai tries to launch your preferred editor when needed (e.g., TUI “Custom prompt”, CLI with no args).
+- Editor resolution: `HEXAI_EDITOR`, falling back to `EDITOR` when unset.
+- Invocation form: `EDITOR /tmp/hexai-XXXX.md` (a temporary Markdown file).
+
 Code action prompts
 
 - All prompts can be customized under `[prompts.code_action]` in `config.toml`. In addition to `rewrite_*`, `diagnostics_*`, `document_*`, and `go_test_*`, the following templates control the “Simplify and improve” action:
