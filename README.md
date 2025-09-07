@@ -43,4 +43,3 @@ Either use the Mage method as mentioned above, or install directly with:
 - CLI: `go install codeberg.org/snonux/hexai/cmd/hexai@latest`
 - LSP: `go install codeberg.org/snonux/hexai/cmd/hexai-lsp@latest`
 - Action runner: `go install codeberg.org/snonux/hexai/cmd/hexai-tmux-action@latest`
-Install: `mage install` (copies `hexai-tmux-action` to `GOPATH/bin` together with other binaries)
