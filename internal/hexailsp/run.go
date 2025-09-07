@@ -140,5 +140,7 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) ls
 		PromptDocumentUser:      cfg.PromptCodeActionDocumentUser,
 		PromptGoTestSystem:      cfg.PromptCodeActionGoTestSystem,
 		PromptGoTestUser:        cfg.PromptCodeActionGoTestUser,
+		PromptSimplifySystem:    cfg.PromptCodeActionSimplifySystem,
+		PromptSimplifyUser:      cfg.PromptCodeActionSimplifyUser,
 	}
 }

@@ -43,8 +43,14 @@ func runDiagnostics(ctx context.Context, cfg appconfig.App, client chatDoer, dia
 }
 
 func runDocument(ctx context.Context, cfg appconfig.App, client chatDoer, selection string) (string, error) {
-	sys := cfg.PromptCodeActionDocumentSystem
-	user := Render(cfg.PromptCodeActionDocumentUser, map[string]string{"selection": selection})
+    sys := cfg.PromptCodeActionDocumentSystem
+    user := Render(cfg.PromptCodeActionDocumentUser, map[string]string{"selection": selection})
+    return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+}
+
+func runSimplify(ctx context.Context, cfg appconfig.App, client chatDoer, selection string) (string, error) {
+    sys := cfg.PromptCodeActionSimplifySystem
+    user := Render(cfg.PromptCodeActionSimplifyUser, map[string]string{"selection": selection})
     return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 

@@ -74,12 +74,14 @@ type App struct {
 	// Code actions
 	PromptCodeActionRewriteSystem     string `json:"-" toml:"-"`
 	PromptCodeActionDiagnosticsSystem string `json:"-" toml:"-"`
-	PromptCodeActionDocumentSystem    string `json:"-" toml:"-"`
-	PromptCodeActionRewriteUser       string `json:"-" toml:"-"`
-	PromptCodeActionDiagnosticsUser   string `json:"-" toml:"-"`
-	PromptCodeActionDocumentUser      string `json:"-" toml:"-"`
-	PromptCodeActionGoTestSystem      string `json:"-" toml:"-"`
-	PromptCodeActionGoTestUser        string `json:"-" toml:"-"`
+    PromptCodeActionDocumentSystem    string `json:"-" toml:"-"`
+    PromptCodeActionRewriteUser       string `json:"-" toml:"-"`
+    PromptCodeActionDiagnosticsUser   string `json:"-" toml:"-"`
+    PromptCodeActionDocumentUser      string `json:"-" toml:"-"`
+    PromptCodeActionGoTestSystem      string `json:"-" toml:"-"`
+    PromptCodeActionGoTestUser        string `json:"-" toml:"-"`
+    PromptCodeActionSimplifySystem    string `json:"-" toml:"-"`
+    PromptCodeActionSimplifyUser      string `json:"-" toml:"-"`
 	// CLI
 	PromptCLIDefaultSystem string `json:"-" toml:"-"`
 	PromptCLIExplainSystem string `json:"-" toml:"-"`
@@ -127,8 +129,10 @@ func newDefaultConfig() App {
 		PromptCodeActionRewriteUser:       "Instruction: {{instruction}}\n\nSelected code to transform:\n{{selection}}",
 		PromptCodeActionDiagnosticsUser:   "Diagnostics to resolve (selection only):\n{{diagnostics}}\n\nSelected code:\n{{selection}}",
 		PromptCodeActionDocumentUser:      "Add documentation comments to this code:\n{{selection}}",
-		PromptCodeActionGoTestSystem:      "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic.",
-		PromptCodeActionGoTestUser:        "Function under test:\n{{function}}",
+        PromptCodeActionGoTestSystem:      "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic.",
+        PromptCodeActionGoTestUser:        "Function under test:\n{{function}}",
+        PromptCodeActionSimplifySystem:    "You are a precise code improvement engine. Simplify and improve the given code while preserving behavior. Return only the improved code with no prose or backticks.",
+        PromptCodeActionSimplifyUser:      "Improve this code:\n{{selection}}",
 
 		PromptCLIDefaultSystem: "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation.",
 		PromptCLIExplainSystem: "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context.",
@@ -256,14 +260,16 @@ type sectionPromptsChat struct {
 }
 
 type sectionPromptsCodeAction struct {
-	RewriteSystem     string `toml:"rewrite_system"`
-	DiagnosticsSystem string `toml:"diagnostics_system"`
-	DocumentSystem    string `toml:"document_system"`
-	RewriteUser       string `toml:"rewrite_user"`
-	DiagnosticsUser   string `toml:"diagnostics_user"`
-	DocumentUser      string `toml:"document_user"`
-	GoTestSystem      string `toml:"go_test_system"`
-	GoTestUser        string `toml:"go_test_user"`
+    RewriteSystem     string `toml:"rewrite_system"`
+    DiagnosticsSystem string `toml:"diagnostics_system"`
+    DocumentSystem    string `toml:"document_system"`
+    RewriteUser       string `toml:"rewrite_user"`
+    DiagnosticsUser   string `toml:"diagnostics_user"`
+    DocumentUser      string `toml:"document_user"`
+    GoTestSystem      string `toml:"go_test_system"`
+    GoTestUser        string `toml:"go_test_user"`
+    SimplifySystem    string `toml:"simplify_system"`
+    SimplifyUser      string `toml:"simplify_user"`
 }
 
 type sectionPromptsCLI struct {
@@ -387,7 +393,7 @@ func (fc *fileConfig) toApp() App {
 		out.PromptChatSystem = fc.Prompts.Chat.System
 	}
 	// code action
-	if (fc.Prompts.CodeAction != sectionPromptsCodeAction{}) {
+    if (fc.Prompts.CodeAction != sectionPromptsCodeAction{}) {
 		if strings.TrimSpace(fc.Prompts.CodeAction.RewriteSystem) != "" {
 			out.PromptCodeActionRewriteSystem = fc.Prompts.CodeAction.RewriteSystem
 		}
@@ -409,10 +415,16 @@ func (fc *fileConfig) toApp() App {
 		if strings.TrimSpace(fc.Prompts.CodeAction.GoTestSystem) != "" {
 			out.PromptCodeActionGoTestSystem = fc.Prompts.CodeAction.GoTestSystem
 		}
-		if strings.TrimSpace(fc.Prompts.CodeAction.GoTestUser) != "" {
-			out.PromptCodeActionGoTestUser = fc.Prompts.CodeAction.GoTestUser
-		}
-	}
+        if strings.TrimSpace(fc.Prompts.CodeAction.GoTestUser) != "" {
+            out.PromptCodeActionGoTestUser = fc.Prompts.CodeAction.GoTestUser
+        }
+        if strings.TrimSpace(fc.Prompts.CodeAction.SimplifySystem) != "" {
+            out.PromptCodeActionSimplifySystem = fc.Prompts.CodeAction.SimplifySystem
+        }
+        if strings.TrimSpace(fc.Prompts.CodeAction.SimplifyUser) != "" {
+            out.PromptCodeActionSimplifyUser = fc.Prompts.CodeAction.SimplifyUser
+        }
+    }
 	// cli
 	if (fc.Prompts.CLI != sectionPromptsCLI{}) {
 		if strings.TrimSpace(fc.Prompts.CLI.DefaultSystem) != "" {
@@ -611,9 +623,15 @@ func (a *App) mergePrompts(other *App) {
 	if strings.TrimSpace(other.PromptCodeActionGoTestSystem) != "" {
 		a.PromptCodeActionGoTestSystem = other.PromptCodeActionGoTestSystem
 	}
-	if strings.TrimSpace(other.PromptCodeActionGoTestUser) != "" {
-		a.PromptCodeActionGoTestUser = other.PromptCodeActionGoTestUser
-	}
+    if strings.TrimSpace(other.PromptCodeActionGoTestUser) != "" {
+        a.PromptCodeActionGoTestUser = other.PromptCodeActionGoTestUser
+    }
+    if strings.TrimSpace(other.PromptCodeActionSimplifySystem) != "" {
+        a.PromptCodeActionSimplifySystem = other.PromptCodeActionSimplifySystem
+    }
+    if strings.TrimSpace(other.PromptCodeActionSimplifyUser) != "" {
+        a.PromptCodeActionSimplifyUser = other.PromptCodeActionSimplifyUser
+    }
 	// CLI
 	if strings.TrimSpace(other.PromptCLIDefaultSystem) != "" {
 		a.PromptCLIDefaultSystem = other.PromptCLIDefaultSystem

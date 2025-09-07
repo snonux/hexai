@@ -46,10 +46,10 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 }
 
 func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
-	switch kind {
-	case ActionSkip:
-		return parts.Selection, nil
-	case ActionRewrite:
+    switch kind {
+    case ActionSkip:
+        return parts.Selection, nil
+    case ActionRewrite:
 		instr, cleaned := ExtractInstruction(parts.Selection)
 		if strings.TrimSpace(instr) == "" {
             fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
@@ -62,17 +62,21 @@ func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg a
 		cctx, cancel := timeout10s(ctx)
 		defer cancel()
 		return runDiagnostics(cctx, cfg, client, parts.Diagnostics, parts.Selection)
-	case ActionDocument:
-		cctx, cancel := timeout10s(ctx)
-		defer cancel()
-		return runDocument(cctx, cfg, client, parts.Selection)
-	case ActionGoTest:
-		cctx, cancel := timeout8s(ctx)
-		defer cancel()
-		return runGoTest(cctx, cfg, client, parts.Selection)
-	default:
-		return parts.Selection, nil
-	}
+    case ActionDocument:
+        cctx, cancel := timeout10s(ctx)
+        defer cancel()
+        return runDocument(cctx, cfg, client, parts.Selection)
+    case ActionGoTest:
+        cctx, cancel := timeout8s(ctx)
+        defer cancel()
+        return runGoTest(cctx, cfg, client, parts.Selection)
+    case ActionSimplify:
+        cctx, cancel := timeout10s(ctx)
+        defer cancel()
+        return runSimplify(cctx, cfg, client, parts.Selection)
+    default:
+        return parts.Selection, nil
+    }
 }
 
 // client construction is shared via internal/llmutils

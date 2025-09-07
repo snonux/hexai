@@ -28,6 +28,7 @@ type model struct {
 func newModel() model {
     items := []list.Item{
         item{title: "Rewrite selection", desc: "", kind: ActionRewrite, hotkey: 'r'},
+        item{title: "Simplify and improve", desc: "", kind: ActionSimplify, hotkey: 'i'},
         item{title: "Document code", desc: "", kind: ActionDocument, hotkey: 'c'},
         item{title: "Generate Go unit test(s)", desc: "", kind: ActionGoTest, hotkey: 't'},
         item{title: "Skip", desc: "", kind: ActionSkip, hotkey: 's'},
@@ -77,7 +78,7 @@ func handleKey(m model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
         m.list.Select(0)
     case "end":
         if n := len(m.list.Items()); n > 0 { m.list.Select(n - 1) }
-    case "s", "r", "c", "t":
+    case "s", "r", "c", "t", "i":
         items := m.list.Items()
         for i := 0; i < len(items); i++ {
             if it, ok := items[i].(item); ok && strings.ToLower(string(it.hotkey)) == low {
