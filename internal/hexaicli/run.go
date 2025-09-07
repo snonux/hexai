@@ -13,6 +13,7 @@ import (
     "time"
 
     "codeberg.org/snonux/hexai/internal/appconfig"
+    "codeberg.org/snonux/hexai/internal/editor"
     "codeberg.org/snonux/hexai/internal/logging"
     "codeberg.org/snonux/hexai/internal/llm"
     "codeberg.org/snonux/hexai/internal/llmutils"
@@ -21,16 +22,24 @@ import (
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
 // It assumes flags have already been parsed by the caller.
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	// Load configuration with a logger so file-based config is respected.
-	logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
-	cfg := appconfig.Load(logger)
+    // Load configuration with a logger so file-based config is respected.
+    logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
+    cfg := appconfig.Load(logger)
     client, err := llmutils.NewClientFromApp(cfg)
 	if err != nil {
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
-	// Inline the flow here to use configured CLI prompts.
-	input, rerr := readInput(stdin, args)
+    // No args: open editor to capture a prompt, then combine with stdin as usual.
+    if len(args) == 0 {
+        if prompt, eerr := editor.OpenTempAndEdit([]byte("# Enter your prompt below\n\n")); eerr == nil && strings.TrimSpace(prompt) != "" {
+            args = []string{prompt}
+        } else {
+            // If editor fails or empty, continue; readInput will likely error if no stdin either.
+        }
+    }
+    // Inline the flow here to use configured CLI prompts.
+    input, rerr := readInput(stdin, args)
 	if rerr != nil {
 		fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
 		return rerr

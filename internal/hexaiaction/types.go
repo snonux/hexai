@@ -11,6 +11,7 @@ const (
     ActionDocument    ActionKind = "document"
     ActionGoTest      ActionKind = "gotest"
     ActionSimplify    ActionKind = "simplify"
+    ActionCustom      ActionKind = "custom"
 )
 
 // InputParts represents parsed stdin input for actions.

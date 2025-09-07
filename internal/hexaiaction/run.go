@@ -8,6 +8,7 @@ import (
     "strings"
 
     "codeberg.org/snonux/hexai/internal/appconfig"
+    "codeberg.org/snonux/hexai/internal/editor"
     "codeberg.org/snonux/hexai/internal/logging"
     "codeberg.org/snonux/hexai/internal/llmutils"
 )
@@ -74,6 +75,16 @@ func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg a
         cctx, cancel := timeout10s(ctx)
         defer cancel()
         return runSimplify(cctx, cfg, client, parts.Selection)
+    case ActionCustom:
+        cctx, cancel := timeout10s(ctx)
+        defer cancel()
+        // Open editor for free-form instruction
+        prompt, err := editor.OpenTempAndEdit([]byte("# Enter your instruction below\n\n"))
+        if err != nil || strings.TrimSpace(prompt) == "" {
+            fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
+            return parts.Selection, nil
+        }
+        return runRewrite(cctx, cfg, client, prompt, parts.Selection)
     default:
         return parts.Selection, nil
     }
