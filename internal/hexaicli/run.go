@@ -32,7 +32,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	}
     // No args: open editor to capture a prompt, then combine with stdin as usual.
     if len(args) == 0 {
-        if prompt, eerr := editor.OpenTempAndEdit([]byte("# Enter your prompt below\n\n")); eerr == nil && strings.TrimSpace(prompt) != "" {
+        if prompt, eerr := editor.OpenTempAndEdit(nil); eerr == nil && strings.TrimSpace(prompt) != "" {
             args = []string{prompt}
         } else {
             // If editor fails or empty, continue; readInput will likely error if no stdin either.

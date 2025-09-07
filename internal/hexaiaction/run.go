@@ -79,7 +79,7 @@ func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg a
         cctx, cancel := timeout10s(ctx)
         defer cancel()
         // Open editor for free-form instruction
-        prompt, err := editor.OpenTempAndEdit([]byte("# Enter your instruction below\n\n"))
+        prompt, err := editor.OpenTempAndEdit(nil)
         if err != nil || strings.TrimSpace(prompt) == "" {
             fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
             return parts.Selection, nil
