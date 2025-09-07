@@ -62,6 +62,21 @@ Editor integration
 - Editor resolution: `HEXAI_EDITOR`, falling back to `EDITOR` when unset.
 - Invocation form: `EDITOR /tmp/hexai-XXXX.md` (a temporary Markdown file).
 
+Tmux status line
+
+- Hexai can update a tmux user option during LLM activity. Add this to your `~/.tmux.conf` to display it:
+
+  - `set -g status-right '#{@hexai_status} #[fg=colour8]| %H:%M'`
+
+- Status content is updated best‑effort at key moments:
+  - CLI: start (⏳ provider:model) and completion (✅ model duration)
+  - LSP: after logging aggregate LLM stats (LLM:model)
+  - TUI action runner: ready (model) and completion (✅ model)
+
+- Toggle via environment:
+  - Enable (default): unset or `HEXAI_TMUX_STATUS=1`
+  - Disable: `HEXAI_TMUX_STATUS=0`
+
 Code action prompts
 
 - All prompts can be customized under `[prompts.code_action]` in `config.toml`. In addition to `rewrite_*`, `diagnostics_*`, `document_*`, and `go_test_*`, the following templates control the “Simplify and improve” action:
