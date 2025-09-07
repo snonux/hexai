@@ -3,7 +3,7 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title>hexai-action: Go Coverage Report</title>
+		<title>hexai-lsp: Go Coverage Report</title>
 		<style>
 			body {
 				background: black;
@@ -55,15 +55,15 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">codeberg.org/snonux/hexai/cmd/hexai-action/main.go (0.0%)</option>
+				<option value="file0">codeberg.org/snonux/hexai/cmd/hexai-lsp/main.go (75.0%)</option>
 				
-				<option value="file1">codeberg.org/snonux/hexai/cmd/hexai-lsp/main.go (75.0%)</option>
+				<option value="file1">codeberg.org/snonux/hexai/cmd/hexai-tmux-action/main.go (0.0%)</option>
 				
 				<option value="file2">codeberg.org/snonux/hexai/cmd/hexai/main.go (71.4%)</option>
 				
 				<option value="file3">codeberg.org/snonux/hexai/internal/appconfig/config.go (91.6%)</option>
 				
-				<option value="file4">codeberg.org/snonux/hexai/internal/hexaiaction/cmdentry.go (81.5%)</option>
+				<option value="file4">codeberg.org/snonux/hexai/internal/hexaiaction/cmdentry.go (84.5%)</option>
 				
 				<option value="file5">codeberg.org/snonux/hexai/internal/hexaiaction/parse.go (92.6%)</option>
 				
@@ -144,42 +144,7 @@
 		</div>
 		<div id="content">
 		
-		<pre class="file" id="file0" style="display: none">package main
-
-import (
-    "context"
-    "flag"
-    "fmt"
-    "os"
-
-    "codeberg.org/snonux/hexai/internal/hexaiaction"
-)
-
-func main() <span class="cov0" title="0">{
-    infile := flag.String("infile", "", "Read input from this file instead of stdin")
-    outfile := flag.String("outfile", "", "Write output to this file instead of stdout")
-    forceTmux := flag.Bool("tmux", false, "Force running the UI in a tmux split-pane (auto if not set)")
-    noTmux := flag.Bool("no-tmux", false, "Disable tmux mode even if available")
-    uiChild := flag.Bool("ui-child", false, "INTERNAL: run interactive UI and write to -outfile atomically")
-    tmuxTarget := flag.String("tmux-target", "", "tmux split target (advanced)")
-    tmuxSplit := flag.String("tmux-split", "v", "tmux split orientation: v or h")
-    tmuxPercent := flag.Int("tmux-percent", 33, "tmux split size percentage (1-100)")
-    flag.Parse()
-
-    opts := hexaiaction.Options{
-        Infile: *infile, Outfile: *outfile,
-        ForceTmux: *forceTmux, NoTmux: *noTmux, UIChild: *uiChild,
-        TmuxTarget: *tmuxTarget, TmuxSplit: *tmuxSplit, TmuxPercent: *tmuxPercent,
-    }
-    if err := hexaiaction.RunCommand(context.Background(), opts, os.Stdin, os.Stdout, os.Stderr); err != nil </span><span class="cov0" title="0">{
-        fmt.Fprintln(os.Stderr, err)
-        os.Exit(1)
-    }</span>
-}
-
-</pre>
-		
-		<pre class="file" id="file1" style="display: none">// Summary: Hexai LSP entrypoint; parses flags and delegates to internal/hexailsp.
+		<pre class="file" id="file0" style="display: none">// Summary: Hexai LSP entrypoint; parses flags and delegates to internal/hexailsp.
 package main
 
 import (
@@ -204,6 +169,38 @@ func main() <span class="cov8" title="1">{
                 log.Fatalf("server error: %v", err)
         }</span>
 }
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package main
+
+import (
+    "context"
+    "flag"
+    "fmt"
+    "os"
+
+    "codeberg.org/snonux/hexai/internal/hexaiaction"
+)
+
+func main() <span class="cov0" title="0">{
+    infile := flag.String("infile", "", "Read input from this file instead of stdin")
+    outfile := flag.String("outfile", "", "Write output to this file instead of stdout")
+    uiChild := flag.Bool("ui-child", false, "INTERNAL: run interactive UI and write to -outfile atomically")
+    tmuxTarget := flag.String("tmux-target", "", "tmux split target (advanced)")
+    tmuxSplit := flag.String("tmux-split", "v", "tmux split orientation: v or h")
+    tmuxPercent := flag.Int("tmux-percent", 33, "tmux split size percentage (1-100)")
+    flag.Parse()
+
+    opts := hexaiaction.Options{
+        Infile: *infile, Outfile: *outfile,
+        UIChild: *uiChild, TmuxTarget: *tmuxTarget, TmuxSplit: *tmuxSplit, TmuxPercent: *tmuxPercent,
+    }
+    if err := hexaiaction.RunCommand(context.Background(), opts, os.Stdin, os.Stdout, os.Stderr); err != nil </span><span class="cov0" title="0">{
+        fmt.Fprintln(os.Stderr, err)
+        os.Exit(1)
+    }</span>
+}
+
 </pre>
 		
 		<pre class="file" id="file2" style="display: none">// Summary: Hexai CLI entrypoint; parses flags and delegates to internal/hexaicli.
@@ -1076,75 +1073,55 @@ import (
     "golang.org/x/term"
 )
 
-// Options configures the command-line orchestration for hexai-action.
+// Options configures the command-line orchestration for hexai-tmux-action.
 type Options struct {
     Infile       string
     Outfile      string
-    ForceTmux    bool
-    NoTmux       bool
     UIChild      bool
     TmuxTarget   string
     TmuxSplit    string // "v" or "h"
     TmuxPercent  int    // 1-100
 }
 
-// RunCommand is the CLI orchestrator used by cmd/hexai-action. It decides whether
-// to run inline, in a tmux split pane, or in child mode; then delegates to Run.
-func RunCommand(ctx context.Context, opts Options, stdin io.Reader, stdout, stderr io.Writer) error <span class="cov6" title="3">{
+// RunCommand is the CLI orchestrator used by cmd/hexai-tmux-action. It runs in tmux
+// split-pane mode by default, or child mode when -ui-child is set.
+func RunCommand(ctx context.Context, opts Options, stdin io.Reader, stdout, stderr io.Writer) error <span class="cov4" title="2">{
     if opts.UIChild </span><span class="cov1" title="1">{
         return runChild(ctx, opts.Infile, opts.Outfile, stdout, stderr)
     }</span>
-    <span class="cov4" title="2">if shouldRunInTmux(opts.ForceTmux, opts.NoTmux) </span><span class="cov1" title="1">{
-        return runInTmuxParent(stdin, stdout, opts.TmuxTarget, opts.TmuxSplit, opts.TmuxPercent)
-    }</span>
-    // Inline path: only if we have a TTY for UI; otherwise echo input
-    <span class="cov1" title="1">if isTTYFn(os.Stdout.Fd()) &amp;&amp; isTTYFn(os.Stdin.Fd()) </span><span class="cov0" title="0">{
-        in, out, closeIn, closeOut, err := openIO(opts.Infile, opts.Outfile)
-        if err != nil </span><span class="cov0" title="0">{ return err }</span>
-        <span class="cov0" title="0">defer closeIn(); defer closeOut()
-        return Run(ctx, in, out, stderr)</span>
-    }
-    // Fallback: echo
-    <span class="cov1" title="1">return echoThrough(opts.Infile, opts.Outfile, stdin, stdout)</span>
+    // Always use tmux path
+    <span class="cov1" title="1">return runInTmuxParent(stdin, stdout, opts.TmuxTarget, opts.TmuxSplit, opts.TmuxPercent)</span>
 }
 
 // seams for unit tests
 var isTTYFn = func(fd uintptr) bool <span class="cov0" title="0">{ return term.IsTerminal(int(fd)) }</span>
-var tmuxAvailableFn = tmux.Available
 var splitRunFn = tmux.SplitRun
 var osExecutableFn = os.Executable
 var runFn = Run
 
-func shouldRunInTmux(forceTmux, noTmux bool) bool <span class="cov10" title="7">{
-    if noTmux </span><span class="cov4" title="2">{ return false }</span>
-    <span class="cov8" title="5">if forceTmux </span><span class="cov4" title="2">{ return true }</span>
-    <span class="cov6" title="3">if !(isTTYFn(os.Stdin.Fd()) &amp;&amp; isTTYFn(os.Stdout.Fd())) &amp;&amp; tmuxAvailableFn() </span><span class="cov1" title="1">{ return true }</span>
-    <span class="cov4" title="2">return false</span>
-}
-
 // openIO returns readers/writers for infile/outfile flags with deferred closers.
-func openIO(infile, outfile string) (io.Reader, io.Writer, func(), func(), error) <span class="cov6" title="3">{
+func openIO(infile, outfile string) (io.Reader, io.Writer, func(), func(), error) <span class="cov7" title="3">{
     in := io.Reader(os.Stdin)
     out := io.Writer(os.Stdout)
     closeIn := func() </span>{<span class="cov0" title="0">}</span>
-    <span class="cov6" title="3">closeOut := func() </span>{<span class="cov0" title="0">}</span>
-    <span class="cov6" title="3">if path := infile; path != "" </span><span class="cov6" title="3">{
+    <span class="cov7" title="3">closeOut := func() </span>{<span class="cov0" title="0">}</span>
+    <span class="cov7" title="3">if path := infile; path != "" </span><span class="cov7" title="3">{
         f, err := os.Open(path)
-        if err != nil </span><span class="cov0" title="0">{ return nil, nil, func()</span>{<span class="cov0" title="0">}</span>, func(){<span class="cov0" title="0">}</span>, fmt.Errorf("hexai-action: cannot open infile: %w", err) }
-        <span class="cov6" title="3">in = f
-        closeIn = func() </span><span class="cov6" title="3">{ _ = f.Close() }</span>
+        if err != nil </span><span class="cov0" title="0">{ return nil, nil, func()</span>{<span class="cov0" title="0">}</span>, func(){<span class="cov0" title="0">}</span>, fmt.Errorf("hexai-tmux-action: cannot open infile: %w", err) }
+        <span class="cov7" title="3">in = f
+        closeIn = func() </span><span class="cov7" title="3">{ _ = f.Close() }</span>
     }
-    <span class="cov6" title="3">if path := outfile; path != "" </span><span class="cov6" title="3">{
+    <span class="cov7" title="3">if path := outfile; path != "" </span><span class="cov7" title="3">{
         f, err := os.Create(path)
-        if err != nil </span><span class="cov0" title="0">{ return nil, nil, func()</span>{<span class="cov0" title="0">}</span>, func(){<span class="cov0" title="0">}</span>, fmt.Errorf("hexai-action: cannot open outfile: %w", err) }
-        <span class="cov6" title="3">out = f
-        closeOut = func() </span><span class="cov6" title="3">{ _ = f.Close() }</span>
+        if err != nil </span><span class="cov0" title="0">{ return nil, nil, func()</span>{<span class="cov0" title="0">}</span>, func(){<span class="cov0" title="0">}</span>, fmt.Errorf("hexai-tmux-action: cannot open outfile: %w", err) }
+        <span class="cov7" title="3">out = f
+        closeOut = func() </span><span class="cov7" title="3">{ _ = f.Close() }</span>
     }
-    <span class="cov6" title="3">return in, out, closeIn, closeOut, nil</span>
+    <span class="cov7" title="3">return in, out, closeIn, closeOut, nil</span>
 }
 
 // runChild runs the interactive flow and writes the final output atomically when outfile is set.
-func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Writer) error <span class="cov6" title="3">{
+func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Writer) error <span class="cov7" title="3">{
     if outfile == "" </span><span class="cov1" title="1">{
         // No atomic handoff needed; just run normally to provided stdout
         var in io.Reader = os.Stdin
@@ -1163,7 +1140,7 @@ func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Wri
     if err := runFn(ctx, in, out, stderr); err != nil </span><span class="cov0" title="0">{
         closeOut()
         if copyErr := echoThrough(infile, tmp, os.Stdin, stdout); copyErr != nil </span><span class="cov0" title="0">{
-            return fmt.Errorf("hexai-action child: %v; echo failed: %v", err, copyErr)
+            return fmt.Errorf("hexai-tmux-action child: %v; echo failed: %v", err, copyErr)
         }</span>
     } else<span class="cov4" title="2"> {
         closeOut()
@@ -1171,35 +1148,35 @@ func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Wri
     <span class="cov4" title="2">return os.Rename(tmp, outfile)</span>
 }
 
-func runInTmuxParent(stdin io.Reader, stdout io.Writer, target, split string, percent int) error <span class="cov7" title="4">{
-    dir, err := os.MkdirTemp("", "hexai-action-")
+func runInTmuxParent(stdin io.Reader, stdout io.Writer, target, split string, percent int) error <span class="cov8" title="4">{
+    dir, err := os.MkdirTemp("", "hexai-tmux-action-")
     if err != nil </span><span class="cov0" title="0">{ return err }</span>
-    <span class="cov7" title="4">defer func() </span><span class="cov7" title="4">{ _ = os.RemoveAll(dir) }</span>()
-    <span class="cov7" title="4">inPath := filepath.Join(dir, "input.txt")
+    <span class="cov8" title="4">defer func() </span><span class="cov8" title="4">{ _ = os.RemoveAll(dir) }</span>()
+    <span class="cov8" title="4">inPath := filepath.Join(dir, "input.txt")
     outPath := filepath.Join(dir, "reply.txt")
     if err := persistStdin(inPath, stdin); err != nil </span><span class="cov0" title="0">{ return err }</span>
-    <span class="cov7" title="4">exe, err := osExecutableFn()
+    <span class="cov8" title="4">exe, err := osExecutableFn()
     if err != nil </span><span class="cov1" title="1">{ return err }</span>
-    <span class="cov6" title="3">argv := []string{exe, "-ui-child", "-infile", inPath, "-outfile", outPath}
+    <span class="cov7" title="3">argv := []string{exe, "-ui-child", "-infile", inPath, "-outfile", outPath}
     opts := tmux.SplitOpts{Target: target, Vertical: split != "h", Percent: percent}
     if err := splitRunFn(opts, argv); err != nil </span><span class="cov1" title="1">{ return err }</span>
     <span class="cov4" title="2">if err := waitForFile(outPath, 60*time.Second); err != nil </span><span class="cov0" title="0">{ return err }</span>
     <span class="cov4" title="2">return catFileTo(stdout, outPath)</span>
 }
 
-func persistStdin(path string, stdin io.Reader) error <span class="cov8" title="5">{
+func persistStdin(path string, stdin io.Reader) error <span class="cov10" title="5">{
     f, err := os.Create(path)
     if err != nil </span><span class="cov0" title="0">{ return err }</span>
-    <span class="cov8" title="5">defer func() </span><span class="cov8" title="5">{ _ = f.Close() }</span>()
-    <span class="cov8" title="5">if _, err := io.Copy(f, stdin); err != nil </span><span class="cov0" title="0">{ return err }</span>
-    <span class="cov8" title="5">return f.Sync()</span>
+    <span class="cov10" title="5">defer func() </span><span class="cov10" title="5">{ _ = f.Close() }</span>()
+    <span class="cov10" title="5">if _, err := io.Copy(f, stdin); err != nil </span><span class="cov0" title="0">{ return err }</span>
+    <span class="cov10" title="5">return f.Sync()</span>
 }
 
-func waitForFile(path string, timeout time.Duration) error <span class="cov6" title="3">{
+func waitForFile(path string, timeout time.Duration) error <span class="cov7" title="3">{
     deadline := time.Now().Add(timeout)
-    for </span><span class="cov7" title="4">{
+    for </span><span class="cov8" title="4">{
         if _, err := os.Stat(path); err == nil </span><span class="cov4" title="2">{ return nil }</span>
-        <span class="cov4" title="2">if time.Now().After(deadline) </span><span class="cov1" title="1">{ return fmt.Errorf("hexai-action: timeout waiting for reply file") }</span>
+        <span class="cov4" title="2">if time.Now().After(deadline) </span><span class="cov1" title="1">{ return fmt.Errorf("hexai-tmux-action: timeout waiting for reply file") }</span>
         <span class="cov1" title="1">time.Sleep(200 * time.Millisecond)</span>
     }
 }
@@ -1212,7 +1189,8 @@ func catFileTo(w io.Writer, path string) error <span class="cov4" title="2">{
     return err</span>
 }
 
-func echoThrough(infile, outfile string, stdin io.Reader, stdout io.Writer) error <span class="cov6" title="3">{
+// echoThrough no longer used in tmux-only flow, but kept for potential reuse.
+func echoThrough(infile, outfile string, stdin io.Reader, stdout io.Writer) error <span class="cov4" title="2">{
     var in io.Reader = stdin
     var out io.Writer = stdout
     if infile != "" </span><span class="cov1" title="1">{
@@ -1221,13 +1199,13 @@ func echoThrough(infile, outfile string, stdin io.Reader, stdout io.Writer) erro
         <span class="cov1" title="1">defer func() </span><span class="cov1" title="1">{ _ = f.Close() }</span>()
         <span class="cov1" title="1">in = f</span>
     }
-    <span class="cov6" title="3">if outfile != "" </span><span class="cov1" title="1">{
+    <span class="cov4" title="2">if outfile != "" </span><span class="cov1" title="1">{
         f, err := os.Create(outfile)
         if err != nil </span><span class="cov0" title="0">{ return err }</span>
         <span class="cov1" title="1">defer func() </span><span class="cov1" title="1">{ _ = f.Close() }</span>()
         <span class="cov1" title="1">out = f</span>
     }
-    <span class="cov6" title="3">_, err := io.Copy(out, in)
+    <span class="cov4" title="2">_, err := io.Copy(out, in)
     return err</span>
 }
 </pre>
@@ -1410,26 +1388,26 @@ import (
     "codeberg.org/snonux/hexai/internal/llmutils"
 )
 
-// Run executes the hexai-action command flow.
+// Run executes the hexai-tmux-action command flow.
 // seams for testability
 var chooseActionFn = RunTUI
 var newClientFromApp = llmutils.NewClientFromApp
 
 func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error <span class="cov6" title="3">{
-    logger := log.New(stderr, "hexai-action ", log.LstdFlags|log.Lmsgprefix)
+    logger := log.New(stderr, "hexai-tmux-action ", log.LstdFlags|log.Lmsgprefix)
     cfg := appconfig.Load(logger)
     client, err := newClientFromApp(cfg)
     if err != nil </span><span class="cov1" title="1">{
-        fmt.Fprintf(stderr, logging.AnsiBase+"hexai-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+        fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
         return err
     }</span>
     <span class="cov4" title="2">parts, err := ParseInput(stdin)
         if err != nil </span><span class="cov0" title="0">{
-                fmt.Fprintln(stderr, logging.AnsiBase+"hexai-action: failed to read input"+logging.AnsiReset)
+        fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: failed to read input"+logging.AnsiReset)
                 return err
         }</span>
         <span class="cov4" title="2">if strings.TrimSpace(parts.Selection) == "" </span><span class="cov0" title="0">{
-                return fmt.Errorf("hexai-action: no input provided on stdin")
+        return fmt.Errorf("hexai-tmux-action: no input provided on stdin")
         }</span>
     <span class="cov4" title="2">kind, err := chooseActionFn()
     if err != nil </span><span class="cov0" title="0">{
@@ -1450,7 +1428,7 @@ func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg a
         case ActionRewrite:<span class="cov4" title="2">
                 instr, cleaned := ExtractInstruction(parts.Selection)
                 if strings.TrimSpace(instr) == "" </span><span class="cov0" title="0">{
-                        fmt.Fprintln(stderr, logging.AnsiBase+"hexai-action: no inline instruction found; echoing input"+logging.AnsiReset)
+            fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
                         return parts.Selection, nil
                 }</span>
                 <span class="cov4" title="2">cctx, cancel := timeout10s(ctx)

@@ -33,7 +33,7 @@ func newModel() model {
         item{title: "Skip", desc: "", kind: ActionSkip, hotkey: 's'},
     }
     l := list.New(items, oneLineDelegate{}, 0, 0)
-    l.Title = "Select Hexai Action"
+    l.SetShowTitle(false)
     l.SetShowHelp(false)
     l.SetShowStatusBar(false)
     l.SetFilteringEnabled(false)
