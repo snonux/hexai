@@ -6,7 +6,6 @@ import (
     "io"
     "os"
     "path/filepath"
-    "strings"
     "testing"
 
     "codeberg.org/snonux/hexai/internal/tmux"
@@ -30,12 +29,10 @@ func TestRunCommand_UIChild(t *testing.T) {
 
 func TestRunCommand_Tmux(t *testing.T) {
     oldTTY := isTTYFn
-    oldAvail := tmuxAvailableFn
     oldExec := osExecutableFn
     oldSplit := splitRunFn
     isTTYFn = func(_ uintptr) bool { return false }
-    tmuxAvailableFn = func() bool { return true }
-    osExecutableFn = func() (string, error) { return "/bin/hexai-action", nil }
+    osExecutableFn = func() (string, error) { return "/bin/hexai-tmux-action", nil }
     splitRunFn = func(_ tmux.SplitOpts, argv []string) error {
         for i := 0; i < len(argv)-1; i++ {
             if argv[i] == "-outfile" && i+1 < len(argv) {
@@ -45,9 +42,9 @@ func TestRunCommand_Tmux(t *testing.T) {
         }
         return nil
     }
-    defer func(){ isTTYFn = oldTTY; tmuxAvailableFn = oldAvail; osExecutableFn = oldExec; splitRunFn = oldSplit }()
+    defer func(){ isTTYFn = oldTTY; osExecutableFn = oldExec; splitRunFn = oldSplit }()
     var out bytes.Buffer
-    if err := RunCommand(context.Background(), Options{ForceTmux: true}, bytes.NewBufferString("X"), &out, io.Discard); err != nil {
+    if err := RunCommand(context.Background(), Options{}, bytes.NewBufferString("X"), &out, io.Discard); err != nil {
         t.Fatalf("RunCommand tmux: %v", err)
     }
     if out.String() != "OUT" { t.Fatalf("stdout: %q", out.String()) }
@@ -56,15 +53,4 @@ func TestRunCommand_Tmux(t *testing.T) {
 // Inline TTY path is exercised implicitly via other helpers; testing it directly
 // would require TTY simulation which is brittle in unit tests.
 
-func TestRunCommand_FallbackEcho(t *testing.T) {
-    oldTTY := isTTYFn
-    oldAvail := tmuxAvailableFn
-    isTTYFn = func(_ uintptr) bool { return false }
-    tmuxAvailableFn = func() bool { return false }
-    defer func(){ isTTYFn = oldTTY; tmuxAvailableFn = oldAvail }()
-    var out bytes.Buffer
-    if err := RunCommand(context.Background(), Options{NoTmux: true}, bytes.NewBufferString("Z"), &out, io.Discard); err != nil {
-        t.Fatalf("RunCommand fallback: %v", err)
-    }
-    if strings.TrimSpace(out.String()) != "Z" { t.Fatalf("stdout: %q", out.String()) }
-}
+// Fallback echo path removed in tmux-only flow.

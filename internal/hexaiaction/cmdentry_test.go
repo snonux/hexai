@@ -13,24 +13,7 @@ import (
     "codeberg.org/snonux/hexai/internal/tmux"
 )
 
-func TestShouldRunInTmux_Preferences(t *testing.T) {
-    if shouldRunInTmux(false, true) { t.Fatal("expected false when no-tmux is set") }
-    if !shouldRunInTmux(true, false) { t.Fatal("expected true when -tmux is set") }
-}
-
-func TestShouldRunInTmux_Auto(t *testing.T) {
-    oldIsTTY := isTTYFn
-    oldAvail := tmuxAvailableFn
-    t.Cleanup(func() { isTTYFn = oldIsTTY; tmuxAvailableFn = oldAvail })
-    isTTYFn = func(_ uintptr) bool { return false }
-    tmuxAvailableFn = func() bool { return true }
-    if !shouldRunInTmux(false, false) { t.Fatal("expected true when not TTY and tmux available") }
-    isTTYFn = func(_ uintptr) bool { return true }
-    if shouldRunInTmux(false, false) { t.Fatal("expected false when TTY present") }
-    isTTYFn = func(_ uintptr) bool { return false }
-    tmuxAvailableFn = func() bool { return false }
-    if shouldRunInTmux(false, false) { t.Fatal("expected false when tmux unavailable") }
-}
+// tmux-only flow: decision helpers removed.
 
 func TestPersistStdin_WritesFile(t *testing.T) {
     dir := t.TempDir()
@@ -78,7 +61,7 @@ func TestRunInTmuxParent_Stubbed(t *testing.T) {
     rout, wout, _ := os.Pipe()
     oldExec := osExecutableFn
     oldSplit := splitRunFn
-    osExecutableFn = func() (string, error) { return "/bin/hexai-action", nil }
+    osExecutableFn = func() (string, error) { return "/bin/hexai-tmux-action", nil }
     splitRunFn = func(opts tmux.SplitOpts, argv []string) error {
         for i := 0; i < len(argv)-1; i++ {
             if argv[i] == "-outfile" && i+1 < len(argv) {
@@ -106,7 +89,7 @@ func TestRunInTmuxParent_ExecutableError(t *testing.T) {
 
 func TestRunInTmuxParent_SplitError(t *testing.T) {
     oldExec := osExecutableFn
-    osExecutableFn = func() (string, error) { return "/bin/hexai-action", nil }
+    osExecutableFn = func() (string, error) { return "/bin/hexai-tmux-action", nil }
     oldSplit := splitRunFn
     splitRunFn = func(_ tmux.SplitOpts, _ []string) error { return fmt.Errorf("split failed") }
     t.Cleanup(func() { osExecutableFn = oldExec; splitRunFn = oldSplit })

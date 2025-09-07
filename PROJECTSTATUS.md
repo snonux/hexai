@@ -15,7 +15,7 @@ Or maybe
 
 ```
 [keys.normal]
-C-p = ":sh hexai-action"
+C-p = ":sh hexai-tmux-action"
 ```
 
 And then generate a menu with all the code actions hexai-lsp knows of and include hotkeys for each menu item! Also print out a notice that this is a work-around due to limitations in Helix's current LSP UI.

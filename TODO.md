@@ -1,13 +1,13 @@
-Comprehensive plan: integrate Helix + tmux flow into hexai-action
+Comprehensive plan: integrate Helix + tmux flow into hexai-tmux-action
 
 Summary of current setup
-- Helix keybinding pipes selection to `ai`, which dispatches to `hx.hexai-action-prompt` for hexai-action mode.
-- `hx.hexai-action-prompt` writes stdin to `~/.hx-action-input`, opens a tmux split-pane, runs `hexai-action -infile <input> -outfile <reply>.tmp`, then atomically renames to `<reply>` and prints the reply back to Helix.
+- Helix keybinding pipes selection to the tmux action command.
+- The tmux action writes stdin to a temp file, opens a tmux split-pane, runs `hexai-tmux-action -infile <input> -outfile <reply>.tmp`, then atomically renames to `<reply>` and prints the reply back to Helix.
 - This works but requires shell scripts and out-of-band temp files.
 
 Goal
-- Helix should call hexai-action directly: `:pipe hexai-action`.
-- hexai-action itself handles: reading stdin; presenting TUI in a tmux pane (when needed); executing the chosen action; printing the result to stdout for Helix to apply.
+- Helix should call hexai-tmux-action directly: `:pipe hexai-tmux-action`.
+- hexai-tmux-action itself handles: reading stdin; presenting TUI in a tmux pane; executing the chosen action; printing the result to stdout for Helix to apply.
 - Consolidate all tmux logic in a reusable `internal/tmux` package for future features.
 
 Proposed CLI/UX
@@ -28,7 +28,7 @@ High-level design
 1) IO orchestration (parent process)
    - Determine whether to show TUI inline or via tmux based on TTY detection and `-tmux`/`-no-tmux`.
    - Inline path: run current `hexaiaction.Run(ctx, in, out, err)` (unchanged behavior) and exit.
-   - Tmux path: write stdin to a secure temp file, spawn a tmux split-pane that executes a `hexai-action -ui-child -infile <in> -outfile <out>.tmp`, wait for completion (by process exit and/or file rename), then print `<out>` to stdout.
+  - Tmux path: write stdin to a secure temp file, spawn a tmux split-pane that executes a `hexai-tmux-action -ui-child -infile <in> -outfile <out>.tmp`, wait for completion (by process exit and/or file rename), then print `<out>` to stdout.
 
 2) Child/TUI execution (`-ui-child`)
    - Read from `-infile`, parse input (diagnostics + selection), construct LLM client, show Bubble Tea menu, run selected action, write result to `-outfile.tmp`, fsync, rename to `-outfile`.
@@ -47,7 +47,7 @@ High-level design
    - Implementation details:
      - Shell out to `tmux` (no lib dep). Build command like: `tmux split-window -v -p 33 "<cmd>"`.
      - Quote/escape argv safely. Prefer `exec.Command` for the child in a shell wrapper, or join argv for `tmux`’s command string.
-     - Avoid writing to `~/.hx-*`; use `os.CreateTemp("", "hexai-action-*" )` under `$TMPDIR`.
+     - Avoid writing to `~/.hx-*`; use `os.CreateTemp("", "hexai-tmux-action-*" )` under `$TMPDIR`.
 
 4) hexaiaction refactor (internal package)
    - Separate concerns to keep functions small/testable:
@@ -61,15 +61,14 @@ High-level design
    - Timeouts: child actions already use short timeouts; parent wait for outfile should have a reasonable deadline (e.g., 60s) to avoid hanging Helix.
    - Atomic writes: write to `outfile.tmp`, `Sync`, then `Rename` for a clear completion signal.
    - Cleanup: always remove temp files (defer and signal handling for SIGINT/SIGTERM).
-   - Logging: log to stderr with clear `hexai-action` prefixes; keep stdout clean for Helix’s `:pipe`.
+   - Logging: log to stderr with clear `hexai-tmux-action` prefixes; keep stdout clean for Helix’s `:pipe`.
 
 Helix configuration after change
 - Replace the current keybinding pipeline with a single call:
-  - `C-a = ":pipe hexai-action"`
-- Optional: users can force tmux pane with `:pipe hexai-action -tmux` or disable with `:pipe hexai-action -no-tmux` if auto-detection does not fit their setup.
+  - `C-a = ":pipe hexai-tmux-action"`
 
 Migration plan
-1) Implement tmux package and integrate auto-mode in `cmd/hexai-action/main.go`.
+1) Implement tmux package and integrate auto-mode in `cmd/hexai-tmux-action/main.go`.
 2) Keep legacy flags (`-infile`, `-outfile`) for compatibility and tests.
 3) Update README and docs to show new Helix keybinding and describe flags.
 4) Mark shell scripts (`llminputs/ai`, `llminputs/hx.hexai-action-prompt`) as deprecated in repo notes; retain them temporarily.
@@ -78,7 +77,7 @@ Migration plan
 Testing plan
 - Unit tests:
   - `internal/tmux`: mock `exec.Command` via a small command-runner interface; verify command assembly and availability checks.
-  - `internal/hexaiaction`: tests for parent decision logic (TTY vs pipe; tmux available vs not) using injectable detectors.
+  - `internal/hexaiaction`: tests for tmux split orchestration and child flow.
   - hexaiaction: existing tests continue to pass; add tests for non-interactive fallback behavior when no TTY.
 - Integration tests (manual or scripted):
   - Run under tmux: verify a pane opens, TUI choice is applied, stdout contains result.
@@ -93,7 +92,7 @@ Edge cases and mitigations
 
 Implementation steps (incremental)
 1) Add `internal/tmux` with `Available`, `SplitRun`, and helpers.
-2) Add TTY detection helper to `internal/hexaiaction` and wire flags (`-tmux`, `-no-tmux`, `-ui-child`).
+2) Wire flags (`-ui-child`, `-tmux-target`, `-tmux-split`, `-tmux-percent`).
 3) Parent flow: detect mode, manage temp files, spawn child via tmux when selected, wait/print result.
 4) Child flow: reuse existing `hexaiaction.Run` to keep logic centralized; ensure outfile atomic write.
 5) Docs: update README with new Helix config and flags.
@@ -101,22 +100,22 @@ Implementation steps (incremental)
 
 Notes on code organization
 - Place all tmux-related code under `internal/tmux` and keep functions well under 50 lines.
-- Keep command entrypoint (`cmd/hexai-action/main.go`) small and focused on wiring/mode selection.
+- Keep command entrypoint (`cmd/hexai-tmux-action/main.go`) small and focused on wiring/mode selection.
 - Avoid duplication across `hexaiaction` and `tmux`; IO/file and action logic remain in `hexaiaction`.
 
 Outcome
-- One-step Helix integration (`:pipe hexai-action`).
+- One-step Helix integration (`:pipe hexai-tmux-action`).
 - No helper scripts required; cross-platform friendly with graceful fallbacks.
 - Reusable tmux utilities for future features.
 
 Progress
 - [x] Add `internal/tmux` with `Available`, `SplitRun`, quoting helpers.
-- [x] Wire flags in `hexai-action`: `-tmux`, `-no-tmux`, `-ui-child`, `-tmux-target`, `-tmux-split`, `-tmux-percent`.
+- [x] Wire flags in tmux action: `-ui-child`, `-tmux-target`, `-tmux-split`, `-tmux-percent`.
 - [x] Parent tmux orchestration: write stdin to temp, split tmux, wait for outfile, print to stdout.
 - [x] Child mode: atomic `outfile.tmp` write and rename, with error echo fallback.
-- [x] Unit tests for `internal/tmux` and tmux decision logic in `hexai-action` (validate locally; target ≥85% coverage for new code).
+- [x] Unit tests for `internal/tmux` and tmux orchestration in action (validate locally; target ≥85% coverage for new code).
 - [x] Update README/docs for new Helix keybinding and flags.
 - [ ] Delete legacy helper scripts (`llminputs/ai`, `llminputs/hx.hexai-action-prompt`) when ready; no deprecation notice.
 - [x] Ran coverage locally. Notes:
   - `mage coverage` now passes (HTML at docs/coverage.html). Total cross-package coverage ≈ 84%.
-  - New package `internal/tmux` is ≥85% covered. The `hexai-action` entrypoint package sits ~69% overall; newly added helper paths are covered (openIO, runChild, runInTmuxParent, echoThrough, waitForFile, etc.). The inline TTY UI path and `main()` remain intentionally untested.
+  - New package `internal/tmux` is ≥85% covered. The action entrypoint package sits ~69% overall; newly added helper paths are covered (openIO, runChild, runInTmuxParent, etc.). The `main()` remains intentionally untested.

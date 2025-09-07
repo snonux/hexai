@@ -42,11 +42,11 @@ Hexai Action (TUI) configuration
 
 This is mostly useful when Helix runs in a [tmux](https://tmux.github.io/) session!
 
-- Helix integration (recommended): bind a key to pipe the current selection to `hexai-action` and replace it with the output.
-  - Example: `C-a = ":pipe hexai-action"`
+- Helix integration (recommended): bind a key to pipe the current selection to `hexai-tmux-action` and replace it with the output.
+  - Example: `C-a = ":pipe hexai-tmux-action"`
 - Default behavior:
   - Inline TUI when run in a real terminal (TTY).
-  - When invoked via Helix `:pipe` and a tmux session is available, `hexai-action` opens a split pane to render the menu and returns the result on stdout for Helix to apply.
+  - When invoked via Helix `:pipe`, `hexai-tmux-action` opens a split pane to render the menu and returns the result on stdout for Helix to apply.
   - If no TTY and no tmux are available, it falls back to echoing the input.
 - Flags:
   - `--infile`  Read input from the given file instead of stdin.
