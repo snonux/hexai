@@ -13,6 +13,7 @@ It has got improved capabilities for Go code understanding (for example, create 
 * LSP in-editor chat with the LLM
 * Stand-alone command line tool for LLM interaction
 * TUI code-action runner (`hexai-tmux-action`) with Bubble Tea
+  - Includes a “Custom prompt” action (hotkey `p`) that opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary Markdown file.
 * Support for OpenAI, GitHub Copilot, and Ollama
 
 ## Documentation
@@ -43,3 +44,8 @@ Either use the Mage method as mentioned above, or install directly with:
 - CLI: `go install codeberg.org/snonux/hexai/cmd/hexai@latest`
 - LSP: `go install codeberg.org/snonux/hexai/cmd/hexai-lsp@latest`
 - Action runner: `go install codeberg.org/snonux/hexai/cmd/hexai-tmux-action@latest`
+
+## Hexai CLI
+
+- When invoked without arguments, `hexai` opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary `.md` file to capture a prompt, and combines it with any piped stdin.
+- With arguments, behavior is unchanged (no editor spawn).
