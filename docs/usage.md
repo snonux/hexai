@@ -110,7 +110,13 @@ hexai 'install ripgrep on macOS and explain'
 - Choose an action with arrow keys, `j/k`, `g/G`, Enter, or hotkeys `[s] [r] [c] [t]`.
 - Output is written to stdout by default, or to a file via `--outfile`.
 
-Input formats are the same as described in the README (inline instruction markers for rewrite; optional `Diagnostics:` header block).
+Input formats
+
+- Rewrite: include an inline instruction near the top of the selection using one of:
+  - `;do something;`
+  - `/* do something */`
+  - `<!-- do something -->`
+  - `// do something` (or `#`, `--`)
 
 Examples
 

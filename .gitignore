@@ -8,4 +8,5 @@
 /docs/coverage/
 /docs/*.out
 /docs/*.html
+/llminputs
 llm.out

@@ -34,3 +34,24 @@ func TestHandleKey_JumpEndWithG(t *testing.T) {
     }
 }
 
+func TestItemMethods(t *testing.T) {
+    it := item{title: "T", desc: "D", kind: ActionRewrite, hotkey: 'r'}
+    if it.Title() != "T" || it.Description() != "D" || it.FilterValue() != "T" {
+        t.Fatalf("item methods wrong: %+v", it)
+    }
+}
+
+func TestModelInitAndViewAndUpdate(t *testing.T) {
+    m := newModel()
+    if m.Init() != nil {
+        t.Fatalf("Init should return nil cmd")
+    }
+    if v := m.View(); v == "" {
+        t.Fatalf("View should not be empty before done")
+    }
+    // Window resize
+    nm, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+    if _, ok := nm.(model); !ok {
+        t.Fatalf("expected model after WindowSizeMsg")
+    }
+}

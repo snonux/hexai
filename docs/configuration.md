@@ -30,23 +30,30 @@ API keys:
 Selecting a provider
 
 - Sectioned: set `[provider] name = "openai" | "copilot" | "ollama"`.
-- Flat: set `provider = "openai" | "copilot" | "ollama"`.
 - If omitted, Hexai defaults to `openai`.
 
-Provider-specific options
-
-- See [config.toml.example](../config.toml.example) for the per-provider tables and defaults.
-
-Notes:
+Notes on Ollama:
 
 - Ensure the model is available locally (e.g., `ollama pull qwen3-coder:30b-a3b-q4_K_M`).
 - Alternatively, run Ollama in OpenAI‑compatible mode and use the OpenAI provider with
   `openai_base_url` pointed at your local endpoint.
 
-LSP completion tuning
+Hexai Action (TUI) configuration
 
-- See the [completion] section in [config.toml.example](../config.toml.example).
+This is mostly useful when Helix runs in a [tmux](https://tmux.github.io/) session!
 
-Temperature behavior
-
-- Defaults and recommended ranges are commented inline in [config.toml.example](../config.toml.example) under [general] and provider tables.
+- Helix integration (recommended): bind a key to pipe the current selection to `hexai-action` and replace it with the output.
+  - Example: `C-a = ":pipe hexai-action"`
+- Default behavior:
+  - Inline TUI when run in a real terminal (TTY).
+  - When invoked via Helix `:pipe` and a tmux session is available, `hexai-action` opens a split pane to render the menu and returns the result on stdout for Helix to apply.
+  - If no TTY and no tmux are available, it falls back to echoing the input.
+- Flags:
+  - `--infile`  Read input from the given file instead of stdin.
+  - `--outfile` Write output to the given file instead of stdout (truncates/creates).
+  - `--tmux` force tmux-pane mode.
+  - `--no-tmux` disable tmux mode even if available.
+  - `--tmux-target` tmux target pane/window (advanced).
+  - `--tmux-split v|h` split orientation (default: `v`).
+  - `--tmux-percent N` split size percentage (default: `33`).
+  - `--ui-child` internal; used by the parent process when spawning inside tmux.

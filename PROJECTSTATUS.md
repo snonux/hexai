@@ -18,10 +18,25 @@ Or maybe
 C-p = ":sh hexai-action"
 ```
 
-
 And then generate a menu with all the code actions hexai-lsp knows of and include hotkeys for each menu item! Also print out a notice that this is a work-around due to limitations in Helix's current LSP UI.
 
 ### More features
+
+* [ ] Kagi FastGPT for in-editor search
+  - Think about an in-editor chat trigger, maybe with S> for search!
+* [ ] Test whethe GitHub Copilot support actually works now, and if not, fix it!
+
+> It looks like your message is:
+
+```
+- >foo bar baz?
+```
+
+Could you clarify what you mean or what you’re asking for?  
+- If you’re asking about the syntax, `>foo bar baz` is not standard in most programming languages.
+- If you’re referencing a command-line or shell prompt, `foo bar baz` could be a command (`foo`) with arguments (`bar` and `baz`).
+- If you’re asking about a specific language or context, please provide more details so I can help you better!
+
 
 * [/] implement a code action for selected code block the way via a unix pipe as faster access in helix
   - pipe selected code to external command and replace selection with output

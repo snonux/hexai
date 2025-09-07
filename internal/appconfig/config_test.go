@@ -22,6 +22,20 @@ func writeFile(t *testing.T, path, content string) {
 	}
 }
 
+// clearHexaiEnv removes any HEXAI_* variables to prevent environment leakage
+// into tests that expect file-only configuration.
+func clearHexaiEnv(t *testing.T) {
+    t.Helper()
+    for _, e := range os.Environ() {
+        if strings.HasPrefix(e, "HEXAI_") {
+            kv := strings.SplitN(e, "=", 2)
+            if len(kv) > 0 {
+                t.Setenv(kv[0], "")
+            }
+        }
+    }
+}
+
 func withEnv(t *testing.T, k, v string) {
 	t.Helper()
 	old := os.Getenv(k)
@@ -40,9 +54,10 @@ func TestLoad_Defaults_NoLogger(t *testing.T) {
 }
 
 func TestLoad_Defaults_WithLogger_NoFile_NoEnv(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	logger := newLogger()
-	cfg := Load(logger)
+    clearHexaiEnv(t)
+    t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+    logger := newLogger()
+    cfg := Load(logger)
 	def := newDefaultConfig()
 	if cfg.MaxTokens != def.MaxTokens || cfg.ContextMode != def.ContextMode || cfg.ContextWindowLines != def.ContextWindowLines {
 		t.Fatalf("expected defaults; got %+v want %+v", cfg, def)
@@ -192,8 +207,9 @@ func TestLoadFromFile_InvalidTOML(t *testing.T) {
 }
 
 func TestLoad_FileTables_Sectioned(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", dir)
+    clearHexaiEnv(t)
+    dir := t.TempDir()
+    t.Setenv("XDG_CONFIG_HOME", dir)
 	cfgPath := filepath.Join(dir, "hexai", "config.toml")
 	content := `
 [general]
@@ -274,8 +290,9 @@ temperature = 0.0
 }
 
 func TestLoad_FileTables_Prompts_AllSections(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", dir)
+    clearHexaiEnv(t)
+    dir := t.TempDir()
+    t.Setenv("XDG_CONFIG_HOME", dir)
 	cfgPath := filepath.Join(dir, "hexai", "config.toml")
 	content := `
 [prompts.completion]
