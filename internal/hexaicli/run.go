@@ -17,6 +17,7 @@ import (
     "codeberg.org/snonux/hexai/internal/logging"
     "codeberg.org/snonux/hexai/internal/llm"
     "codeberg.org/snonux/hexai/internal/llmutils"
+    "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
@@ -123,8 +124,10 @@ func buildMessagesFromConfig(cfg appconfig.App, input string) []llm.Message {
 
 // runChat executes the chat request, handling streaming and summary output.
 func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input string, out io.Writer, errw io.Writer) error {
-	start := time.Now()
-	var output string
+    start := time.Now()
+    // Best-effort tmux status update
+    _ = tmux.SetStatus("⏳ " + client.Name() + ":" + client.DefaultModel())
+    var output string
 	if s, ok := client.(llm.Streamer); ok {
 		var b strings.Builder
 		if err := s.ChatStream(ctx, msgs, func(chunk string) {
@@ -142,10 +145,11 @@ func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input s
 		output = txt
 		fmt.Fprint(out, output)
 	}
-	dur := time.Since(start)
-	fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n",
-		client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), len(input), len(output))
-	return nil
+    dur := time.Since(start)
+    fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n",
+        client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), len(input), len(output))
+    _ = tmux.SetStatus("✅ " + client.DefaultModel() + " " + dur.Round(time.Millisecond).String())
+    return nil
 }
 
 // printProviderInfo writes the provider/model line to stderr.

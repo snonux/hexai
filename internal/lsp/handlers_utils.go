@@ -8,6 +8,7 @@ import (
     "codeberg.org/snonux/hexai/internal/llm"
     "codeberg.org/snonux/hexai/internal/logging"
     "codeberg.org/snonux/hexai/internal/textutil"
+    tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // Configurable inline trigger characters (default to '>') used by free helpers below.
@@ -60,7 +61,11 @@ func (s *Server) logLLMStats() {
 	rpm := float64(reqs) / mins
 	sentPerMin := float64(sentTot) / mins
 	recvPerMin := float64(recvTot) / mins
-	logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)
+    logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)
+    // Best-effort tmux status update
+    if s.llmClient != nil {
+        _ = tmx.SetStatus("LLM:" + s.llmClient.DefaultModel())
+    }
 }
 
 // Completion prompt builders and filters

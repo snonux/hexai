@@ -11,6 +11,7 @@ import (
     "codeberg.org/snonux/hexai/internal/editor"
     "codeberg.org/snonux/hexai/internal/logging"
     "codeberg.org/snonux/hexai/internal/llmutils"
+    "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // Run executes the hexai-tmux-action command flow.
@@ -21,11 +22,13 @@ var newClientFromApp = llmutils.NewClientFromApp
 func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
     logger := log.New(stderr, "hexai-tmux-action ", log.LstdFlags|log.Lmsgprefix)
     cfg := appconfig.Load(logger)
-    client, err := newClientFromApp(cfg)
+    cli, err := newClientFromApp(cfg)
     if err != nil {
         fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
         return err
     }
+    _ = tmux.SetStatus("hexai action ready " + cli.DefaultModel())
+    var client chatDoer = cli
     parts, err := ParseInput(stdin)
 	if err != nil {
         fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: failed to read input"+logging.AnsiReset)
@@ -38,12 +41,13 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
     if err != nil {
         return err
     }
-	out, err := executeAction(ctx, kind, parts, cfg, client, stderr)
-	if err != nil {
-		return err
-	}
-	io.WriteString(stdout, out)
-	return nil
+    out, err := executeAction(ctx, kind, parts, cfg, client, stderr)
+    if err != nil {
+        return err
+    }
+    io.WriteString(stdout, out)
+    _ = tmux.SetStatus("✅ " + cli.DefaultModel())
+    return nil
 }
 
 func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {

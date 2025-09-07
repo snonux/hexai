@@ -4,8 +4,11 @@ This documents shows future items and in progress items. Already completed ones 
 
 ## Features
 
+* [ ] tmux or helix status line updates with LLM progress/stats?
 * [/] EDITOR support for custom action in hexai-tmux-action
+  * Verify documentation is correct
 * [/] EDITOR support for hexai when no args given
+  * Verify documentation is correct
 * [ ] In-editor chat triggers should be context aware of the current file, buffer and function!
 * [ ] Kagi FastGPT for in-editor search
   - Think about an in-editor chat trigger, maybe with S> for search!
