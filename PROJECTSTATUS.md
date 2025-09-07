@@ -4,67 +4,14 @@ This documents shows future items and in progress items. Already completed ones 
 
 ## Features
 
-### [/] AI menu
-
-```
-[keys.normal]
-C-p = ":sh hexai --menu"
-```
-
-Or maybe
-
-```
-[keys.normal]
-C-p = ":sh hexai-tmux-action"
-```
-
-And then generate a menu with all the code actions hexai-lsp knows of and include hotkeys for each menu item! Also print out a notice that this is a work-around due to limitations in Helix's current LSP UI.
-
-### More features
-
+* [ ] In-editor chat triggers should be context aware of the current file, buffer and function!
 * [ ] Kagi FastGPT for in-editor search
   - Think about an in-editor chat trigger, maybe with S> for search!
 * [ ] Test whethe GitHub Copilot support actually works now, and if not, fix it!
-
-> It looks like your message is:
-
-```
-- >foo bar baz?
-```
-
-Could you clarify what you mean or what you’re asking for?  
-- If you’re asking about the syntax, `>foo bar baz` is not standard in most programming languages.
-- If you’re referencing a command-line or shell prompt, `foo bar baz` could be a command (`foo`) with arguments (`bar` and `baz`).
-- If you’re asking about a specific language or context, please provide more details so I can help you better!
-
-
-* [/] implement a code action for selected code block the way via a unix pipe as faster access in helix
-  - pipe selected code to external command and replace selection with output
-  - the external command should open a menu to select an action (e.g. "format", "refactor", "explain", "test", etc.) and then apply it to the selected code
-  - the external menu can be opened in a separate tmux pane
 * [ ] Fish and zsh and bash shell integration for command completion? Have access to the current shell history (N last commands), current directory content, and current directory name.
 * [ ] Be able to re-configure the temperature in-editor
-
-Be able to switch LLMs. 
-
-* [ ] Ollama local LLM models (e.g. Qwen Coder vs Deepseek-R1 for different purposes)
-* [ ] OpenAI models
-* [ ] Claude models
-* [ ] Gemini models
+* [ ] Be able to switch LLMs. 
 
 ## More
 
 * [ ] Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol` 
-
-Can Claude Code be used for Code Completion?
-
-> Yes, Claude (including Claude's coding capabilities, sometimes referred to as "Claude Code") can be used for code completion. You can provide Claude with a partial code snippet or function, and it can generate the next lines or complete the function based on context and intent. This works similarly to how other AI code assistants (like GitHub Copilot or ChatGPT) provide code completion.
-
-However, Claude is typically accessed via chat or API, rather than being directly integrated into IDEs for real-time, inline code completion. Some third-party tools or plugins may bridge this gap, but out of the box, Claude is best used for code completion via conversational prompts.
-
-**In summary:**  
-- Claude can perform code completion when prompted.
-- It is not natively integrated into IDEs for real-time completion, but can be used via chat or API.
-- You can use it to finish functions, suggest code, or generate boilerplate based on your input.
-
-j

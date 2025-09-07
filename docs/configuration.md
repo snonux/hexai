@@ -51,9 +51,13 @@ This is mostly useful when Helix runs in a [tmux](https://tmux.github.io/) sessi
 - Flags:
   - `--infile`  Read input from the given file instead of stdin.
   - `--outfile` Write output to the given file instead of stdout (truncates/creates).
-  - `--tmux` force tmux-pane mode.
-  - `--no-tmux` disable tmux mode even if available.
   - `--tmux-target` tmux target pane/window (advanced).
   - `--tmux-split v|h` split orientation (default: `v`).
   - `--tmux-percent N` split size percentage (default: `33`).
   - `--ui-child` internal; used by the parent process when spawning inside tmux.
+
+Code action prompts
+
+- All prompts can be customized under `[prompts.code_action]` in `config.toml`. In addition to `rewrite_*`, `diagnostics_*`, `document_*`, and `go_test_*`, the following templates control the “Simplify and improve” action:
+  - `simplify_system`
+  - `simplify_user` (uses `{{selection}}`)

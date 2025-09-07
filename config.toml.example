@@ -73,6 +73,8 @@ temperature = 0.2
 # document_user      = "Add documentation comments to this code:\n{{selection}}"
 # go_test_system     = "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic."
 # go_test_user       = "Function under test:\n{{function}}"
+# simplify_system    = "You are a precise code improvement engine. Simplify and improve the given code while preserving behavior. Return only the improved code with no prose or backticks."
+# simplify_user      = "Improve this code:\n{{selection}}"
 
 [prompts.cli]
 # default_system = "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation."
