@@ -2,6 +2,7 @@
 /hexai-lsp
 /hexai-action
 /.gocache/
+/.gocache*
 /.gomodcache/
 /*.out
 /*.html
