@@ -13,3 +13,4 @@
 /docs/*.html
 /llminputs
 llm.out
+/tmp/
