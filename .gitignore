@@ -1,6 +1,7 @@
 /hexai
 /hexai-lsp
 /hexai-action
+/hexai-tmux-action
 /# Built binaries and local bin dir
 /bin/
 /.gocache/
