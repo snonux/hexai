@@ -8,7 +8,7 @@ pkgs=("$@")
 if [ ${#pkgs[@]} -eq 0 ]; then
   pkgs=(
     "codeberg.org/snonux/hexai/internal/tmux"
-    "codeberg.org/snonux/hexai/cmd/internal/hexai-action"
+    "codeberg.org/snonux/hexai/internal/hexaiaction"
   )
 fi
 
@@ -28,4 +28,3 @@ done
 echo
 echo "Hint: combine coverage across all packages with:"
 echo "  go test ./... -coverprofile=cover.out && go tool cover -func=cover.out"
-

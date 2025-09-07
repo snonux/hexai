@@ -21,7 +21,7 @@ Suggested additions:
   - The `HEXAI_TEST_SKIP_NET=1` env var disables any tests that require network access, keeping runs deterministic in CI/sandboxes.
 
 - Package-specific runs:
-  - `HEXAI_TEST_SKIP_NET=1 go test ./cmd/internal/hexai-action -cover`
+  - `HEXAI_TEST_SKIP_NET=1 go test ./internal/hexaiaction -cover`
   - `HEXAI_TEST_SKIP_NET=1 go test ./internal/hexaiaction -cover`
 
 Notes

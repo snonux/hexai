@@ -43,8 +43,8 @@ func BuildHexaiCLI() error {
 
 // BuildHexaiAction builds the hexai-action TUI binary.
 func BuildHexaiAction() error {
-	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai-action", "cmd/internal/hexai-action/main.go")
+    printCoverage()
+    return sh.RunV("go", "build", "-o", "hexai-action", "cmd/hexai-action/main.go")
 }
 
 // Dev runs tests, vet, lint, then builds with race for both binaries.
@@ -57,7 +57,7 @@ func Dev() error {
 	if err := sh.RunV("go", "build", "-race", "-o", "hexai", "cmd/hexai/main.go"); err != nil {
 		return err
 	}
-	return sh.RunV("go", "build", "-race", "-o", "hexai-action", "cmd/internal/hexai-action/main.go")
+    return sh.RunV("go", "build", "-race", "-o", "hexai-action", "cmd/hexai-action/main.go")
 }
 
 // Run launches the LSP server via go run (useful during development).
@@ -102,9 +102,9 @@ func Install() error {
 
 // RunAction runs the hexai-action TUI via go run (reads stdin).
 func RunAction() error {
-	printCoverage()
-	mg.Deps(Dev)
-	return sh.RunV("go", "run", "cmd/internal/hexai-action/main.go")
+    printCoverage()
+    mg.Deps(Dev)
+    return sh.RunV("go", "run", "cmd/hexai-action/main.go")
 }
 
 // printCoverage prints a warning if an existing coverage profile shows total < coverateThreshold.

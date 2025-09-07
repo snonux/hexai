@@ -69,7 +69,7 @@ Helix configuration after change
 - Optional: users can force tmux pane with `:pipe hexai-action -tmux` or disable with `:pipe hexai-action -no-tmux` if auto-detection does not fit their setup.
 
 Migration plan
-1) Implement tmux package and integrate auto-mode in `cmd/internal/hexai-action/main.go`.
+1) Implement tmux package and integrate auto-mode in `cmd/hexai-action/main.go`.
 2) Keep legacy flags (`-infile`, `-outfile`) for compatibility and tests.
 3) Update README and docs to show new Helix keybinding and describe flags.
 4) Mark shell scripts (`llminputs/ai`, `llminputs/hx.hexai-action-prompt`) as deprecated in repo notes; retain them temporarily.
@@ -78,7 +78,7 @@ Migration plan
 Testing plan
 - Unit tests:
   - `internal/tmux`: mock `exec.Command` via a small command-runner interface; verify command assembly and availability checks.
-  - `cmd/internal/hexai-action`: tests for parent decision logic (TTY vs pipe; tmux available vs not) using injectable detectors.
+  - `internal/hexaiaction`: tests for parent decision logic (TTY vs pipe; tmux available vs not) using injectable detectors.
   - hexaiaction: existing tests continue to pass; add tests for non-interactive fallback behavior when no TTY.
 - Integration tests (manual or scripted):
   - Run under tmux: verify a pane opens, TUI choice is applied, stdout contains result.
@@ -93,7 +93,7 @@ Edge cases and mitigations
 
 Implementation steps (incremental)
 1) Add `internal/tmux` with `Available`, `SplitRun`, and helpers.
-2) Add TTY detection helper to `cmd/internal/hexai-action` and wire flags (`-tmux`, `-no-tmux`, `-ui-child`).
+2) Add TTY detection helper to `internal/hexaiaction` and wire flags (`-tmux`, `-no-tmux`, `-ui-child`).
 3) Parent flow: detect mode, manage temp files, spawn child via tmux when selected, wait/print result.
 4) Child flow: reuse existing `hexaiaction.Run` to keep logic centralized; ensure outfile atomic write.
 5) Docs: update README with new Helix config and flags.
@@ -101,7 +101,7 @@ Implementation steps (incremental)
 
 Notes on code organization
 - Place all tmux-related code under `internal/tmux` and keep functions well under 50 lines.
-- Keep command entrypoint (`cmd/internal/hexai-action/main.go`) small and focused on wiring/mode selection.
+- Keep command entrypoint (`cmd/hexai-action/main.go`) small and focused on wiring/mode selection.
 - Avoid duplication across `hexaiaction` and `tmux`; IO/file and action logic remain in `hexaiaction`.
 
 Outcome
