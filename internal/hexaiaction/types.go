@@ -5,13 +5,13 @@ package hexaiaction
 type ActionKind string
 
 const (
-    ActionSkip        ActionKind = "skip"
-    ActionRewrite     ActionKind = "rewrite"
-    ActionDiagnostics ActionKind = "diagnostics"
-    ActionDocument    ActionKind = "document"
-    ActionGoTest      ActionKind = "gotest"
-    ActionSimplify    ActionKind = "simplify"
-    ActionCustom      ActionKind = "custom"
+	ActionSkip        ActionKind = "skip"
+	ActionRewrite     ActionKind = "rewrite"
+	ActionDiagnostics ActionKind = "diagnostics"
+	ActionDocument    ActionKind = "document"
+	ActionGoTest      ActionKind = "gotest"
+	ActionSimplify    ActionKind = "simplify"
+	ActionCustom      ActionKind = "custom"
 )
 
 // InputParts represents parsed stdin input for actions.

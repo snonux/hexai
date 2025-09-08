@@ -250,8 +250,14 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 	if !s.waitForThrottle(ctx2) {
 		return nil, false
 	}
+	// Count approximate payload sizes: prompt+after sent; first suggestion received
+	sentBytes := len(prompt) + len(after)
 	suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
 	if err == nil && len(suggestions) > 0 {
+		// Update counters and heartbeat
+		s.incSentCounters(sentBytes)
+		s.incRecvCounters(len(suggestions[0]))
+		s.logLLMStats()
 		cleaned := strings.TrimSpace(suggestions[0])
 		if cleaned != "" {
 			cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
@@ -272,6 +278,9 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 		}
 	} else if err != nil {
 		logging.Logf("lsp ", "completion path=codex error=%v (falling back to chat)", err)
+		// Still emit a heartbeat for visibility, even on error
+		s.incSentCounters(sentBytes)
+		s.logLLMStats()
 	}
 	return nil, false
 }

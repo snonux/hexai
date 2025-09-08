@@ -162,7 +162,7 @@ func (s *Server) detectAndHandleChat(uri string) {
 			msgs := append([]llm.Message{{Role: "system", Content: sys}}, history...)
 			opts := s.llmRequestOpts()
 			logging.Logf("lsp ", "chat llm=requesting model=%s", s.llmClient.DefaultModel())
-			text, err := s.llmClient.Chat(ctx, msgs, opts...)
+			text, err := s.chatWithStats(ctx, msgs, opts...)
 			if err != nil {
 				logging.Logf("lsp ", "chat llm error: %v", err)
 				return

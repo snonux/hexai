@@ -1,11 +1,11 @@
 package hexaiaction
 
 import (
-    "bufio"
-    "io"
-    "strings"
+	"bufio"
+	"io"
+	"strings"
 
-    "codeberg.org/snonux/hexai/internal/textutil"
+	"codeberg.org/snonux/hexai/internal/textutil"
 )
 
 // ParseInput splits raw stdin into optional diagnostics and selection/code.

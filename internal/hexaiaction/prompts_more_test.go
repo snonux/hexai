@@ -1,19 +1,26 @@
 package hexaiaction
 
 import (
-    "context"
-    "strings"
-    "testing"
+	"context"
+	"strings"
+	"testing"
 
-    "codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llm"
 )
 
 type simpleDoer struct{ s string }
 
-func (d simpleDoer) Chat(_ context.Context, _ []llm.Message, _ ...llm.RequestOption) (string, error) { return d.s, nil }
+func (d simpleDoer) Chat(_ context.Context, _ []llm.Message, _ ...llm.RequestOption) (string, error) {
+	return d.s, nil
+}
+func (d simpleDoer) DefaultModel() string { return "m" }
 
 func TestRunOnce_StripsFences(t *testing.T) {
-    got, err := runOnce(context.Background(), simpleDoer{"```\nok\n```"}, "SYS", "USER")
-    if err != nil { t.Fatalf("runOnce: %v", err) }
-    if strings.TrimSpace(got) != "ok" { t.Fatalf("got %q", got) }
+	got, err := runOnce(context.Background(), simpleDoer{"```\nok\n```"}, "SYS", "USER")
+	if err != nil {
+		t.Fatalf("runOnce: %v", err)
+	}
+	if strings.TrimSpace(got) != "ok" {
+		t.Fatalf("got %q", got)
+	}
 }

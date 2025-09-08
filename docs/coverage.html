@@ -71,13 +71,13 @@
 				
 				<option value="file7">codeberg.org/snonux/hexai/internal/hexaiaction/prompts.go (85.0%)</option>
 				
-				<option value="file8">codeberg.org/snonux/hexai/internal/hexaiaction/run.go (67.3%)</option>
+				<option value="file8">codeberg.org/snonux/hexai/internal/hexaiaction/run.go (69.2%)</option>
 				
 				<option value="file9">codeberg.org/snonux/hexai/internal/hexaiaction/tui.go (65.5%)</option>
 				
 				<option value="file10">codeberg.org/snonux/hexai/internal/hexaiaction/tui_delegate.go (100.0%)</option>
 				
-				<option value="file11">codeberg.org/snonux/hexai/internal/hexaicli/run.go (88.4%)</option>
+				<option value="file11">codeberg.org/snonux/hexai/internal/hexaicli/run.go (88.7%)</option>
 				
 				<option value="file12">codeberg.org/snonux/hexai/internal/hexailsp/run.go (92.5%)</option>
 				
@@ -113,7 +113,7 @@
 				
 				<option value="file28">codeberg.org/snonux/hexai/internal/lsp/handlers_init.go (66.7%)</option>
 				
-				<option value="file29">codeberg.org/snonux/hexai/internal/lsp/handlers_utils.go (89.0%)</option>
+				<option value="file29">codeberg.org/snonux/hexai/internal/lsp/handlers_utils.go (89.1%)</option>
 				
 				<option value="file30">codeberg.org/snonux/hexai/internal/lsp/server.go (82.6%)</option>
 				
@@ -123,7 +123,9 @@
 				
 				<option value="file33">codeberg.org/snonux/hexai/internal/textutil/textutil.go (89.0%)</option>
 				
-				<option value="file34">codeberg.org/snonux/hexai/internal/tmux/tmux.go (88.6%)</option>
+				<option value="file34">codeberg.org/snonux/hexai/internal/tmux/status.go (66.7%)</option>
+				
+				<option value="file35">codeberg.org/snonux/hexai/internal/tmux/tmux.go (88.6%)</option>
 				
 				</select>
 			</div>
@@ -1485,6 +1487,7 @@ import (
     "codeberg.org/snonux/hexai/internal/editor"
     "codeberg.org/snonux/hexai/internal/logging"
     "codeberg.org/snonux/hexai/internal/llmutils"
+    "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // Run executes the hexai-tmux-action command flow.
@@ -1495,12 +1498,14 @@ var newClientFromApp = llmutils.NewClientFromApp
 func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error <span class="cov7" title="4">{
     logger := log.New(stderr, "hexai-tmux-action ", log.LstdFlags|log.Lmsgprefix)
     cfg := appconfig.Load(logger)
-    client, err := newClientFromApp(cfg)
+    cli, err := newClientFromApp(cfg)
     if err != nil </span><span class="cov1" title="1">{
         fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
         return err
     }</span>
-    <span class="cov6" title="3">parts, err := ParseInput(stdin)
+    <span class="cov6" title="3">_ = tmux.SetStatus("hexai action ready " + cli.DefaultModel())
+    var client chatDoer = cli
+    parts, err := ParseInput(stdin)
         if err != nil </span><span class="cov0" title="0">{
         fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: failed to read input"+logging.AnsiReset)
                 return err
@@ -1512,12 +1517,13 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error <
     if err != nil </span><span class="cov0" title="0">{
         return err
     }</span>
-        <span class="cov6" title="3">out, err := executeAction(ctx, kind, parts, cfg, client, stderr)
-        if err != nil </span><span class="cov0" title="0">{
-                return err
-        }</span>
-        <span class="cov6" title="3">io.WriteString(stdout, out)
-        return nil</span>
+    <span class="cov6" title="3">out, err := executeAction(ctx, kind, parts, cfg, client, stderr)
+    if err != nil </span><span class="cov0" title="0">{
+        return err
+    }</span>
+    <span class="cov6" title="3">io.WriteString(stdout, out)
+    _ = tmux.SetStatus("✅ " + cli.DefaultModel())
+    return nil</span>
 }
 
 func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) <span class="cov10" title="7">{
@@ -1745,6 +1751,7 @@ import (
     "codeberg.org/snonux/hexai/internal/logging"
     "codeberg.org/snonux/hexai/internal/llm"
     "codeberg.org/snonux/hexai/internal/llmutils"
+    "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
@@ -1851,8 +1858,10 @@ func buildMessagesFromConfig(cfg appconfig.App, input string) []llm.Message <spa
 
 // runChat executes the chat request, handling streaming and summary output.
 func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input string, out io.Writer, errw io.Writer) error <span class="cov10" title="7">{
-        start := time.Now()
-        var output string
+    start := time.Now()
+    // Best-effort tmux status update
+    _ = tmux.SetStatus("⏳ " + client.Name() + ":" + client.DefaultModel())
+    var output string
         if s, ok := client.(llm.Streamer); ok </span><span class="cov4" title="2">{
                 var b strings.Builder
                 if err := s.ChatStream(ctx, msgs, func(chunk string) </span><span class="cov8" title="5">{
@@ -1870,10 +1879,11 @@ func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input s
                 <span class="cov6" title="3">output = txt
                 fmt.Fprint(out, output)</span>
         }
-        <span class="cov8" title="5">dur := time.Since(start)
-        fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n",
-                client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), len(input), len(output))
-        return nil</span>
+    <span class="cov8" title="5">dur := time.Since(start)
+    fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n",
+        client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), len(input), len(output))
+    _ = tmux.SetStatus("✅ " + client.DefaultModel() + " " + dur.Round(time.Millisecond).String())
+    return nil</span>
 }
 
 // printProviderInfo writes the provider/model line to stderr.
@@ -5260,6 +5270,7 @@ import (
     "codeberg.org/snonux/hexai/internal/llm"
     "codeberg.org/snonux/hexai/internal/logging"
     "codeberg.org/snonux/hexai/internal/textutil"
+    tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // Configurable inline trigger characters (default to '&gt;') used by free helpers below.
@@ -5312,7 +5323,11 @@ func (s *Server) logLLMStats() <span class="cov5" title="8">{
         <span class="cov5" title="8">rpm := float64(reqs) / mins
         sentPerMin := float64(sentTot) / mins
         recvPerMin := float64(recvTot) / mins
-        logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)</span>
+    logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)
+    // Best-effort tmux status update
+    if s.llmClient != nil </span><span class="cov4" title="7">{
+        _ = tmx.SetStatus("LLM:" + s.llmClient.DefaultModel())
+    }</span>
 }
 
 // Completion prompt builders and filters
@@ -6197,6 +6212,36 @@ func FindStrictInlineTag(line string) (text string, left, right int, ok bool) <s
 import (
     "os"
     "os/exec"
+    "strings"
+)
+
+// Enabled reports whether tmux status updates are enabled via env (default: on).
+func Enabled() bool <span class="cov10" title="25">{
+    v := strings.TrimSpace(os.Getenv("HEXAI_TMUX_STATUS"))
+    if v == "" </span><span class="cov10" title="25">{ return true }</span>
+    <span class="cov0" title="0">v = strings.ToLower(v)
+    return v == "1" || v == "true" || v == "yes" || v == "on"</span>
+}
+
+// SetUserOption sets a global tmux user option like @hexai_status to value.
+func SetUserOption(key, value string) error <span class="cov10" title="25">{
+    if !Enabled() || !HasBinary() || !InSession() </span><span class="cov0" title="0">{ return nil }</span>
+    <span class="cov10" title="25">k := strings.TrimPrefix(strings.TrimSpace(key), "@")
+    if k == "" </span><span class="cov0" title="0">{ return nil }</span>
+    // Use set-option -g so it appears for all windows
+    <span class="cov10" title="25">return exec.Command("tmux", "set-option", "-g", "@"+k, value).Run()</span>
+}
+
+// SetStatus is a convenience for setting @hexai_status.
+func SetStatus(value string) error <span class="cov10" title="25">{ return SetUserOption("hexai_status", value) }</span>
+
+</pre>
+		
+		<pre class="file" id="file35" style="display: none">package tmux
+
+import (
+    "os"
+    "os/exec"
     "strconv"
     "strings"
 )
@@ -6208,10 +6253,10 @@ func Available() bool <span class="cov2" title="2">{ return HasBinary() &amp;&am
 var lookPath = exec.LookPath
 var command = exec.Command
 
-func HasBinary() bool <span class="cov4" title="4">{ _, err := lookPath("tmux"); return err == nil }</span>
+func HasBinary() bool <span class="cov10" title="29">{ _, err := lookPath("tmux"); return err == nil }</span>
 
 // InSession reports whether we seem to be running inside a tmux session.
-func InSession() bool <span class="cov4" title="3">{ return strings.TrimSpace(os.Getenv("TMUX")) != "" }</span>
+func InSession() bool <span class="cov9" title="28">{ return strings.TrimSpace(os.Getenv("TMUX")) != "" }</span>
 
 // SplitOpts controls how a new pane is created for running a command.
 type SplitOpts struct {
@@ -6268,7 +6313,7 @@ func shellJoin(argv []string) string <span class="cov1" title="1">{
 
 // isSafeBare returns true if a contains only safe characters for bare words.
 func isSafeBare(s string) bool <span class="cov4" title="4">{
-        for i := 0; i &lt; len(s); i++ </span><span class="cov10" title="27">{
+        for i := 0; i &lt; len(s); i++ </span><span class="cov9" title="27">{
                 b := s[i]
                 if (b &gt;= 'a' &amp;&amp; b &lt;= 'z') || (b &gt;= 'A' &amp;&amp; b &lt;= 'Z') || (b &gt;= '0' &amp;&amp; b &lt;= '9') || b == '-' || b == '_' || b == '.' || b == '/' || b == ':' </span><span class="cov9" title="25">{
                         continue</span>

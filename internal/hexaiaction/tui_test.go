@@ -1,57 +1,57 @@
 package hexaiaction
 
 import (
-    "testing"
+	"testing"
 
-    tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestHandleKey_EscSkips(t *testing.T) {
-    m := newModel()
-    nm, _ := handleKey(m, tea.KeyMsg{Type: tea.KeyEsc})
-    got, ok := nm.(model)
-    if !ok || !got.done || got.chosen != ActionSkip {
-        t.Fatalf("esc should skip: ok=%v done=%v chosen=%v", ok, got.done, got.chosen)
-    }
+	m := newModel()
+	nm, _ := handleKey(m, tea.KeyMsg{Type: tea.KeyEsc})
+	got, ok := nm.(model)
+	if !ok || !got.done || got.chosen != ActionSkip {
+		t.Fatalf("esc should skip: ok=%v done=%v chosen=%v", ok, got.done, got.chosen)
+	}
 }
 
 func TestHandleKey_QuickHotkey(t *testing.T) {
-    m := newModel()
-    nm, _ := handleKey(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
-    got := nm.(model)
-    if !got.done || got.chosen != ActionRewrite {
-        t.Fatalf("r should choose rewrite: done=%v chosen=%v", got.done, got.chosen)
-    }
+	m := newModel()
+	nm, _ := handleKey(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	got := nm.(model)
+	if !got.done || got.chosen != ActionRewrite {
+		t.Fatalf("r should choose rewrite: done=%v chosen=%v", got.done, got.chosen)
+	}
 }
 
 func TestHandleKey_JumpEndWithG(t *testing.T) {
-    m := newModel()
-    // raw 'G' rune should jump to end (special cased)
-    nm, _ := handleKey(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'G'}})
-    got := nm.(model)
-    if idx := got.list.Index(); idx != len(got.list.Items())-1 {
-        t.Fatalf("G should jump to end, index=%d", idx)
-    }
+	m := newModel()
+	// raw 'G' rune should jump to end (special cased)
+	nm, _ := handleKey(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'G'}})
+	got := nm.(model)
+	if idx := got.list.Index(); idx != len(got.list.Items())-1 {
+		t.Fatalf("G should jump to end, index=%d", idx)
+	}
 }
 
 func TestItemMethods(t *testing.T) {
-    it := item{title: "T", desc: "D", kind: ActionRewrite, hotkey: 'r'}
-    if it.Title() != "T" || it.Description() != "D" || it.FilterValue() != "T" {
-        t.Fatalf("item methods wrong: %+v", it)
-    }
+	it := item{title: "T", desc: "D", kind: ActionRewrite, hotkey: 'r'}
+	if it.Title() != "T" || it.Description() != "D" || it.FilterValue() != "T" {
+		t.Fatalf("item methods wrong: %+v", it)
+	}
 }
 
 func TestModelInitAndViewAndUpdate(t *testing.T) {
-    m := newModel()
-    if m.Init() != nil {
-        t.Fatalf("Init should return nil cmd")
-    }
-    if v := m.View(); v == "" {
-        t.Fatalf("View should not be empty before done")
-    }
-    // Window resize
-    nm, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-    if _, ok := nm.(model); !ok {
-        t.Fatalf("expected model after WindowSizeMsg")
-    }
+	m := newModel()
+	if m.Init() != nil {
+		t.Fatalf("Init should return nil cmd")
+	}
+	if v := m.View(); v == "" {
+		t.Fatalf("View should not be empty before done")
+	}
+	// Window resize
+	nm, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	if _, ok := nm.(model); !ok {
+		t.Fatalf("expected model after WindowSizeMsg")
+	}
 }

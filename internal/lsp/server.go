@@ -78,11 +78,11 @@ type Server struct {
 	promptDocumentSystem    string
 	promptRewriteUser       string
 	promptDiagnosticsUser   string
-    promptDocumentUser      string
-    promptGoTestSystem      string
-    promptGoTestUser        string
-    promptSimplifySystem    string
-    promptSimplifyUser      string
+	promptDocumentUser      string
+	promptGoTestSystem      string
+	promptGoTestUser        string
+	promptSimplifySystem    string
+	promptSimplifyUser      string
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
@@ -121,10 +121,10 @@ type ServerOptions struct {
 	PromptRewriteUser       string
 	PromptDiagnosticsUser   string
 	PromptDocumentUser      string
-    PromptGoTestSystem      string
-    PromptGoTestUser        string
-    PromptSimplifySystem    string
-    PromptSimplifyUser      string
+	PromptGoTestSystem      string
+	PromptGoTestUser        string
+	PromptSimplifySystem    string
+	PromptSimplifyUser      string
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -203,11 +203,11 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.promptDocumentSystem = opts.PromptDocumentSystem
 	s.promptRewriteUser = opts.PromptRewriteUser
 	s.promptDiagnosticsUser = opts.PromptDiagnosticsUser
-    s.promptDocumentUser = opts.PromptDocumentUser
-    s.promptGoTestSystem = opts.PromptGoTestSystem
-    s.promptGoTestUser = opts.PromptGoTestUser
-    s.promptSimplifySystem = opts.PromptSimplifySystem
-    s.promptSimplifyUser = opts.PromptSimplifyUser
+	s.promptDocumentUser = opts.PromptDocumentUser
+	s.promptGoTestSystem = opts.PromptGoTestSystem
+	s.promptGoTestUser = opts.PromptGoTestUser
+	s.promptSimplifySystem = opts.PromptSimplifySystem
+	s.promptSimplifyUser = opts.PromptSimplifyUser
 
 	// Assign package-level inline trigger chars for free helper functions
 	if s.inlineOpen != "" {

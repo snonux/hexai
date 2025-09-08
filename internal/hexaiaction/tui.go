@@ -1,11 +1,11 @@
 package hexaiaction
 
 import (
-    "fmt"
-    "strings"
+	"fmt"
+	"strings"
 
-    "github.com/charmbracelet/bubbles/list"
-    tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // item implements list.Item
@@ -26,20 +26,20 @@ type model struct {
 }
 
 func newModel() model {
-    items := []list.Item{
-        item{title: "Rewrite selection", desc: "", kind: ActionRewrite, hotkey: 'r'},
-        item{title: "Simplify and improve", desc: "", kind: ActionSimplify, hotkey: 'i'},
-        item{title: "Document code", desc: "", kind: ActionDocument, hotkey: 'c'},
-        item{title: "Generate Go unit test(s)", desc: "", kind: ActionGoTest, hotkey: 't'},
-        item{title: "Custom prompt", desc: "", kind: ActionCustom, hotkey: 'p'},
-        item{title: "Skip", desc: "", kind: ActionSkip, hotkey: 's'},
-    }
-    l := list.New(items, oneLineDelegate{}, 0, 0)
-    l.SetShowTitle(false)
-    l.SetShowHelp(false)
-    l.SetShowStatusBar(false)
-    l.SetFilteringEnabled(false)
-    return model{list: l}
+	items := []list.Item{
+		item{title: "Rewrite selection", desc: "", kind: ActionRewrite, hotkey: 'r'},
+		item{title: "Simplify and improve", desc: "", kind: ActionSimplify, hotkey: 'i'},
+		item{title: "Document code", desc: "", kind: ActionDocument, hotkey: 'c'},
+		item{title: "Generate Go unit test(s)", desc: "", kind: ActionGoTest, hotkey: 't'},
+		item{title: "Custom prompt", desc: "", kind: ActionCustom, hotkey: 'p'},
+		item{title: "Skip", desc: "", kind: ActionSkip, hotkey: 's'},
+	}
+	l := list.New(items, oneLineDelegate{}, 0, 0)
+	l.SetShowTitle(false)
+	l.SetShowHelp(false)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	return model{list: l}
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -57,43 +57,47 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func handleKey(m model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-    raw := msg.String()
-    low := strings.ToLower(raw)
-    switch low {
-    case "esc", "q":
-        // Treat ESC and q as Skip/quit
-        m.chosen = ActionSkip
-        m.done = true
-        return m, tea.Quit
-    case "enter":
-        if it, ok := m.list.SelectedItem().(item); ok {
-            m.chosen = it.kind
-            m.done = true
-            return m, tea.Quit
-        }
-    case "j", "down":
-        m.list.CursorDown()
-    case "k", "up":
-        m.list.CursorUp()
-    case "g", "home":
-        m.list.Select(0)
-    case "end":
-        if n := len(m.list.Items()); n > 0 { m.list.Select(n - 1) }
-    case "s", "r", "c", "t", "i", "p":
-        items := m.list.Items()
-        for i := 0; i < len(items); i++ {
-            if it, ok := items[i].(item); ok && strings.ToLower(string(it.hotkey)) == low {
-                m.list.Select(i)
-                m.chosen = it.kind
-                m.done = true
-                return m, tea.Quit
-            }
-        }
-    }
-    if raw == "G" { // Shift+G jumps to end
-        if n := len(m.list.Items()); n > 0 { m.list.Select(n - 1) }
-    }
-    return m, nil
+	raw := msg.String()
+	low := strings.ToLower(raw)
+	switch low {
+	case "esc", "q":
+		// Treat ESC and q as Skip/quit
+		m.chosen = ActionSkip
+		m.done = true
+		return m, tea.Quit
+	case "enter":
+		if it, ok := m.list.SelectedItem().(item); ok {
+			m.chosen = it.kind
+			m.done = true
+			return m, tea.Quit
+		}
+	case "j", "down":
+		m.list.CursorDown()
+	case "k", "up":
+		m.list.CursorUp()
+	case "g", "home":
+		m.list.Select(0)
+	case "end":
+		if n := len(m.list.Items()); n > 0 {
+			m.list.Select(n - 1)
+		}
+	case "s", "r", "c", "t", "i", "p":
+		items := m.list.Items()
+		for i := 0; i < len(items); i++ {
+			if it, ok := items[i].(item); ok && strings.ToLower(string(it.hotkey)) == low {
+				m.list.Select(i)
+				m.chosen = it.kind
+				m.done = true
+				return m, tea.Quit
+			}
+		}
+	}
+	if raw == "G" { // Shift+G jumps to end
+		if n := len(m.list.Items()); n > 0 {
+			m.list.Select(n - 1)
+		}
+	}
+	return m, nil
 }
 
 func (m model) View() string {

@@ -64,24 +64,7 @@ Editor integration
 
 Tmux status line
 
-- Hexai can update a tmux user option during LLM activity. Add this to your `~/.tmux.conf` to display it:
-
-  - `set -g status-right '#{@hexai_status} #[fg=colour8]| %H:%M'`
-
-- Status content is updated best‑effort at key moments:
-  - CLI: start (⏳ provider:model) and completion with compact stats (↑sent, ↓recv, rpm, reqs)
-  - LSP: initial heartbeat on client initialize, and periodic compact stats (provider, model, rpm, reqs, bytes)
-  - TUI action runner: ready (provider:model) and completion with compact stats
-
-- Toggle via environment:
-  - Enable (default): unset or `HEXAI_TMUX_STATUS=1`
-  - Disable: `HEXAI_TMUX_STATUS=0`
-
-- Theme and colors:
-  - Preset: `HEXAI_TMUX_STATUS_THEME=white-on-purple` (white fg on purple/magenta bg)
-  - Explicit: `HEXAI_TMUX_STATUS_FG=<color>`, `HEXAI_TMUX_STATUS_BG=<color>` (e.g., `white`, `magenta`, `colour5`)
-  - Colors use tmux’s `fg`/`bg` names; both methods wrap the entire `@hexai_status` segment.
-  - If truncated, increase width: `set -g status-right-length 120`
+See the [tmux integration guide](docs/tmux.md) for details on configuring the status line.
 
 Code action prompts
 

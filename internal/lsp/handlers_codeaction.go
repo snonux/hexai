@@ -31,40 +31,40 @@ func (s *Server) handleCodeAction(req Request) {
 	}
 	sel := extractRangeText(d, p.Range)
 
-    actions := make([]CodeAction, 0, 5)
+	actions := make([]CodeAction, 0, 5)
 	if a := s.buildRewriteCodeAction(p, sel); a != nil {
 		actions = append(actions, *a)
 	}
 	if a := s.buildDiagnosticsCodeAction(p, sel); a != nil {
 		actions = append(actions, *a)
 	}
-    if a := s.buildDocumentCodeAction(p, sel); a != nil {
-        actions = append(actions, *a)
-    }
-    if a := s.buildGoUnitTestCodeAction(p); a != nil {
-        actions = append(actions, *a)
-    }
-    if a := s.buildSimplifyCodeAction(p, sel); a != nil {
-        actions = append(actions, *a)
-    }
+	if a := s.buildDocumentCodeAction(p, sel); a != nil {
+		actions = append(actions, *a)
+	}
+	if a := s.buildGoUnitTestCodeAction(p); a != nil {
+		actions = append(actions, *a)
+	}
+	if a := s.buildSimplifyCodeAction(p, sel); a != nil {
+		actions = append(actions, *a)
+	}
 	if len(req.ID) != 0 {
 		s.reply(req.ID, actions, nil)
 	}
 }
 
 func (s *Server) buildSimplifyCodeAction(p CodeActionParams, sel string) *CodeAction {
-    if strings.TrimSpace(sel) == "" {
-        return nil
-    }
-    payload := struct {
-        Type      string `json:"type"`
-        URI       string `json:"uri"`
-        Range     Range  `json:"range"`
-        Selection string `json:"selection"`
-    }{Type: "simplify", URI: p.TextDocument.URI, Range: p.Range, Selection: sel}
-    raw, _ := json.Marshal(payload)
-    ca := CodeAction{Title: "Hexai: simplify and improve", Kind: "refactor", Data: raw}
-    return &ca
+	if strings.TrimSpace(sel) == "" {
+		return nil
+	}
+	payload := struct {
+		Type      string `json:"type"`
+		URI       string `json:"uri"`
+		Range     Range  `json:"range"`
+		Selection string `json:"selection"`
+	}{Type: "simplify", URI: p.TextDocument.URI, Range: p.Range, Selection: sel}
+	raw, _ := json.Marshal(payload)
+	ca := CodeAction{Title: "Hexai: simplify and improve", Kind: "refactor", Data: raw}
+	return &ca
 }
 
 func (s *Server) buildRewriteCodeAction(p CodeActionParams, sel string) *CodeAction {
@@ -115,7 +115,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 	if err := json.Unmarshal(ca.Data, &payload); err != nil {
 		return ca, false
 	}
-    switch payload.Type {
+	switch payload.Type {
 	case "rewrite":
 		sys := s.promptRewriteSystem
 		user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
@@ -123,7 +123,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
-		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
 			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
 				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
 				ca.Edit = &edit
@@ -148,7 +148,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
-		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
 			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
 				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
 				ca.Edit = &edit
@@ -164,7 +164,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
-		if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
 			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
 				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
 				ca.Edit = &edit
@@ -173,34 +173,34 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		} else {
 			logging.Logf("lsp ", "codeAction document llm error: %v", err)
 		}
-    case "go_test":
-        if edit, jumpURI, jumpRange, ok := s.resolveGoTest(payload.URI, payload.Range.Start); ok {
-            ca.Edit = &edit
-            // After edit is applied, ask client to jump to new test function
-            ca.Command = &Command{Title: "Jump to generated test", Command: "hexai.showDocument", Arguments: []any{jumpURI, jumpRange}}
-            // Also send a server-initiated showDocument shortly after resolve to cover
-            // clients that do not execute commands from code actions.
-            s.deferShowDocument(jumpURI, jumpRange)
-            return ca, true
-        }
-    case "simplify":
-        sys := s.promptRewriteSystem
-        // Reuse rewrite user template with a fixed instruction
-        user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": "Simplify and improve the code while preserving behavior. Return only the improved code.", "selection": payload.Selection})
-        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-        defer cancel()
-        messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-        opts := s.llmRequestOpts()
-        if text, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
-            if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-                edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-                ca.Edit = &edit
-                return ca, true
-            }
-        } else {
-            logging.Logf("lsp ", "codeAction simplify llm error: %v", err)
-        }
-    }
+	case "go_test":
+		if edit, jumpURI, jumpRange, ok := s.resolveGoTest(payload.URI, payload.Range.Start); ok {
+			ca.Edit = &edit
+			// After edit is applied, ask client to jump to new test function
+			ca.Command = &Command{Title: "Jump to generated test", Command: "hexai.showDocument", Arguments: []any{jumpURI, jumpRange}}
+			// Also send a server-initiated showDocument shortly after resolve to cover
+			// clients that do not execute commands from code actions.
+			s.deferShowDocument(jumpURI, jumpRange)
+			return ca, true
+		}
+	case "simplify":
+		sys := s.promptRewriteSystem
+		// Reuse rewrite user template with a fixed instruction
+		user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": "Simplify and improve the code while preserving behavior. Return only the improved code.", "selection": payload.Selection})
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+		opts := s.llmRequestOpts()
+		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
+			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+				ca.Edit = &edit
+				return ca, true
+			}
+		} else {
+			logging.Logf("lsp ", "codeAction simplify llm error: %v", err)
+		}
+	}
 	return ca, false
 }
 
@@ -508,7 +508,7 @@ func (s *Server) generateGoTestFunction(funcCode string) string {
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
-		if out, err := s.llmClient.Chat(ctx, messages, opts...); err == nil {
+		if out, err := s.chatWithStats(ctx, messages, opts...); err == nil {
 			cleaned := strings.TrimSpace(stripCodeFences(out))
 			if cleaned != "" {
 				return cleaned

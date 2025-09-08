@@ -1,30 +1,29 @@
 package main
 
 import (
-    "context"
-    "flag"
-    "fmt"
-    "os"
+	"context"
+	"flag"
+	"fmt"
+	"os"
 
-    "codeberg.org/snonux/hexai/internal/hexaiaction"
+	"codeberg.org/snonux/hexai/internal/hexaiaction"
 )
 
 func main() {
-    infile := flag.String("infile", "", "Read input from this file instead of stdin")
-    outfile := flag.String("outfile", "", "Write output to this file instead of stdout")
-    uiChild := flag.Bool("ui-child", false, "INTERNAL: run interactive UI and write to -outfile atomically")
-    tmuxTarget := flag.String("tmux-target", "", "tmux split target (advanced)")
-    tmuxSplit := flag.String("tmux-split", "v", "tmux split orientation: v or h")
-    tmuxPercent := flag.Int("tmux-percent", 33, "tmux split size percentage (1-100)")
-    flag.Parse()
+	infile := flag.String("infile", "", "Read input from this file instead of stdin")
+	outfile := flag.String("outfile", "", "Write output to this file instead of stdout")
+	uiChild := flag.Bool("ui-child", false, "INTERNAL: run interactive UI and write to -outfile atomically")
+	tmuxTarget := flag.String("tmux-target", "", "tmux split target (advanced)")
+	tmuxSplit := flag.String("tmux-split", "v", "tmux split orientation: v or h")
+	tmuxPercent := flag.Int("tmux-percent", 33, "tmux split size percentage (1-100)")
+	flag.Parse()
 
-    opts := hexaiaction.Options{
-        Infile: *infile, Outfile: *outfile,
-        UIChild: *uiChild, TmuxTarget: *tmuxTarget, TmuxSplit: *tmuxSplit, TmuxPercent: *tmuxPercent,
-    }
-    if err := hexaiaction.RunCommand(context.Background(), opts, os.Stdin, os.Stdout, os.Stderr); err != nil {
-        fmt.Fprintln(os.Stderr, err)
-        os.Exit(1)
-    }
+	opts := hexaiaction.Options{
+		Infile: *infile, Outfile: *outfile,
+		UIChild: *uiChild, TmuxTarget: *tmuxTarget, TmuxSplit: *tmuxSplit, TmuxPercent: *tmuxPercent,
+	}
+	if err := hexaiaction.RunCommand(context.Background(), opts, os.Stdin, os.Stdout, os.Stderr); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
-

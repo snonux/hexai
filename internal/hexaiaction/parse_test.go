@@ -77,6 +77,8 @@ func (f *fakeClient) Chat(_ context.Context, msgs []llm.Message, _ ...llm.Reques
 	return f.out, f.err
 }
 
+func (f *fakeClient) DefaultModel() string { return "m" }
+
 func TestRuners_Prompts(t *testing.T) {
 	cfg := appconfig.App{
 		PromptCodeActionRewriteSystem:     "SYS-R",

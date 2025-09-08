@@ -1,18 +1,20 @@
 package tmux
 
 import (
-    "os"
-    "os/exec"
-    "strconv"
-    "strings"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 )
 
 // Available reports whether tmux is available and we appear to be in a tmux session.
 func Available() bool { return HasBinary() && InSession() }
 
 // HasBinary reports whether the tmux binary is on PATH.
-var lookPath = exec.LookPath
-var command = exec.Command
+var (
+	lookPath = exec.LookPath
+	command  = exec.Command
+)
 
 func HasBinary() bool { _, err := lookPath("tmux"); return err == nil }
 
@@ -47,8 +49,8 @@ func SplitRun(opts SplitOpts, argv []string) error {
 	// tmux takes a single command string. Use a conservative shell join.
 	cmdStr := shellJoin(argv)
 	args = append(args, cmdStr)
-    c := command("tmux", args...)
-    return c.Run()
+	c := command("tmux", args...)
+	return c.Run()
 }
 
 // shellJoin quotes argv elements for safe use in a single shell command string.
