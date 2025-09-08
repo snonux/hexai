@@ -59,6 +59,9 @@ Hexai can surface live progress in tmux's status line via a user option. Add thi
 set -g status-right '#{@hexai_status} #[fg=colour8]| %H:%M'
 ```
 
+- Note: `colour8` is typically “bright black” (a dim grey) in many themes.
+  If it’s low-contrast on your background, change it (e.g., `colour7` or `white`).
+
 - CLI updates `@hexai_status` at start (⏳ provider:model) and on completion with compact stats (↑sent, ↓recv, rpm, reqs).
 - LSP emits an initial heartbeat on client initialize and periodic compact stats (provider, model, rpm, reqs, bytes).
 - The TUI action runner sets a ready heartbeat and a completion heartbeat with stats.
