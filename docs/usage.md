@@ -132,3 +132,21 @@ hexai-tmux-action --infile input.go --outfile output.go
 # Using shell redirection
 hexai-tmux-action < input.go > output.go
 ```
+
+### Helix keybinding example
+
+Bind a key to pipe the current selection through the action runner and replace it in-place. In `~/.config/helix/config.toml`:
+
+```toml
+[keys.select]
+# Alt-a runs the Hexai action menu on the selection
+"A-a" = ":pipe hexai-tmux-action"
+
+[keys.normal]
+# Optional: run on the current line if no selection
+"A-a" = ["select_line", ":pipe hexai-tmux-action"]
+```
+
+Tips:
+- Ensure Helix runs inside tmux to see the status updates.
+- You can also set a language-specific binding in `languages.toml` if preferred.

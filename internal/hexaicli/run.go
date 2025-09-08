@@ -3,44 +3,44 @@
 package hexaicli
 
 import (
-    "bufio"
-    "context"
-    "fmt"
-    "io"
-    "log"
-    "os"
-    "strings"
-    "time"
+	"bufio"
+	"context"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"strings"
+	"time"
 
-    "codeberg.org/snonux/hexai/internal/appconfig"
-    "codeberg.org/snonux/hexai/internal/editor"
-    "codeberg.org/snonux/hexai/internal/logging"
-    "codeberg.org/snonux/hexai/internal/llm"
-    "codeberg.org/snonux/hexai/internal/llmutils"
-    "codeberg.org/snonux/hexai/internal/tmux"
+	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/editor"
+	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llmutils"
+	"codeberg.org/snonux/hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
 // It assumes flags have already been parsed by the caller.
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-    // Load configuration with a logger so file-based config is respected.
-    logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
-    cfg := appconfig.Load(logger)
-    client, err := newClientFromApp(cfg)
+	// Load configuration with a logger so file-based config is respected.
+	logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
+	cfg := appconfig.Load(logger)
+	client, err := newClientFromApp(cfg)
 	if err != nil {
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
-    // No args: open editor to capture a prompt, then combine with stdin as usual.
-    if len(args) == 0 {
-        if prompt, eerr := editor.OpenTempAndEdit(nil); eerr == nil && strings.TrimSpace(prompt) != "" {
-            args = []string{prompt}
-        } else {
-            // If editor fails or empty, continue; readInput will likely error if no stdin either.
-        }
-    }
-    // Inline the flow here to use configured CLI prompts.
-    input, rerr := readInput(stdin, args)
+	// No args: open editor to capture a prompt, then combine with stdin as usual.
+	if len(args) == 0 {
+		if prompt, eerr := editor.OpenTempAndEdit(nil); eerr == nil && strings.TrimSpace(prompt) != "" {
+			args = []string{prompt}
+		} else {
+			// If editor fails or empty, continue; readInput will likely error if no stdin either.
+		}
+	}
+	// Inline the flow here to use configured CLI prompts.
+	input, rerr := readInput(stdin, args)
 	if rerr != nil {
 		fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
 		return rerr
@@ -124,10 +124,10 @@ func buildMessagesFromConfig(cfg appconfig.App, input string) []llm.Message {
 
 // runChat executes the chat request, handling streaming and summary output.
 func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input string, out io.Writer, errw io.Writer) error {
-    start := time.Now()
-    // Best-effort tmux status update
-    _ = tmux.SetStatus("⏳ " + client.Name() + ":" + client.DefaultModel())
-    var output string
+	start := time.Now()
+	// Best-effort tmux status update (colored start heartbeat)
+	_ = tmux.SetStatus(tmux.FormatLLMStartStatus(client.Name(), client.DefaultModel()))
+	var output string
 	if s, ok := client.(llm.Streamer); ok {
 		var b strings.Builder
 		if err := s.ChatStream(ctx, msgs, func(chunk string) {
@@ -145,16 +145,27 @@ func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input s
 		output = txt
 		fmt.Fprint(out, output)
 	}
-    dur := time.Since(start)
-    fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n",
-        client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), len(input), len(output))
-    _ = tmux.SetStatus("✅ " + client.DefaultModel() + " " + dur.Round(time.Millisecond).String())
-    return nil
+	dur := time.Since(start)
+	// Compute simple stats for tmux heartbeat
+	sent := 0
+	for _, m := range msgs {
+		sent += len(m.Content)
+	}
+	recv := len(output)
+	mins := dur.Minutes()
+	if mins <= 0 {
+		mins = 0.001
+	}
+	rpm := float64(1) / mins
+	fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n",
+		client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), sent, recv)
+	_ = tmux.SetStatus(tmux.FormatLLMStatsStatusColored(client.Name(), client.DefaultModel(), 1, rpm, int64(sent), int64(recv)))
+	return nil
 }
 
 // printProviderInfo writes the provider/model line to stderr.
 func printProviderInfo(errw io.Writer, client llm.Client) {
-    fmt.Fprintf(errw, logging.AnsiBase+"provider=%s model=%s"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel())
+	fmt.Fprintf(errw, logging.AnsiBase+"provider=%s model=%s"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel())
 }
 
 // newClientFromConfig is kept for tests; delegates to llmutils.

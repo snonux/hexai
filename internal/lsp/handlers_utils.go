@@ -2,13 +2,14 @@
 package lsp
 
 import (
-    "strings"
-    "time"
+	"context"
+	"strings"
+	"time"
 
-    "codeberg.org/snonux/hexai/internal/llm"
-    "codeberg.org/snonux/hexai/internal/logging"
-    "codeberg.org/snonux/hexai/internal/textutil"
-    tmx "codeberg.org/snonux/hexai/internal/tmux"
+	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/textutil"
+	tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // Configurable inline trigger characters (default to '>') used by free helpers below.
@@ -61,11 +62,14 @@ func (s *Server) logLLMStats() {
 	rpm := float64(reqs) / mins
 	sentPerMin := float64(sentTot) / mins
 	recvPerMin := float64(recvTot) / mins
-    logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)
-    // Best-effort tmux status update
-    if s.llmClient != nil {
-        _ = tmx.SetStatus("LLM:" + s.llmClient.DefaultModel())
-    }
+	logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)
+	// Best-effort tmux status update with a compact stats heartbeat
+	if s.llmClient != nil {
+		model := s.llmClient.DefaultModel()
+		provider := s.llmClient.Name()
+		status := tmx.FormatLLMStatsStatusColored(provider, model, reqs, rpm, sentTot, recvTot)
+		_ = tmx.SetStatus(status)
+	}
 }
 
 // Completion prompt builders and filters
@@ -125,6 +129,30 @@ func computeWordStart(current string, at int) int {
 
 func isIdentChar(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
+}
+
+// chatWithStats wraps llmClient.Chat to increment counters and emit a tmux heartbeat.
+func (s *Server) chatWithStats(ctx context.Context, msgs []llm.Message, opts ...llm.RequestOption) (string, error) {
+	// Count bytes sent
+	sent := 0
+	for _, m := range msgs {
+		sent += len(m.Content)
+	}
+	s.incSentCounters(sent)
+	// Debounce/throttle if configured (reuse completion gates)
+	s.waitForDebounce(ctx)
+	if !s.waitForThrottle(ctx) {
+		return "", context.Canceled
+	}
+	// Perform request
+	txt, err := s.llmClient.Chat(ctx, msgs, opts...)
+	if err != nil {
+		s.logLLMStats()
+		return "", err
+	}
+	s.incRecvCounters(len(txt))
+	s.logLLMStats()
+	return txt, nil
 }
 
 // Inline prompt utilities

@@ -1,13 +1,14 @@
 package hexaiaction
 
 import (
-    "context"
-    "strings"
-    "time"
+	"context"
+	"strings"
+	"time"
 
-    "codeberg.org/snonux/hexai/internal/appconfig"
-    "codeberg.org/snonux/hexai/internal/llm"
-    "codeberg.org/snonux/hexai/internal/textutil"
+	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/textutil"
+	"codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // Render performs simple {{var}} replacement like LSP.
@@ -18,12 +19,22 @@ func StripFences(s string) string { return textutil.StripCodeFences(s) }
 
 type chatDoer interface {
 	Chat(ctx context.Context, msgs []llm.Message, opts ...llm.RequestOption) (string, error)
+	DefaultModel() string
+}
+
+type providerNamer interface{ Name() string }
+
+func providerOf(c any) string {
+	if n, ok := c.(providerNamer); ok {
+		return n.Name()
+	}
+	return "llm"
 }
 
 func runRewrite(ctx context.Context, cfg appconfig.App, client chatDoer, instruction, selection string) (string, error) {
-    sys := cfg.PromptCodeActionRewriteSystem
-    user := Render(cfg.PromptCodeActionRewriteUser, map[string]string{"instruction": instruction, "selection": selection})
-    return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	sys := cfg.PromptCodeActionRewriteSystem
+	user := Render(cfg.PromptCodeActionRewriteUser, map[string]string{"instruction": instruction, "selection": selection})
+	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runDiagnostics(ctx context.Context, cfg appconfig.App, client chatDoer, diags []string, selection string) (string, error) {
@@ -39,52 +50,80 @@ func runDiagnostics(ctx context.Context, cfg appconfig.App, client chatDoer, dia
 	}
 	sys := cfg.PromptCodeActionDiagnosticsSystem
 	user := Render(cfg.PromptCodeActionDiagnosticsUser, map[string]string{"diagnostics": b.String(), "selection": selection})
-    return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runDocument(ctx context.Context, cfg appconfig.App, client chatDoer, selection string) (string, error) {
-    sys := cfg.PromptCodeActionDocumentSystem
-    user := Render(cfg.PromptCodeActionDocumentUser, map[string]string{"selection": selection})
-    return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	sys := cfg.PromptCodeActionDocumentSystem
+	user := Render(cfg.PromptCodeActionDocumentUser, map[string]string{"selection": selection})
+	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runSimplify(ctx context.Context, cfg appconfig.App, client chatDoer, selection string) (string, error) {
-    sys := cfg.PromptCodeActionSimplifySystem
-    user := Render(cfg.PromptCodeActionSimplifyUser, map[string]string{"selection": selection})
-    return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	sys := cfg.PromptCodeActionSimplifySystem
+	user := Render(cfg.PromptCodeActionSimplifyUser, map[string]string{"selection": selection})
+	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runGoTest(ctx context.Context, cfg appconfig.App, client chatDoer, funcCode string) (string, error) {
 	sys := cfg.PromptCodeActionGoTestSystem
 	user := Render(cfg.PromptCodeActionGoTestUser, map[string]string{"function": funcCode})
-    return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runOnce(ctx context.Context, client chatDoer, sys, user string) (string, error) {
-    msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-    txt, err := client.Chat(ctx, msgs)
-    if err != nil {
-        return "", err
-    }
-    return strings.TrimSpace(StripFences(txt)), nil
+	msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+	start := time.Now()
+	txt, err := client.Chat(ctx, msgs)
+	if err != nil {
+		return "", err
+	}
+	out := strings.TrimSpace(StripFences(txt))
+	// Update tmux heartbeat with simple one-request stats
+	sent := 0
+	for _, m := range msgs {
+		sent += len(m.Content)
+	}
+	recv := len(out)
+	mins := time.Since(start).Minutes()
+	if mins <= 0 {
+		mins = 0.001
+	}
+	rpm := float64(1) / mins
+	_ = tmux.SetStatus(tmux.FormatLLMStatsStatusColored(providerOf(client), client.DefaultModel(), 1, rpm, int64(sent), int64(recv)))
+	return out, nil
 }
 
 func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, opts []llm.RequestOption) (string, error) {
-    msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-    txt, err := client.Chat(ctx, msgs, opts...)
-    if err != nil {
-        return "", err
-    }
-    return strings.TrimSpace(StripFences(txt)), nil
+	msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+	start := time.Now()
+	txt, err := client.Chat(ctx, msgs, opts...)
+	if err != nil {
+		return "", err
+	}
+	out := strings.TrimSpace(StripFences(txt))
+	// Update tmux heartbeat with simple one-request stats
+	sent := 0
+	for _, m := range msgs {
+		sent += len(m.Content)
+	}
+	recv := len(out)
+	mins := time.Since(start).Minutes()
+	if mins <= 0 {
+		mins = 0.001
+	}
+	rpm := float64(1) / mins
+	_ = tmux.SetStatus(tmux.FormatLLMStatsStatusColored(providerOf(client), client.DefaultModel(), 1, rpm, int64(sent), int64(recv)))
+	return out, nil
 }
 
 // reqOptsFrom builds LLM request options similar to LSP behavior.
 func reqOptsFrom(cfg appconfig.App) []llm.RequestOption {
-    opts := []llm.RequestOption{llm.WithMaxTokens(cfg.MaxTokens)}
-    if cfg.CodingTemperature != nil {
-        opts = append(opts, llm.WithTemperature(*cfg.CodingTemperature))
-    }
-    return opts
+	opts := []llm.RequestOption{llm.WithMaxTokens(cfg.MaxTokens)}
+	if cfg.CodingTemperature != nil {
+		opts = append(opts, llm.WithTemperature(*cfg.CodingTemperature))
+	}
+	return opts
 }
 
 // Timeout helpers to mirror LSP behavior.

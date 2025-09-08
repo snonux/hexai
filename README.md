@@ -20,6 +20,7 @@ It has got improved capabilities for Go code understanding (for example, create 
 
 * [Configuration guide](docs/configuration.md)  
 * [Usage examples](docs/usage.md)
+* [Helix + tmux quickstart](docs/helix-tmux-quickstart.md)
 
 ## Build and tasks
 
@@ -58,7 +59,17 @@ Hexai can surface live progress in tmux's status line via a user option. Add thi
 set -g status-right '#{@hexai_status} #[fg=colour8]| %H:%M'
 ```
 
-- CLI updates `@hexai_status` at start (⏳ provider:model) and on completion (✅ model duration).
-- LSP sends a short heartbeat after logging aggregate LLM stats.
-- The TUI action runner sets a ready message and a completion message.
+- CLI updates `@hexai_status` at start (⏳ provider:model) and on completion with compact stats (↑sent, ↓recv, rpm, reqs).
+- LSP emits an initial heartbeat on client initialize and periodic compact stats (provider, model, rpm, reqs, bytes).
+- The TUI action runner sets a ready heartbeat and a completion heartbeat with stats.
 - Toggle with `HEXAI_TMUX_STATUS=0` to disable (enabled by default).
+
+The status segment supports simple theming:
+
+- Preset themes:
+  - `HEXAI_TMUX_STATUS_THEME=white-on-purple` (white fg on purple/magenta bg)
+  - `HEXAI_TMUX_STATUS_THEME=black-on-yellow` (black fg on yellow bg)
+- Explicit colors: set any tmux color names or 256-color codes
+  - `HEXAI_TMUX_STATUS_FG=white`
+  - `HEXAI_TMUX_STATUS_BG=magenta` (or `colour5`, etc.)
+- If the segment is truncated, widen it: `set -g status-right-length 120`
