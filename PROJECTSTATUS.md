@@ -15,4 +15,9 @@ This document shows future items and items in progress. Already completed ones a
 
 * [ ] Review documentation
 * [ ] Manual review the code 
-* [ ] Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol` 
+* [ ] Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol`
+
+
+
+
+
