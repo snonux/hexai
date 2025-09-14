@@ -357,3 +357,131 @@ explain_system = "CLI-EXPLAIN"
 		t.Fatalf("cli prompts wrong: %q %q", cfg.PromptCLIDefaultSystem, cfg.PromptCLIExplainSystem)
 	}
 }
+
+func TestCustomActions_ParseAndValidate_OK(t *testing.T) {
+	clearHexaiEnv(t)
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
+	content := `
+[prompts.code_action]
+
+[[prompts.code_action.custom]]
+id = "extract-function"
+title = "Extract function"
+kind = "refactor.extract"
+scope = "selection"
+hotkey = "e"
+instruction = "Extract the selected code into a new function named 'extracted' and replace with a call. Return only code."
+
+[[prompts.code_action.custom]]
+id = "fix-lints"
+title = "Fix linters"
+kind = "quickfix"
+scope = "diagnostics"
+hotkey = "l"
+system = "You are a precise code fixer."
+user = "Diagnostics to resolve (selection only):\n{{diagnostics}}\n\nSelected code:\n{{selection}}"
+
+[tmux]
+custom_menu_hotkey = "a"
+`
+	writeFile(t, cfgPath, content)
+	cfg := Load(newLogger())
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if len(cfg.CustomActions) != 2 {
+		t.Fatalf("expected 2 custom actions, got %d", len(cfg.CustomActions))
+	}
+	if cfg.TmuxCustomMenuHotkey != "a" {
+		t.Fatalf("tmux hotkey wrong: %q", cfg.TmuxCustomMenuHotkey)
+	}
+	// spot-check mapping
+	if cfg.CustomActions[0].ID != "extract-function" || cfg.CustomActions[0].Scope != "selection" || cfg.CustomActions[0].Instruction == "" {
+		t.Fatalf("first action mapping wrong: %+v", cfg.CustomActions[0])
+	}
+	if cfg.CustomActions[1].User == "" || cfg.CustomActions[1].Scope != "diagnostics" {
+		t.Fatalf("second action mapping wrong: %+v", cfg.CustomActions[1])
+	}
+}
+
+func TestCustomActions_DuplicateID_Error(t *testing.T) {
+	clearHexaiEnv(t)
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
+	writeFile(t, cfgPath, `
+[prompts.code_action]
+[[prompts.code_action.custom]]
+id = "dup"
+title = "A"
+instruction = "x"
+[[prompts.code_action.custom]]
+id = "DUP"
+title = "B"
+instruction = "y"
+`)
+	cfg := Load(newLogger())
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "duplicate custom action id") {
+		t.Fatalf("expected duplicate id error, got %v", err)
+	}
+}
+
+func TestCustomActions_DuplicateHotkey_Error(t *testing.T) {
+	clearHexaiEnv(t)
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
+	writeFile(t, cfgPath, `
+[prompts.code_action]
+[[prompts.code_action.custom]]
+id = "a1"
+title = "A"
+instruction = "x"
+hotkey = "e"
+[[prompts.code_action.custom]]
+id = "a2"
+title = "B"
+instruction = "y"
+hotkey = "E"
+`)
+	cfg := Load(newLogger())
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "duplicate custom action hotkey") {
+		t.Fatalf("expected duplicate hotkey error, got %v", err)
+	}
+}
+
+func TestCustomActions_InvalidScope_Error(t *testing.T) {
+	clearHexaiEnv(t)
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
+	writeFile(t, cfgPath, `
+[prompts.code_action]
+[[prompts.code_action.custom]]
+id = "a1"
+title = "A"
+instruction = "x"
+scope = "bad"
+`)
+	cfg := Load(newLogger())
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "invalid scope") {
+		t.Fatalf("expected invalid scope error, got %v", err)
+	}
+}
+
+func TestTmuxMenuHotkey_Clash_Error(t *testing.T) {
+	clearHexaiEnv(t)
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	cfgPath := filepath.Join(dir, "hexai", "config.toml")
+	writeFile(t, cfgPath, `
+[tmux]
+custom_menu_hotkey = "r"
+`)
+	cfg := Load(newLogger())
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "clashes with built-in") {
+		t.Fatalf("expected clash error, got %v", err)
+	}
+}

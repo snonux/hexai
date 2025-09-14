@@ -21,9 +21,21 @@ var (
 	newClientFromApp = llmutils.NewClientFromApp
 )
 
+// selectedCustom carries the chosen custom action (if any) from the TUI submenu
+// to the executor. Cleared after use.
+var selectedCustom *appconfig.CustomAction
+
 func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	logger := log.New(stderr, "hexai-tmux-action ", log.LstdFlags|log.Lmsgprefix)
 	cfg := appconfig.Load(logger)
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: %v"+logging.AnsiReset+"\n", err)
+		return err
+	}
+	// Enable custom action submenu with configurable hotkey
+	if len(cfg.CustomActions) > 0 {
+		chooseActionFn = func() (ActionKind, error) { return RunTUIWithCustom(cfg.CustomActions, cfg.TmuxCustomMenuHotkey) }
+	}
 	cli, err := newClientFromApp(cfg)
 	if err != nil {
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
@@ -83,7 +95,13 @@ func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg a
 	case ActionCustom:
 		cctx, cancel := timeout10s(ctx)
 		defer cancel()
-		// Open editor for free-form instruction
+		if selectedCustom != nil {
+			// Run configured custom action
+			out, err := runCustom(cctx, cfg, client, *selectedCustom, parts)
+			selectedCustom = nil // clear after use
+			return out, err
+		}
+		// Fallback: open editor for free-form instruction
 		prompt, err := editor.OpenTempAndEdit(nil)
 		if err != nil || strings.TrimSpace(prompt) == "" {
 			fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)

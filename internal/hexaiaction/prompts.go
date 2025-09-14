@@ -71,6 +71,21 @@ func runGoTest(ctx context.Context, cfg appconfig.App, client chatDoer, funcCode
 	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
+func runCustom(ctx context.Context, cfg appconfig.App, client chatDoer, ca appconfig.CustomAction, parts InputParts) (string, error) {
+	// If user template is provided, prefer it and optional system
+	if strings.TrimSpace(ca.User) != "" {
+		sys := cfg.PromptCodeActionRewriteSystem
+		if strings.TrimSpace(ca.System) != "" {
+			sys = ca.System
+		}
+		// Currently only selection is available in tmux path; diagnostics list not wired
+		user := Render(ca.User, map[string]string{"selection": parts.Selection, "diagnostics": strings.Join(parts.Diagnostics, "\n")})
+		return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	}
+	// Else, use fixed instruction through rewrite template
+	return runRewrite(ctx, cfg, client, ca.Instruction, parts.Selection)
+}
+
 func runOnce(ctx context.Context, client chatDoer, sys, user string) (string, error) {
 	msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 	start := time.Now()

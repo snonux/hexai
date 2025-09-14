@@ -83,6 +83,9 @@ type Server struct {
 	promptGoTestUser        string
 	promptSimplifySystem    string
 	promptSimplifyUser      string
+
+	// Custom actions configured by user
+	customActions []CustomAction
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
@@ -125,6 +128,20 @@ type ServerOptions struct {
 	PromptGoTestUser        string
 	PromptSimplifySystem    string
 	PromptSimplifyUser      string
+
+	// Custom actions
+	CustomActions []CustomAction
+}
+
+// CustomAction mirrors user-defined code actions passed from config.
+type CustomAction struct {
+	ID          string
+	Title       string
+	Kind        string
+	Scope       string // "selection" | "diagnostics"
+	Instruction string // if set, use rewrite templates
+	System      string // optional when User is set
+	User        string // if set, use this user template
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -208,6 +225,10 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s.promptGoTestUser = opts.PromptGoTestUser
 	s.promptSimplifySystem = opts.PromptSimplifySystem
 	s.promptSimplifyUser = opts.PromptSimplifyUser
+
+	if len(opts.CustomActions) > 0 {
+		s.customActions = append([]CustomAction{}, opts.CustomActions...)
+	}
 
 	// Assign package-level inline trigger chars for free helper functions
 	if s.inlineOpen != "" {

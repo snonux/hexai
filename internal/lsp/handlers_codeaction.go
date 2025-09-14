@@ -31,7 +31,7 @@ func (s *Server) handleCodeAction(req Request) {
 	}
 	sel := extractRangeText(d, p.Range)
 
-	actions := make([]CodeAction, 0, 5)
+	actions := make([]CodeAction, 0, 8)
 	if a := s.buildRewriteCodeAction(p, sel); a != nil {
 		actions = append(actions, *a)
 	}
@@ -47,8 +47,62 @@ func (s *Server) handleCodeAction(req Request) {
 	if a := s.buildSimplifyCodeAction(p, sel); a != nil {
 		actions = append(actions, *a)
 	}
+	// Custom actions from config
+	s.appendCustomActions(&actions, p, sel)
 	if len(req.ID) != 0 {
 		s.reply(req.ID, actions, nil)
+	}
+}
+
+// appendCustomActions adds user-defined actions depending on scope and availability.
+func (s *Server) appendCustomActions(actions *[]CodeAction, p CodeActionParams, sel string) {
+	if len(s.customActions) == 0 {
+		return
+	}
+	diags := s.diagnosticsInRange(p.Context, p.Range)
+	for _, ca := range s.customActions {
+		title := strings.TrimSpace(ca.Title)
+		if title == "" {
+			continue
+		}
+		scope := strings.TrimSpace(strings.ToLower(ca.Scope))
+		if scope == "diagnostics" {
+			if len(diags) == 0 {
+				continue
+			}
+			payload := struct {
+				Type        string       `json:"type"`
+				ID          string       `json:"id"`
+				URI         string       `json:"uri"`
+				Range       Range        `json:"range"`
+				Selection   string       `json:"selection"`
+				Diagnostics []Diagnostic `json:"diagnostics"`
+			}{Type: "custom", ID: ca.ID, URI: p.TextDocument.URI, Range: p.Range, Selection: sel, Diagnostics: diags}
+			raw, _ := json.Marshal(payload)
+			kind := ca.Kind
+			if strings.TrimSpace(kind) == "" {
+				kind = "quickfix"
+			}
+			*actions = append(*actions, CodeAction{Title: "Hexai: " + title, Kind: kind, Data: raw})
+			continue
+		}
+		// default: selection
+		if strings.TrimSpace(sel) == "" {
+			continue
+		}
+		payload := struct {
+			Type      string `json:"type"`
+			ID        string `json:"id"`
+			URI       string `json:"uri"`
+			Range     Range  `json:"range"`
+			Selection string `json:"selection"`
+		}{Type: "custom", ID: ca.ID, URI: p.TextDocument.URI, Range: p.Range, Selection: sel}
+		raw, _ := json.Marshal(payload)
+		kind := ca.Kind
+		if strings.TrimSpace(kind) == "" {
+			kind = "refactor"
+		}
+		*actions = append(*actions, CodeAction{Title: "Hexai: " + title, Kind: kind, Data: raw})
 	}
 }
 
@@ -106,6 +160,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 	}
 	var payload struct {
 		Type        string       `json:"type"`
+		ID          string       `json:"id"`
 		URI         string       `json:"uri"`
 		Range       Range        `json:"range"`
 		Instruction string       `json:"instruction,omitempty"`
@@ -199,6 +254,57 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 			}
 		} else {
 			logging.Logf("lsp ", "codeAction simplify llm error: %v", err)
+		}
+	case "custom":
+		// Lookup action by ID
+		var action *CustomAction
+		for i := range s.customActions {
+			if s.customActions[i].ID == payload.ID {
+				action = &s.customActions[i]
+				break
+			}
+		}
+		if action == nil {
+			return ca, false
+		}
+		// Build messages
+		var sys, user string
+		if strings.TrimSpace(action.User) != "" {
+			if strings.TrimSpace(action.System) != "" {
+				sys = action.System
+			} else {
+				sys = s.promptRewriteSystem
+			}
+			var diagList string
+			if len(payload.Diagnostics) > 0 {
+				var b strings.Builder
+				for i, dgn := range payload.Diagnostics {
+					if dgn.Source != "" {
+						fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
+					} else {
+						fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
+					}
+				}
+				diagList = b.String()
+			}
+			user = renderTemplate(action.User, map[string]string{"selection": payload.Selection, "diagnostics": diagList})
+		} else {
+			// Use rewrite templates with fixed instruction
+			sys = s.promptRewriteSystem
+			user = renderTemplate(s.promptRewriteUser, map[string]string{"instruction": action.Instruction, "selection": payload.Selection})
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+		opts := s.llmRequestOpts()
+		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
+			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
+				ca.Edit = &edit
+				return ca, true
+			}
+		} else {
+			logging.Logf("lsp ", "codeAction custom id=%s llm error: %v", action.ID, err)
 		}
 	}
 	return ca, false

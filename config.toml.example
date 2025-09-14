@@ -76,6 +76,27 @@ temperature = 0.2
 # simplify_system    = "You are a precise code improvement engine. Simplify and improve the given code while preserving behavior. Return only the improved code with no prose or backticks."
 # simplify_user      = "Improve this code:\n{{selection}}"
 
+# Define additional custom code actions (optional)
+# [[prompts.code_action.custom]]
+# id = "extract-function"            # required, unique slug (case-insensitive)
+# title = "Extract function"         # required, appears in LSP and tmux
+# kind = "refactor.extract"          # optional (default: "refactor")
+# scope = "selection"                # optional: selection | diagnostics (default: selection)
+# hotkey = "e"                       # optional, single character for tmux submenu
+# instruction = "Extract selected code into a new function named 'extracted' and replace with a call. Return only code, no backticks."
+
+# [[prompts.code_action.custom]]
+# id = "fix-lints"
+# title = "Fix linters"
+# kind = "quickfix"
+# scope = "diagnostics"
+# hotkey = "l"
+# system = "You are a precise code fixer. Only change selected code."
+# user = "Diagnostics to resolve (selection only):\n{{diagnostics}}\n\nSelected code:\n{{selection}}"
+
 [prompts.cli]
 # default_system = "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation."
 # explain_system = "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context."
+
+[tmux]
+# custom_menu_hotkey = "a"            # hotkey to open the custom actions submenu in hexai-tmux-action

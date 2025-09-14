@@ -34,6 +34,9 @@ func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) er
 	}
 	logging.Bind(logger)
 	cfg := appconfig.Load(logger)
+	if err := cfg.Validate(); err != nil {
+		logger.Fatalf("invalid config: %v", err)
+	}
 	return RunWithFactory(logPath, stdin, stdout, logger, cfg, nil, nil)
 }
 
@@ -41,6 +44,9 @@ func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) er
 // When factory is nil, lsp.NewServer is used.
 func RunWithFactory(logPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory) error {
 	normalizeLoggingConfig(&cfg)
+	if err := cfg.Validate(); err != nil {
+		logger.Fatalf("invalid config: %v", err)
+	}
 	client = buildClientIfNil(cfg, client)
 	factory = ensureFactory(factory)
 
@@ -106,6 +112,22 @@ func ensureFactory(factory ServerFactory) ServerFactory {
 }
 
 func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) lsp.ServerOptions {
+	// Map custom actions from appconfig to lsp type
+	var customs []lsp.CustomAction
+	if len(cfg.CustomActions) > 0 {
+		customs = make([]lsp.CustomAction, 0, len(cfg.CustomActions))
+		for _, ca := range cfg.CustomActions {
+			customs = append(customs, lsp.CustomAction{
+				ID:          ca.ID,
+				Title:       ca.Title,
+				Kind:        ca.Kind,
+				Scope:       ca.Scope,
+				Instruction: ca.Instruction,
+				System:      ca.System,
+				User:        ca.User,
+			})
+		}
+	}
 	return lsp.ServerOptions{
 		LogContext:            logContext,
 		MaxTokens:             cfg.MaxTokens,
@@ -142,5 +164,6 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) ls
 		PromptGoTestUser:        cfg.PromptCodeActionGoTestUser,
 		PromptSimplifySystem:    cfg.PromptCodeActionSimplifySystem,
 		PromptSimplifyUser:      cfg.PromptCodeActionSimplifyUser,
+		CustomActions:           customs,
 	}
 }

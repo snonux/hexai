@@ -85,6 +85,22 @@ type App struct {
 	// CLI
 	PromptCLIDefaultSystem string `json:"-" toml:"-"`
 	PromptCLIExplainSystem string `json:"-" toml:"-"`
+
+	// Custom code actions and tmux integration
+	CustomActions        []CustomAction `json:"-" toml:"-"`
+	TmuxCustomMenuHotkey string         `json:"-" toml:"-"`
+}
+
+// CustomAction describes a user-defined code action.
+type CustomAction struct {
+	ID          string
+	Title       string
+	Kind        string // optional; default "refactor"
+	Scope       string // "selection" (default) | "diagnostics"
+	Hotkey      string // optional, used by tmux submenu
+	Instruction string // optional; if set and User is empty, use global rewrite templates
+	System      string // optional; used only when User is set
+	User        string // optional; if set, render with available vars
 }
 
 // Constructor: defaults for App (kept first among functions)
@@ -181,6 +197,7 @@ type fileConfig struct {
 	Copilot    sectionCopilot    `toml:"copilot"`
 	Ollama     sectionOllama     `toml:"ollama"`
 	Prompts    sectionPrompts    `toml:"prompts"`
+	Tmux       sectionTmux       `toml:"tmux"`
 }
 
 type sectionGeneral struct {
@@ -260,16 +277,17 @@ type sectionPromptsChat struct {
 }
 
 type sectionPromptsCodeAction struct {
-	RewriteSystem     string `toml:"rewrite_system"`
-	DiagnosticsSystem string `toml:"diagnostics_system"`
-	DocumentSystem    string `toml:"document_system"`
-	RewriteUser       string `toml:"rewrite_user"`
-	DiagnosticsUser   string `toml:"diagnostics_user"`
-	DocumentUser      string `toml:"document_user"`
-	GoTestSystem      string `toml:"go_test_system"`
-	GoTestUser        string `toml:"go_test_user"`
-	SimplifySystem    string `toml:"simplify_system"`
-	SimplifyUser      string `toml:"simplify_user"`
+	RewriteSystem     string                `toml:"rewrite_system"`
+	DiagnosticsSystem string                `toml:"diagnostics_system"`
+	DocumentSystem    string                `toml:"document_system"`
+	RewriteUser       string                `toml:"rewrite_user"`
+	DiagnosticsUser   string                `toml:"diagnostics_user"`
+	DocumentUser      string                `toml:"document_user"`
+	GoTestSystem      string                `toml:"go_test_system"`
+	GoTestUser        string                `toml:"go_test_user"`
+	SimplifySystem    string                `toml:"simplify_system"`
+	SimplifyUser      string                `toml:"simplify_user"`
+	Custom            []sectionCustomAction `toml:"custom"`
 }
 
 type sectionPromptsCLI struct {
@@ -279,6 +297,21 @@ type sectionPromptsCLI struct {
 
 type sectionPromptsProviderNative struct {
 	Completion string `toml:"completion"`
+}
+
+type sectionCustomAction struct {
+	ID          string `toml:"id"`
+	Title       string `toml:"title"`
+	Kind        string `toml:"kind"`
+	Scope       string `toml:"scope"`
+	Hotkey      string `toml:"hotkey"`
+	Instruction string `toml:"instruction"`
+	System      string `toml:"system"`
+	User        string `toml:"user"`
+}
+
+type sectionTmux struct {
+	CustomMenuHotkey string `toml:"custom_menu_hotkey"`
 }
 
 func (fc *fileConfig) toApp() App {
@@ -393,7 +426,17 @@ func (fc *fileConfig) toApp() App {
 		out.PromptChatSystem = fc.Prompts.Chat.System
 	}
 	// code action
-	if (fc.Prompts.CodeAction != sectionPromptsCodeAction{}) {
+	if strings.TrimSpace(fc.Prompts.CodeAction.RewriteSystem) != "" ||
+		strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsSystem) != "" ||
+		strings.TrimSpace(fc.Prompts.CodeAction.DocumentSystem) != "" ||
+		strings.TrimSpace(fc.Prompts.CodeAction.RewriteUser) != "" ||
+		strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsUser) != "" ||
+		strings.TrimSpace(fc.Prompts.CodeAction.DocumentUser) != "" ||
+		strings.TrimSpace(fc.Prompts.CodeAction.GoTestSystem) != "" ||
+		strings.TrimSpace(fc.Prompts.CodeAction.GoTestUser) != "" ||
+		strings.TrimSpace(fc.Prompts.CodeAction.SimplifySystem) != "" ||
+		strings.TrimSpace(fc.Prompts.CodeAction.SimplifyUser) != "" ||
+		len(fc.Prompts.CodeAction.Custom) > 0 {
 		if strings.TrimSpace(fc.Prompts.CodeAction.RewriteSystem) != "" {
 			out.PromptCodeActionRewriteSystem = fc.Prompts.CodeAction.RewriteSystem
 		}
@@ -424,6 +467,20 @@ func (fc *fileConfig) toApp() App {
 		if strings.TrimSpace(fc.Prompts.CodeAction.SimplifyUser) != "" {
 			out.PromptCodeActionSimplifyUser = fc.Prompts.CodeAction.SimplifyUser
 		}
+		if len(fc.Prompts.CodeAction.Custom) > 0 {
+			for _, ca := range fc.Prompts.CodeAction.Custom {
+				out.CustomActions = append(out.CustomActions, CustomAction{
+					ID:          strings.TrimSpace(ca.ID),
+					Title:       strings.TrimSpace(ca.Title),
+					Kind:        strings.TrimSpace(ca.Kind),
+					Scope:       strings.ToLower(strings.TrimSpace(ca.Scope)),
+					Hotkey:      strings.TrimSpace(ca.Hotkey),
+					Instruction: ca.Instruction,
+					System:      ca.System,
+					User:        ca.User,
+				})
+			}
+		}
 	}
 	// cli
 	if (fc.Prompts.CLI != sectionPromptsCLI{}) {
@@ -437,6 +494,11 @@ func (fc *fileConfig) toApp() App {
 	// provider-native
 	if strings.TrimSpace(fc.Prompts.ProviderNative.Completion) != "" {
 		out.PromptNativeCompletion = fc.Prompts.ProviderNative.Completion
+	}
+
+	// tmux
+	if (fc.Tmux != sectionTmux{}) {
+		out.TmuxCustomMenuHotkey = strings.TrimSpace(fc.Tmux.CustomMenuHotkey)
 	}
 
 	return out
@@ -639,6 +701,70 @@ func (a *App) mergePrompts(other *App) {
 	if strings.TrimSpace(other.PromptCLIExplainSystem) != "" {
 		a.PromptCLIExplainSystem = other.PromptCLIExplainSystem
 	}
+	// Custom actions
+	if len(other.CustomActions) > 0 {
+		a.CustomActions = append([]CustomAction{}, other.CustomActions...)
+	}
+	if strings.TrimSpace(other.TmuxCustomMenuHotkey) != "" {
+		a.TmuxCustomMenuHotkey = other.TmuxCustomMenuHotkey
+	}
+}
+
+// Validate checks custom actions and tmux settings for duplicates and consistency.
+func (a App) Validate() error {
+	// Normalize and check duplicates for IDs and hotkeys
+	seenID := make(map[string]struct{})
+	seenHK := make(map[string]struct{})
+	for _, ca := range a.CustomActions {
+		id := strings.ToLower(strings.TrimSpace(ca.ID))
+		if id == "" {
+			return fmt.Errorf("config: custom action missing required field id")
+		}
+		if _, ok := seenID[id]; ok {
+			return fmt.Errorf("config: duplicate custom action id: %s", ca.ID)
+		}
+		seenID[id] = struct{}{}
+		if strings.TrimSpace(ca.Title) == "" {
+			return fmt.Errorf("config: custom action %s missing required field title", ca.ID)
+		}
+		// Validate scope
+		scope := strings.TrimSpace(ca.Scope)
+		if scope != "" && scope != "selection" && scope != "diagnostics" {
+			return fmt.Errorf("config: custom action %s has invalid scope: %s", ca.ID, ca.Scope)
+		}
+		// Instruction vs user
+		hasInstr := strings.TrimSpace(ca.Instruction) != ""
+		hasUser := strings.TrimSpace(ca.User) != ""
+		if hasInstr && hasUser {
+			return fmt.Errorf("config: custom action %s must set either instruction or user, not both", ca.ID)
+		}
+		if !hasInstr && !hasUser {
+			return fmt.Errorf("config: custom action %s requires instruction or user", ca.ID)
+		}
+		// Hotkey unique (case-insensitive), one rune if provided
+		if hk := strings.TrimSpace(ca.Hotkey); hk != "" {
+			if []rune(hk) == nil || len([]rune(hk)) != 1 {
+				return fmt.Errorf("config: custom action %s hotkey must be a single character", ca.ID)
+			}
+			lhk := strings.ToLower(hk)
+			if _, ok := seenHK[lhk]; ok {
+				return fmt.Errorf("config: duplicate custom action hotkey: %s", hk)
+			}
+			seenHK[lhk] = struct{}{}
+		}
+	}
+	// Tmux custom menu hotkey validation
+	if hk := strings.TrimSpace(a.TmuxCustomMenuHotkey); hk != "" {
+		if len([]rune(hk)) != 1 {
+			return fmt.Errorf("config: invalid tmux.custom_menu_hotkey: %s", hk)
+		}
+		// built-in hotkeys in tmux TUI: r,i,c,t,p,s
+		switch strings.ToLower(hk) {
+		case "r", "i", "c", "t", "p", "s":
+			return fmt.Errorf("config: invalid tmux.custom_menu_hotkey: %s (clashes with built-in)", hk)
+		}
+	}
+	return nil
 }
 
 // mergeProviderFields merges per-provider configuration.
