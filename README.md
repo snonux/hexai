@@ -18,15 +18,10 @@ It has got improved capabilities for Go code understanding (for example, create 
 
 ## Documentation
 
-* [Configuration guide](docs/configuration.md)
 * [Build and install guide](docs/buildandinstall.md)
+* [Configuration guide](docs/configuration.md)
 * [Usage examples](docs/usage.md)
 * [Helix + tmux quickstart](docs/tmux.md)
-
-## Hexai CLI
-
-- When invoked without arguments, `hexai` opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary `.md` file to capture a prompt, and combines it with any piped stdin.
-- With arguments, behavior is unchanged (no editor spawn).
 
 ## Tmux Status Line
 
