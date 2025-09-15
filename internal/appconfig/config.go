@@ -119,7 +119,7 @@ func newDefaultConfig() App {
 		OllamaTemperature:     &t,
 		CopilotTemperature:    &t,
 		ManualInvokeMinPrefix: 0,
-		CompletionDebounceMs:  200,
+		CompletionDebounceMs:  800,
 		CompletionThrottleMs:  0,
 		// Inline/chat trigger defaults
 		InlineOpen:   ">",
