@@ -11,7 +11,10 @@ const (
 	ActionDocument    ActionKind = "document"
 	ActionGoTest      ActionKind = "gotest"
 	ActionSimplify    ActionKind = "simplify"
-	ActionCustom      ActionKind = "custom"
+	// ActionCustom represents a configured custom action from the submenu.
+	ActionCustom ActionKind = "custom"
+	// ActionCustomPrompt is the free-form prompt opened in the editor (hotkey 'p').
+	ActionCustomPrompt ActionKind = "custom_prompt"
 )
 
 // InputParts represents parsed stdin input for actions.

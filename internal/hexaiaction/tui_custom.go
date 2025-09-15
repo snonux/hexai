@@ -34,6 +34,7 @@ func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (Acti
 		return ActionSkip, err
 	}
 	if mm, ok := md.(model); ok {
+		// If user chose built-in items (including Custom prompt), return immediately.
 		if mm.chosen != ActionCustom {
 			return mm.chosen, nil
 		}

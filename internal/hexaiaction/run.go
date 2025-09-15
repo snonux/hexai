@@ -101,7 +101,12 @@ func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg a
 			selectedCustom = nil // clear after use
 			return out, err
 		}
-		// Fallback: open editor for free-form instruction
+		// No selected custom; treat as no-op
+		return parts.Selection, nil
+	case ActionCustomPrompt:
+		cctx, cancel := timeout10s(ctx)
+		defer cancel()
+		// Open editor for free-form instruction
 		prompt, err := editor.OpenTempAndEdit(nil)
 		if err != nil || strings.TrimSpace(prompt) == "" {
 			fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)

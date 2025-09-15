@@ -23,7 +23,7 @@ func TestActionCustom_UsesEditorPrompt(t *testing.T) {
 	// Seam: choose custom, fake client, and fake editor
 	oldChoose := chooseActionFn
 	oldNew := newClientFromApp
-	chooseActionFn = func() (ActionKind, error) { return ActionCustom, nil }
+	chooseActionFn = func() (ActionKind, error) { return ActionCustomPrompt, nil }
 	newClientFromApp = func(_ appconfig.App) (llm.Client, error) { return llmFake2{}, nil }
 	t.Cleanup(func() { chooseActionFn = oldChoose; newClientFromApp = oldNew })
 

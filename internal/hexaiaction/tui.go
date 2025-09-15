@@ -31,7 +31,7 @@ func newModel() model {
 		item{title: "Simplify and improve", desc: "", kind: ActionSimplify, hotkey: 'i'},
 		item{title: "Document code", desc: "", kind: ActionDocument, hotkey: 'c'},
 		item{title: "Generate Go unit test(s)", desc: "", kind: ActionGoTest, hotkey: 't'},
-		item{title: "Custom prompt", desc: "", kind: ActionCustom, hotkey: 'p'},
+		item{title: "Custom prompt", desc: "", kind: ActionCustomPrompt, hotkey: 'p'},
 		item{title: "Skip", desc: "", kind: ActionSkip, hotkey: 's'},
 	}
 	l := list.New(items, oneLineDelegate{}, 0, 0)
