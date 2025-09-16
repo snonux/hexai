@@ -156,10 +156,9 @@ func (s *Server) detectAndHandleChat(uri string) {
 		go func(prompt string, remove int) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
-			sys := s.promptChatSystem
-			// Build short conversation history from the document above this line
-			history := s.buildChatHistory(uri, lineIdx, prompt)
-			msgs := append([]llm.Message{{Role: "system", Content: sys}}, history...)
+			// Build messages with history and context_mode aware extras.
+			pos := Position{Line: lineIdx, Character: lastIdx + 1}
+			msgs := s.buildChatMessages(uri, pos, prompt)
 			opts := s.llmRequestOpts()
 			logging.Logf("lsp ", "chat llm=requesting model=%s", s.llmClient.DefaultModel())
 			text, err := s.chatWithStats(ctx, msgs, opts...)
@@ -277,6 +276,33 @@ func stripTrailingTrigger(sx string) string {
 	default:
 		return sx
 	}
+}
+
+// buildChatMessages assembles the chat request messages using:
+// - system from prompts.chat.system
+// - rolling in-editor history up to current prompt
+// - optional extra context per general.context_mode (window/full-file/new-func)
+func (s *Server) buildChatMessages(uri string, pos Position, prompt string) []llm.Message {
+	// Base system and history
+	sys := s.promptChatSystem
+	// Determine line index for history from position
+	lineIdx := pos.Line
+	history := s.buildChatHistory(uri, lineIdx, prompt)
+	// Start with system
+	msgs := []llm.Message{{Role: "system", Content: sys}}
+	// Optional additional context like completion path (insert before history so last remains the prompt)
+	newFunc := s.isDefiningNewFunction(uri, pos)
+	if extra, has := s.buildAdditionalContext(newFunc, uri, pos); has && strings.TrimSpace(extra) != "" {
+		// Reuse completion's extra header template to avoid duplication
+		header := renderTemplate(s.promptCompExtraHeader, map[string]string{"context": extra})
+		if strings.TrimSpace(header) == "" {
+			header = extra
+		}
+		msgs = append(msgs, llm.Message{Role: "user", Content: header})
+	}
+	// Then add history (which ends with the current prompt)
+	msgs = append(msgs, history...)
+	return msgs
 }
 
 // clientApplyEdit sends a workspace/applyEdit request to the client.

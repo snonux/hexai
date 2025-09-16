@@ -18,6 +18,8 @@ func (llmFake) Name() string         { return "fake" }
 func (llmFake) DefaultModel() string { return "model" }
 
 func TestRun_WithSeams_SkipAndRewrite(t *testing.T) {
+	// Isolate from user config to avoid environment-dependent behavior/logging.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	// Seam: choose action to Skip first, then Rewrite
 	oldChoose := chooseActionFn
 	oldNew := newClientFromApp
@@ -26,8 +28,9 @@ func TestRun_WithSeams_SkipAndRewrite(t *testing.T) {
 	chooseActionFn = func() (ActionKind, error) { return ActionSkip, nil }
 	newClientFromApp = func(_ appconfig.App) (llm.Client, error) { return llmFake{}, nil }
 	var out bytes.Buffer
+	var errBuf bytes.Buffer
 	in := bytes.NewBufferString("some code")
-	if err := Run(context.Background(), in, &out, &out); err != nil {
+	if err := Run(context.Background(), in, &out, &errBuf); err != nil {
 		t.Fatalf("Run skip: %v", err)
 	}
 	if out.String() != "some code" {
@@ -37,7 +40,7 @@ func TestRun_WithSeams_SkipAndRewrite(t *testing.T) {
 	chooseActionFn = func() (ActionKind, error) { return ActionRewrite, nil }
 	out.Reset()
 	in = bytes.NewBufferString(";upper;\nhello")
-	if err := Run(context.Background(), in, &out, &out); err != nil {
+	if err := Run(context.Background(), in, &out, &errBuf); err != nil {
 		t.Fatalf("Run rewrite: %v", err)
 	}
 	if out.String() == "" {

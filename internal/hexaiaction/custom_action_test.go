@@ -20,6 +20,8 @@ func (llmFake2) Name() string         { return "fake" }
 func (llmFake2) DefaultModel() string { return "m" }
 
 func TestActionCustom_UsesEditorPrompt(t *testing.T) {
+	// Isolate from user config that might enable custom menu/TUI.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	// Seam: choose custom, fake client, and fake editor
 	oldChoose := chooseActionFn
 	oldNew := newClientFromApp
