@@ -174,7 +174,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 	case "rewrite":
 		sys := s.promptRewriteSystem
 		user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
@@ -199,7 +199,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		}
 		diagList := b.String()
 		user := renderTemplate(s.promptDiagnosticsUser, map[string]string{"diagnostics": diagList, "selection": payload.Selection})
-		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 22*time.Second)
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
@@ -215,7 +215,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 	case "document":
 		sys := s.promptDocumentSystem
 		user := renderTemplate(s.promptDocumentUser, map[string]string{"selection": payload.Selection})
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
@@ -242,7 +242,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 		sys := s.promptRewriteSystem
 		// Reuse rewrite user template with a fixed instruction
 		user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": "Simplify and improve the code while preserving behavior. Return only the improved code.", "selection": payload.Selection})
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
@@ -293,7 +293,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 			sys = s.promptRewriteSystem
 			user = renderTemplate(s.promptRewriteUser, map[string]string{"instruction": action.Instruction, "selection": payload.Selection})
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()
@@ -610,7 +610,7 @@ func (s *Server) generateGoTestFunction(funcCode string) string {
 	if s.llmClient != nil {
 		sys := s.promptGoTestSystem
 		user := renderTemplate(s.promptGoTestUser, map[string]string{"function": funcCode})
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 18*time.Second)
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 		opts := s.llmRequestOpts()

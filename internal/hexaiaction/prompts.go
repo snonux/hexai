@@ -152,17 +152,24 @@ func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, opt
 // reqOptsFrom builds LLM request options similar to LSP behavior.
 func reqOptsFrom(cfg appconfig.App) []llm.RequestOption {
 	opts := []llm.RequestOption{llm.WithMaxTokens(cfg.MaxTokens)}
+	// Apply temperature, with special-case for gpt-5 (default temp must be 1.0)
 	if cfg.CodingTemperature != nil {
-		opts = append(opts, llm.WithTemperature(*cfg.CodingTemperature))
+		temp := *cfg.CodingTemperature
+		prov := strings.ToLower(strings.TrimSpace(cfg.Provider))
+		model := strings.ToLower(strings.TrimSpace(cfg.OpenAIModel))
+		if prov == "openai" && strings.HasPrefix(model, "gpt-5") {
+			temp = 1.0
+		}
+		opts = append(opts, llm.WithTemperature(temp))
 	}
 	return opts
 }
 
 // Timeout helpers to mirror LSP behavior.
 func timeout10s(parent context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(parent, 10*time.Second)
+	return context.WithTimeout(parent, 20*time.Second)
 }
 
 func timeout8s(parent context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(parent, 8*time.Second)
+	return context.WithTimeout(parent, 18*time.Second)
 }

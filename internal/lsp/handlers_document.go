@@ -154,7 +154,7 @@ func (s *Server) detectAndHandleChat(uri string) {
 		lineIdx := i
 		lastIdx := j
 		go func(prompt string, remove int) {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 			defer cancel()
 			// Build messages with history and context_mode aware extras.
 			pos := Position{Line: lineIdx, Character: lastIdx + 1}

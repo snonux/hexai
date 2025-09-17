@@ -72,7 +72,7 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 }
 
 func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 
 	inlinePrompt := lineHasInlinePrompt(current)
@@ -243,7 +243,7 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 		prov = s.llmClient.Name()
 	}
 	logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel2()
 
 	// Debounce and throttle prior to provider-native call

@@ -24,7 +24,15 @@ var (
 func (s *Server) llmRequestOpts() []llm.RequestOption {
 	opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens)}
 	if s.codingTemperature != nil {
-		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
+		temp := *s.codingTemperature
+		if s.llmClient != nil {
+			prov := strings.ToLower(strings.TrimSpace(s.llmClient.Name()))
+			model := strings.ToLower(strings.TrimSpace(s.llmClient.DefaultModel()))
+			if prov == "openai" && strings.HasPrefix(model, "gpt-5") {
+				temp = 1.0
+			}
+		}
+		opts = append(opts, llm.WithTemperature(temp))
 	}
 	return opts
 }

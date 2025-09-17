@@ -35,16 +35,15 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
-	// No args: open editor to capture a prompt, then combine with stdin as usual.
-	if len(args) == 0 {
+	// Prefer piped stdin when present; only open the editor when there are no args
+	// and no stdin content available.
+	input, rerr := readInput(stdin, args)
+	if rerr != nil && len(args) == 0 {
 		if prompt, eerr := editor.OpenTempAndEdit(nil); eerr == nil && strings.TrimSpace(prompt) != "" {
 			args = []string{prompt}
-		} else {
-			// If editor fails or empty, continue; readInput will likely error if no stdin either.
+			input, rerr = readInput(stdin, args)
 		}
 	}
-	// Inline the flow here to use configured CLI prompts.
-	input, rerr := readInput(stdin, args)
 	if rerr != nil {
 		fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
 		return rerr

@@ -92,10 +92,24 @@ func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, erro
 		if strings.TrimSpace(openAIAPIKey) == "" {
 			return nil, errors.New("missing OPENAI_API_KEY for provider openai")
 		}
-		// Set coding-friendly default temperature if none provided
-		if cfg.OpenAITemperature == nil {
-			t := 0.2
-			cfg.OpenAITemperature = &t
+		// Default temperature selection:
+		// - When model is gpt-5*, prefer 1.0 by default (more exploratory).
+		// - Otherwise, prefer 0.2 by default (coding friendly).
+		// The app-wide defaults currently set provider temps to 0.2.
+		// If the user hasn't explicitly overridden and the model is gpt-5*,
+		// upgrade 0.2 → 1.0 to satisfy the requested default for gpt-5.
+		model := strings.ToLower(strings.TrimSpace(cfg.OpenAIModel))
+		if strings.HasPrefix(model, "gpt-5") {
+			if cfg.OpenAITemperature == nil {
+				v := 1.0
+				cfg.OpenAITemperature = &v
+			} else if *cfg.OpenAITemperature == 0.2 {
+				v := 1.0
+				cfg.OpenAITemperature = &v
+			}
+		} else if cfg.OpenAITemperature == nil {
+			v := 0.2
+			cfg.OpenAITemperature = &v
 		}
 		return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature), nil
 	case "ollama":
