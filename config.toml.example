@@ -31,7 +31,7 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 name = "openai"                      # openai | copilot | ollama
 
 [openai]
-model       = "gpt-4.1"
+model       = "gpt-4o"
 base_url    = "https://api.openai.com/v1"
 temperature = 0.2
 

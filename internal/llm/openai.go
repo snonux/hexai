@@ -81,7 +81,7 @@ func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) Client {
 		baseURL = "https://api.openai.com/v1"
 	}
 	if strings.TrimSpace(model) == "" {
-		model = "gpt-4.1"
+		model = "gpt-4o"
 	}
 	return openAIClient{
 		httpClient:         &http.Client{Timeout: 30 * time.Second},
