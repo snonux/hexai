@@ -22,6 +22,16 @@ func TestBuildOAChatRequest_MaxTokensKeyByModel(t *testing.T) {
 	}
 }
 
+func TestBuildOAChatRequest_TemperatureForcedForGpt5(t *testing.T) {
+	msgs := []Message{{Role: "user", Content: "hi"}}
+	// Explicit temp 0.2 → should be forced to 1.0 for gpt-5
+	r := buildOAChatRequest(Options{Model: "gpt-5.0", Temperature: 0.2, MaxTokens: 50}, msgs, nil, false)
+	b, _ := json.Marshal(r)
+	if !contains(string(b), "\"temperature\":1") {
+		t.Fatalf("expected forced temperature 1.0 for gpt-5, got %s", string(b))
+	}
+}
+
 func contains(s, sub string) bool {
 	for i := 0; i+len(sub) <= len(s); i++ {
 		if s[i:i+len(sub)] == sub {

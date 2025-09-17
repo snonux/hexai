@@ -218,6 +218,14 @@ func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, str
 	if len(o.Stop) > 0 {
 		req.Stop = o.Stop
 	}
+	// Enforce gpt-5 temperature constraints: only default (1.0) is supported.
+	if requiresMaxCompletionTokens(o.Model) {
+		if req.Temperature == nil || *req.Temperature != 1.0 {
+			t := 1.0
+			req.Temperature = &t
+			logging.Logf("llm/openai ", "forcing temperature=1.0 for model=%s (gpt-5 constraint)", o.Model)
+		}
+	}
 	return req
 }
 
