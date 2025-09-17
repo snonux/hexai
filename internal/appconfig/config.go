@@ -89,6 +89,8 @@ type App struct {
 	// Custom code actions and tmux integration
 	CustomActions        []CustomAction `json:"-" toml:"-"`
 	TmuxCustomMenuHotkey string         `json:"-" toml:"-"`
+	// Stats
+	StatsWindowMinutes int `json:"-" toml:"-"`
 }
 
 // CustomAction describes a user-defined code action.
@@ -152,6 +154,9 @@ func newDefaultConfig() App {
 
 		PromptCLIDefaultSystem: "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation.",
 		PromptCLIExplainSystem: "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context.",
+
+		// Stats
+		StatsWindowMinutes: 60,
 	}
 }
 
@@ -198,6 +203,7 @@ type fileConfig struct {
 	Ollama     sectionOllama     `toml:"ollama"`
 	Prompts    sectionPrompts    `toml:"prompts"`
 	Tmux       sectionTmux       `toml:"tmux"`
+	Stats      sectionStats      `toml:"stats"`
 }
 
 type sectionGeneral struct {
@@ -234,6 +240,10 @@ type sectionChat struct {
 
 type sectionProvider struct {
 	Name string `toml:"name"`
+}
+
+type sectionStats struct {
+	WindowMinutes int `toml:"window_minutes"`
 }
 
 type sectionOpenAI struct {
@@ -499,6 +509,11 @@ func (fc *fileConfig) toApp() App {
 	// tmux
 	if (fc.Tmux != sectionTmux{}) {
 		out.TmuxCustomMenuHotkey = strings.TrimSpace(fc.Tmux.CustomMenuHotkey)
+	}
+
+	// stats
+	if fc.Stats.WindowMinutes > 0 {
+		out.StatsWindowMinutes = fc.Stats.WindowMinutes
 	}
 
 	return out

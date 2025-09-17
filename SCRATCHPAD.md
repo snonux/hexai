@@ -4,9 +4,12 @@ This document shows future items and items in progress. Already completed ones a
 
 ## Features
 
-* [ ] Keep global stats about LLM usage for the tmux pane!
-* [ ] No a feature, but verify my OpenAI API account so I can use GPT-5 via the API.
-* [ ] In-editor chat triggers should be context aware of the current file, buffer and function!
+* [/] Keep global stats about LLM usage for the tmux pane!
+* [/] No a feature, but verify my OpenAI API account so I can use GPT-5 via the API.
+  * [ ] Temperature must by default be 1 for GPT-5
+  * [ ] Answers aren't streamed ot th eCLI anymore?
+  * [ ] GPT-5 is timing out on large responses?
+  * [ ] Any more tweaks for GPT-5 API?
 * [ ] Kagi FastGPT for in-editor search
   - Think about an in-editor chat trigger, maybe with S> for search!
 * [ ] Test whethe GitHub Copilot support actually works now, and if not, fix it!
@@ -25,6 +28,7 @@ This document shows future items and items in progress. Already completed ones a
 * [/] Review documentation
 * [/] Manual review the code 
 * [ ] Useful: https://deepwiki.com/helix-editor/helix/4.3-language-server-protocol
+* [/] Code review with another LLM 
 
 ## Additional Ideas (Nice to Have)
 

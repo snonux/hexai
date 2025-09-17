@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+	"time"
 
 	"codeberg.org/snonux/hexai/internal/textutil"
 )
@@ -63,6 +65,100 @@ func FormatLLMStatsStatusColored(provider, model string, reqs int64, rpm float64
 		"%sLLM:%s:%s %s↑%s%s %s↓%s%s %.1frpm %dr",
 		baseFGToken, provider, model, arrowUpToken, baseFGToken, in, arrowDownToken, baseFGToken, out, rpm, reqs,
 	)
+}
+
+// FormatGlobalStatusColored renders a compact global stats heartbeat with an optional
+// scoped provider:model tail. The window indicator (e.g., Σ@1h) should be composed
+// by the caller if needed; this function focuses on numbers and labels.
+// Example: "Σ ↑120k ↓340k 4.2rpm | openai:gpt-4.1 3.1rpm 80r"
+func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, globalOut int64, scopeProvider, scopeModel string, scopeRPM float64, scopeReqs int64, window time.Duration) string {
+	gin := textutil.HumanBytes(globalIn)
+	gout := textutil.HumanBytes(globalOut)
+	head := fmt.Sprintf("%sΣ@%s %s↑%s%s %s↓%s%s %.1frpm", baseFGToken, humanWindow(window), arrowUpToken, baseFGToken, gin, arrowDownToken, baseFGToken, gout, globalRPM)
+	// Narrow modes: only show Σ head
+	if narrowEnabled() || stringsTrim(scopeProvider) == "" || stringsTrim(scopeModel) == "" {
+		return head
+	}
+	tail := fmt.Sprintf(" | %s:%s %.1frpm %dr", scopeProvider, scopeModel, scopeRPM, scopeReqs)
+	// Respect max length when configured: drop tail if it would overflow
+	if ml := maxStatusLen(); ml > 0 {
+		if len(head) <= ml && len(head)+len(tail) > ml {
+			return head
+		}
+		if len(head) > ml {
+			return truncateStatus(head, ml)
+		}
+	}
+	return head + tail
+}
+
+func humanWindow(d time.Duration) string {
+	if d <= 0 {
+		return "?"
+	}
+	mins := int(d.Minutes())
+	if mins%60 == 0 {
+		return fmt.Sprintf("%dh", mins/60)
+	}
+	if mins >= 60 {
+		return fmt.Sprintf("%dm", mins)
+	}
+	return fmt.Sprintf("%dm", mins)
+}
+
+// narrowEnabled returns true when HEXAI_TMUX_STATUS_NARROW is truthy (1/true/yes/on).
+func narrowEnabled() bool {
+	v := strings.ToLower(stringsTrim(os.Getenv("HEXAI_TMUX_STATUS_NARROW")))
+	if v == "" {
+		return false
+	}
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+// maxStatusLen returns HEXAI_TMUX_STATUS_MAXLEN parsed as int; 0 disables.
+func maxStatusLen() int {
+	v := stringsTrim(os.Getenv("HEXAI_TMUX_STATUS_MAXLEN"))
+	if v == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return n
+}
+
+func truncateStatus(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	if len(s) <= n {
+		return s
+	}
+	if n <= 1 {
+		return s[:n]
+	}
+	return s[:n-1] + "…"
+}
+
+func stringsTrim(s string) string {
+	i := 0
+	j := len(s)
+	for i < j && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') {
+		i++
+	}
+	for j > i && (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') {
+		j--
+	}
+	if i == 0 && j == len(s) {
+		return s
+	}
+	return s[i:j]
 }
 
 // FormatLLMStartStatus renders a short colored heartbeat at start/initialize time.

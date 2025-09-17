@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/stats"
 	"codeberg.org/snonux/hexai/internal/textutil"
 	tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
@@ -59,15 +60,29 @@ func (s *Server) logLLMStats() {
 	if mins <= 0 {
 		mins = 0.001
 	}
-	rpm := float64(reqs) / mins
+	rpmLocal := float64(reqs) / mins
 	sentPerMin := float64(sentTot) / mins
 	recvPerMin := float64(recvTot) / mins
-	logging.Logf("lsp ", "llm stats reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpm, sentPerMin, recvPerMin)
-	// Best-effort tmux status update with a compact stats heartbeat
-	if s.llmClient != nil {
-		model := s.llmClient.DefaultModel()
+	// Log local process counters
+	logging.Logf("lsp ", "llm stats (local) reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpmLocal, sentPerMin, recvPerMin)
+	// Global snapshot for tmux status
+	snap, err := stats.TakeSnapshot()
+	if err == nil && s.llmClient != nil {
 		provider := s.llmClient.Name()
-		status := tmx.FormatLLMStatsStatusColored(provider, model, reqs, rpm, sentTot, recvTot)
+		model := s.llmClient.DefaultModel()
+		// Per-scope rpm estimated from window
+		scopeReqs := int64(0)
+		if pe, ok := snap.Providers[provider]; ok {
+			if mc, ok2 := pe.Models[model]; ok2 {
+				scopeReqs = mc.Reqs
+			}
+		}
+		minsWin := snap.Window.Minutes()
+		if minsWin <= 0 {
+			minsWin = 0.001
+		}
+		scopeRPM := float64(scopeReqs) / minsWin
+		status := tmx.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, provider, model, scopeRPM, scopeReqs, snap.Window)
 		_ = tmx.SetStatus(status)
 	}
 }
@@ -151,6 +166,10 @@ func (s *Server) chatWithStats(ctx context.Context, msgs []llm.Message, opts ...
 		return "", err
 	}
 	s.incRecvCounters(len(txt))
+	// Update global stats cache
+	if s.llmClient != nil {
+		_ = stats.Update(ctx, s.llmClient.Name(), s.llmClient.DefaultModel(), sent, len(txt))
+	}
 	s.logLLMStats()
 	return txt, nil
 }

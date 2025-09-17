@@ -12,7 +12,7 @@ coding_temperature = 0.2             # single knob for LSP calls (optional)
 log_preview_limit = 100              # chars shown in log previews
 
 [completion]
-completion_debounce_ms = 200         # idle ms before sending a request
+completion_debounce_ms = 800         # idle ms before sending a request
 completion_throttle_ms = 0           # min ms between requests (0 disables)
 manual_invoke_min_prefix = 0         # required identifier chars for manual invoke
 
@@ -100,3 +100,6 @@ temperature = 0.2
 
 [tmux]
 # custom_menu_hotkey = "a"            # hotkey to open the custom actions submenu in hexai-tmux-action
+
+[stats]
+# window_minutes = 60                  # sliding window for global stats (Σ@window); min 1, max 1440

@@ -6,11 +6,13 @@ import (
 	"io"
 	"log"
 	"strings"
+	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/editor"
 	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/stats"
 	"codeberg.org/snonux/hexai/internal/tmux"
 )
 
@@ -28,6 +30,9 @@ var selectedCustom *appconfig.CustomAction
 func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	logger := log.New(stderr, "hexai-tmux-action ", log.LstdFlags|log.Lmsgprefix)
 	cfg := appconfig.Load(logger)
+	if cfg.StatsWindowMinutes > 0 {
+		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
+	}
 	if err := cfg.Validate(); err != nil {
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: %v"+logging.AnsiReset+"\n", err)
 		return err

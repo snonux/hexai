@@ -39,6 +39,11 @@ set-environment -g HEXAI_TMUX_STATUS_THEME white-on-purple   # or black-on-yello
 # Or explicit colors
 # set-environment -g HEXAI_TMUX_STATUS_FG white
 # set-environment -g HEXAI_TMUX_STATUS_BG magenta
+
+# Optional: narrow / width-limited mode
+# Only show Σ (global) when narrow; or cap total width when long
+# set-environment -g HEXAI_TMUX_STATUS_NARROW 1
+# set-environment -g HEXAI_TMUX_STATUS_MAXLEN 40
 ```
 
 ## Use it
@@ -47,4 +52,17 @@ set-environment -g HEXAI_TMUX_STATUS_THEME white-on-purple   # or black-on-yello
 - Try completions or inline prompts; or select code and press Alt-a for the action menu.
 - Watch the right side of your tmux status for live LLM stats:
   - Start heartbeat: provider:model ⏳
-  - Stats: ↑sent ↓recv rpm reqs
+  - Global stats (Σ@window): ↑sent ↓recv rpm reqs
+  - Per-model tail is elided in narrow mode or when exceeding `HEXAI_TMUX_STATUS_MAXLEN`.
+
+## Global stats window
+
+- Hexai aggregates stats across all binaries and shows a global Σ view over a sliding window.
+- Configure the window in `~/.config/hexai/config.toml`:
+
+```
+[stats]
+window_minutes = 60  # default 60; min 1, max 1440
+```
+
+- The tmux status shows the window as `Σ@1h` or `Σ@45m`.

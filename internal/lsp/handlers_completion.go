@@ -10,6 +10,7 @@ import (
 
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/stats"
 )
 
 func (s *Server) handleCompletion(req Request) {
@@ -257,6 +258,10 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 		// Update counters and heartbeat
 		s.incSentCounters(sentBytes)
 		s.incRecvCounters(len(suggestions[0]))
+		// Contribute to global stats (provider-native path)
+		if s.llmClient != nil {
+			_ = stats.Update(ctx2, s.llmClient.Name(), s.llmClient.DefaultModel(), sentBytes, len(suggestions[0]))
+		}
 		s.logLLMStats()
 		cleaned := strings.TrimSpace(suggestions[0])
 		if cleaned != "" {

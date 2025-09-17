@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/stats"
 	"codeberg.org/snonux/hexai/internal/textutil"
 	"codeberg.org/snonux/hexai/internal/tmux"
 )
@@ -88,47 +89,63 @@ func runCustom(ctx context.Context, cfg appconfig.App, client chatDoer, ca appco
 
 func runOnce(ctx context.Context, client chatDoer, sys, user string) (string, error) {
 	msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-	start := time.Now()
 	txt, err := client.Chat(ctx, msgs)
 	if err != nil {
 		return "", err
 	}
 	out := strings.TrimSpace(StripFences(txt))
-	// Update tmux heartbeat with simple one-request stats
+	// Contribute to global stats and update tmux status
 	sent := 0
 	for _, m := range msgs {
 		sent += len(m.Content)
 	}
 	recv := len(out)
-	mins := time.Since(start).Minutes()
-	if mins <= 0 {
-		mins = 0.001
+	_ = stats.Update(ctx, providerOf(client), client.DefaultModel(), sent, recv)
+	if snap, err := stats.TakeSnapshot(); err == nil {
+		minsWin := snap.Window.Minutes()
+		if minsWin <= 0 {
+			minsWin = 0.001
+		}
+		scopeReqs := int64(0)
+		if pe, ok := snap.Providers[providerOf(client)]; ok {
+			if mc, ok2 := pe.Models[client.DefaultModel()]; ok2 {
+				scopeReqs = mc.Reqs
+			}
+		}
+		scopeRPM := float64(scopeReqs) / minsWin
+		_ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, providerOf(client), client.DefaultModel(), scopeRPM, scopeReqs, snap.Window))
 	}
-	rpm := float64(1) / mins
-	_ = tmux.SetStatus(tmux.FormatLLMStatsStatusColored(providerOf(client), client.DefaultModel(), 1, rpm, int64(sent), int64(recv)))
 	return out, nil
 }
 
 func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, opts []llm.RequestOption) (string, error) {
 	msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-	start := time.Now()
 	txt, err := client.Chat(ctx, msgs, opts...)
 	if err != nil {
 		return "", err
 	}
 	out := strings.TrimSpace(StripFences(txt))
-	// Update tmux heartbeat with simple one-request stats
+	// Contribute to global stats and update tmux status
 	sent := 0
 	for _, m := range msgs {
 		sent += len(m.Content)
 	}
 	recv := len(out)
-	mins := time.Since(start).Minutes()
-	if mins <= 0 {
-		mins = 0.001
+	_ = stats.Update(ctx, providerOf(client), client.DefaultModel(), sent, recv)
+	if snap, err := stats.TakeSnapshot(); err == nil {
+		minsWin := snap.Window.Minutes()
+		if minsWin <= 0 {
+			minsWin = 0.001
+		}
+		scopeReqs := int64(0)
+		if pe, ok := snap.Providers[providerOf(client)]; ok {
+			if mc, ok2 := pe.Models[client.DefaultModel()]; ok2 {
+				scopeReqs = mc.Reqs
+			}
+		}
+		scopeRPM := float64(scopeReqs) / minsWin
+		_ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, providerOf(client), client.DefaultModel(), scopeRPM, scopeReqs, snap.Window))
 	}
-	rpm := float64(1) / mins
-	_ = tmux.SetStatus(tmux.FormatLLMStatsStatusColored(providerOf(client), client.DefaultModel(), 1, rpm, int64(sent), int64(recv)))
 	return out, nil
 }
 

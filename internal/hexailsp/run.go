@@ -7,11 +7,13 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/lsp"
+	"codeberg.org/snonux/hexai/internal/stats"
 )
 
 // ServerRunner is the minimal interface satisfied by lsp.Server.
@@ -36,6 +38,9 @@ func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) er
 	cfg := appconfig.Load(logger)
 	if err := cfg.Validate(); err != nil {
 		logger.Fatalf("invalid config: %v", err)
+	}
+	if cfg.StatsWindowMinutes > 0 {
+		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
 	}
 	return RunWithFactory(logPath, stdin, stdout, logger, cfg, nil, nil)
 }

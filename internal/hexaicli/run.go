@@ -17,6 +17,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/stats"
 	"codeberg.org/snonux/hexai/internal/tmux"
 )
 
@@ -26,6 +27,9 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	// Load configuration with a logger so file-based config is respected.
 	logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
 	cfg := appconfig.Load(logger)
+	if cfg.StatsWindowMinutes > 0 {
+		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
+	}
 	client, err := newClientFromApp(cfg)
 	if err != nil {
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
@@ -146,20 +150,28 @@ func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input s
 		fmt.Fprint(out, output)
 	}
 	dur := time.Since(start)
-	// Compute simple stats for tmux heartbeat
+	// Contribute to global stats and update tmux status
 	sent := 0
 	for _, m := range msgs {
 		sent += len(m.Content)
 	}
 	recv := len(output)
-	mins := dur.Minutes()
-	if mins <= 0 {
-		mins = 0.001
+	_ = stats.Update(ctx, client.Name(), client.DefaultModel(), sent, recv)
+	snap, _ := stats.TakeSnapshot()
+	minsWin := snap.Window.Minutes()
+	if minsWin <= 0 {
+		minsWin = 0.001
 	}
-	rpm := float64(1) / mins
-	fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d"+logging.AnsiReset+"\n",
-		client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), sent, recv)
-	_ = tmux.SetStatus(tmux.FormatLLMStatsStatusColored(client.Name(), client.DefaultModel(), 1, rpm, int64(sent), int64(recv)))
+	scopeReqs := int64(0)
+	if pe, ok := snap.Providers[client.Name()]; ok {
+		if mc, ok2 := pe.Models[client.DefaultModel()]; ok2 {
+			scopeReqs = mc.Reqs
+		}
+	}
+	scopeRPM := float64(scopeReqs) / minsWin
+	fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d | global Σ reqs=%d rpm=%.2f"+logging.AnsiReset+"\n",
+		client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), sent, recv, snap.Global.Reqs, snap.RPM)
+	_ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, client.Name(), client.DefaultModel(), scopeRPM, scopeReqs, snap.Window))
 	return nil
 }
 

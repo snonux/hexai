@@ -109,8 +109,8 @@ func RunTmuxAction() error {
 
 // printCoverage prints a warning if an existing coverage profile shows total < coverateThreshold.
 func printCoverage() {
-	// Ensure the top-level coverage profile is refreshed at least once per day.
-	ensureDailyCoverage(24 * time.Hour)
+    // Ensure the top-level coverage profile is refreshed at least once per day.
+    ensureDailyCoverage(24 * time.Hour)
 	select {
 	case coveragePrinted <- struct{}{}:
 	default:
@@ -126,11 +126,20 @@ func printCoverage() {
 		fmt.Println("[coverage] No coverage profile found (run 'mage cover' or 'mage coverall').")
 		return
 	}
-	pct, ok := totalCoveragePercent(profile)
-	if !ok {
-		fmt.Println("[coverage] Could not parse total coverage from", profile)
-		return
-	}
+    pct, ok := totalCoveragePercent(profile)
+    if !ok {
+        // Attempt a one-time regen if the profile is malformed
+        if err := Coverage(); err == nil {
+            if p2, ok2 := totalCoveragePercent(profile); ok2 {
+                pct = p2
+                ok = true
+            }
+        }
+    }
+    if !ok {
+        fmt.Println("[coverage] Could not parse total coverage from", profile)
+        return
+    }
 	if pct < coverageThreshold {
 		fmt.Printf("[coverage] WARNING: total test coverage is %.1f%% (< %.1f%%)\n", pct, coverageThreshold)
 	} else {
