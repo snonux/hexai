@@ -4,11 +4,6 @@ This document shows future items and items in progress. Already completed ones a
 
 ## Features
 
-* [ ] Fix that ollama fallback model as there is an extra backtick in it
-* [ ] Kagi FastGPT for in-editor search
-  - Think about an in-editor chat trigger, maybe with S> for search!
-* [ ] Test whethe GitHub Copilot support actually works now, and if not, fix it!
-* [ ] Be able to re-configure the temperature in-editor
 * [ ] For in-editor chat add a way to print current hexai status such as
   * active LLM
   * active stats
