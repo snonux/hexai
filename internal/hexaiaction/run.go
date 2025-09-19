@@ -73,54 +73,85 @@ func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg a
 	case ActionSkip:
 		return parts.Selection, nil
 	case ActionRewrite:
-		instr, cleaned := ExtractInstruction(parts.Selection)
-		if strings.TrimSpace(instr) == "" {
-			fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
-			return parts.Selection, nil
-		}
-		cctx, cancel := timeout10s(ctx)
-		defer cancel()
-		return runRewrite(cctx, cfg, client, instr, cleaned)
+		return handleRewriteAction(ctx, parts, cfg, client, stderr)
 	case ActionDiagnostics:
-		cctx, cancel := timeout10s(ctx)
-		defer cancel()
-		return runDiagnostics(cctx, cfg, client, parts.Diagnostics, parts.Selection)
+		return handleDiagnosticsAction(ctx, parts, cfg, client)
 	case ActionDocument:
-		cctx, cancel := timeout10s(ctx)
-		defer cancel()
-		return runDocument(cctx, cfg, client, parts.Selection)
+		return handleDocumentAction(ctx, parts, cfg, client)
 	case ActionGoTest:
-		cctx, cancel := timeout8s(ctx)
-		defer cancel()
-		return runGoTest(cctx, cfg, client, parts.Selection)
+		return handleGoTestAction(ctx, parts, cfg, client)
 	case ActionSimplify:
-		cctx, cancel := timeout10s(ctx)
-		defer cancel()
-		return runSimplify(cctx, cfg, client, parts.Selection)
+		return handleSimplifyAction(ctx, parts, cfg, client)
 	case ActionCustom:
-		cctx, cancel := timeout10s(ctx)
-		defer cancel()
-		if selectedCustom != nil {
-			// Run configured custom action
-			out, err := runCustom(cctx, cfg, client, *selectedCustom, parts)
-			selectedCustom = nil // clear after use
-			return out, err
-		}
-		// No selected custom; treat as no-op
-		return parts.Selection, nil
+		return handleCustomAction(ctx, parts, cfg, client)
 	case ActionCustomPrompt:
-		cctx, cancel := timeout10s(ctx)
-		defer cancel()
-		// Open editor for free-form instruction
-		prompt, err := editor.OpenTempAndEdit(nil)
-		if err != nil || strings.TrimSpace(prompt) == "" {
-			fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
-			return parts.Selection, nil
-		}
-		return runRewrite(cctx, cfg, client, prompt, parts.Selection)
+		return handleCustomPromptAction(ctx, parts, cfg, client, stderr)
 	default:
 		return parts.Selection, nil
 	}
+}
+
+func handleRewriteAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
+	instr, cleaned := ExtractInstruction(parts.Selection)
+	if strings.TrimSpace(instr) == "" {
+		fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
+		return parts.Selection, nil
+	}
+	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+		return runRewrite(cctx, cfg, client, instr, cleaned)
+	})
+}
+
+func handleDiagnosticsAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+		return runDiagnostics(cctx, cfg, client, parts.Diagnostics, parts.Selection)
+	})
+}
+
+func handleDocumentAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+		return runDocument(cctx, cfg, client, parts.Selection)
+	})
+}
+
+func handleGoTestAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+	return runWithTimeout(ctx, timeout8s, func(cctx context.Context) (string, error) {
+		return runGoTest(cctx, cfg, client, parts.Selection)
+	})
+}
+
+func handleSimplifyAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+		return runSimplify(cctx, cfg, client, parts.Selection)
+	})
+}
+
+func handleCustomAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+	if selectedCustom == nil {
+		return parts.Selection, nil
+	}
+	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+		out, err := runCustom(cctx, cfg, client, *selectedCustom, parts)
+		selectedCustom = nil
+		return out, err
+	})
+}
+
+func handleCustomPromptAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
+	prompt, err := editor.OpenTempAndEdit(nil)
+	if err != nil || strings.TrimSpace(prompt) == "" {
+		fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
+		return parts.Selection, nil
+	}
+	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+		return runRewrite(cctx, cfg, client, prompt, parts.Selection)
+	})
+}
+
+func runWithTimeout(ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), fn func(context.Context) (string, error)) (string, error) {
+	innerCtx, cancel := timeout(ctx)
+	defer cancel()
+	return fn(innerCtx)
 }
 
 // client construction is shared via internal/llmutils

@@ -13,6 +13,21 @@ import (
 	"codeberg.org/snonux/hexai/internal/stats"
 )
 
+type completionPlan struct {
+	params       CompletionParams
+	above        string
+	current      string
+	below        string
+	funcCtx      string
+	docStr       string
+	hasExtra     bool
+	extraText    string
+	inlinePrompt bool
+	inParams     bool
+	manualInvoke bool
+	cacheKey     string
+}
+
 func (s *Server) handleCompletion(req Request) {
 	var p CompletionParams
 	var docStr string
@@ -75,44 +90,59 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 
-	inlinePrompt := lineHasInlinePrompt(current)
-	if !inlinePrompt && !s.isTriggerEvent(p, current) {
-		logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-		return []CompletionItem{}, true
-	}
-	if s.shouldSuppressForChatTriggerEOL(current, p) {
-		return []CompletionItem{}, true
-	}
-
-	inParams := inParamList(current, p.Position.Character)
-	manualInvoke := parseManualInvoke(p.Context)
-
-	// Cache fast-path
-	key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
-	if cleaned, ok := s.completionCacheGet(key); ok && strings.TrimSpace(cleaned) != "" {
-		logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
-			p.TextDocument.URI, p.Position.Line, p.Position.Character,
-			logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
-		return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
-	}
-	if isBareDoubleOpen(current) || isBareDoubleOpen(below) {
-		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-		return []CompletionItem{}, true
-	}
-
-	if !inParams && !s.prefixHeuristicAllows(inlinePrompt, current, p, manualInvoke) {
-		logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-		return []CompletionItem{}, true
-	}
-
-	// Provider-native path
-	if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, inParams); ok {
+	plan, items, handled := s.prepareCompletionPlan(p, above, current, below, funcCtx, docStr, hasExtra, extraText)
+	if handled {
 		return items, true
 	}
 
-	// Chat path
-	messages := s.buildCompletionMessages(inlinePrompt, hasExtra, extraText, inParams, p, above, current, below, funcCtx)
-	// Counters and options
+	if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, plan.inParams); ok {
+		return items, true
+	}
+
+	return s.executeChatCompletion(ctx, plan)
+}
+
+func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) {
+	plan := completionPlan{
+		params:    p,
+		above:     above,
+		current:   current,
+		below:     below,
+		funcCtx:   funcCtx,
+		docStr:    docStr,
+		hasExtra:  hasExtra,
+		extraText: extraText,
+	}
+	plan.inlinePrompt = lineHasInlinePrompt(current, s.inlineOpenChar, s.inlineCloseChar)
+	if !plan.inlinePrompt && !s.isTriggerEvent(p, current) {
+		logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+		return plan, []CompletionItem{}, true
+	}
+	if s.shouldSuppressForChatTriggerEOL(current, p) {
+		return plan, []CompletionItem{}, true
+	}
+	plan.inParams = inParamList(current, p.Position.Character)
+	plan.manualInvoke = parseManualInvoke(p.Context)
+	plan.cacheKey = s.completionCacheKey(p, above, current, below, funcCtx, plan.inParams, hasExtra, extraText)
+	if cleaned, ok := s.completionCacheGet(plan.cacheKey); ok && strings.TrimSpace(cleaned) != "" {
+		logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
+			p.TextDocument.URI, p.Position.Line, p.Position.Character,
+			logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
+		return plan, s.makeCompletionItems(cleaned, plan.inParams, current, p, docStr), true
+	}
+	if isBareDoubleOpen(current, s.inlineOpenChar, s.inlineCloseChar) || isBareDoubleOpen(below, s.inlineOpenChar, s.inlineCloseChar) {
+		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+		return plan, []CompletionItem{}, true
+	}
+	if !plan.inParams && !s.prefixHeuristicAllows(plan.inlinePrompt, current, p, plan.manualInvoke) {
+		logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+		return plan, []CompletionItem{}, true
+	}
+	return plan, nil, false
+}
+
+func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan) ([]CompletionItem, bool) {
+	messages := s.buildCompletionMessages(plan.inlinePrompt, plan.hasExtra, plan.extraText, plan.inParams, plan.params, plan.above, plan.current, plan.below, plan.funcCtx)
 	sentSize := 0
 	for _, m := range messages {
 		sentSize += len(m.Content)
@@ -122,13 +152,14 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	if s.codingTemperature != nil {
 		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
 	}
-	// Debounce and throttle before making the LLM call
 	s.waitForDebounce(ctx)
 	if !s.waitForThrottle(ctx) {
 		return nil, false
 	}
+	if s.llmClient == nil {
+		return nil, false
+	}
 	logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
-
 	text, err := s.llmClient.Chat(ctx, messages, opts...)
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
@@ -137,13 +168,14 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	}
 	s.incRecvCounters(len(text))
 	s.logLLMStats()
-
-	cleaned := s.postProcessCompletion(strings.TrimSpace(text), current[:p.Position.Character], current)
+	trimmed := strings.TrimSpace(text)
+	cleaned := s.postProcessCompletion(trimmed, plan.current[:plan.params.Position.Character], plan.current)
 	if cleaned == "" {
 		return nil, false
 	}
-	s.completionCachePut(key, cleaned)
-	return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
+	s.completionCachePut(plan.cacheKey, cleaned)
+	items := s.makeCompletionItems(cleaned, plan.inParams, plan.current, plan.params, plan.docStr)
+	return items, true
 }
 
 // parseManualInvoke inspects the LSP completion context and reports whether the user manually invoked completion.
@@ -269,7 +301,7 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 			if cleaned != "" {
 				cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
 			}
-			if cleaned != "" && hasDoubleOpenTrigger(current) {
+			if cleaned != "" && hasDoubleOpenTrigger(current, s.inlineOpenChar, s.inlineCloseChar) {
 				indent := leadingIndent(current)
 				if indent != "" {
 					cleaned = applyIndent(indent, cleaned)
@@ -398,7 +430,7 @@ func (s *Server) postProcessCompletion(text string, leftOfCursor string, current
 	if cleaned != "" {
 		cleaned = stripDuplicateGeneralPrefix(leftOfCursor, cleaned)
 	}
-	if cleaned != "" && hasDoubleOpenTrigger(currentLine) {
+	if cleaned != "" && hasDoubleOpenTrigger(currentLine, s.inlineOpenChar, s.inlineCloseChar) {
 		if indent := leadingIndent(currentLine); indent != "" {
 			cleaned = applyIndent(indent, cleaned)
 		}

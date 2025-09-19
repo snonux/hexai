@@ -17,7 +17,7 @@ func TestHasDoubleSemicolonTrigger(t *testing.T) {
 		{">>x > space before close", false},
 	}
 	for _, tc := range cases {
-		got := hasDoubleOpenTrigger(tc.line)
+		got := hasDoubleOpenTrigger(tc.line, '>', '>')
 		if got != tc.want {
 			t.Fatalf("hasDoubleOpenTrigger(%q)=%v want %v", tc.line, got, tc.want)
 		}
@@ -26,7 +26,7 @@ func TestHasDoubleSemicolonTrigger(t *testing.T) {
 
 func TestCollectSemicolonMarkers(t *testing.T) {
 	line := "keep >ok> this and >another> that"
-	edits := collectSemicolonMarkers(line, 7)
+	edits := collectSemicolonMarkers(line, 7, '>', '>')
 	if len(edits) != 2 {
 		t.Fatalf("expected 2 edits, got %d", len(edits))
 	}
@@ -42,7 +42,7 @@ func TestCollectSemicolonMarkers(t *testing.T) {
 
 func TestPromptRemovalEditsForLine_WholeLine(t *testing.T) {
 	line := ">>todo> remove this whole line"
-	edits := promptRemovalEditsForLine(line, 3)
+	edits := promptRemovalEditsForLine(line, 3, '>', '>')
 	if len(edits) != 1 {
 		t.Fatalf("expected 1 whole-line edit, got %d", len(edits))
 	}

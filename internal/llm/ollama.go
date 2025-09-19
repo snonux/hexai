@@ -46,7 +46,7 @@ func newOllama(baseURL, model string, defaultTemp *float64) Client {
 		baseURL = "http://localhost:11434"
 	}
 	if strings.TrimSpace(model) == "" {
-		model = "qwen3-coder:30b-a3b-q4_K_M`"
+		model = "qwen3-coder:30b-a3b-q4_K_M"
 	}
 	return ollamaClient{
 		httpClient:         &http.Client{Timeout: 30 * time.Second},

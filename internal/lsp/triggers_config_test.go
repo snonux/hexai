@@ -30,16 +30,16 @@ func TestNewServer_AssignsTriggerGlobals_AndParsingUsesThem(t *testing.T) {
 		InlineOpen: "<", InlineClose: ">", ChatSuffix: ")", ChatPrefixes: []string{":"},
 	})
 	_ = s // ensure server constructed applies globals
-	if inlineOpenChar != '<' || inlineCloseChar != '>' {
-		t.Fatalf("inline markers not applied: %q %q", string(inlineOpenChar), string(inlineCloseChar))
+	if s.inlineOpenChar != '<' || s.inlineCloseChar != '>' {
+		t.Fatalf("inline markers not applied: %q %q", string(s.inlineOpenChar), string(s.inlineCloseChar))
 	}
-	if chatSuffixChar != ')' || len(chatPrefixSingles) == 0 || chatPrefixSingles[0] != ":" {
-		t.Fatalf("chat markers not applied: suffix=%q prefixes=%v", string(chatSuffixChar), chatPrefixSingles)
+	if s.chatSuffixChar != ')' || len(s.chatPrefixes) == 0 || s.chatPrefixes[0] != ":" {
+		t.Fatalf("chat markers not applied: suffix=%q prefixes=%v", string(s.chatSuffixChar), s.chatPrefixes)
 	}
-	if txt, l, r, ok := findStrictInlineTag("x<do>y"); !ok || txt != "do" || l != 1 || r != 5 {
+	if txt, l, r, ok := findStrictInlineTag("x<do>y", s.inlineOpenChar, s.inlineCloseChar); !ok || txt != "do" || l != 1 || r != 5 {
 		t.Fatalf("findStrictInlineTag failed: ok=%v txt=%q l=%d r=%d", ok, txt, l, r)
 	}
-	if got := stripTrailingTrigger("note:)"); got != "note:" {
+	if got := s.stripTrailingTrigger("note:)"); got != "note:" {
 		t.Fatalf("stripTrailingTrigger failed: %q", got)
 	}
 }

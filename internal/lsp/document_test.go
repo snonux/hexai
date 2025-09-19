@@ -10,12 +10,15 @@ import (
 
 func newTestServer() *Server {
 	s := &Server{
-		logger:       log.New(io.Discard, "", 0),
-		docs:         make(map[string]*document),
-		inlineOpen:   ">",
-		inlineClose:  ">",
-		chatSuffix:   ">",
-		chatPrefixes: []string{"?", "!", ":", ";"},
+		logger:          log.New(io.Discard, "", 0),
+		docs:            make(map[string]*document),
+		inlineOpen:      ">",
+		inlineClose:     ">",
+		chatSuffix:      ">",
+		chatPrefixes:    []string{"?", "!", ":", ";"},
+		inlineOpenChar:  '>',
+		inlineCloseChar: '>',
+		chatSuffixChar:  '>',
 	}
 	// Default prompt templates (mirror app defaults)
 	s.promptCompSysParams = "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types."
@@ -34,12 +37,31 @@ func newTestServer() *Server {
 	s.promptDocumentUser = "Add documentation comments to this code:\n{{selection}}"
 	s.promptGoTestSystem = "You are a precise Go unit test generator. Given a Go function, write one or more Test* functions using the testing package. Do NOT include package or imports, only the test function(s). Prefer table-driven tests. Keep it minimal and idiomatic."
 	s.promptGoTestUser = "Function under test:\n{{function}}"
-	// Keep package-level helpers in sync for tests using free functions
-	inlineOpenChar = '>'
-	inlineCloseChar = '>'
-	chatSuffixChar = '>'
-	chatPrefixSingles = []string{"?", "!", ":", ";"}
 	return s
+}
+
+func initServerDefaults(s *Server) {
+	if s.inlineOpen == "" {
+		s.inlineOpen = ">"
+	}
+	if s.inlineClose == "" {
+		s.inlineClose = ">"
+	}
+	if s.inlineOpenChar == 0 && s.inlineOpen != "" {
+		s.inlineOpenChar = s.inlineOpen[0]
+	}
+	if s.inlineCloseChar == 0 && s.inlineClose != "" {
+		s.inlineCloseChar = s.inlineClose[0]
+	}
+	if s.chatSuffix == "" {
+		s.chatSuffix = ">"
+	}
+	if s.chatSuffixChar == 0 && s.chatSuffix != "" {
+		s.chatSuffixChar = s.chatSuffix[0]
+	}
+	if len(s.chatPrefixes) == 0 {
+		s.chatPrefixes = []string{"?", "!", ":", ";"}
+	}
 }
 
 func TestSplitLines(t *testing.T) {

@@ -3,7 +3,6 @@
 package hexaicli
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -78,8 +77,11 @@ func RunWithClient(ctx context.Context, args []string, stdin io.Reader, stdout, 
 func readInput(stdin io.Reader, args []string) (string, error) {
 	var stdinData string
 	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeCharDevice) == 0 {
-		b, _ := io.ReadAll(bufio.NewReader(stdin))
-		stdinData = strings.TrimSpace(string(b))
+		data, readErr := io.ReadAll(stdin)
+		if readErr != nil {
+			return "", fmt.Errorf("hexai: failed to read stdin: %w", readErr)
+		}
+		stdinData = strings.TrimSpace(string(data))
 	}
 	argData := strings.TrimSpace(strings.Join(args, " "))
 	switch {

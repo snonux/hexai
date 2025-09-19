@@ -73,6 +73,7 @@ func TestHandleCodeAction_ListsHexaiActions(t *testing.T) {
 	// Prepare server
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	initServerDefaults(s)
 	s.chatSuffix = ">"
 	s.chatPrefixes = []string{"?", "!", ":", ";"}
 	s.llmClient = fakeLLM{resp: "// doc\nfunc add(a,b int) int { return a+b }"}
@@ -121,6 +122,7 @@ func TestHandleCodeAction_ListsHexaiActions(t *testing.T) {
 func TestHandleCodeActionResolve_Document(t *testing.T) {
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	initServerDefaults(s)
 	s.llmClient = fakeLLM{resp: "// doc\nfunc f(){}"}
 	uri := "file:///x.go"
 	s.setDocument(uri, "package p\nfunc f(){}\n")
@@ -152,6 +154,7 @@ func TestHandleCodeActionResolve_Document(t *testing.T) {
 func TestHandleCodeAction_NoLLMOrEmptySelection_ReturnsEmpty(t *testing.T) {
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	initServerDefaults(s)
 	uri := "file:///x.go"
 	s.setDocument(uri, "package p\n\n")
 	// Empty selection
@@ -187,6 +190,7 @@ func mustJSON(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
 func TestHandle_UnknownMethod_ReturnsError(t *testing.T) {
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out, handlers: map[string]func(Request){}}
+	initServerDefaults(s)
 	req := Request{JSONRPC: "2.0", ID: json.RawMessage("9"), Method: "no/such"}
 	out.Reset()
 	s.handle(req)
@@ -253,6 +257,7 @@ func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
 func TestHandleCodeActionResolve_Diagnostics(t *testing.T) {
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	initServerDefaults(s)
 	s.llmClient = fakeLLM{resp: "fixed"}
 	uri := "file:///x.go"
 	s.setDocument(uri, "package p\nvar x = 1\n")

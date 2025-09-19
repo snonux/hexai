@@ -34,6 +34,7 @@ func TestDidOpenChangeClose_UpdateDocs(t *testing.T) {
 func TestClientShowDocument_WritesRequest(t *testing.T) {
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	initServerDefaults(s)
 	uri := "file:///x.go"
 	sel := Range{Start: Position{Line: 1}, End: Position{Line: 2}}
 	out.Reset()
@@ -47,6 +48,7 @@ func TestClientShowDocument_WritesRequest(t *testing.T) {
 func TestHandleExecuteCommand_ShowDocument(t *testing.T) {
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	initServerDefaults(s)
 	uri := "file:///x.go"
 	r := Range{Start: Position{Line: 0}, End: Position{Line: 0}}
 	args := []any{uri, r}
@@ -61,6 +63,7 @@ func TestHandleExecuteCommand_ShowDocument(t *testing.T) {
 func TestDeferShowDocument_WritesLater(t *testing.T) {
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	initServerDefaults(s)
 	uri := "file:///x.go"
 	out.Reset()
 	s.deferShowDocument(uri, Range{Start: Position{Line: 0}, End: Position{Line: 0}})

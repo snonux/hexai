@@ -11,13 +11,6 @@ import (
 	"codeberg.org/snonux/hexai/internal/logging"
 )
 
-// Package-level chat trigger vars for helpers without Server receiver.
-// NewServer assigns these from configuration on startup.
-var (
-	chatSuffixChar    byte = '>'
-	chatPrefixSingles      = []string{"?", "!", ":", ";"}
-)
-
 func (s *Server) handleDidOpen(req Request) {
 	var p DidOpenTextDocumentParams
 	if err := json.Unmarshal(req.Params, &p); err == nil {
@@ -236,7 +229,7 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
 			break
 		}
 		q := strings.TrimSpace(d.lines[i])
-		q = stripTrailingTrigger(q)
+		q = s.stripTrailingTrigger(q)
 		pairs = append([]pair{{q: q, a: strings.Join(replyLines, "\n")}}, pairs...)
 		i--
 	}
@@ -254,25 +247,23 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
 }
 
 // stripTrailingTrigger removes the trailing chat trigger punctuation from a line if present.
-func stripTrailingTrigger(sx string) string {
-	s := strings.TrimRight(sx, " \t")
-	if len(s) == 0 {
+func (s *Server) stripTrailingTrigger(sx string) string {
+	trim := strings.TrimRight(sx, " \t")
+	if len(trim) == 0 {
 		return sx
 	}
-	// Configurable suffix removal when preceded by configured prefixes
-	if len(s) >= 2 && s[len(s)-1] == chatSuffixChar {
-		prev := string(s[len(s)-2])
-		for _, pf := range chatPrefixSingles {
+	if len(trim) >= 2 && s.chatSuffixChar != 0 && trim[len(trim)-1] == s.chatSuffixChar {
+		prev := string(trim[len(trim)-2])
+		for _, pf := range s.chatPrefixes {
 			if prev == pf {
-				return strings.TrimRight(s[:len(s)-1], " \t")
+				return strings.TrimRight(trim[:len(trim)-1], " \t")
 			}
 		}
 	}
-	// Legacy: remove one trailing punctuation (?, !, :) to build history nicely
-	last := s[len(s)-1]
+	last := trim[len(trim)-1]
 	switch last {
 	case '?', '!', ':':
-		return strings.TrimRight(s[:len(s)-1], " \t")
+		return strings.TrimRight(trim[:len(trim)-1], " \t")
 	default:
 		return sx
 	}

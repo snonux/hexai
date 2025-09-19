@@ -10,6 +10,7 @@ import (
 func TestDetectAndHandleChat_NoDoubleAnswer(t *testing.T) {
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	initServerDefaults(s)
 	s.llmClient = fakeLLM{resp: "IGNORED"}
 	uri := "file:///x.go"
 	// Question line with trigger, followed by an existing answer line starting with '>'

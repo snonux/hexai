@@ -11,6 +11,7 @@ import (
 func TestHandleInitialize_Capabilities(t *testing.T) {
 	var out bytes.Buffer
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	initServerDefaults(s)
 	s.triggerChars = []string{".", ":"}
 	req := Request{JSONRPC: "2.0", ID: json.RawMessage("7"), Method: "initialize"}
 	out.Reset()

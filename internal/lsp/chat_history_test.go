@@ -3,19 +3,20 @@ package lsp
 import "testing"
 
 func TestStripTrailingTrigger(t *testing.T) {
-	if got := stripTrailingTrigger("what?"); got != "what" {
+	s := newTestServer()
+	if got := s.stripTrailingTrigger("what?"); got != "what" {
 		t.Fatalf("should remove trailing ?")
 	}
-	if got := stripTrailingTrigger("what?>"); got != "what?" {
+	if got := s.stripTrailingTrigger("what?>"); got != "what?" {
 		t.Fatalf("should drop trailing > when preceded by ?")
 	}
-	if got := stripTrailingTrigger("ok!>"); got != "ok!" {
+	if got := s.stripTrailingTrigger("ok!>"); got != "ok!" {
 		t.Fatalf("should drop > after !")
 	}
-	if got := stripTrailingTrigger("note:>"); got != "note:" {
+	if got := s.stripTrailingTrigger("note:>"); got != "note:" {
 		t.Fatalf("should drop > after :")
 	}
-	if got := stripTrailingTrigger("go;>"); got != "go;" {
+	if got := s.stripTrailingTrigger("go;>"); got != "go;" {
 		t.Fatalf("should drop > after ;")
 	}
 }

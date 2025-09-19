@@ -56,13 +56,14 @@ func TestFindGoFunctionAtLine_NoBody(t *testing.T) {
 }
 
 func TestLineHasInlinePrompt(t *testing.T) {
-	if !lineHasInlinePrompt(">do>") {
+	if !lineHasInlinePrompt(">do>", '>', '>') {
 		t.Fatalf("expected inline prompt")
 	}
 }
 
 func TestDiagnosticsInRange_Overlap(t *testing.T) {
 	s := &Server{}
+	initServerDefaults(s)
 	ctx := CodeActionContext{Diagnostics: []Diagnostic{{
 		Range:   Range{Start: Position{Line: 10, Character: 0}, End: Position{Line: 12, Character: 0}},
 		Message: "x",
@@ -88,15 +89,12 @@ func TestIndentHelpersAndPromptRemoval(t *testing.T) {
 		t.Fatalf("applyIndent: %q", out)
 	}
 	// double-open trigger removes whole line
-	edits := promptRemovalEditsForLine(">>ask>", 3)
+	edits := promptRemovalEditsForLine(">>ask>", 3, '>', '>')
 	if len(edits) != 1 || edits[0].Range.Start.Line != 3 {
 		t.Fatalf("unexpected edits: %#v", edits)
 	}
-	// temporarily switch to semicolon tags and test collection
-	oldOpen, oldClose := inlineOpenChar, inlineCloseChar
-	inlineOpenChar, inlineCloseChar = ';', ';'
-	t.Cleanup(func() { inlineOpenChar, inlineCloseChar = oldOpen, oldClose })
-	edits2 := collectSemicolonMarkers("pre;do;post", 1)
+	// semicolon tags collect correctly when provided explicitly
+	edits2 := collectSemicolonMarkers("pre;do;post", 1, ';', ';')
 	if len(edits2) != 1 {
 		t.Fatalf("expected one semicolon edit, got %#v", edits2)
 	}

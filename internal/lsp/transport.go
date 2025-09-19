@@ -49,6 +49,9 @@ func (s *Server) readMessage() ([]byte, error) {
 }
 
 func (s *Server) writeMessage(v any) {
+	s.outMu.Lock()
+	defer s.outMu.Unlock()
+
 	data, err := json.Marshal(v)
 	if err != nil {
 		logging.Logf("lsp ", "marshal error: %v", err)

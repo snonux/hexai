@@ -16,7 +16,8 @@ func TestFindFirstInstructionInLine_Table(t *testing.T) {
 		{"double_dash", "-- rewrite quickly", "rewrite quickly"},
 	}
 	for _, c := range cases {
-		instr, _, ok := findFirstInstructionInLine(c.line)
+		s := newTestServer()
+		instr, _, ok := s.findFirstInstructionInLine(c.line)
 		if !ok || instr != c.instr {
 			t.Fatalf("%s: got %q ok=%v", c.name, instr, ok)
 		}

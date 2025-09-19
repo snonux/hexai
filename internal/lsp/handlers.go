@@ -25,10 +25,10 @@ func (s *Server) handle(req Request) {
 // Preference order on each line: strict ;text; marker (no inner spaces), then
 // a line comment (//, #, --). Returns the instruction string and the selection
 // text cleaned of the matched instruction marker or comment.
-func instructionFromSelection(sel string) (string, string) {
+func (s *Server) instructionFromSelection(sel string) (string, string) {
 	lines := splitLines(sel)
 	for idx, line := range lines {
-		if instr, cleaned, ok := findFirstInstructionInLine(line); ok && strings.TrimSpace(instr) != "" {
+		if instr, cleaned, ok := s.findFirstInstructionInLine(line); ok && strings.TrimSpace(instr) != "" {
 			lines[idx] = cleaned
 			return instr, strings.Join(lines, "\n")
 		}
@@ -45,13 +45,13 @@ func instructionFromSelection(sel string) (string, string) {
 // - // text
 // - # text
 // - -- text
-func findFirstInstructionInLine(line string) (instr string, cleaned string, ok bool) {
+func (s *Server) findFirstInstructionInLine(line string) (instr string, cleaned string, ok bool) {
 	type cand struct {
 		start, end int
 		text       string
 	}
 	cands := []cand{}
-	if t, l, r, ok := findStrictInlineTag(line); ok {
+	if t, l, r, ok := findStrictInlineTag(line, s.inlineOpenChar, s.inlineCloseChar); ok {
 		cands = append(cands, cand{start: l, end: r, text: t})
 	}
 	if i := strings.Index(line, "/*"); i >= 0 {
@@ -300,7 +300,7 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 		}
 		// If configured and the line contains a bare double-open marker (e.g., '>>' with no '>>text>'),
 		// do not treat as a trigger source.
-		if s.inlineOpen != "" && strings.Contains(current, s.inlineOpen+s.inlineOpen) && !hasDoubleOpenTrigger(current) {
+		if s.inlineOpen != "" && strings.Contains(current, s.inlineOpen+s.inlineOpen) && !hasDoubleOpenTrigger(current, s.inlineOpenChar, s.inlineCloseChar) {
 			return false
 		}
 		// TriggerKind 1 = Invoked (manual). Always allow manual invoke.
@@ -328,7 +328,7 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 		return false
 	}
 	// Bare double-open should not trigger via fallback char either (only when configured)
-	if s.inlineOpen != "" && strings.Contains(current, s.inlineOpen+s.inlineOpen) && !hasDoubleOpenTrigger(current) {
+	if s.inlineOpen != "" && strings.Contains(current, s.inlineOpen+s.inlineOpen) && !hasDoubleOpenTrigger(current, s.inlineOpenChar, s.inlineCloseChar) {
 		return false
 	}
 	ch := string(current[idx-1])

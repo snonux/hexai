@@ -122,7 +122,7 @@ func (s *Server) buildSimplifyCodeAction(p CodeActionParams, sel string) *CodeAc
 }
 
 func (s *Server) buildRewriteCodeAction(p CodeActionParams, sel string) *CodeAction {
-	if instr, cleaned := instructionFromSelection(sel); strings.TrimSpace(instr) != "" {
+	if instr, cleaned := s.instructionFromSelection(sel); strings.TrimSpace(instr) != "" {
 		payload := struct {
 			Type        string `json:"type"`
 			URI         string `json:"uri"`

@@ -13,13 +13,6 @@ import (
 	tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
 
-// Configurable inline trigger characters (default to '>') used by free helpers below.
-// NewServer assigns these based on ServerOptions.
-var (
-	inlineOpenChar  byte = '>'
-	inlineCloseChar byte = '>'
-)
-
 // llmRequestOpts builds request options from server settings.
 func (s *Server) llmRequestOpts() []llm.RequestOption {
 	opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens)}
@@ -183,11 +176,12 @@ func (s *Server) chatWithStats(ctx context.Context, msgs []llm.Message, opts ...
 }
 
 // Inline prompt utilities
-func lineHasInlinePrompt(line string) bool {
-	if _, _, _, ok := findStrictInlineTag(line); ok {
+
+func lineHasInlinePrompt(line string, open, close byte) bool {
+	if _, _, _, ok := findStrictInlineTag(line, open, close); ok {
 		return true
 	}
-	return hasDoubleOpenTrigger(line)
+	return hasDoubleOpenTrigger(line, open, close)
 }
 
 func leadingIndent(line string) string {
@@ -227,22 +221,22 @@ func applyIndent(indent, suggestion string) string {
 // findStrictInlineTag finds >text> (configurable), with no space after the first
 // opening marker and no space immediately before the closing marker. Returns the
 // text between markers, the start index, the end index just after closing, and ok.
-func findStrictInlineTag(line string) (string, int, int, bool) {
+func findStrictInlineTag(line string, open, close byte) (string, int, int, bool) {
 	pos := 0
 	for pos < len(line) {
 		// find opening marker
-		j := strings.IndexByte(line[pos:], inlineOpenChar)
+		j := strings.IndexByte(line[pos:], open)
 		if j < 0 {
 			return "", 0, 0, false
 		}
 		j += pos
 		// ensure single open (not double) and non-space after
-		if j+1 >= len(line) || line[j+1] == inlineOpenChar || line[j+1] == ' ' {
+		if j+1 >= len(line) || line[j+1] == open || line[j+1] == ' ' {
 			pos = j + 1
 			continue
 		}
 		// find closing marker
-		k := strings.IndexByte(line[j+1:], inlineCloseChar)
+		k := strings.IndexByte(line[j+1:], close)
 		if k < 0 {
 			return "", 0, 0, false
 		}
@@ -265,14 +259,14 @@ func findStrictInlineTag(line string) (string, int, int, bool) {
 // isBareDoubleSemicolon reports whether the line contains a standalone
 // double-semicolon marker with no inline content (";;" possibly with only
 // whitespace after it). It explicitly excludes the valid form ";;text;".
-func isBareDoubleOpen(line string) bool {
+func isBareDoubleOpen(line string, open, close byte) bool {
 	t := strings.TrimSpace(line)
 	// check for double-open pattern
-	dbl := string([]byte{inlineOpenChar, inlineOpenChar})
+	dbl := string([]byte{open, open})
 	if !strings.Contains(t, dbl) {
 		return false
 	}
-	if hasDoubleOpenTrigger(t) {
+	if hasDoubleOpenTrigger(t, open, close) {
 		return false
 	}
 	if strings.HasPrefix(t, dbl) {
@@ -434,23 +428,23 @@ func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit {
 	}
 	var edits []TextEdit
 	for i, line := range d.lines {
-		edits = append(edits, promptRemovalEditsForLine(line, i)...)
+		edits = append(edits, promptRemovalEditsForLine(line, i, s.inlineOpenChar, s.inlineCloseChar)...)
 	}
 	return edits
 }
 
-func promptRemovalEditsForLine(line string, lineNum int) []TextEdit {
-	if hasDoubleOpenTrigger(line) {
+func promptRemovalEditsForLine(line string, lineNum int, open, close byte) []TextEdit {
+	if hasDoubleOpenTrigger(line, open, close) {
 		return []TextEdit{{Range: Range{Start: Position{Line: lineNum, Character: 0}, End: Position{Line: lineNum, Character: len(line)}}, NewText: ""}}
 	}
-	return collectSemicolonMarkers(line, lineNum)
+	return collectSemicolonMarkers(line, lineNum, open, close)
 }
 
-func hasDoubleOpenTrigger(line string) bool {
+func hasDoubleOpenTrigger(line string, open, close byte) bool {
 	pos := 0
 	for pos < len(line) {
 		// look for double-open sequence
-		dbl := string([]byte{inlineOpenChar, inlineOpenChar})
+		dbl := string([]byte{open, open})
 		j := strings.Index(line[pos:], dbl)
 		if j < 0 {
 			return false
@@ -461,12 +455,12 @@ func hasDoubleOpenTrigger(line string) bool {
 			return false
 		}
 		first := line[contentStart]
-		if first == ' ' || first == inlineOpenChar {
+		if first == ' ' || first == open {
 			pos = contentStart + 1
 			continue
 		}
 		// find closing
-		k := strings.IndexByte(line[contentStart+1:], inlineCloseChar)
+		k := strings.IndexByte(line[contentStart+1:], close)
 		if k < 0 {
 			return false
 		}
@@ -480,16 +474,16 @@ func hasDoubleOpenTrigger(line string) bool {
 	return false
 }
 
-func collectSemicolonMarkers(line string, lineNum int) []TextEdit {
+func collectSemicolonMarkers(line string, lineNum int, open, close byte) []TextEdit {
 	var edits []TextEdit
 	startSemi := 0
 	for startSemi < len(line) {
-		j := strings.IndexByte(line[startSemi:], inlineOpenChar)
+		j := strings.IndexByte(line[startSemi:], open)
 		if j < 0 {
 			break
 		}
 		j += startSemi
-		k := strings.IndexByte(line[j+1:], inlineCloseChar)
+		k := strings.IndexByte(line[j+1:], close)
 		if k < 0 {
 			break
 		}
@@ -497,7 +491,7 @@ func collectSemicolonMarkers(line string, lineNum int) []TextEdit {
 			startSemi = j + 1
 			continue
 		}
-		if line[j+1] == inlineOpenChar { // skip double-open start
+		if line[j+1] == open { // skip double-open start
 			startSemi = j + 2
 			continue
 		}

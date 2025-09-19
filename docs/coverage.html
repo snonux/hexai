@@ -61,7 +61,7 @@
 				
 				<option value="file2">codeberg.org/snonux/hexai/cmd/hexai/main.go (71.4%)</option>
 				
-				<option value="file3">codeberg.org/snonux/hexai/internal/appconfig/config.go (90.6%)</option>
+				<option value="file3">codeberg.org/snonux/hexai/internal/appconfig/config.go (88.8%)</option>
 				
 				<option value="file4">codeberg.org/snonux/hexai/internal/editor/editor.go (58.3%)</option>
 				
@@ -69,9 +69,9 @@
 				
 				<option value="file6">codeberg.org/snonux/hexai/internal/hexaiaction/parse.go (92.6%)</option>
 				
-				<option value="file7">codeberg.org/snonux/hexai/internal/hexaiaction/prompts.go (92.7%)</option>
+				<option value="file7">codeberg.org/snonux/hexai/internal/hexaiaction/prompts.go (92.0%)</option>
 				
-				<option value="file8">codeberg.org/snonux/hexai/internal/hexaiaction/run.go (69.7%)</option>
+				<option value="file8">codeberg.org/snonux/hexai/internal/hexaiaction/run.go (71.0%)</option>
 				
 				<option value="file9">codeberg.org/snonux/hexai/internal/hexaiaction/tui.go (65.5%)</option>
 				
@@ -79,7 +79,7 @@
 				
 				<option value="file11">codeberg.org/snonux/hexai/internal/hexaiaction/tui_delegate.go (100.0%)</option>
 				
-				<option value="file12">codeberg.org/snonux/hexai/internal/hexaicli/run.go (89.7%)</option>
+				<option value="file12">codeberg.org/snonux/hexai/internal/hexaicli/run.go (90.0%)</option>
 				
 				<option value="file13">codeberg.org/snonux/hexai/internal/hexailsp/run.go (90.2%)</option>
 				
@@ -87,7 +87,7 @@
 				
 				<option value="file15">codeberg.org/snonux/hexai/internal/llm/ollama.go (89.8%)</option>
 				
-				<option value="file16">codeberg.org/snonux/hexai/internal/llm/openai.go (85.5%)</option>
+				<option value="file16">codeberg.org/snonux/hexai/internal/llm/openai.go (87.1%)</option>
 				
 				<option value="file17">codeberg.org/snonux/hexai/internal/llm/provider.go (100.0%)</option>
 				
@@ -107,7 +107,7 @@
 				
 				<option value="file25">codeberg.org/snonux/hexai/internal/lsp/handlers_codeaction.go (82.3%)</option>
 				
-				<option value="file26">codeberg.org/snonux/hexai/internal/lsp/handlers_completion.go (88.0%)</option>
+				<option value="file26">codeberg.org/snonux/hexai/internal/lsp/handlers_completion.go (87.2%)</option>
 				
 				<option value="file27">codeberg.org/snonux/hexai/internal/lsp/handlers_document.go (90.1%)</option>
 				
@@ -115,23 +115,25 @@
 				
 				<option value="file29">codeberg.org/snonux/hexai/internal/lsp/handlers_init.go (63.6%)</option>
 				
-				<option value="file30">codeberg.org/snonux/hexai/internal/lsp/handlers_utils.go (89.5%)</option>
+				<option value="file30">codeberg.org/snonux/hexai/internal/lsp/handlers_utils.go (90.0%)</option>
 				
-				<option value="file31">codeberg.org/snonux/hexai/internal/lsp/server.go (83.0%)</option>
+				<option value="file31">codeberg.org/snonux/hexai/internal/lsp/server.go (79.8%)</option>
 				
-				<option value="file32">codeberg.org/snonux/hexai/internal/lsp/transport.go (71.4%)</option>
+				<option value="file32">codeberg.org/snonux/hexai/internal/lsp/transport.go (73.0%)</option>
 				
-				<option value="file33">codeberg.org/snonux/hexai/internal/stats/stats.go (75.4%)</option>
+				<option value="file33">codeberg.org/snonux/hexai/internal/stats/lock_posix.go (83.3%)</option>
 				
-				<option value="file34">codeberg.org/snonux/hexai/internal/testutil/fixtures.go (100.0%)</option>
+				<option value="file34">codeberg.org/snonux/hexai/internal/stats/stats.go (75.8%)</option>
 				
-				<option value="file35">codeberg.org/snonux/hexai/internal/textutil/human.go (92.3%)</option>
+				<option value="file35">codeberg.org/snonux/hexai/internal/testutil/fixtures.go (100.0%)</option>
 				
-				<option value="file36">codeberg.org/snonux/hexai/internal/textutil/textutil.go (90.4%)</option>
+				<option value="file36">codeberg.org/snonux/hexai/internal/textutil/human.go (92.3%)</option>
 				
-				<option value="file37">codeberg.org/snonux/hexai/internal/tmux/status.go (73.8%)</option>
+				<option value="file37">codeberg.org/snonux/hexai/internal/textutil/textutil.go (90.4%)</option>
 				
-				<option value="file38">codeberg.org/snonux/hexai/internal/tmux/tmux.go (88.6%)</option>
+				<option value="file38">codeberg.org/snonux/hexai/internal/tmux/status.go (73.8%)</option>
+				
+				<option value="file39">codeberg.org/snonux/hexai/internal/tmux/tmux.go (88.6%)</option>
 				
 				</select>
 			</div>
@@ -347,7 +349,7 @@ type CustomAction struct {
 }
 
 // Constructor: defaults for App (kept first among functions)
-func newDefaultConfig() App <span class="cov5" title="31">{
+func newDefaultConfig() App <span class="cov5" title="37">{
         // Coding-friendly default temperature across providers
         // Users can override per provider in config.toml (including 0.0).
         t := 0.2
@@ -403,18 +405,18 @@ func newDefaultConfig() App <span class="cov5" title="31">{
 
 // Load reads configuration from a file and merges with defaults.
 // It respects the XDG Base Directory Specification.
-func Load(logger *log.Logger) App <span class="cov5" title="30">{
+func Load(logger *log.Logger) App <span class="cov5" title="36">{
         cfg := newDefaultConfig()
         if logger == nil </span><span class="cov4" title="9">{
                 return cfg // Return defaults if no logger is provided (e.g. in tests)
         }</span>
 
-        <span class="cov5" title="21">configPath, err := getConfigPath()
+        <span class="cov5" title="27">configPath, err := getConfigPath()
         if err != nil </span><span class="cov0" title="0">{
                 logger.Printf("%v", err)
                 // Even if config path cannot be resolved, still allow env overrides below.
-        }</span> else<span class="cov5" title="21"> {
-                if fileCfg, err := loadFromFile(configPath, logger); err == nil &amp;&amp; fileCfg != nil </span><span class="cov5" title="16">{
+        }</span> else<span class="cov5" title="27"> {
+                if fileCfg, err := loadFromFile(configPath, logger); err == nil &amp;&amp; fileCfg != nil </span><span class="cov5" title="22">{
                         cfg.mergeWith(fileCfg)
                 }</span>
                 // When the config file is missing or invalid, we keep defaults and still
@@ -422,10 +424,10 @@ func Load(logger *log.Logger) App <span class="cov5" title="30">{
         }
 
         // Environment overrides (take precedence over file)
-        <span class="cov5" title="21">if envCfg := loadFromEnv(logger); envCfg != nil </span><span class="cov4" title="12">{
+        <span class="cov5" title="27">if envCfg := loadFromEnv(logger); envCfg != nil </span><span class="cov3" title="5">{
                 cfg.mergeWith(envCfg)
         }</span>
-        <span class="cov5" title="21">return cfg</span>
+        <span class="cov5" title="27">return cfg</span>
 }
 
 // Private helpers
@@ -488,9 +490,36 @@ type sectionStats struct {
 }
 
 type sectionOpenAI struct {
-        Model       string   `toml:"model"`
-        BaseURL     string   `toml:"base_url"`
-        Temperature *float64 `toml:"temperature"`
+        Model       string            `toml:"model"`
+        BaseURL     string            `toml:"base_url"`
+        Temperature *float64          `toml:"temperature"`
+        Presets     map[string]string `toml:"presets"`
+}
+
+func (s sectionOpenAI) isZero() bool <span class="cov5" title="22">{
+        return strings.TrimSpace(s.Model) == "" &amp;&amp; strings.TrimSpace(s.BaseURL) == "" &amp;&amp; s.Temperature == nil &amp;&amp; len(s.Presets) == 0
+}</span>
+
+func (s sectionOpenAI) resolvedModel() string <span class="cov2" title="4">{
+        model := strings.TrimSpace(s.Model)
+        if model == "" </span><span class="cov0" title="0">{
+                return ""
+        }</span>
+        <span class="cov2" title="4">if len(s.Presets) == 0 </span><span class="cov2" title="3">{
+                return model
+        }</span>
+        <span class="cov1" title="1">if mapped := strings.TrimSpace(s.Presets[model]); mapped != "" </span><span class="cov1" title="1">{
+                return mapped
+        }</span>
+        <span class="cov0" title="0">lower := strings.ToLower(model)
+        for k, v := range s.Presets </span><span class="cov0" title="0">{
+                if strings.ToLower(strings.TrimSpace(k)) == lower </span><span class="cov0" title="0">{
+                        if mapped := strings.TrimSpace(v); mapped != "" </span><span class="cov0" title="0">{
+                                return mapped
+                        }</span>
+                }
+        }
+        <span class="cov0" title="0">return model</span>
 }
 
 type sectionCopilot struct {
@@ -565,7 +594,7 @@ type sectionTmux struct {
         CustomMenuHotkey string `toml:"custom_menu_hotkey"`
 }
 
-func (fc *fileConfig) toApp() App <span class="cov5" title="16">{
+func (fc *fileConfig) toApp() App <span class="cov5" title="22">{
         out := App{}
 
         // Merge section: general
@@ -581,13 +610,13 @@ func (fc *fileConfig) toApp() App <span class="cov5" title="16">{
         }</span>
 
         // logging
-        <span class="cov5" title="16">if (fc.Logging != sectionLogging{}) </span><span class="cov1" title="1">{
+        <span class="cov5" title="22">if (fc.Logging != sectionLogging{}) </span><span class="cov1" title="1">{
                 tmp := App{LogPreviewLimit: fc.Logging.LogPreviewLimit}
                 out.mergeBasics(&amp;tmp)
         }</span>
 
         // completion
-        <span class="cov5" title="16">if (fc.Completion != sectionCompletion{}) </span><span class="cov2" title="3">{
+        <span class="cov5" title="22">if (fc.Completion != sectionCompletion{}) </span><span class="cov2" title="3">{
                 tmp := App{
                         CompletionDebounceMs:  fc.Completion.CompletionDebounceMs,
                         CompletionThrottleMs:  fc.Completion.CompletionThrottleMs,
@@ -597,41 +626,41 @@ func (fc *fileConfig) toApp() App <span class="cov5" title="16">{
         }</span>
 
         // triggers
-        <span class="cov5" title="16">if len(fc.Triggers.TriggerCharacters) &gt; 0 </span><span class="cov2" title="3">{
+        <span class="cov5" title="22">if len(fc.Triggers.TriggerCharacters) &gt; 0 </span><span class="cov2" title="3">{
                 tmp := App{TriggerCharacters: fc.Triggers.TriggerCharacters}
                 out.mergeBasics(&amp;tmp)
         }</span>
 
         // inline
-        <span class="cov5" title="16">if (fc.Inline != sectionInline{}) </span><span class="cov1" title="1">{
+        <span class="cov5" title="22">if (fc.Inline != sectionInline{}) </span><span class="cov1" title="1">{
                 tmp := App{InlineOpen: fc.Inline.InlineOpen, InlineClose: fc.Inline.InlineClose}
                 out.mergeBasics(&amp;tmp)
         }</span>
 
         // chat
-        <span class="cov5" title="16">if strings.TrimSpace(fc.Chat.ChatSuffix) != "" || len(fc.Chat.ChatPrefixes) &gt; 0 </span><span class="cov1" title="1">{
+        <span class="cov5" title="22">if strings.TrimSpace(fc.Chat.ChatSuffix) != "" || len(fc.Chat.ChatPrefixes) &gt; 0 </span><span class="cov1" title="1">{
                 tmp := App{ChatSuffix: fc.Chat.ChatSuffix, ChatPrefixes: fc.Chat.ChatPrefixes}
                 out.mergeBasics(&amp;tmp)
         }</span>
 
         // provider
-        <span class="cov5" title="16">if strings.TrimSpace(fc.Provider.Name) != "" </span><span class="cov2" title="3">{
+        <span class="cov5" title="22">if strings.TrimSpace(fc.Provider.Name) != "" </span><span class="cov2" title="4">{
                 tmp := App{Provider: fc.Provider.Name}
                 out.mergeBasics(&amp;tmp)
         }</span>
 
         // openai
-        <span class="cov5" title="16">if (fc.OpenAI != sectionOpenAI{}) || fc.OpenAI.Temperature != nil </span><span class="cov2" title="3">{
+        <span class="cov5" title="22">if !fc.OpenAI.isZero() || fc.OpenAI.Temperature != nil </span><span class="cov2" title="4">{
                 tmp := App{
                         OpenAIBaseURL:     fc.OpenAI.BaseURL,
-                        OpenAIModel:       fc.OpenAI.Model,
+                        OpenAIModel:       fc.OpenAI.resolvedModel(),
                         OpenAITemperature: fc.OpenAI.Temperature,
                 }
                 out.mergeProviderFields(&amp;tmp)
         }</span>
 
         // copilot
-        <span class="cov5" title="16">if (fc.Copilot != sectionCopilot{}) || fc.Copilot.Temperature != nil </span><span class="cov2" title="3">{
+        <span class="cov5" title="22">if (fc.Copilot != sectionCopilot{}) || fc.Copilot.Temperature != nil </span><span class="cov2" title="3">{
                 tmp := App{
                         CopilotBaseURL:     fc.Copilot.BaseURL,
                         CopilotModel:       fc.Copilot.Model,
@@ -641,7 +670,7 @@ func (fc *fileConfig) toApp() App <span class="cov5" title="16">{
         }</span>
 
         // ollama
-        <span class="cov5" title="16">if (fc.Ollama != sectionOllama{}) || fc.Ollama.Temperature != nil </span><span class="cov2" title="3">{
+        <span class="cov5" title="22">if (fc.Ollama != sectionOllama{}) || fc.Ollama.Temperature != nil </span><span class="cov2" title="3">{
                 tmp := App{
                         OllamaBaseURL:     fc.Ollama.BaseURL,
                         OllamaModel:       fc.Ollama.Model,
@@ -652,7 +681,7 @@ func (fc *fileConfig) toApp() App <span class="cov5" title="16">{
 
         // prompts
         // completion
-        <span class="cov5" title="16">if (fc.Prompts.Completion != sectionPromptsCompletion{}) </span><span class="cov1" title="1">{
+        <span class="cov5" title="22">if (fc.Prompts.Completion != sectionPromptsCompletion{}) </span><span class="cov1" title="1">{
                 if strings.TrimSpace(fc.Prompts.Completion.SystemGeneral) != "" </span><span class="cov1" title="1">{
                         out.PromptCompletionSystemGeneral = fc.Prompts.Completion.SystemGeneral
                 }</span>
@@ -673,11 +702,11 @@ func (fc *fileConfig) toApp() App <span class="cov5" title="16">{
                 }</span>
         }
         // chat
-        <span class="cov5" title="16">if strings.TrimSpace(fc.Prompts.Chat.System) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="22">if strings.TrimSpace(fc.Prompts.Chat.System) != "" </span><span class="cov1" title="1">{
                 out.PromptChatSystem = fc.Prompts.Chat.System
         }</span>
         // code action
-        <span class="cov5" title="16">if strings.TrimSpace(fc.Prompts.CodeAction.RewriteSystem) != "" ||
+        <span class="cov5" title="22">if strings.TrimSpace(fc.Prompts.CodeAction.RewriteSystem) != "" ||
                 strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsSystem) != "" ||
                 strings.TrimSpace(fc.Prompts.CodeAction.DocumentSystem) != "" ||
                 strings.TrimSpace(fc.Prompts.CodeAction.RewriteUser) != "" ||
@@ -687,39 +716,39 @@ func (fc *fileConfig) toApp() App <span class="cov5" title="16">{
                 strings.TrimSpace(fc.Prompts.CodeAction.GoTestUser) != "" ||
                 strings.TrimSpace(fc.Prompts.CodeAction.SimplifySystem) != "" ||
                 strings.TrimSpace(fc.Prompts.CodeAction.SimplifyUser) != "" ||
-                len(fc.Prompts.CodeAction.Custom) &gt; 0 </span><span class="cov4" title="12">{
+                len(fc.Prompts.CodeAction.Custom) &gt; 0 </span><span class="cov4" title="17">{
                 if strings.TrimSpace(fc.Prompts.CodeAction.RewriteSystem) != "" </span><span class="cov1" title="1">{
                         out.PromptCodeActionRewriteSystem = fc.Prompts.CodeAction.RewriteSystem
                 }</span>
-                <span class="cov4" title="12">if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsSystem) != "" </span><span class="cov1" title="1">{
+                <span class="cov4" title="17">if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsSystem) != "" </span><span class="cov1" title="1">{
                         out.PromptCodeActionDiagnosticsSystem = fc.Prompts.CodeAction.DiagnosticsSystem
                 }</span>
-                <span class="cov4" title="12">if strings.TrimSpace(fc.Prompts.CodeAction.DocumentSystem) != "" </span><span class="cov1" title="1">{
+                <span class="cov4" title="17">if strings.TrimSpace(fc.Prompts.CodeAction.DocumentSystem) != "" </span><span class="cov1" title="1">{
                         out.PromptCodeActionDocumentSystem = fc.Prompts.CodeAction.DocumentSystem
                 }</span>
-                <span class="cov4" title="12">if strings.TrimSpace(fc.Prompts.CodeAction.RewriteUser) != "" </span><span class="cov1" title="1">{
+                <span class="cov4" title="17">if strings.TrimSpace(fc.Prompts.CodeAction.RewriteUser) != "" </span><span class="cov1" title="1">{
                         out.PromptCodeActionRewriteUser = fc.Prompts.CodeAction.RewriteUser
                 }</span>
-                <span class="cov4" title="12">if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsUser) != "" </span><span class="cov1" title="1">{
+                <span class="cov4" title="17">if strings.TrimSpace(fc.Prompts.CodeAction.DiagnosticsUser) != "" </span><span class="cov1" title="1">{
                         out.PromptCodeActionDiagnosticsUser = fc.Prompts.CodeAction.DiagnosticsUser
                 }</span>
-                <span class="cov4" title="12">if strings.TrimSpace(fc.Prompts.CodeAction.DocumentUser) != "" </span><span class="cov1" title="1">{
+                <span class="cov4" title="17">if strings.TrimSpace(fc.Prompts.CodeAction.DocumentUser) != "" </span><span class="cov1" title="1">{
                         out.PromptCodeActionDocumentUser = fc.Prompts.CodeAction.DocumentUser
                 }</span>
-                <span class="cov4" title="12">if strings.TrimSpace(fc.Prompts.CodeAction.GoTestSystem) != "" </span><span class="cov1" title="1">{
+                <span class="cov4" title="17">if strings.TrimSpace(fc.Prompts.CodeAction.GoTestSystem) != "" </span><span class="cov1" title="1">{
                         out.PromptCodeActionGoTestSystem = fc.Prompts.CodeAction.GoTestSystem
                 }</span>
-                <span class="cov4" title="12">if strings.TrimSpace(fc.Prompts.CodeAction.GoTestUser) != "" </span><span class="cov1" title="1">{
+                <span class="cov4" title="17">if strings.TrimSpace(fc.Prompts.CodeAction.GoTestUser) != "" </span><span class="cov1" title="1">{
                         out.PromptCodeActionGoTestUser = fc.Prompts.CodeAction.GoTestUser
                 }</span>
-                <span class="cov4" title="12">if strings.TrimSpace(fc.Prompts.CodeAction.SimplifySystem) != "" </span><span class="cov0" title="0">{
+                <span class="cov4" title="17">if strings.TrimSpace(fc.Prompts.CodeAction.SimplifySystem) != "" </span><span class="cov0" title="0">{
                         out.PromptCodeActionSimplifySystem = fc.Prompts.CodeAction.SimplifySystem
                 }</span>
-                <span class="cov4" title="12">if strings.TrimSpace(fc.Prompts.CodeAction.SimplifyUser) != "" </span><span class="cov0" title="0">{
+                <span class="cov4" title="17">if strings.TrimSpace(fc.Prompts.CodeAction.SimplifyUser) != "" </span><span class="cov0" title="0">{
                         out.PromptCodeActionSimplifyUser = fc.Prompts.CodeAction.SimplifyUser
                 }</span>
-                <span class="cov4" title="12">if len(fc.Prompts.CodeAction.Custom) &gt; 0 </span><span class="cov4" title="11">{
-                        for _, ca := range fc.Prompts.CodeAction.Custom </span><span class="cov5" title="20">{
+                <span class="cov4" title="17">if len(fc.Prompts.CodeAction.Custom) &gt; 0 </span><span class="cov4" title="16">{
+                        for _, ca := range fc.Prompts.CodeAction.Custom </span><span class="cov5" title="30">{
                                 out.CustomActions = append(out.CustomActions, CustomAction{
                                         ID:          strings.TrimSpace(ca.ID),
                                         Title:       strings.TrimSpace(ca.Title),
@@ -734,7 +763,7 @@ func (fc *fileConfig) toApp() App <span class="cov5" title="16">{
                 }
         }
         // cli
-        <span class="cov5" title="16">if (fc.Prompts.CLI != sectionPromptsCLI{}) </span><span class="cov1" title="1">{
+        <span class="cov5" title="22">if (fc.Prompts.CLI != sectionPromptsCLI{}) </span><span class="cov1" title="1">{
                 if strings.TrimSpace(fc.Prompts.CLI.DefaultSystem) != "" </span><span class="cov1" title="1">{
                         out.PromptCLIDefaultSystem = fc.Prompts.CLI.DefaultSystem
                 }</span>
@@ -743,46 +772,46 @@ func (fc *fileConfig) toApp() App <span class="cov5" title="16">{
                 }</span>
         }
         // provider-native
-        <span class="cov5" title="16">if strings.TrimSpace(fc.Prompts.ProviderNative.Completion) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="22">if strings.TrimSpace(fc.Prompts.ProviderNative.Completion) != "" </span><span class="cov1" title="1">{
                 out.PromptNativeCompletion = fc.Prompts.ProviderNative.Completion
         }</span>
 
         // tmux
-        <span class="cov5" title="16">if (fc.Tmux != sectionTmux{}) </span><span class="cov2" title="3">{
+        <span class="cov5" title="22">if (fc.Tmux != sectionTmux{}) </span><span class="cov2" title="3">{
                 out.TmuxCustomMenuHotkey = strings.TrimSpace(fc.Tmux.CustomMenuHotkey)
         }</span>
 
         // stats
-        <span class="cov5" title="16">if fc.Stats.WindowMinutes &gt; 0 </span><span class="cov0" title="0">{
+        <span class="cov5" title="22">if fc.Stats.WindowMinutes &gt; 0 </span><span class="cov0" title="0">{
                 out.StatsWindowMinutes = fc.Stats.WindowMinutes
         }</span>
 
-        <span class="cov5" title="16">return out</span>
+        <span class="cov5" title="22">return out</span>
 }
 
-func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="cov5" title="22">{
+func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="cov5" title="28">{
         b, err := os.ReadFile(path)
-        if err != nil </span><span class="cov3" title="4">{
+        if err != nil </span><span class="cov2" title="4">{
                 if !os.IsNotExist(err) &amp;&amp; logger != nil </span><span class="cov0" title="0">{
                         logger.Printf("cannot open TOML config file %s: %v", path, err)
                 }</span>
-                <span class="cov3" title="4">return nil, err</span>
+                <span class="cov2" title="4">return nil, err</span>
         }
 
-        <span class="cov5" title="18">var tables fileConfig
+        <span class="cov5" title="24">var tables fileConfig
         errTables := toml.NewDecoder(strings.NewReader(string(b))).Decode(&amp;tables)
         // Raw map for validation/presence checks
         var raw map[string]any
         _ = toml.Unmarshal(b, &amp;raw)
-        if errTables != nil </span><span class="cov2" title="2">{
-                if logger != nil </span><span class="cov2" title="2">{
+        if errTables != nil </span><span class="cov1" title="2">{
+                if logger != nil </span><span class="cov1" title="2">{
                         logger.Printf("invalid TOML config file %s: %v", path, errTables)
                 }</span>
-                <span class="cov2" title="2">return nil, errTables</span>
+                <span class="cov1" title="2">return nil, errTables</span>
         }
 
         // Reject legacy flat keys at top-level (sectioned-only config is allowed)
-        <span class="cov5" title="16">legacy := map[string]struct{}{
+        <span class="cov5" title="22">legacy := map[string]struct{}{
                 "max_tokens": {}, "context_mode": {}, "context_window_lines": {}, "max_context_tokens": {},
                 "log_preview_limit": {}, "completion_debounce_ms": {}, "completion_throttle_ms": {},
                 "manual_invoke_min_prefix": {}, "trigger_characters": {}, "inline_open": {}, "inline_close": {},
@@ -791,8 +820,8 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="co
                 "ollama_model": {}, "ollama_base_url": {}, "ollama_temperature": {},
                 "copilot_model": {}, "copilot_base_url": {}, "copilot_temperature": {},
         }
-        for k := range raw </span><span class="cov6" title="41">{
-                if _, isTable := map[string]struct{}{"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {}, "chat": {}, "provider": {}, "openai": {}, "copilot": {}, "ollama": {}, "prompts": {}}[k]; isTable </span><span class="cov6" title="38">{
+        for k := range raw </span><span class="cov6" title="48">{
+                if _, isTable := map[string]struct{}{"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {}, "chat": {}, "provider": {}, "openai": {}, "copilot": {}, "ollama": {}, "prompts": {}}[k]; isTable </span><span class="cov6" title="45">{
                         continue</span>
                 }
                 <span class="cov2" title="3">if _, isLegacy := legacy[k]; isLegacy </span><span class="cov0" title="0">{
@@ -800,13 +829,13 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="co
                 }</span>
         }
 
-        <span class="cov5" title="16">if logger != nil </span><span class="cov5" title="16">{
+        <span class="cov5" title="22">if logger != nil </span><span class="cov5" title="22">{
                 logger.Printf("loaded configuration from %s (TOML)", path)
         }</span>
 
         // Merge order: flat first, then tables (so tables win over zero flat values)
         // Build App from tables only
-        <span class="cov5" title="16">tab := tables.toApp()
+        <span class="cov5" title="22">tab := tables.toApp()
         // Ensure explicit values from raw map are respected (defensive for ints)
         if t, ok := raw["completion"].(map[string]any); ok </span><span class="cov2" title="3">{
                 if v, present := t["manual_invoke_min_prefix"]; present </span><span class="cov2" title="3">{
@@ -820,7 +849,7 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="co
                         }
                 }
         }
-        <span class="cov5" title="16">if t, ok := raw["logging"].(map[string]any); ok </span><span class="cov2" title="3">{
+        <span class="cov5" title="22">if t, ok := raw["logging"].(map[string]any); ok </span><span class="cov2" title="3">{
                 if v, present := t["log_preview_limit"]; present </span><span class="cov2" title="3">{
                         switch vv := v.(type) </span>{
                         case int64:<span class="cov2" title="3">
@@ -832,10 +861,10 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) <span class="co
                         }
                 }
         }
-        <span class="cov5" title="16">return &amp;tab, nil</span>
+        <span class="cov5" title="22">return &amp;tab, nil</span>
 }
 
-func (a *App) mergeWith(other *App) <span class="cov5" title="28">{
+func (a *App) mergeWith(other *App) <span class="cov5" title="27">{
         a.mergeBasics(other)
         a.mergeProviderFields(other)
         a.mergePrompts(other)
@@ -873,95 +902,95 @@ func (a *App) mergeBasics(other *App) <span class="cov6" title="43">{
         <span class="cov6" title="43">if len(other.TriggerCharacters) &gt; 0 </span><span class="cov3" title="7">{
                 a.TriggerCharacters = slices.Clone(other.TriggerCharacters)
         }</span>
-        <span class="cov6" title="43">if s := strings.TrimSpace(other.InlineOpen); s != "" </span><span class="cov2" title="2">{
+        <span class="cov6" title="43">if s := strings.TrimSpace(other.InlineOpen); s != "" </span><span class="cov1" title="2">{
                 a.InlineOpen = s
         }</span>
-        <span class="cov6" title="43">if s := strings.TrimSpace(other.InlineClose); s != "" </span><span class="cov2" title="2">{
+        <span class="cov6" title="43">if s := strings.TrimSpace(other.InlineClose); s != "" </span><span class="cov1" title="2">{
                 a.InlineClose = s
         }</span>
-        <span class="cov6" title="43">if s := strings.TrimSpace(other.ChatSuffix); s != "" </span><span class="cov2" title="2">{
+        <span class="cov6" title="43">if s := strings.TrimSpace(other.ChatSuffix); s != "" </span><span class="cov1" title="2">{
                 a.ChatSuffix = s
         }</span>
-        <span class="cov6" title="43">if len(other.ChatPrefixes) &gt; 0 </span><span class="cov2" title="2">{
+        <span class="cov6" title="43">if len(other.ChatPrefixes) &gt; 0 </span><span class="cov1" title="2">{
                 a.ChatPrefixes = slices.Clone(other.ChatPrefixes)
         }</span>
-        <span class="cov6" title="43">if s := strings.TrimSpace(other.Provider); s != "" </span><span class="cov3" title="7">{
+        <span class="cov6" title="43">if s := strings.TrimSpace(other.Provider); s != "" </span><span class="cov4" title="13">{
                 a.Provider = s
         }</span>
 }
 
 // mergePrompts copies non-empty prompt templates from other.
-func (a *App) mergePrompts(other *App) <span class="cov5" title="28">{
+func (a *App) mergePrompts(other *App) <span class="cov5" title="27">{
         // Completion
         if strings.TrimSpace(other.PromptCompletionSystemGeneral) != "" </span><span class="cov1" title="1">{
                 a.PromptCompletionSystemGeneral = other.PromptCompletionSystemGeneral
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCompletionSystemParams) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCompletionSystemParams) != "" </span><span class="cov1" title="1">{
                 a.PromptCompletionSystemParams = other.PromptCompletionSystemParams
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCompletionSystemInline) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCompletionSystemInline) != "" </span><span class="cov1" title="1">{
                 a.PromptCompletionSystemInline = other.PromptCompletionSystemInline
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCompletionUserGeneral) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCompletionUserGeneral) != "" </span><span class="cov1" title="1">{
                 a.PromptCompletionUserGeneral = other.PromptCompletionUserGeneral
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCompletionUserParams) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCompletionUserParams) != "" </span><span class="cov1" title="1">{
                 a.PromptCompletionUserParams = other.PromptCompletionUserParams
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCompletionExtraHeader) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCompletionExtraHeader) != "" </span><span class="cov1" title="1">{
                 a.PromptCompletionExtraHeader = other.PromptCompletionExtraHeader
         }</span>
         // Provider-native
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptNativeCompletion) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptNativeCompletion) != "" </span><span class="cov1" title="1">{
                 a.PromptNativeCompletion = other.PromptNativeCompletion
         }</span>
         // Chat
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptChatSystem) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptChatSystem) != "" </span><span class="cov1" title="1">{
                 a.PromptChatSystem = other.PromptChatSystem
         }</span>
         // Code actions
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionRewriteSystem) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionRewriteSystem) != "" </span><span class="cov1" title="1">{
                 a.PromptCodeActionRewriteSystem = other.PromptCodeActionRewriteSystem
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionDiagnosticsSystem) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionDiagnosticsSystem) != "" </span><span class="cov1" title="1">{
                 a.PromptCodeActionDiagnosticsSystem = other.PromptCodeActionDiagnosticsSystem
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionDocumentSystem) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionDocumentSystem) != "" </span><span class="cov1" title="1">{
                 a.PromptCodeActionDocumentSystem = other.PromptCodeActionDocumentSystem
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionRewriteUser) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionRewriteUser) != "" </span><span class="cov1" title="1">{
                 a.PromptCodeActionRewriteUser = other.PromptCodeActionRewriteUser
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionDiagnosticsUser) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionDiagnosticsUser) != "" </span><span class="cov1" title="1">{
                 a.PromptCodeActionDiagnosticsUser = other.PromptCodeActionDiagnosticsUser
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionDocumentUser) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionDocumentUser) != "" </span><span class="cov1" title="1">{
                 a.PromptCodeActionDocumentUser = other.PromptCodeActionDocumentUser
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionGoTestSystem) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionGoTestSystem) != "" </span><span class="cov1" title="1">{
                 a.PromptCodeActionGoTestSystem = other.PromptCodeActionGoTestSystem
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionGoTestUser) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionGoTestUser) != "" </span><span class="cov1" title="1">{
                 a.PromptCodeActionGoTestUser = other.PromptCodeActionGoTestUser
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionSimplifySystem) != "" </span><span class="cov0" title="0">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionSimplifySystem) != "" </span><span class="cov0" title="0">{
                 a.PromptCodeActionSimplifySystem = other.PromptCodeActionSimplifySystem
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCodeActionSimplifyUser) != "" </span><span class="cov0" title="0">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCodeActionSimplifyUser) != "" </span><span class="cov0" title="0">{
                 a.PromptCodeActionSimplifyUser = other.PromptCodeActionSimplifyUser
         }</span>
         // CLI
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCLIDefaultSystem) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCLIDefaultSystem) != "" </span><span class="cov1" title="1">{
                 a.PromptCLIDefaultSystem = other.PromptCLIDefaultSystem
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.PromptCLIExplainSystem) != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.PromptCLIExplainSystem) != "" </span><span class="cov1" title="1">{
                 a.PromptCLIExplainSystem = other.PromptCLIExplainSystem
         }</span>
         // Custom actions
-        <span class="cov5" title="28">if len(other.CustomActions) &gt; 0 </span><span class="cov4" title="11">{
+        <span class="cov5" title="27">if len(other.CustomActions) &gt; 0 </span><span class="cov4" title="16">{
                 a.CustomActions = append([]CustomAction{}, other.CustomActions...)
         }</span>
-        <span class="cov5" title="28">if strings.TrimSpace(other.TmuxCustomMenuHotkey) != "" </span><span class="cov2" title="3">{
+        <span class="cov5" title="27">if strings.TrimSpace(other.TmuxCustomMenuHotkey) != "" </span><span class="cov2" title="3">{
                 a.TmuxCustomMenuHotkey = other.TmuxCustomMenuHotkey
         }</span>
 }
@@ -971,12 +1000,12 @@ func (a App) Validate() error <span class="cov5" title="19">{
         // Normalize and check duplicates for IDs and hotkeys
         seenID := make(map[string]struct{})
         seenHK := make(map[string]struct{})
-        for _, ca := range a.CustomActions </span><span class="cov5" title="17">{
+        for _, ca := range a.CustomActions </span><span class="cov4" title="17">{
                 id := strings.ToLower(strings.TrimSpace(ca.ID))
                 if id == "" </span><span class="cov1" title="1">{
                         return fmt.Errorf("config: custom action missing required field id")
                 }</span>
-                <span class="cov5" title="16">if _, ok := seenID[id]; ok </span><span class="cov1" title="1">{
+                <span class="cov4" title="16">if _, ok := seenID[id]; ok </span><span class="cov1" title="1">{
                         return fmt.Errorf("config: duplicate custom action id: %s", ca.ID)
                 }</span>
                 <span class="cov4" title="15">seenID[id] = struct{}{}
@@ -1010,12 +1039,12 @@ func (a App) Validate() error <span class="cov5" title="19">{
                 }
         }
         // Tmux custom menu hotkey validation
-        <span class="cov4" title="14">if hk := strings.TrimSpace(a.TmuxCustomMenuHotkey); hk != "" </span><span class="cov2" title="2">{
+        <span class="cov4" title="14">if hk := strings.TrimSpace(a.TmuxCustomMenuHotkey); hk != "" </span><span class="cov1" title="2">{
                 if len([]rune(hk)) != 1 </span><span class="cov0" title="0">{
                         return fmt.Errorf("config: invalid tmux.custom_menu_hotkey: %s", hk)
                 }</span>
                 // built-in hotkeys in tmux TUI: r,i,c,t,p,s
-                <span class="cov2" title="2">switch strings.ToLower(hk) </span>{
+                <span class="cov1" title="2">switch strings.ToLower(hk) </span>{
                 case "r", "i", "c", "t", "p", "s":<span class="cov1" title="1">
                         return fmt.Errorf("config: invalid tmux.custom_menu_hotkey: %s (clashes with built-in)", hk)</span>
                 }
@@ -1024,63 +1053,63 @@ func (a App) Validate() error <span class="cov5" title="19">{
 }
 
 // mergeProviderFields merges per-provider configuration.
-func (a *App) mergeProviderFields(other *App) <span class="cov6" title="37">{
+func (a *App) mergeProviderFields(other *App) <span class="cov5" title="37">{
         if s := strings.TrimSpace(other.OpenAIBaseURL); s != "" </span><span class="cov3" title="7">{
                 a.OpenAIBaseURL = s
         }</span>
-        <span class="cov6" title="37">if s := strings.TrimSpace(other.OpenAIModel); s != "" </span><span class="cov5" title="18">{
+        <span class="cov5" title="37">if s := strings.TrimSpace(other.OpenAIModel); s != "" </span><span class="cov4" title="13">{
                 a.OpenAIModel = s
         }</span>
-        <span class="cov6" title="37">if other.OpenAITemperature != nil </span><span class="cov5" title="18">{ // allow explicit 0.0
+        <span class="cov5" title="37">if other.OpenAITemperature != nil </span><span class="cov3" title="7">{ // allow explicit 0.0
                 a.OpenAITemperature = other.OpenAITemperature
         }</span>
-        <span class="cov6" title="37">if s := strings.TrimSpace(other.OllamaBaseURL); s != "" </span><span class="cov3" title="7">{
+        <span class="cov5" title="37">if s := strings.TrimSpace(other.OllamaBaseURL); s != "" </span><span class="cov3" title="7">{
                 a.OllamaBaseURL = s
         }</span>
-        <span class="cov6" title="37">if s := strings.TrimSpace(other.OllamaModel); s != "" </span><span class="cov3" title="7">{
+        <span class="cov5" title="37">if s := strings.TrimSpace(other.OllamaModel); s != "" </span><span class="cov3" title="7">{
                 a.OllamaModel = s
         }</span>
-        <span class="cov6" title="37">if other.OllamaTemperature != nil </span><span class="cov3" title="7">{ // allow explicit 0.0
+        <span class="cov5" title="37">if other.OllamaTemperature != nil </span><span class="cov3" title="7">{ // allow explicit 0.0
                 a.OllamaTemperature = other.OllamaTemperature
         }</span>
-        <span class="cov6" title="37">if s := strings.TrimSpace(other.CopilotBaseURL); s != "" </span><span class="cov3" title="7">{
+        <span class="cov5" title="37">if s := strings.TrimSpace(other.CopilotBaseURL); s != "" </span><span class="cov3" title="7">{
                 a.CopilotBaseURL = s
         }</span>
-        <span class="cov6" title="37">if s := strings.TrimSpace(other.CopilotModel); s != "" </span><span class="cov3" title="7">{
+        <span class="cov5" title="37">if s := strings.TrimSpace(other.CopilotModel); s != "" </span><span class="cov3" title="7">{
                 a.CopilotModel = s
         }</span>
-        <span class="cov6" title="37">if other.CopilotTemperature != nil </span><span class="cov3" title="7">{ // allow explicit 0.0
+        <span class="cov5" title="37">if other.CopilotTemperature != nil </span><span class="cov3" title="7">{ // allow explicit 0.0
                 a.CopilotTemperature = other.CopilotTemperature
         }</span>
 }
 
-func getConfigPath() (string, error) <span class="cov5" title="22">{
+func getConfigPath() (string, error) <span class="cov5" title="28">{
         var configPath string
-        if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" </span><span class="cov5" title="17">{
+        if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" </span><span class="cov4" title="18">{
                 configPath = filepath.Join(xdgConfigHome, "hexai", "config.toml")
-        }</span> else<span class="cov3" title="5"> {
+        }</span> else<span class="cov4" title="10"> {
                 home, err := os.UserHomeDir()
                 if err != nil </span><span class="cov0" title="0">{
                         return "", fmt.Errorf("cannot find user home directory: %v", err)
                 }</span>
-                <span class="cov3" title="5">configPath = filepath.Join(home, ".config", "hexai", "config.toml")</span>
+                <span class="cov4" title="10">configPath = filepath.Join(home, ".config", "hexai", "config.toml")</span>
         }
-        <span class="cov5" title="22">return configPath, nil</span>
+        <span class="cov5" title="28">return configPath, nil</span>
 }
 
 // --- Environment overrides ---
 
 // loadFromEnv constructs an App containing only fields set via HEXAI_* env vars.
 // These values should take precedence over file config when merged.
-func loadFromEnv(logger *log.Logger) *App <span class="cov5" title="21">{
+func loadFromEnv(logger *log.Logger) *App <span class="cov5" title="27">{
         var out App
         var any bool
 
         // helpers
-        getenv := func(k string) string </span><span class="cov10" title="504">{ return strings.TrimSpace(os.Getenv(k)) }</span>
-        <span class="cov5" title="21">parseInt := func(k string) (int, bool) </span><span class="cov8" title="147">{
+        getenv := func(k string) string </span><span class="cov10" title="702">{ return strings.TrimSpace(os.Getenv(k)) }</span>
+        <span class="cov5" title="27">parseInt := func(k string) (int, bool) </span><span class="cov8" title="189">{
                 v := getenv(k)
-                if v == "" </span><span class="cov8" title="140">{
+                if v == "" </span><span class="cov8" title="182">{
                         return 0, false
                 }</span>
                 <span class="cov3" title="7">n, err := strconv.Atoi(v)
@@ -1092,58 +1121,58 @@ func loadFromEnv(logger *log.Logger) *App <span class="cov5" title="21">{
                 }
                 <span class="cov3" title="7">return n, true</span>
         }
-        <span class="cov5" title="21">parseFloatPtr := func(k string) (*float64, bool) </span><span class="cov7" title="84">{
+        <span class="cov5" title="27">parseFloatPtr := func(k string) (*float64, bool) </span><span class="cov7" title="108">{
                 v := getenv(k)
-                if v == "" </span><span class="cov7" title="69">{
+                if v == "" </span><span class="cov7" title="104">{
                         return nil, false
                 }</span>
-                <span class="cov4" title="15">f, err := strconv.ParseFloat(v, 64)
+                <span class="cov2" title="4">f, err := strconv.ParseFloat(v, 64)
                 if err != nil </span><span class="cov0" title="0">{
                         if logger != nil </span><span class="cov0" title="0">{
                                 logger.Printf("invalid %s: %v", k, err)
                         }</span>
                         <span class="cov0" title="0">return nil, false</span>
                 }
-                <span class="cov4" title="15">return &amp;f, true</span>
+                <span class="cov2" title="4">return &amp;f, true</span>
         }
 
-        <span class="cov5" title="21">if n, ok := parseInt("HEXAI_MAX_TOKENS"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if n, ok := parseInt("HEXAI_MAX_TOKENS"); ok </span><span class="cov1" title="1">{
                 out.MaxTokens = n
                 any = true
         }</span>
-        <span class="cov5" title="21">if s := getenv("HEXAI_CONTEXT_MODE"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_CONTEXT_MODE"); s != "" </span><span class="cov1" title="1">{
                 out.ContextMode = s
                 any = true
         }</span>
-        <span class="cov5" title="21">if n, ok := parseInt("HEXAI_CONTEXT_WINDOW_LINES"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if n, ok := parseInt("HEXAI_CONTEXT_WINDOW_LINES"); ok </span><span class="cov1" title="1">{
                 out.ContextWindowLines = n
                 any = true
         }</span>
-        <span class="cov5" title="21">if n, ok := parseInt("HEXAI_MAX_CONTEXT_TOKENS"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if n, ok := parseInt("HEXAI_MAX_CONTEXT_TOKENS"); ok </span><span class="cov1" title="1">{
                 out.MaxContextTokens = n
                 any = true
         }</span>
-        <span class="cov5" title="21">if n, ok := parseInt("HEXAI_LOG_PREVIEW_LIMIT"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if n, ok := parseInt("HEXAI_LOG_PREVIEW_LIMIT"); ok </span><span class="cov1" title="1">{
                 out.LogPreviewLimit = n
                 any = true
         }</span>
-        <span class="cov5" title="21">if n, ok := parseInt("HEXAI_MANUAL_INVOKE_MIN_PREFIX"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if n, ok := parseInt("HEXAI_MANUAL_INVOKE_MIN_PREFIX"); ok </span><span class="cov1" title="1">{
                 out.ManualInvokeMinPrefix = n
                 any = true
         }</span>
-        <span class="cov5" title="21">if n, ok := parseInt("HEXAI_COMPLETION_DEBOUNCE_MS"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if n, ok := parseInt("HEXAI_COMPLETION_DEBOUNCE_MS"); ok </span><span class="cov1" title="1">{
                 out.CompletionDebounceMs = n
                 any = true
         }</span>
-        <span class="cov5" title="21">if n, ok := parseInt("HEXAI_COMPLETION_THROTTLE_MS"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if n, ok := parseInt("HEXAI_COMPLETION_THROTTLE_MS"); ok </span><span class="cov1" title="1">{
                 out.CompletionThrottleMs = n
                 any = true
         }</span>
-        <span class="cov5" title="21">if f, ok := parseFloatPtr("HEXAI_CODING_TEMPERATURE"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if f, ok := parseFloatPtr("HEXAI_CODING_TEMPERATURE"); ok </span><span class="cov1" title="1">{
                 out.CodingTemperature = f
                 any = true
         }</span>
-        <span class="cov5" title="21">if s := getenv("HEXAI_TRIGGER_CHARACTERS"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_TRIGGER_CHARACTERS"); s != "" </span><span class="cov1" title="1">{
                 parts := strings.Split(s, ",")
                 out.TriggerCharacters = nil
                 for _, p := range parts </span><span class="cov2" title="3">{
@@ -1153,19 +1182,19 @@ func loadFromEnv(logger *log.Logger) *App <span class="cov5" title="21">{
                 }
                 <span class="cov1" title="1">any = true</span>
         }
-        <span class="cov5" title="21">if s := getenv("HEXAI_INLINE_OPEN"); s != "" </span><span class="cov0" title="0">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_INLINE_OPEN"); s != "" </span><span class="cov0" title="0">{
                 out.InlineOpen = s
                 any = true
         }</span>
-        <span class="cov5" title="21">if s := getenv("HEXAI_INLINE_CLOSE"); s != "" </span><span class="cov0" title="0">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_INLINE_CLOSE"); s != "" </span><span class="cov0" title="0">{
                 out.InlineClose = s
                 any = true
         }</span>
-        <span class="cov5" title="21">if s := getenv("HEXAI_CHAT_SUFFIX"); s != "" </span><span class="cov0" title="0">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_CHAT_SUFFIX"); s != "" </span><span class="cov0" title="0">{
                 out.ChatSuffix = s
                 any = true
         }</span>
-        <span class="cov5" title="21">if s := getenv("HEXAI_CHAT_PREFIXES"); s != "" </span><span class="cov0" title="0">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_CHAT_PREFIXES"); s != "" </span><span class="cov0" title="0">{
                 parts := strings.Split(s, ",")
                 out.ChatPrefixes = nil
                 for _, p := range parts </span><span class="cov0" title="0">{
@@ -1175,55 +1204,88 @@ func loadFromEnv(logger *log.Logger) *App <span class="cov5" title="21">{
                 }
                 <span class="cov0" title="0">any = true</span>
         }
-        <span class="cov5" title="21">if s := getenv("HEXAI_PROVIDER"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_PROVIDER"); s != "" </span><span class="cov3" title="5">{
                 out.Provider = s
                 any = true
         }</span>
 
+        <span class="cov5" title="27">modelForce := strings.TrimSpace(getenv("HEXAI_MODEL_FORCE"))
+        modelGeneric := strings.TrimSpace(getenv("HEXAI_MODEL"))
+        providerLower := strings.ToLower(strings.TrimSpace(out.Provider))
+        forceUsed := false
+        genericUsed := false
+        pickModel := func(providerName, specific string) (string, bool) </span><span class="cov7" title="81">{
+                specific = strings.TrimSpace(specific)
+                nameLower := strings.ToLower(strings.TrimSpace(providerName))
+                if modelForce != "" </span><span class="cov2" title="3">{
+                        if providerLower == nameLower </span><span class="cov1" title="1">{
+                                forceUsed = true
+                                return modelForce, true
+                        }</span>
+                        <span class="cov1" title="2">if providerLower == "" &amp;&amp; !forceUsed </span><span class="cov0" title="0">{
+                                forceUsed = true
+                                return modelForce, true
+                        }</span>
+                }
+                <span class="cov7" title="80">if specific != "" </span><span class="cov2" title="4">{
+                        return specific, true
+                }</span>
+                <span class="cov6" title="76">if modelGeneric != "" </span><span class="cov3" title="8">{
+                        if providerLower == nameLower </span><span class="cov1" title="2">{
+                                return modelGeneric, true
+                        }</span>
+                        <span class="cov3" title="6">if providerLower == "" &amp;&amp; !genericUsed </span><span class="cov0" title="0">{
+                                genericUsed = true
+                                return modelGeneric, true
+                        }</span>
+                }
+                <span class="cov6" title="74">return "", false</span>
+        }
+
         // Provider-specific
-        <span class="cov5" title="21">if s := getenv("HEXAI_OPENAI_BASE_URL"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_OPENAI_BASE_URL"); s != "" </span><span class="cov1" title="1">{
                 out.OpenAIBaseURL = s
                 any = true
         }</span>
-        <span class="cov5" title="21">if s := getenv("HEXAI_OPENAI_MODEL"); s != "" </span><span class="cov4" title="12">{
-                out.OpenAIModel = s
+        <span class="cov5" title="27">if model, ok := pickModel("openai", getenv("HEXAI_OPENAI_MODEL")); ok </span><span class="cov3" title="5">{
+                out.OpenAIModel = model
                 any = true
         }</span>
-        <span class="cov5" title="21">if f, ok := parseFloatPtr("HEXAI_OPENAI_TEMPERATURE"); ok </span><span class="cov4" title="12">{
+        <span class="cov5" title="27">if f, ok := parseFloatPtr("HEXAI_OPENAI_TEMPERATURE"); ok </span><span class="cov1" title="1">{
                 out.OpenAITemperature = f
                 any = true
         }</span>
 
-        <span class="cov5" title="21">if s := getenv("HEXAI_OLLAMA_BASE_URL"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_OLLAMA_BASE_URL"); s != "" </span><span class="cov1" title="1">{
                 out.OllamaBaseURL = s
                 any = true
         }</span>
-        <span class="cov5" title="21">if s := getenv("HEXAI_OLLAMA_MODEL"); s != "" </span><span class="cov1" title="1">{
-                out.OllamaModel = s
+        <span class="cov5" title="27">if model, ok := pickModel("ollama", getenv("HEXAI_OLLAMA_MODEL")); ok </span><span class="cov1" title="1">{
+                out.OllamaModel = model
                 any = true
         }</span>
-        <span class="cov5" title="21">if f, ok := parseFloatPtr("HEXAI_OLLAMA_TEMPERATURE"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if f, ok := parseFloatPtr("HEXAI_OLLAMA_TEMPERATURE"); ok </span><span class="cov1" title="1">{
                 out.OllamaTemperature = f
                 any = true
         }</span>
 
-        <span class="cov5" title="21">if s := getenv("HEXAI_COPILOT_BASE_URL"); s != "" </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if s := getenv("HEXAI_COPILOT_BASE_URL"); s != "" </span><span class="cov1" title="1">{
                 out.CopilotBaseURL = s
                 any = true
         }</span>
-        <span class="cov5" title="21">if s := getenv("HEXAI_COPILOT_MODEL"); s != "" </span><span class="cov1" title="1">{
-                out.CopilotModel = s
+        <span class="cov5" title="27">if model, ok := pickModel("copilot", getenv("HEXAI_COPILOT_MODEL")); ok </span><span class="cov1" title="1">{
+                out.CopilotModel = model
                 any = true
         }</span>
-        <span class="cov5" title="21">if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok </span><span class="cov1" title="1">{
+        <span class="cov5" title="27">if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok </span><span class="cov1" title="1">{
                 out.CopilotTemperature = f
                 any = true
         }</span>
 
-        <span class="cov5" title="21">if !any </span><span class="cov4" title="9">{
+        <span class="cov5" title="27">if !any </span><span class="cov5" title="22">{
                 return nil
         }</span>
-        <span class="cov4" title="12">return &amp;out</span>
+        <span class="cov3" title="5">return &amp;out</span>
 }
 </pre>
 		
@@ -1709,19 +1771,26 @@ func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, opt
 // reqOptsFrom builds LLM request options similar to LSP behavior.
 func reqOptsFrom(cfg appconfig.App) []llm.RequestOption <span class="cov7" title="14">{
         opts := []llm.RequestOption{llm.WithMaxTokens(cfg.MaxTokens)}
+        // Apply temperature, with special-case for gpt-5 (default temp must be 1.0)
         if cfg.CodingTemperature != nil </span><span class="cov6" title="10">{
-                opts = append(opts, llm.WithTemperature(*cfg.CodingTemperature))
-        }</span>
+                temp := *cfg.CodingTemperature
+                prov := strings.ToLower(strings.TrimSpace(cfg.Provider))
+                model := strings.ToLower(strings.TrimSpace(cfg.OpenAIModel))
+                if prov == "openai" &amp;&amp; strings.HasPrefix(model, "gpt-5") </span><span class="cov0" title="0">{
+                        temp = 1.0
+                }</span>
+                <span class="cov6" title="10">opts = append(opts, llm.WithTemperature(temp))</span>
+        }
         <span class="cov7" title="14">return opts</span>
 }
 
 // Timeout helpers to mirror LSP behavior.
 func timeout10s(parent context.Context) (context.Context, context.CancelFunc) <span class="cov5" title="7">{
-        return context.WithTimeout(parent, 10*time.Second)
+        return context.WithTimeout(parent, 20*time.Second)
 }</span>
 
 func timeout8s(parent context.Context) (context.Context, context.CancelFunc) <span class="cov1" title="1">{
-        return context.WithTimeout(parent, 8*time.Second)
+        return context.WithTimeout(parent, 18*time.Second)
 }</span>
 </pre>
 		
@@ -1800,55 +1869,86 @@ func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg a
         case ActionSkip:<span class="cov3" title="2">
                 return parts.Selection, nil</span>
         case ActionRewrite:<span class="cov3" title="2">
-                instr, cleaned := ExtractInstruction(parts.Selection)
-                if strings.TrimSpace(instr) == "" </span><span class="cov0" title="0">{
-                        fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
-                        return parts.Selection, nil
-                }</span>
-                <span class="cov3" title="2">cctx, cancel := timeout10s(ctx)
-                defer cancel()
-                return runRewrite(cctx, cfg, client, instr, cleaned)</span>
+                return handleRewriteAction(ctx, parts, cfg, client, stderr)</span>
         case ActionDiagnostics:<span class="cov0" title="0">
-                cctx, cancel := timeout10s(ctx)
-                defer cancel()
-                return runDiagnostics(cctx, cfg, client, parts.Diagnostics, parts.Selection)</span>
+                return handleDiagnosticsAction(ctx, parts, cfg, client)</span>
         case ActionDocument:<span class="cov1" title="1">
-                cctx, cancel := timeout10s(ctx)
-                defer cancel()
-                return runDocument(cctx, cfg, client, parts.Selection)</span>
+                return handleDocumentAction(ctx, parts, cfg, client)</span>
         case ActionGoTest:<span class="cov1" title="1">
-                cctx, cancel := timeout8s(ctx)
-                defer cancel()
-                return runGoTest(cctx, cfg, client, parts.Selection)</span>
+                return handleGoTestAction(ctx, parts, cfg, client)</span>
         case ActionSimplify:<span class="cov0" title="0">
-                cctx, cancel := timeout10s(ctx)
-                defer cancel()
-                return runSimplify(cctx, cfg, client, parts.Selection)</span>
+                return handleSimplifyAction(ctx, parts, cfg, client)</span>
         case ActionCustom:<span class="cov5" title="3">
-                cctx, cancel := timeout10s(ctx)
-                defer cancel()
-                if selectedCustom != nil </span><span class="cov5" title="3">{
-                        // Run configured custom action
-                        out, err := runCustom(cctx, cfg, client, *selectedCustom, parts)
-                        selectedCustom = nil // clear after use
-                        return out, err
-                }</span>
-                // No selected custom; treat as no-op
-                <span class="cov0" title="0">return parts.Selection, nil</span>
+                return handleCustomAction(ctx, parts, cfg, client)</span>
         case ActionCustomPrompt:<span class="cov1" title="1">
-                cctx, cancel := timeout10s(ctx)
-                defer cancel()
-                // Open editor for free-form instruction
-                prompt, err := editor.OpenTempAndEdit(nil)
-                if err != nil || strings.TrimSpace(prompt) == "" </span><span class="cov0" title="0">{
-                        fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
-                        return parts.Selection, nil
-                }</span>
-                <span class="cov1" title="1">return runRewrite(cctx, cfg, client, prompt, parts.Selection)</span>
+                return handleCustomPromptAction(ctx, parts, cfg, client, stderr)</span>
         default:<span class="cov0" title="0">
                 return parts.Selection, nil</span>
         }
 }
+
+func handleRewriteAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) <span class="cov3" title="2">{
+        instr, cleaned := ExtractInstruction(parts.Selection)
+        if strings.TrimSpace(instr) == "" </span><span class="cov0" title="0">{
+                fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
+                return parts.Selection, nil
+        }</span>
+        <span class="cov3" title="2">return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) </span><span class="cov3" title="2">{
+                return runRewrite(cctx, cfg, client, instr, cleaned)
+        }</span>)
+}
+
+func handleDiagnosticsAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) <span class="cov0" title="0">{
+        return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) </span><span class="cov0" title="0">{
+                return runDiagnostics(cctx, cfg, client, parts.Diagnostics, parts.Selection)
+        }</span>)
+}
+
+func handleDocumentAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) <span class="cov1" title="1">{
+        return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) </span><span class="cov1" title="1">{
+                return runDocument(cctx, cfg, client, parts.Selection)
+        }</span>)
+}
+
+func handleGoTestAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) <span class="cov1" title="1">{
+        return runWithTimeout(ctx, timeout8s, func(cctx context.Context) (string, error) </span><span class="cov1" title="1">{
+                return runGoTest(cctx, cfg, client, parts.Selection)
+        }</span>)
+}
+
+func handleSimplifyAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) <span class="cov0" title="0">{
+        return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) </span><span class="cov0" title="0">{
+                return runSimplify(cctx, cfg, client, parts.Selection)
+        }</span>)
+}
+
+func handleCustomAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) <span class="cov5" title="3">{
+        if selectedCustom == nil </span><span class="cov0" title="0">{
+                return parts.Selection, nil
+        }</span>
+        <span class="cov5" title="3">return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) </span><span class="cov5" title="3">{
+                out, err := runCustom(cctx, cfg, client, *selectedCustom, parts)
+                selectedCustom = nil
+                return out, err
+        }</span>)
+}
+
+func handleCustomPromptAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) <span class="cov1" title="1">{
+        prompt, err := editor.OpenTempAndEdit(nil)
+        if err != nil || strings.TrimSpace(prompt) == "" </span><span class="cov0" title="0">{
+                fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
+                return parts.Selection, nil
+        }</span>
+        <span class="cov1" title="1">return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) </span><span class="cov1" title="1">{
+                return runRewrite(cctx, cfg, client, prompt, parts.Selection)
+        }</span>)
+}
+
+func runWithTimeout(ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), fn func(context.Context) (string, error)) (string, error) <span class="cov9" title="8">{
+        innerCtx, cancel := timeout(ctx)
+        defer cancel()
+        return fn(innerCtx)
+}</span>
 
 // client construction is shared via internal/llmutils
 </pre>
@@ -2100,7 +2200,6 @@ func (oneLineDelegate) Render(w io.Writer, m list.Model, index int, listItem lis
 package hexaicli
 
 import (
-        "bufio"
         "context"
         "fmt"
         "io"
@@ -2120,39 +2219,38 @@ import (
 
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
 // It assumes flags have already been parsed by the caller.
-func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error <span class="cov5" title="3">{
+func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error <span class="cov6" title="5">{
         // Load configuration with a logger so file-based config is respected.
         logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
         cfg := appconfig.Load(logger)
-        if cfg.StatsWindowMinutes &gt; 0 </span><span class="cov5" title="3">{
+        if cfg.StatsWindowMinutes &gt; 0 </span><span class="cov6" title="5">{
                 stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
         }</span>
-        <span class="cov5" title="3">client, err := newClientFromApp(cfg)
+        <span class="cov6" title="5">client, err := newClientFromApp(cfg)
         if err != nil </span><span class="cov1" title="1">{
                 fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
                 return err
         }</span>
-        // No args: open editor to capture a prompt, then combine with stdin as usual.
-        <span class="cov3" title="2">if len(args) == 0 </span><span class="cov1" title="1">{
+        // Prefer piped stdin when present; only open the editor when there are no args
+        // and no stdin content available.
+        <span class="cov5" title="4">input, rerr := readInput(stdin, args)
+        if rerr != nil &amp;&amp; len(args) == 0 </span><span class="cov1" title="1">{
                 if prompt, eerr := editor.OpenTempAndEdit(nil); eerr == nil &amp;&amp; strings.TrimSpace(prompt) != "" </span><span class="cov1" title="1">{
                         args = []string{prompt}
-                }</span> else <span class="cov0" title="0">{
-                        // If editor fails or empty, continue; readInput will likely error if no stdin either.
+                        input, rerr = readInput(stdin, args)
                 }</span>
         }
-        // Inline the flow here to use configured CLI prompts.
-        <span class="cov3" title="2">input, rerr := readInput(stdin, args)
-        if rerr != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="4">if rerr != nil </span><span class="cov0" title="0">{
                 fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
                 return rerr
         }</span>
-        <span class="cov3" title="2">printProviderInfo(stderr, client)
+        <span class="cov5" title="4">printProviderInfo(stderr, client)
         msgs := buildMessagesFromConfig(cfg, input)
         if err := runChat(ctx, client, msgs, input, stdout, stderr); err != nil </span><span class="cov0" title="0">{
                 fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
                 return err
         }</span>
-        <span class="cov3" title="2">return nil</span>
+        <span class="cov5" title="4">return nil</span>
 }
 
 // RunWithClient executes the CLI flow using an already-constructed client.
@@ -2173,21 +2271,24 @@ func RunWithClient(ctx context.Context, args []string, stdin io.Reader, stdout, 
 }
 
 // readInput reads from stdin and args, then combines them per CLI rules.
-func readInput(stdin io.Reader, args []string) (string, error) <span class="cov8" title="7">{
+func readInput(stdin io.Reader, args []string) (string, error) <span class="cov9" title="11">{
         var stdinData string
-        if fi, err := os.Stdin.Stat(); err == nil &amp;&amp; (fi.Mode()&amp;os.ModeCharDevice) == 0 </span><span class="cov6" title="4">{
-                b, _ := io.ReadAll(bufio.NewReader(stdin))
-                stdinData = strings.TrimSpace(string(b))
-        }</span>
-        <span class="cov8" title="7">argData := strings.TrimSpace(strings.Join(args, " "))
+        if fi, err := os.Stdin.Stat(); err == nil &amp;&amp; (fi.Mode()&amp;os.ModeCharDevice) == 0 </span><span class="cov7" title="6">{
+                data, readErr := io.ReadAll(stdin)
+                if readErr != nil </span><span class="cov1" title="1">{
+                        return "", fmt.Errorf("hexai: failed to read stdin: %w", readErr)
+                }</span>
+                <span class="cov6" title="5">stdinData = strings.TrimSpace(string(data))</span>
+        }
+        <span class="cov9" title="10">argData := strings.TrimSpace(strings.Join(args, " "))
         switch </span>{
         case stdinData != "" &amp;&amp; argData != "":<span class="cov1" title="1">
                 return fmt.Sprintf("%s:\n\n%s", argData, stdinData), nil</span>
-        case stdinData != "":<span class="cov1" title="1">
+        case stdinData != "":<span class="cov3" title="2">
                 return stdinData, nil</span>
-        case argData != "":<span class="cov6" title="4">
+        case argData != "":<span class="cov6" title="5">
                 return argData, nil</span>
-        default:<span class="cov1" title="1">
+        default:<span class="cov3" title="2">
                 return "", fmt.Errorf("hexai: no input provided; pass text as an argument or via stdin")</span>
         }
 }
@@ -2196,20 +2297,20 @@ func readInput(stdin io.Reader, args []string) (string, error) <span class="cov8
 // client construction moved to internal/llmutils
 
 // buildMessages creates system and user messages based on input content.
-func buildMessages(input string) []llm.Message <span class="cov8" title="6">{
+func buildMessages(input string) []llm.Message <span class="cov7" title="6">{
         lower := strings.ToLower(input)
         system := "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation."
         if strings.Contains(lower, "explain") </span><span class="cov1" title="1">{
                 system = "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context."
         }</span>
-        <span class="cov8" title="6">return []llm.Message{
+        <span class="cov7" title="6">return []llm.Message{
                 {Role: "system", Content: system},
                 {Role: "user", Content: input},
         }</span>
 }
 
 // buildMessagesFromConfig uses configured CLI system prompts.
-func buildMessagesFromConfig(cfg appconfig.App, input string) []llm.Message <span class="cov6" title="4">{
+func buildMessagesFromConfig(cfg appconfig.App, input string) []llm.Message <span class="cov7" title="6">{
         lower := strings.ToLower(input)
         system := cfg.PromptCLIDefaultSystem
         if strings.Contains(lower, "explain") </span><span class="cov1" title="1">{
@@ -2217,55 +2318,55 @@ func buildMessagesFromConfig(cfg appconfig.App, input string) []llm.Message <spa
                         system = cfg.PromptCLIExplainSystem
                 }</span>
         }
-        <span class="cov6" title="4">return []llm.Message{
+        <span class="cov7" title="6">return []llm.Message{
                 {Role: "system", Content: system},
                 {Role: "user", Content: input},
         }</span>
 }
 
 // runChat executes the chat request, handling streaming and summary output.
-func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input string, out io.Writer, errw io.Writer) error <span class="cov8" title="7">{
+func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input string, out io.Writer, errw io.Writer) error <span class="cov8" title="9">{
         start := time.Now()
         // Best-effort tmux status update (colored start heartbeat)
         _ = tmux.SetStatus(tmux.FormatLLMStartStatus(client.Name(), client.DefaultModel()))
         var output string
         if s, ok := client.(llm.Streamer); ok </span><span class="cov3" title="2">{
                 var b strings.Builder
-                if err := s.ChatStream(ctx, msgs, func(chunk string) </span><span class="cov7" title="5">{
+                if err := s.ChatStream(ctx, msgs, func(chunk string) </span><span class="cov6" title="5">{
                         b.WriteString(chunk)
                         fmt.Fprint(out, chunk)
                 }</span>); err != nil <span class="cov0" title="0">{
                         return err
                 }</span>
                 <span class="cov3" title="2">output = b.String()</span>
-        } else<span class="cov7" title="5"> {
+        } else<span class="cov7" title="7"> {
                 txt, err := client.Chat(ctx, msgs)
                 if err != nil </span><span class="cov3" title="2">{
                         return err
                 }</span>
-                <span class="cov5" title="3">output = txt
+                <span class="cov6" title="5">output = txt
                 fmt.Fprint(out, output)</span>
         }
-        <span class="cov7" title="5">dur := time.Since(start)
+        <span class="cov7" title="7">dur := time.Since(start)
         // Contribute to global stats and update tmux status
         sent := 0
-        for _, m := range msgs </span><span class="cov10" title="9">{
+        for _, m := range msgs </span><span class="cov10" title="13">{
                 sent += len(m.Content)
         }</span>
-        <span class="cov7" title="5">recv := len(output)
+        <span class="cov7" title="7">recv := len(output)
         _ = stats.Update(ctx, client.Name(), client.DefaultModel(), sent, recv)
         snap, _ := stats.TakeSnapshot()
         minsWin := snap.Window.Minutes()
         if minsWin &lt;= 0 </span><span class="cov0" title="0">{
                 minsWin = 0.001
         }</span>
-        <span class="cov7" title="5">scopeReqs := int64(0)
-        if pe, ok := snap.Providers[client.Name()]; ok </span><span class="cov7" title="5">{
-                if mc, ok2 := pe.Models[client.DefaultModel()]; ok2 </span><span class="cov7" title="5">{
+        <span class="cov7" title="7">scopeReqs := int64(0)
+        if pe, ok := snap.Providers[client.Name()]; ok </span><span class="cov7" title="7">{
+                if mc, ok2 := pe.Models[client.DefaultModel()]; ok2 </span><span class="cov7" title="7">{
                         scopeReqs = mc.Reqs
                 }</span>
         }
-        <span class="cov7" title="5">scopeRPM := float64(scopeReqs) / minsWin
+        <span class="cov7" title="7">scopeRPM := float64(scopeReqs) / minsWin
         fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d | global Σ reqs=%d rpm=%.2f"+logging.AnsiReset+"\n",
                 client.Name(), client.DefaultModel(), dur.Round(time.Millisecond), sent, recv, snap.Global.Reqs, snap.RPM)
         _ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, client.Name(), client.DefaultModel(), scopeRPM, scopeReqs, snap.Window))
@@ -2273,7 +2374,7 @@ func runChat(ctx context.Context, client llm.Client, msgs []llm.Message, input s
 }
 
 // printProviderInfo writes the provider/model line to stderr.
-func printProviderInfo(errw io.Writer, client llm.Client) <span class="cov6" title="4">{
+func printProviderInfo(errw io.Writer, client llm.Client) <span class="cov7" title="6">{
         fmt.Fprintf(errw, logging.AnsiBase+"provider=%s model=%s"+logging.AnsiReset+"\n", client.Name(), client.DefaultModel())
 }</span>
 
@@ -3101,12 +3202,13 @@ type openAIClient struct {
 }
 
 type oaChatRequest struct {
-        Model       string      `json:"model"`
-        Messages    []oaMessage `json:"messages"`
-        Temperature *float64    `json:"temperature,omitempty"`
-        MaxTokens   *int        `json:"max_tokens,omitempty"`
-        Stop        []string    `json:"stop,omitempty"`
-        Stream      bool        `json:"stream,omitempty"`
+        Model               string      `json:"model"`
+        Messages            []oaMessage `json:"messages"`
+        Temperature         *float64    `json:"temperature,omitempty"`
+        MaxTokens           *int        `json:"max_tokens,omitempty"`
+        MaxCompletionTokens *int        `json:"max_completion_tokens,omitempty"`
+        Stop                []string    `json:"stop,omitempty"`
+        Stream              bool        `json:"stream,omitempty"`
 }
 
 type oaMessage struct {
@@ -3150,14 +3252,14 @@ type oaStreamChunk struct {
 // Constructor (kept among the first functions by convention)
 // newOpenAI constructs an OpenAI client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
-func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) Client <span class="cov10" title="17">{
-        if strings.TrimSpace(baseURL) == "" </span><span class="cov6" title="6">{
+func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) Client <span class="cov10" title="20">{
+        if strings.TrimSpace(baseURL) == "" </span><span class="cov7" title="9">{
                 baseURL = "https://api.openai.com/v1"
         }</span>
-        <span class="cov10" title="17">if strings.TrimSpace(model) == "" </span><span class="cov6" title="5">{
+        <span class="cov10" title="20">if strings.TrimSpace(model) == "" </span><span class="cov6" title="6">{
                 model = "gpt-4.1"
         }</span>
-        <span class="cov10" title="17">return openAIClient{
+        <span class="cov10" title="20">return openAIClient{
                 httpClient:         &amp;http.Client{Timeout: 30 * time.Second},
                 apiKey:             apiKey,
                 baseURL:            baseURL,
@@ -3171,14 +3273,14 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
         if c.apiKey == "" </span><span class="cov1" title="1">{
                 return nilStringErr("missing OpenAI API key")
         }</span>
-        <span class="cov6" title="5">o := Options{Model: c.defaultModel}
+        <span class="cov5" title="5">o := Options{Model: c.defaultModel}
         for _, opt := range opts </span><span class="cov0" title="0">{
                 opt(&amp;o)
         }</span>
-        <span class="cov6" title="5">if o.Model == "" </span><span class="cov0" title="0">{
+        <span class="cov5" title="5">if o.Model == "" </span><span class="cov0" title="0">{
                 o.Model = c.defaultModel
         }</span>
-        <span class="cov6" title="5">start := time.Now()
+        <span class="cov5" title="5">start := time.Now()
         c.logStart(false, o, messages)
         req := buildOAChatRequest(o, messages, c.defaultTemperature, false)
         body, err := json.Marshal(req)
@@ -3186,7 +3288,7 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
                 c.logf("marshal error: %v", err)
                 return "", err
         }</span>
-        <span class="cov6" title="5">endpoint := c.baseURL + "/chat/completions"
+        <span class="cov5" title="5">endpoint := c.baseURL + "/chat/completions"
         logging.Logf("llm/openai ", "POST %s", endpoint)
         resp, err := c.doJSON(ctx, endpoint, body, map[string]string{
                 "Authorization": "Bearer " + c.apiKey,
@@ -3195,7 +3297,7 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
                 logging.Logf("llm/openai ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
                 return "", err
         }</span>
-        <span class="cov6" title="5">defer resp.Body.Close()
+        <span class="cov5" title="5">defer resp.Body.Close()
         if err := handleOpenAINon2xx(resp, start); err != nil </span><span class="cov1" title="1">{
                 return "", err
         }</span>
@@ -3270,37 +3372,57 @@ func (c openAIClient) logStart(stream bool, o Options, messages []Message) <span
         <span class="cov7" title="9">c.chatLogger.LogStart(stream, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)</span>
 }
 
-func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, stream bool) oaChatRequest <span class="cov8" title="11">{
+func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, stream bool) oaChatRequest <span class="cov8" title="14">{
         req := oaChatRequest{Model: o.Model, Stream: stream}
         req.Messages = make([]oaMessage, len(messages))
-        for i, m := range messages </span><span class="cov8" title="11">{
+        for i, m := range messages </span><span class="cov8" title="14">{
                 req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
         }</span>
-        <span class="cov8" title="11">if o.Temperature != 0 </span><span class="cov0" title="0">{
+        <span class="cov8" title="14">if o.Temperature != 0 </span><span class="cov1" title="1">{
                 req.Temperature = &amp;o.Temperature
-        }</span> else<span class="cov8" title="11"> if defaultTemp != nil </span><span class="cov8" title="11">{
+        }</span> else<span class="cov8" title="13"> if defaultTemp != nil </span><span class="cov8" title="11">{
                 t := *defaultTemp
                 req.Temperature = &amp;t
         }</span>
-        <span class="cov8" title="11">if o.MaxTokens &gt; 0 </span><span class="cov3" title="2">{
-                req.MaxTokens = &amp;o.MaxTokens
-        }</span>
-        <span class="cov8" title="11">if len(o.Stop) &gt; 0 </span><span class="cov3" title="2">{
+        <span class="cov8" title="14">if o.MaxTokens &gt; 0 </span><span class="cov5" title="5">{
+                if requiresMaxCompletionTokens(o.Model) </span><span class="cov3" title="2">{
+                        req.MaxCompletionTokens = &amp;o.MaxTokens
+                }</span> else<span class="cov4" title="3"> {
+                        req.MaxTokens = &amp;o.MaxTokens
+                }</span>
+        }
+        <span class="cov8" title="14">if len(o.Stop) &gt; 0 </span><span class="cov3" title="2">{
                 req.Stop = o.Stop
         }</span>
-        <span class="cov8" title="11">return req</span>
+        // Enforce gpt-5 temperature constraints: only default (1.0) is supported.
+        <span class="cov8" title="14">if requiresMaxCompletionTokens(o.Model) </span><span class="cov3" title="2">{
+                if req.Temperature == nil || *req.Temperature != 1.0 </span><span class="cov3" title="2">{
+                        t := 1.0
+                        req.Temperature = &amp;t
+                        logging.Logf("llm/openai ", "forcing temperature=1.0 for model=%s (gpt-5 constraint)", o.Model)
+                }</span>
+        }
+        <span class="cov8" title="14">return req</span>
 }
 
-func (c openAIClient) doJSON(ctx context.Context, url string, body []byte, headers map[string]string) (*http.Response, error) <span class="cov6" title="5">{
+// requiresMaxCompletionTokens reports whether the given model prefers the
+// new parameter name "max_completion_tokens" instead of "max_tokens". Newer
+// models (e.g., gpt-5 family) expect this per OpenAI's API error guidance.
+func requiresMaxCompletionTokens(model string) bool <span class="cov9" title="19">{
+        m := strings.ToLower(strings.TrimSpace(model))
+        return strings.HasPrefix(m, "gpt-5")
+}</span>
+
+func (c openAIClient) doJSON(ctx context.Context, url string, body []byte, headers map[string]string) (*http.Response, error) <span class="cov5" title="5">{
         req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov6" title="5">req.Header.Set("Content-Type", "application/json")
-        for k, v := range headers </span><span class="cov6" title="5">{
+        <span class="cov5" title="5">req.Header.Set("Content-Type", "application/json")
+        for k, v := range headers </span><span class="cov5" title="5">{
                 req.Header.Set(k, v)
         }</span>
-        <span class="cov6" title="5">return c.httpClient.Do(req)</span>
+        <span class="cov5" title="5">return c.httpClient.Do(req)</span>
 }
 
 func (c openAIClient) doJSONWithAccept(ctx context.Context, url string, body []byte, headers map[string]string, accept string) (*http.Response, error) <span class="cov5" title="4">{
@@ -3339,7 +3461,7 @@ func decodeOpenAIChat(resp *http.Response, start time.Time) (oaChatResponse, err
         <span class="cov4" title="3">return out, nil</span>
 }
 
-func parseOpenAIStream(resp *http.Response, start time.Time, onDelta func(string)) error <span class="cov6" title="5">{
+func parseOpenAIStream(resp *http.Response, start time.Time, onDelta func(string)) error <span class="cov5" title="5">{
         // Parse SSE: lines starting with "data: " containing JSON or [DONE]
         scanner := bufio.NewScanner(resp.Body)
         const maxBuf = 1024 * 1024
@@ -3354,7 +3476,7 @@ func parseOpenAIStream(resp *http.Response, start time.Time, onDelta func(string
                 if strings.TrimSpace(payload) == "[DONE]" </span><span class="cov4" title="3">{
                         break</span>
                 }
-                <span class="cov6" title="5">var chunk oaStreamChunk
+                <span class="cov5" title="5">var chunk oaStreamChunk
                 if err := json.Unmarshal([]byte(payload), &amp;chunk); err != nil </span><span class="cov3" title="2">{
                         continue</span>
                 }
@@ -3434,8 +3556,8 @@ type Options struct {
 type RequestOption func(*Options)
 
 func WithModel(model string) RequestOption    <span class="cov1" title="1">{ return func(o *Options) </span><span class="cov1" title="1">{ o.Model = model }</span> }
-func WithTemperature(t float64) RequestOption <span class="cov6" title="11">{ return func(o *Options) </span><span class="cov1" title="1">{ o.Temperature = t }</span> }
-func WithMaxTokens(n int) RequestOption       <span class="cov10" title="48">{ return func(o *Options) </span><span class="cov1" title="1">{ o.MaxTokens = n }</span> }
+func WithTemperature(t float64) RequestOption <span class="cov6" title="12">{ return func(o *Options) </span><span class="cov2" title="2">{ o.Temperature = t }</span> }
+func WithMaxTokens(n int) RequestOption       <span class="cov10" title="49">{ return func(o *Options) </span><span class="cov2" title="2">{ o.MaxTokens = n }</span> }
 func WithStop(stop ...string) RequestOption <span class="cov1" title="1">{
         return func(o *Options) </span><span class="cov1" title="1">{ o.Stop = append([]string{}, stop...) }</span>
 }
@@ -3460,22 +3582,36 @@ type Config struct {
 // NewFromConfig creates an LLM client using only the supplied configuration.
 // The OpenAI API key is supplied separately and may be read from the environment
 // by the caller; other environment-based configuration is not used.
-func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, error) <span class="cov7" title="19">{
+func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, error) <span class="cov8" title="22">{
         p := strings.ToLower(strings.TrimSpace(cfg.Provider))
         if p == "" </span><span class="cov5" title="8">{
                 p = "openai"
         }</span>
-        <span class="cov7" title="19">switch p </span>{
-        case "openai":<span class="cov6" title="12">
+        <span class="cov8" title="22">switch p </span>{
+        case "openai":<span class="cov7" title="15">
                 if strings.TrimSpace(openAIAPIKey) == "" </span><span class="cov4" title="5">{
                         return nil, errors.New("missing OPENAI_API_KEY for provider openai")
                 }</span>
-                // Set coding-friendly default temperature if none provided
-                <span class="cov5" title="7">if cfg.OpenAITemperature == nil </span><span class="cov4" title="5">{
-                        t := 0.2
-                        cfg.OpenAITemperature = &amp;t
+                // Default temperature selection:
+                // - When model is gpt-5*, prefer 1.0 by default (more exploratory).
+                // - Otherwise, prefer 0.2 by default (coding friendly).
+                // The app-wide defaults currently set provider temps to 0.2.
+                // If the user hasn't explicitly overridden and the model is gpt-5*,
+                // upgrade 0.2 → 1.0 to satisfy the requested default for gpt-5.
+                <span class="cov6" title="10">model := strings.ToLower(strings.TrimSpace(cfg.OpenAIModel))
+                if strings.HasPrefix(model, "gpt-5") </span><span class="cov2" title="2">{
+                        if cfg.OpenAITemperature == nil </span><span class="cov1" title="1">{
+                                v := 1.0
+                                cfg.OpenAITemperature = &amp;v
+                        }</span> else<span class="cov1" title="1"> if *cfg.OpenAITemperature == 0.2 </span><span class="cov1" title="1">{
+                                v := 1.0
+                                cfg.OpenAITemperature = &amp;v
+                        }</span>
+                } else<span class="cov5" title="8"> if cfg.OpenAITemperature == nil </span><span class="cov5" title="6">{
+                        v := 0.2
+                        cfg.OpenAITemperature = &amp;v
                 }</span>
-                <span class="cov5" title="7">return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature), nil</span>
+                <span class="cov6" title="10">return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature), nil</span>
         case "ollama":<span class="cov3" title="3">
                 if cfg.OllamaTemperature == nil </span><span class="cov2" title="2">{
                         t := 0.2
@@ -3549,7 +3685,7 @@ type ChatLogger struct {
 }
 
 // NewChatLogger creates a new ChatLogger for a given provider.
-func NewChatLogger(provider string) ChatLogger <span class="cov10" title="40">{
+func NewChatLogger(provider string) ChatLogger <span class="cov10" title="43">{
         return ChatLogger{Provider: provider}
 }</span>
 
@@ -3560,7 +3696,7 @@ func (cl ChatLogger) LogStart(stream bool, model string, temp float64, maxTokens
 },
 ) <span class="cov8" title="24">{
         chatOrStream := "chat"
-        if stream </span><span class="cov6" title="8">{
+        if stream </span><span class="cov5" title="8">{
                 chatOrStream = "stream"
         }</span>
         <span class="cov8" title="24">Logf("llm/"+cl.Provider+" ", "%s start model=%s temp=%.2f max_tokens=%d stop=%d messages=%d",
@@ -3601,8 +3737,8 @@ var std *log.Logger
 func Bind(l *log.Logger) <span class="cov2" title="3">{ std = l }</span>
 
 // Logf prints a formatted message with a module prefix and base ANSI style.
-func Logf(prefix, format string, args ...any) <span class="cov10" title="181">{
-        if std == nil </span><span class="cov9" title="127">{
+func Logf(prefix, format string, args ...any) <span class="cov10" title="183">{
+        if std == nil </span><span class="cov9" title="129">{
                 return
         }</span>
         <span class="cov7" title="54">msg := fmt.Sprintf(format, args...)
@@ -3617,7 +3753,7 @@ var logPreviewLimit int // 0 means unlimited
 func SetLogPreviewLimit(n int) <span class="cov4" title="9">{ logPreviewLimit = n }</span>
 
 // PreviewForLog returns the string truncated to the configured preview limit.
-func PreviewForLog(s string) string <span class="cov7" title="32">{
+func PreviewForLog(s string) string <span class="cov6" title="32">{
         if logPreviewLimit &gt; 0 </span><span class="cov2" title="3">{
                 if len(s) &lt;= logPreviewLimit </span><span class="cov0" title="0">{
                         return s
@@ -3888,10 +4024,10 @@ func (s *Server) handle(req Request) <span class="cov2" title="2">{
 // Preference order on each line: strict ;text; marker (no inner spaces), then
 // a line comment (//, #, --). Returns the instruction string and the selection
 // text cleaned of the matched instruction marker or comment.
-func instructionFromSelection(sel string) (string, string) <span class="cov5" title="5">{
+func (s *Server) instructionFromSelection(sel string) (string, string) <span class="cov5" title="5">{
         lines := splitLines(sel)
         for idx, line := range lines </span><span class="cov5" title="5">{
-                if instr, cleaned, ok := findFirstInstructionInLine(line); ok &amp;&amp; strings.TrimSpace(instr) != "" </span><span class="cov1" title="1">{
+                if instr, cleaned, ok := s.findFirstInstructionInLine(line); ok &amp;&amp; strings.TrimSpace(instr) != "" </span><span class="cov1" title="1">{
                         lines[idx] = cleaned
                         return instr, strings.Join(lines, "\n")
                 }</span>
@@ -3908,16 +4044,16 @@ func instructionFromSelection(sel string) (string, string) <span class="cov5" ti
 // - // text
 // - # text
 // - -- text
-func findFirstInstructionInLine(line string) (instr string, cleaned string, ok bool) <span class="cov8" title="24">{
+func (s *Server) findFirstInstructionInLine(line string) (instr string, cleaned string, ok bool) <span class="cov9" title="24">{
         type cand struct {
                 start, end int
                 text       string
         }
         cands := []cand{}
-        if t, l, r, ok := findStrictInlineTag(line); ok </span><span class="cov5" title="6">{
+        if t, l, r, ok := findStrictInlineTag(line, s.inlineOpenChar, s.inlineCloseChar); ok </span><span class="cov5" title="6">{
                 cands = append(cands, cand{start: l, end: r, text: t})
         }</span>
-        <span class="cov8" title="24">if i := strings.Index(line, "/*"); i &gt;= 0 </span><span class="cov2" title="2">{
+        <span class="cov9" title="24">if i := strings.Index(line, "/*"); i &gt;= 0 </span><span class="cov2" title="2">{
                 if j := strings.Index(line[i+2:], "*/"); j &gt;= 0 </span><span class="cov2" title="2">{
                         start := i
                         end := i + 2 + j + 2
@@ -3925,7 +4061,7 @@ func findFirstInstructionInLine(line string) (instr string, cleaned string, ok b
                         cands = append(cands, cand{start: start, end: end, text: text})
                 }</span>
         }
-        <span class="cov8" title="24">if i := strings.Index(line, "&lt;!--"); i &gt;= 0 </span><span class="cov2" title="2">{
+        <span class="cov9" title="24">if i := strings.Index(line, "&lt;!--"); i &gt;= 0 </span><span class="cov2" title="2">{
                 if j := strings.Index(line[i+4:], "--&gt;"); j &gt;= 0 </span><span class="cov2" title="2">{
                         start := i
                         end := i + 4 + j + 3
@@ -3933,26 +4069,26 @@ func findFirstInstructionInLine(line string) (instr string, cleaned string, ok b
                         cands = append(cands, cand{start: start, end: end, text: text})
                 }</span>
         }
-        <span class="cov8" title="24">if i := strings.Index(line, "//"); i &gt;= 0 </span><span class="cov4" title="4">{
+        <span class="cov9" title="24">if i := strings.Index(line, "//"); i &gt;= 0 </span><span class="cov4" title="4">{
                 cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+2:])})
         }</span>
-        <span class="cov8" title="24">if i := strings.Index(line, "#"); i &gt;= 0 </span><span class="cov2" title="2">{
+        <span class="cov9" title="24">if i := strings.Index(line, "#"); i &gt;= 0 </span><span class="cov2" title="2">{
                 cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+1:])})
         }</span>
-        <span class="cov8" title="24">if i := strings.Index(line, "--"); i &gt;= 0 </span><span class="cov4" title="4">{
+        <span class="cov9" title="24">if i := strings.Index(line, "--"); i &gt;= 0 </span><span class="cov4" title="4">{
                 cands = append(cands, cand{start: i, end: len(line), text: strings.TrimSpace(line[i+2:])})
         }</span>
-        <span class="cov8" title="24">if len(cands) == 0 </span><span class="cov6" title="8">{
+        <span class="cov9" title="24">if len(cands) == 0 </span><span class="cov6" title="8">{
                 return "", line, false
         }</span>
         // pick earliest start index
-        <span class="cov7" title="16">best := cands[0]
+        <span class="cov8" title="16">best := cands[0]
         for _, c := range cands[1:] </span><span class="cov4" title="4">{
                 if c.start &gt;= 0 &amp;&amp; (best.start &lt; 0 || c.start &lt; best.start) </span><span class="cov1" title="1">{
                         best = c
                 }</span>
         }
-        <span class="cov7" title="16">cleaned = strings.TrimRight(line[:best.start]+line[best.end:], " \t")
+        <span class="cov8" title="16">cleaned = strings.TrimRight(line[:best.start]+line[best.end:], " \t")
         return best.text, cleaned, true</span>
 }
 
@@ -3977,7 +4113,7 @@ func findFirstInstructionInLine(line string) (instr string, cleaned string, ok b
 
 // handleCompletion moved to handlers_completion.go
 
-func (s *Server) reply(id json.RawMessage, result any, err *RespError) <span class="cov7" title="13">{
+func (s *Server) reply(id json.RawMessage, result any, err *RespError) <span class="cov10" title="29">{
         resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
         s.writeMessage(resp)
 }</span>
@@ -4051,33 +4187,33 @@ func (s *Server) reply(id json.RawMessage, result any, err *RespError) <span cla
 
 // --- small completion cache (last ~10 entries) ---
 
-func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string <span class="cov7" title="14">{
+func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string <span class="cov7" title="13">{
         // Normalize left-of-cursor by trimming trailing spaces/tabs
         idx := p.Position.Character
         if idx &gt; len(current) </span><span class="cov0" title="0">{
                 idx = len(current)
         }</span>
-        <span class="cov7" title="14">left := strings.TrimRight(current[:idx], " \t")
+        <span class="cov7" title="13">left := strings.TrimRight(current[:idx], " \t")
         right := ""
         if idx &lt; len(current) </span><span class="cov1" title="1">{
                 right = current[idx:]
         }</span>
-        <span class="cov7" title="14">prov := ""
+        <span class="cov7" title="13">prov := ""
         model := ""
-        if s.llmClient != nil </span><span class="cov7" title="14">{
+        if s.llmClient != nil </span><span class="cov7" title="13">{
                 prov = s.llmClient.Name()
                 model = s.llmClient.DefaultModel()
         }</span>
-        <span class="cov7" title="14">temp := ""
+        <span class="cov7" title="13">temp := ""
         if s.codingTemperature != nil </span><span class="cov0" title="0">{
                 temp = fmt.Sprintf("%.3f", *s.codingTemperature)
         }</span>
-        <span class="cov7" title="14">extra := ""
+        <span class="cov7" title="13">extra := ""
         if hasExtra </span><span class="cov0" title="0">{
                 extra = strings.TrimSpace(extraText)
         }</span>
         // Compose a key from essential context parts
-        <span class="cov7" title="14">return strings.Join([]string{
+        <span class="cov7" title="13">return strings.Join([]string{
                 "v1", // version for future-proofing
                 prov,
                 model,
@@ -4094,11 +4230,11 @@ func (s *Server) completionCacheKey(p CompletionParams, above, current, below, f
         }, "\x1f")</span> // use unit separator to avoid collisions
 }
 
-func (s *Server) completionCacheGet(key string) (string, bool) <span class="cov6" title="10">{
+func (s *Server) completionCacheGet(key string) (string, bool) <span class="cov6" title="9">{
         s.mu.Lock()
         defer s.mu.Unlock()
         v, ok := s.compCache[key]
-        if !ok </span><span class="cov6" title="9">{
+        if !ok </span><span class="cov6" title="8">{
                 return "", false
         }</span>
         // move to most-recent
@@ -4155,7 +4291,7 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool <span c
                         TriggerKind      int    `json:"triggerKind"`
                         TriggerCharacter string `json:"triggerCharacter,omitempty"`
                 }
-                if raw, ok := p.Context.(json.RawMessage); ok </span><span class="cov6" title="10">{
+                if raw, ok := p.Context.(json.RawMessage); ok </span><span class="cov7" title="10">{
                         _ = json.Unmarshal(raw, &amp;ctx)
                 }</span> else<span class="cov1" title="1"> {
                         b, _ := json.Marshal(p.Context)
@@ -4163,11 +4299,11 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool <span c
                 }</span>
                 // If configured and the line contains a bare double-open marker (e.g., '&gt;&gt;' with no '&gt;&gt;text&gt;'),
                 // do not treat as a trigger source.
-                <span class="cov7" title="11">if s.inlineOpen != "" &amp;&amp; strings.Contains(current, s.inlineOpen+s.inlineOpen) &amp;&amp; !hasDoubleOpenTrigger(current) </span><span class="cov1" title="1">{
+                <span class="cov7" title="11">if s.inlineOpen != "" &amp;&amp; strings.Contains(current, s.inlineOpen+s.inlineOpen) &amp;&amp; !hasDoubleOpenTrigger(current, s.inlineOpenChar, s.inlineCloseChar) </span><span class="cov2" title="2">{
                         return false
                 }</span>
                 // TriggerKind 1 = Invoked (manual). Always allow manual invoke.
-                <span class="cov6" title="10">if ctx.TriggerKind == 1 </span><span class="cov5" title="6">{
+                <span class="cov6" title="9">if ctx.TriggerKind == 1 </span><span class="cov5" title="5">{
                         return true
                 }</span>
                 // TriggerKind 2 is TriggerCharacter per LSP spec
@@ -4186,21 +4322,21 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool <span c
                 // For TriggerForIncomplete (3), require manual char check below
         }
         // 2) Fallback: check the character immediately prior to cursor
-        <span class="cov7" title="15">idx := p.Position.Character
+        <span class="cov8" title="15">idx := p.Position.Character
         if idx &lt;= 0 || idx &gt; len(current) </span><span class="cov0" title="0">{
                 return false
         }</span>
         // Bare double-open should not trigger via fallback char either (only when configured)
-        <span class="cov7" title="15">if s.inlineOpen != "" &amp;&amp; strings.Contains(current, s.inlineOpen+s.inlineOpen) &amp;&amp; !hasDoubleOpenTrigger(current) </span><span class="cov1" title="1">{
+        <span class="cov8" title="15">if s.inlineOpen != "" &amp;&amp; strings.Contains(current, s.inlineOpen+s.inlineOpen) &amp;&amp; !hasDoubleOpenTrigger(current, s.inlineOpenChar, s.inlineCloseChar) </span><span class="cov3" title="3">{
                 return false
         }</span>
-        <span class="cov7" title="14">ch := string(current[idx-1])
-        for _, c := range s.triggerChars </span><span class="cov10" title="36">{
+        <span class="cov7" title="12">ch := string(current[idx-1])
+        for _, c := range s.triggerChars </span><span class="cov9" title="28">{
                 if c == ch </span><span class="cov5" title="6">{
                         return true
                 }</span>
         }
-        <span class="cov6" title="8">return false</span>
+        <span class="cov5" title="6">return false</span>
 }
 
 func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string) []CompletionItem <span class="cov7" title="12">{
@@ -4432,7 +4568,7 @@ func (s *Server) buildSimplifyCodeAction(p CodeActionParams, sel string) *CodeAc
 }
 
 func (s *Server) buildRewriteCodeAction(p CodeActionParams, sel string) *CodeAction <span class="cov4" title="5">{
-        if instr, cleaned := instructionFromSelection(sel); strings.TrimSpace(instr) != "" </span><span class="cov1" title="1">{
+        if instr, cleaned := s.instructionFromSelection(sel); strings.TrimSpace(instr) != "" </span><span class="cov1" title="1">{
                 payload := struct {
                         Type        string `json:"type"`
                         URI         string `json:"uri"`
@@ -4484,7 +4620,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) <span class
         case "rewrite":<span class="cov3" title="4">
                 sys := s.promptRewriteSystem
                 user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
-                ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+                ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
                 defer cancel()
                 messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
                 opts := s.llmRequestOpts()
@@ -4509,7 +4645,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) <span class
                 }
                 <span class="cov4" title="5">diagList := b.String()
                 user := renderTemplate(s.promptDiagnosticsUser, map[string]string{"diagnostics": diagList, "selection": payload.Selection})
-                ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+                ctx, cancel := context.WithTimeout(context.Background(), 22*time.Second)
                 defer cancel()
                 messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
                 opts := s.llmRequestOpts()
@@ -4525,7 +4661,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) <span class
         case "document":<span class="cov3" title="3">
                 sys := s.promptDocumentSystem
                 user := renderTemplate(s.promptDocumentUser, map[string]string{"selection": payload.Selection})
-                ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+                ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
                 defer cancel()
                 messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
                 opts := s.llmRequestOpts()
@@ -4552,7 +4688,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) <span class
                 sys := s.promptRewriteSystem
                 // Reuse rewrite user template with a fixed instruction
                 user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": "Simplify and improve the code while preserving behavior. Return only the improved code.", "selection": payload.Selection})
-                ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+                ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
                 defer cancel()
                 messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
                 opts := s.llmRequestOpts()
@@ -4603,7 +4739,7 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) <span class
                         sys = s.promptRewriteSystem
                         user = renderTemplate(s.promptRewriteUser, map[string]string{"instruction": action.Instruction, "selection": payload.Selection})
                 }</span>
-                <span class="cov3" title="4">ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+                <span class="cov3" title="4">ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
                 defer cancel()
                 messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
                 opts := s.llmRequestOpts()
@@ -4920,7 +5056,7 @@ func (s *Server) generateGoTestFunction(funcCode string) string <span class="cov
         if s.llmClient != nil </span><span class="cov2" title="2">{
                 sys := s.promptGoTestSystem
                 user := renderTemplate(s.promptGoTestUser, map[string]string{"function": funcCode})
-                ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+                ctx, cancel := context.WithTimeout(context.Background(), 18*time.Second)
                 defer cancel()
                 messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
                 opts := s.llmRequestOpts()
@@ -4991,6 +5127,21 @@ import (
         "codeberg.org/snonux/hexai/internal/stats"
 )
 
+type completionPlan struct {
+        params       CompletionParams
+        above        string
+        current      string
+        below        string
+        funcCtx      string
+        docStr       string
+        hasExtra     bool
+        extraText    string
+        inlinePrompt bool
+        inParams     bool
+        manualInvoke bool
+        cacheKey     string
+}
+
 func (s *Server) handleCompletion(req Request) <span class="cov1" title="1">{
         var p CompletionParams
         var docStr string
@@ -5050,47 +5201,62 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 }</span>
 
 func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) <span class="cov8" title="18">{
-        ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+        ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
         defer cancel()
 
-        inlinePrompt := lineHasInlinePrompt(current)
-        if !inlinePrompt &amp;&amp; !s.isTriggerEvent(p, current) </span><span class="cov6" title="8">{
-                logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-                return []CompletionItem{}, true
-        }</span>
-        <span class="cov6" title="10">if s.shouldSuppressForChatTriggerEOL(current, p) </span><span class="cov0" title="0">{
-                return []CompletionItem{}, true
-        }</span>
-
-        <span class="cov6" title="10">inParams := inParamList(current, p.Position.Character)
-        manualInvoke := parseManualInvoke(p.Context)
-
-        // Cache fast-path
-        key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
-        if cleaned, ok := s.completionCacheGet(key); ok &amp;&amp; strings.TrimSpace(cleaned) != "" </span><span class="cov1" title="1">{
-                logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
-                        p.TextDocument.URI, p.Position.Line, p.Position.Character,
-                        logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
-                return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
-        }</span>
-        <span class="cov6" title="9">if isBareDoubleOpen(current) || isBareDoubleOpen(below) </span><span class="cov1" title="1">{
-                logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-                return []CompletionItem{}, true
-        }</span>
-
-        <span class="cov6" title="8">if !inParams &amp;&amp; !s.prefixHeuristicAllows(inlinePrompt, current, p, manualInvoke) </span><span class="cov0" title="0">{
-                logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
-                return []CompletionItem{}, true
-        }</span>
-
-        // Provider-native path
-        <span class="cov6" title="8">if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, inParams); ok </span><span class="cov1" title="1">{
+        plan, items, handled := s.prepareCompletionPlan(p, above, current, below, funcCtx, docStr, hasExtra, extraText)
+        if handled </span><span class="cov6" title="10">{
                 return items, true
         }</span>
 
-        // Chat path
-        <span class="cov5" title="7">messages := s.buildCompletionMessages(inlinePrompt, hasExtra, extraText, inParams, p, above, current, below, funcCtx)
-        // Counters and options
+        <span class="cov6" title="8">if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, plan.inParams); ok </span><span class="cov1" title="1">{
+                return items, true
+        }</span>
+
+        <span class="cov5" title="7">return s.executeChatCompletion(ctx, plan)</span>
+}
+
+func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) <span class="cov8" title="18">{
+        plan := completionPlan{
+                params:    p,
+                above:     above,
+                current:   current,
+                below:     below,
+                funcCtx:   funcCtx,
+                docStr:    docStr,
+                hasExtra:  hasExtra,
+                extraText: extraText,
+        }
+        plan.inlinePrompt = lineHasInlinePrompt(current, s.inlineOpenChar, s.inlineCloseChar)
+        if !plan.inlinePrompt &amp;&amp; !s.isTriggerEvent(p, current) </span><span class="cov6" title="9">{
+                logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+                return plan, []CompletionItem{}, true
+        }</span>
+        <span class="cov6" title="9">if s.shouldSuppressForChatTriggerEOL(current, p) </span><span class="cov0" title="0">{
+                return plan, []CompletionItem{}, true
+        }</span>
+        <span class="cov6" title="9">plan.inParams = inParamList(current, p.Position.Character)
+        plan.manualInvoke = parseManualInvoke(p.Context)
+        plan.cacheKey = s.completionCacheKey(p, above, current, below, funcCtx, plan.inParams, hasExtra, extraText)
+        if cleaned, ok := s.completionCacheGet(plan.cacheKey); ok &amp;&amp; strings.TrimSpace(cleaned) != "" </span><span class="cov1" title="1">{
+                logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
+                        p.TextDocument.URI, p.Position.Line, p.Position.Character,
+                        logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
+                return plan, s.makeCompletionItems(cleaned, plan.inParams, current, p, docStr), true
+        }</span>
+        <span class="cov6" title="8">if isBareDoubleOpen(current, s.inlineOpenChar, s.inlineCloseChar) || isBareDoubleOpen(below, s.inlineOpenChar, s.inlineCloseChar) </span><span class="cov0" title="0">{
+                logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+                return plan, []CompletionItem{}, true
+        }</span>
+        <span class="cov6" title="8">if !plan.inParams &amp;&amp; !s.prefixHeuristicAllows(plan.inlinePrompt, current, p, plan.manualInvoke) </span><span class="cov0" title="0">{
+                logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
+                return plan, []CompletionItem{}, true
+        }</span>
+        <span class="cov6" title="8">return plan, nil, false</span>
+}
+
+func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan) ([]CompletionItem, bool) <span class="cov5" title="7">{
+        messages := s.buildCompletionMessages(plan.inlinePrompt, plan.hasExtra, plan.extraText, plan.inParams, plan.params, plan.above, plan.current, plan.below, plan.funcCtx)
         sentSize := 0
         for _, m := range messages </span><span class="cov7" title="14">{
                 sentSize += len(m.Content)
@@ -5100,13 +5266,14 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
         if s.codingTemperature != nil </span><span class="cov0" title="0">{
                 opts = append(opts, llm.WithTemperature(*s.codingTemperature))
         }</span>
-        // Debounce and throttle before making the LLM call
         <span class="cov5" title="7">s.waitForDebounce(ctx)
         if !s.waitForThrottle(ctx) </span><span class="cov0" title="0">{
                 return nil, false
         }</span>
+        <span class="cov5" title="7">if s.llmClient == nil </span><span class="cov0" title="0">{
+                return nil, false
+        }</span>
         <span class="cov5" title="7">logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
-
         text, err := s.llmClient.Chat(ctx, messages, opts...)
         if err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "llm completion error: %v", err)
@@ -5115,39 +5282,40 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
         }</span>
         <span class="cov5" title="7">s.incRecvCounters(len(text))
         s.logLLMStats()
-
-        cleaned := s.postProcessCompletion(strings.TrimSpace(text), current[:p.Position.Character], current)
+        trimmed := strings.TrimSpace(text)
+        cleaned := s.postProcessCompletion(trimmed, plan.current[:plan.params.Position.Character], plan.current)
         if cleaned == "" </span><span class="cov0" title="0">{
                 return nil, false
         }</span>
-        <span class="cov5" title="7">s.completionCachePut(key, cleaned)
-        return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true</span>
+        <span class="cov5" title="7">s.completionCachePut(plan.cacheKey, cleaned)
+        items := s.makeCompletionItems(cleaned, plan.inParams, plan.current, plan.params, plan.docStr)
+        return items, true</span>
 }
 
 // parseManualInvoke inspects the LSP completion context and reports whether the user manually invoked completion.
-func parseManualInvoke(ctx any) bool <span class="cov6" title="11">{
+func parseManualInvoke(ctx any) bool <span class="cov6" title="10">{
         if ctx == nil </span><span class="cov4" title="5">{
                 return false
         }</span>
-        <span class="cov5" title="6">var c struct {
+        <span class="cov4" title="5">var c struct {
                 TriggerKind int `json:"triggerKind"`
         }
-        if raw, ok := ctx.(json.RawMessage); ok </span><span class="cov5" title="6">{
+        if raw, ok := ctx.(json.RawMessage); ok </span><span class="cov4" title="5">{
                 _ = json.Unmarshal(raw, &amp;c)
         }</span> else<span class="cov0" title="0"> {
                 b, _ := json.Marshal(ctx)
                 _ = json.Unmarshal(b, &amp;c)
         }</span>
-        <span class="cov5" title="6">return c.TriggerKind == 1</span>
+        <span class="cov4" title="5">return c.TriggerKind == 1</span>
 }
 
 // shouldSuppressForChatTriggerEOL returns true when a chat trigger like "&gt;" follows ?, !, :, or ; at EOL.
-func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionParams) bool <span class="cov7" title="15">{
+func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionParams) bool <span class="cov7" title="14">{
         t := strings.TrimRight(current, " \t")
-        if s.chatSuffix == "" </span><span class="cov5" title="6">{
+        if s.chatSuffix == "" </span><span class="cov1" title="1">{
                 return false
         }</span>
-        <span class="cov6" title="9">if strings.HasSuffix(t, s.chatSuffix) </span><span class="cov4" title="4">{
+        <span class="cov7" title="13">if strings.HasSuffix(t, s.chatSuffix) </span><span class="cov4" title="4">{
                 if len(t) &lt; len(s.chatSuffix)+1 </span><span class="cov0" title="0">{
                         return false
                 }</span>
@@ -5159,7 +5327,7 @@ func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionPar
                         }</span>
                 }
         }
-        <span class="cov5" title="7">return false</span>
+        <span class="cov6" title="11">return false</span>
 }
 
 // prefixHeuristicAllows applies minimal prefix rules unless inlinePrompt or structural triggers apply.
@@ -5221,7 +5389,7 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
                 prov = s.llmClient.Name()
         }</span>
         <span class="cov4" title="5">logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
-        ctx2, cancel2 := context.WithTimeout(context.Background(), 8*time.Second)
+        ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
         defer cancel2()
 
         // Debounce and throttle prior to provider-native call
@@ -5247,7 +5415,7 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
                         if cleaned != "" </span><span class="cov4" title="4">{
                                 cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
                         }</span>
-                        <span class="cov4" title="4">if cleaned != "" &amp;&amp; hasDoubleOpenTrigger(current) </span><span class="cov1" title="1">{
+                        <span class="cov4" title="4">if cleaned != "" &amp;&amp; hasDoubleOpenTrigger(current, s.inlineOpenChar, s.inlineCloseChar) </span><span class="cov1" title="1">{
                                 indent := leadingIndent(current)
                                 if indent != "" </span><span class="cov1" title="1">{
                                         cleaned = applyIndent(indent, cleaned)
@@ -5376,7 +5544,7 @@ func (s *Server) postProcessCompletion(text string, leftOfCursor string, current
         <span class="cov6" title="10">if cleaned != "" </span><span class="cov6" title="10">{
                 cleaned = stripDuplicateGeneralPrefix(leftOfCursor, cleaned)
         }</span>
-        <span class="cov6" title="10">if cleaned != "" &amp;&amp; hasDoubleOpenTrigger(currentLine) </span><span class="cov1" title="1">{
+        <span class="cov6" title="10">if cleaned != "" &amp;&amp; hasDoubleOpenTrigger(currentLine, s.inlineOpenChar, s.inlineCloseChar) </span><span class="cov1" title="1">{
                 if indent := leadingIndent(currentLine); indent != "" </span><span class="cov1" title="1">{
                         cleaned = applyIndent(indent, cleaned)
                 }</span>
@@ -5396,13 +5564,6 @@ import (
 
         "codeberg.org/snonux/hexai/internal/llm"
         "codeberg.org/snonux/hexai/internal/logging"
-)
-
-// Package-level chat trigger vars for helpers without Server receiver.
-// NewServer assigns these from configuration on startup.
-var (
-        chatSuffixChar    byte = '&gt;'
-        chatPrefixSingles      = []string{"?", "!", ":", ";"}
 )
 
 func (s *Server) handleDidOpen(req Request) <span class="cov1" title="1">{
@@ -5501,34 +5662,34 @@ func (s *Server) detectAndHandleChat(uri string) <span class="cov7" title="10">{
                         continue</span>
                 }
                 // Check suffix/prefix according to configuration
-                <span class="cov9" title="18">if s.chatSuffix == "" </span><span class="cov3" title="2">{
+                <span class="cov9" title="18">if s.chatSuffix == "" </span><span class="cov0" title="0">{
                         continue</span>
                 }
                 // Last non-space must equal suffix
-                <span class="cov9" title="16">if string(raw[j]) != s.chatSuffix </span><span class="cov7" title="8">{
+                <span class="cov9" title="18">if string(raw[j]) != s.chatSuffix </span><span class="cov7" title="9">{
                         continue</span>
                 }
                 // Require at least one char before suffix and that char must be in chatPrefixes
-                <span class="cov7" title="8">if j &lt; 1 </span><span class="cov0" title="0">{
+                <span class="cov7" title="9">if j &lt; 1 </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov7" title="8">prev := string(raw[j-1])
+                <span class="cov7" title="9">prev := string(raw[j-1])
                 isTrigger := false
-                for _, pfx := range s.chatPrefixes </span><span class="cov7" title="8">{
-                        if prev == pfx </span><span class="cov7" title="8">{
+                for _, pfx := range s.chatPrefixes </span><span class="cov7" title="9">{
+                        if prev == pfx </span><span class="cov7" title="9">{
                                 isTrigger = true
                                 break</span>
                         }
                 }
-                <span class="cov7" title="8">if !isTrigger </span><span class="cov0" title="0">{
+                <span class="cov7" title="9">if !isTrigger </span><span class="cov0" title="0">{
                         continue</span>
                 }
                 // Avoid double-answering: if the next non-empty line starts with '&gt;' we skip.
-                <span class="cov7" title="8">k := i + 1
+                <span class="cov7" title="9">k := i + 1
                 for k &lt; len(d.lines) &amp;&amp; strings.TrimSpace(d.lines[k]) == "" </span><span class="cov7" title="10">{
                         k++
                 }</span>
-                <span class="cov7" title="8">if k &lt; len(d.lines) &amp;&amp; strings.HasPrefix(strings.TrimSpace(d.lines[k]), "&gt;") </span><span class="cov0" title="0">{
+                <span class="cov7" title="9">if k &lt; len(d.lines) &amp;&amp; strings.HasPrefix(strings.TrimSpace(d.lines[k]), "&gt;") </span><span class="cov1" title="1">{
                         continue</span>
                 }
                 // Derive prompt by removing only the trailing '&gt;'
@@ -5541,7 +5702,7 @@ func (s *Server) detectAndHandleChat(uri string) <span class="cov7" title="10">{
                 <span class="cov7" title="8">lineIdx := i
                 lastIdx := j
                 go func(prompt string, remove int) </span><span class="cov7" title="8">{
-                        ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+                        ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
                         defer cancel()
                         // Build messages with history and context_mode aware extras.
                         pos := Position{Line: lineIdx, Character: lastIdx + 1}
@@ -5623,7 +5784,7 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
                         break</span>
                 }
                 <span class="cov3" title="2">q := strings.TrimSpace(d.lines[i])
-                q = stripTrailingTrigger(q)
+                q = s.stripTrailingTrigger(q)
                 pairs = append([]pair{{q: q, a: strings.Join(replyLines, "\n")}}, pairs...)
                 i--</span>
         }
@@ -5641,25 +5802,23 @@ func (s *Server) buildChatHistory(uri string, lineIdx int, currentPrompt string)
 }
 
 // stripTrailingTrigger removes the trailing chat trigger punctuation from a line if present.
-func stripTrailingTrigger(sx string) string <span class="cov7" title="8">{
-        s := strings.TrimRight(sx, " \t")
-        if len(s) == 0 </span><span class="cov0" title="0">{
+func (s *Server) stripTrailingTrigger(sx string) string <span class="cov7" title="8">{
+        trim := strings.TrimRight(sx, " \t")
+        if len(trim) == 0 </span><span class="cov0" title="0">{
                 return sx
         }</span>
-        // Configurable suffix removal when preceded by configured prefixes
-        <span class="cov7" title="8">if len(s) &gt;= 2 &amp;&amp; s[len(s)-1] == chatSuffixChar </span><span class="cov5" title="5">{
-                prev := string(s[len(s)-2])
-                for _, pf := range chatPrefixSingles </span><span class="cov8" title="11">{
+        <span class="cov7" title="8">if len(trim) &gt;= 2 &amp;&amp; s.chatSuffixChar != 0 &amp;&amp; trim[len(trim)-1] == s.chatSuffixChar </span><span class="cov5" title="5">{
+                prev := string(trim[len(trim)-2])
+                for _, pf := range s.chatPrefixes </span><span class="cov8" title="11">{
                         if prev == pf </span><span class="cov5" title="5">{
-                                return strings.TrimRight(s[:len(s)-1], " \t")
+                                return strings.TrimRight(trim[:len(trim)-1], " \t")
                         }</span>
                 }
         }
-        // Legacy: remove one trailing punctuation (?, !, :) to build history nicely
-        <span class="cov4" title="3">last := s[len(s)-1]
+        <span class="cov4" title="3">last := trim[len(trim)-1]
         switch last </span>{
         case '?', '!', ':':<span class="cov1" title="1">
-                return strings.TrimRight(s[:len(s)-1], " \t")</span>
+                return strings.TrimRight(trim[:len(trim)-1], " \t")</span>
         default:<span class="cov3" title="2">
                 return sx</span>
         }
@@ -5839,20 +5998,21 @@ import (
         tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
 
-// Configurable inline trigger characters (default to '&gt;') used by free helpers below.
-// NewServer assigns these based on ServerOptions.
-var (
-        inlineOpenChar  byte = '&gt;'
-        inlineCloseChar byte = '&gt;'
-)
-
 // llmRequestOpts builds request options from server settings.
-func (s *Server) llmRequestOpts() []llm.RequestOption <span class="cov7" title="26">{
+func (s *Server) llmRequestOpts() []llm.RequestOption <span class="cov7" title="27">{
         opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens)}
-        if s.codingTemperature != nil </span><span class="cov0" title="0">{
-                opts = append(opts, llm.WithTemperature(*s.codingTemperature))
-        }</span>
-        <span class="cov7" title="26">return opts</span>
+        if s.codingTemperature != nil </span><span class="cov1" title="1">{
+                temp := *s.codingTemperature
+                if s.llmClient != nil </span><span class="cov1" title="1">{
+                        prov := strings.ToLower(strings.TrimSpace(s.llmClient.Name()))
+                        model := strings.ToLower(strings.TrimSpace(s.llmClient.DefaultModel()))
+                        if prov == "openai" &amp;&amp; strings.HasPrefix(model, "gpt-5") </span><span class="cov1" title="1">{
+                                temp = 1.0
+                        }</span>
+                }
+                <span class="cov1" title="1">opts = append(opts, llm.WithTemperature(temp))</span>
+        }
+        <span class="cov7" title="27">return opts</span>
 }
 
 // small helpers for LLM traffic stats
@@ -5914,8 +6074,8 @@ func (s *Server) logLLMStats() <span class="cov8" title="39">{
 }
 
 // Completion prompt builders and filters
-func inParamList(current string, cursor int) bool <span class="cov6" title="13">{
-        if !strings.Contains(current, "func ") </span><span class="cov4" title="7">{
+func inParamList(current string, cursor int) bool <span class="cov5" title="12">{
+        if !strings.Contains(current, "func ") </span><span class="cov4" title="6">{
                 return false
         }</span>
         <span class="cov4" title="6">open := strings.Index(current, "(")
@@ -6001,11 +6161,12 @@ func (s *Server) chatWithStats(ctx context.Context, msgs []llm.Message, opts ...
 }
 
 // Inline prompt utilities
-func lineHasInlinePrompt(line string) bool <span class="cov6" title="21">{
-        if _, _, _, ok := findStrictInlineTag(line); ok </span><span class="cov3" title="4">{
+
+func lineHasInlinePrompt(line string, open, close byte) bool <span class="cov6" title="21">{
+        if _, _, _, ok := findStrictInlineTag(line, open, close); ok </span><span class="cov3" title="4">{
                 return true
         }</span>
-        <span class="cov6" title="17">return hasDoubleOpenTrigger(line)</span>
+        <span class="cov6" title="17">return hasDoubleOpenTrigger(line, open, close)</span>
 }
 
 func leadingIndent(line string) string <span class="cov3" title="4">{
@@ -6045,22 +6206,22 @@ func applyIndent(indent, suggestion string) string <span class="cov3" title="4">
 // findStrictInlineTag finds &gt;text&gt; (configurable), with no space after the first
 // opening marker and no space immediately before the closing marker. Returns the
 // text between markers, the start index, the end index just after closing, and ok.
-func findStrictInlineTag(line string) (string, int, int, bool) <span class="cov8" title="52">{
+func findStrictInlineTag(line string, open, close byte) (string, int, int, bool) <span class="cov8" title="52">{
         pos := 0
         for pos &lt; len(line) </span><span class="cov9" title="66">{
                 // find opening marker
-                j := strings.IndexByte(line[pos:], inlineOpenChar)
+                j := strings.IndexByte(line[pos:], open)
                 if j &lt; 0 </span><span class="cov7" title="28">{
                         return "", 0, 0, false
                 }</span>
                 <span class="cov8" title="38">j += pos
                 // ensure single open (not double) and non-space after
-                if j+1 &gt;= len(line) || line[j+1] == inlineOpenChar || line[j+1] == ' ' </span><span class="cov6" title="21">{
+                if j+1 &gt;= len(line) || line[j+1] == open || line[j+1] == ' ' </span><span class="cov6" title="21">{
                         pos = j + 1
                         continue</span>
                 }
                 // find closing marker
-                <span class="cov6" title="17">k := strings.IndexByte(line[j+1:], inlineCloseChar)
+                <span class="cov6" title="17">k := strings.IndexByte(line[j+1:], close)
                 if k &lt; 0 </span><span class="cov1" title="1">{
                         return "", 0, 0, false
                 }</span>
@@ -6083,19 +6244,19 @@ func findStrictInlineTag(line string) (string, int, int, bool) <span class="cov8
 // isBareDoubleSemicolon reports whether the line contains a standalone
 // double-semicolon marker with no inline content (";;" possibly with only
 // whitespace after it). It explicitly excludes the valid form ";;text;".
-func isBareDoubleOpen(line string) bool <span class="cov6" title="19">{
+func isBareDoubleOpen(line string, open, close byte) bool <span class="cov6" title="18">{
         t := strings.TrimSpace(line)
         // check for double-open pattern
-        dbl := string([]byte{inlineOpenChar, inlineOpenChar})
+        dbl := string([]byte{open, open})
         if !strings.Contains(t, dbl) </span><span class="cov6" title="16">{
                 return false
         }</span>
-        <span class="cov3" title="3">if hasDoubleOpenTrigger(t) </span><span class="cov1" title="1">{
+        <span class="cov2" title="2">if hasDoubleOpenTrigger(t, open, close) </span><span class="cov1" title="1">{
                 return false
         }</span>
-        <span class="cov2" title="2">if strings.HasPrefix(t, dbl) </span><span class="cov2" title="2">{
+        <span class="cov1" title="1">if strings.HasPrefix(t, dbl) </span><span class="cov1" title="1">{
                 rest := strings.TrimSpace(t[len(dbl):])
-                if rest == "" || rest == ";" </span><span class="cov2" title="2">{
+                if rest == "" || rest == ";" </span><span class="cov1" title="1">{
                         return true
                 }</span>
         }
@@ -6252,39 +6413,39 @@ func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit <span class="c
         }</span>
         <span class="cov2" title="2">var edits []TextEdit
         for i, line := range d.lines </span><span class="cov4" title="7">{
-                edits = append(edits, promptRemovalEditsForLine(line, i)...)
+                edits = append(edits, promptRemovalEditsForLine(line, i, s.inlineOpenChar, s.inlineCloseChar)...)
         }</span>
         <span class="cov2" title="2">return edits</span>
 }
 
-func promptRemovalEditsForLine(line string, lineNum int) []TextEdit <span class="cov5" title="11">{
-        if hasDoubleOpenTrigger(line) </span><span class="cov3" title="4">{
+func promptRemovalEditsForLine(line string, lineNum int, open, close byte) []TextEdit <span class="cov5" title="11">{
+        if hasDoubleOpenTrigger(line, open, close) </span><span class="cov3" title="4">{
                 return []TextEdit{{Range: Range{Start: Position{Line: lineNum, Character: 0}, End: Position{Line: lineNum, Character: len(line)}}, NewText: ""}}
         }</span>
-        <span class="cov4" title="7">return collectSemicolonMarkers(line, lineNum)</span>
+        <span class="cov4" title="7">return collectSemicolonMarkers(line, lineNum, open, close)</span>
 }
 
-func hasDoubleOpenTrigger(line string) bool <span class="cov8" title="56">{
+func hasDoubleOpenTrigger(line string, open, close byte) bool <span class="cov8" title="58">{
         pos := 0
-        for pos &lt; len(line) </span><span class="cov8" title="58">{
+        for pos &lt; len(line) </span><span class="cov9" title="61">{
                 // look for double-open sequence
-                dbl := string([]byte{inlineOpenChar, inlineOpenChar})
+                dbl := string([]byte{open, open})
                 j := strings.Index(line[pos:], dbl)
-                if j &lt; 0 </span><span class="cov8" title="36">{
+                if j &lt; 0 </span><span class="cov8" title="37">{
                         return false
                 }</span>
-                <span class="cov7" title="22">j += pos
+                <span class="cov7" title="24">j += pos
                 contentStart := j + len(dbl)
-                if contentStart &gt;= len(line) </span><span class="cov4" title="7">{
+                if contentStart &gt;= len(line) </span><span class="cov5" title="8">{
                         return false
                 }</span>
-                <span class="cov6" title="15">first := line[contentStart]
-                if first == ' ' || first == inlineOpenChar </span><span class="cov3" title="4">{
+                <span class="cov6" title="16">first := line[contentStart]
+                if first == ' ' || first == open </span><span class="cov4" title="5">{
                         pos = contentStart + 1
                         continue</span>
                 }
                 // find closing
-                <span class="cov5" title="11">k := strings.IndexByte(line[contentStart+1:], inlineCloseChar)
+                <span class="cov5" title="11">k := strings.IndexByte(line[contentStart+1:], close)
                 if k &lt; 0 </span><span class="cov0" title="0">{
                         return false
                 }</span>
@@ -6298,16 +6459,16 @@ func hasDoubleOpenTrigger(line string) bool <span class="cov8" title="56">{
         <span class="cov3" title="3">return false</span>
 }
 
-func collectSemicolonMarkers(line string, lineNum int) []TextEdit <span class="cov5" title="9">{
+func collectSemicolonMarkers(line string, lineNum int, open, close byte) []TextEdit <span class="cov5" title="9">{
         var edits []TextEdit
         startSemi := 0
         for startSemi &lt; len(line) </span><span class="cov6" title="14">{
-                j := strings.IndexByte(line[startSemi:], inlineOpenChar)
+                j := strings.IndexByte(line[startSemi:], open)
                 if j &lt; 0 </span><span class="cov5" title="8">{
                         break</span>
                 }
                 <span class="cov4" title="6">j += startSemi
-                k := strings.IndexByte(line[j+1:], inlineCloseChar)
+                k := strings.IndexByte(line[j+1:], close)
                 if k &lt; 0 </span><span class="cov0" title="0">{
                         break</span>
                 }
@@ -6315,7 +6476,7 @@ func collectSemicolonMarkers(line string, lineNum int) []TextEdit <span class="c
                         startSemi = j + 1
                         continue</span>
                 }
-                <span class="cov4" title="6">if line[j+1] == inlineOpenChar </span><span class="cov0" title="0">{ // skip double-open start
+                <span class="cov4" title="6">if line[j+1] == open </span><span class="cov0" title="0">{ // skip double-open start
                         startSemi = j + 2
                         continue</span>
                 }
@@ -6359,6 +6520,7 @@ import (
 type Server struct {
         in               *bufio.Reader
         out              io.Writer
+        outMu            sync.Mutex
         logger           *log.Logger
         exited           bool
         mu               sync.RWMutex
@@ -6396,10 +6558,13 @@ type Server struct {
         handlers map[string]func(Request)
 
         // Configurable trigger characters
-        inlineOpen   string
-        inlineClose  string
-        chatSuffix   string
-        chatPrefixes []string
+        inlineOpen      string
+        inlineClose     string
+        chatSuffix      string
+        chatPrefixes    []string
+        inlineOpenChar  byte
+        inlineCloseChar byte
+        chatSuffixChar  byte
 
         // Prompt templates
         // Completion
@@ -6485,70 +6650,70 @@ type CustomAction struct {
         User        string // if set, use this user template
 }
 
-func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server <span class="cov10" title="7">{
+func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server <span class="cov10" title="8">{
         s := &amp;Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: opts.LogContext}
         maxTokens := opts.MaxTokens
-        if maxTokens &lt;= 0 </span><span class="cov9" title="6">{
+        if maxTokens &lt;= 0 </span><span class="cov9" title="7">{
                 maxTokens = 500
         }</span>
-        <span class="cov10" title="7">s.maxTokens = maxTokens
+        <span class="cov10" title="8">s.maxTokens = maxTokens
         contextMode := opts.ContextMode
-        if contextMode == "" </span><span class="cov9" title="6">{
+        if contextMode == "" </span><span class="cov9" title="7">{
                 contextMode = "file-on-new-func"
         }</span>
-        <span class="cov10" title="7">windowLines := opts.WindowLines
-        if windowLines &lt;= 0 </span><span class="cov9" title="6">{
+        <span class="cov10" title="8">windowLines := opts.WindowLines
+        if windowLines &lt;= 0 </span><span class="cov9" title="7">{
                 windowLines = 120
         }</span>
-        <span class="cov10" title="7">maxContextTokens := opts.MaxContextTokens
-        if maxContextTokens &lt;= 0 </span><span class="cov9" title="6">{
+        <span class="cov10" title="8">maxContextTokens := opts.MaxContextTokens
+        if maxContextTokens &lt;= 0 </span><span class="cov9" title="7">{
                 maxContextTokens = 2000
         }</span>
-        <span class="cov10" title="7">s.contextMode = contextMode
+        <span class="cov10" title="8">s.contextMode = contextMode
         s.windowLines = windowLines
         s.maxContextTokens = maxContextTokens
 
         s.startTime = time.Now()
         s.llmClient = opts.Client
-        if len(opts.TriggerCharacters) == 0 </span><span class="cov10" title="7">{
+        if len(opts.TriggerCharacters) == 0 </span><span class="cov10" title="8">{
                 // Defaults (no space to avoid auto-trigger after whitespace)
                 s.triggerChars = []string{".", ":", "/", "_", ")", "{"}
         }</span> else<span class="cov0" title="0"> {
                 s.triggerChars = append([]string{}, opts.TriggerCharacters...)
         }</span>
-        <span class="cov10" title="7">s.codingTemperature = opts.CodingTemperature
+        <span class="cov10" title="8">s.codingTemperature = opts.CodingTemperature
         s.compCache = make(map[string]string)
         s.manualInvokeMinPrefix = opts.ManualInvokeMinPrefix
         if opts.CompletionDebounceMs &gt; 0 </span><span class="cov1" title="1">{
                 s.completionDebounce = time.Duration(opts.CompletionDebounceMs) * time.Millisecond
         }</span>
-        <span class="cov10" title="7">if opts.CompletionThrottleMs &gt; 0 </span><span class="cov0" title="0">{
+        <span class="cov10" title="8">if opts.CompletionThrottleMs &gt; 0 </span><span class="cov0" title="0">{
                 s.throttleInterval = time.Duration(opts.CompletionThrottleMs) * time.Millisecond
         }</span>
         // Trigger character config (with sane defaults if missing)
-        <span class="cov10" title="7">if strings.TrimSpace(opts.InlineOpen) == "" </span><span class="cov8" title="5">{
+        <span class="cov10" title="8">if strings.TrimSpace(opts.InlineOpen) == "" </span><span class="cov8" title="6">{
                 s.inlineOpen = "&gt;"
         }</span> else<span class="cov4" title="2"> {
                 s.inlineOpen = opts.InlineOpen
         }</span>
-        <span class="cov10" title="7">if strings.TrimSpace(opts.InlineClose) == "" </span><span class="cov8" title="5">{
+        <span class="cov10" title="8">if strings.TrimSpace(opts.InlineClose) == "" </span><span class="cov8" title="6">{
                 s.inlineClose = "&gt;"
         }</span> else<span class="cov4" title="2"> {
                 s.inlineClose = opts.InlineClose
         }</span>
-        <span class="cov10" title="7">if strings.TrimSpace(opts.ChatSuffix) == "" </span><span class="cov7" title="4">{
+        <span class="cov10" title="8">if strings.TrimSpace(opts.ChatSuffix) == "" </span><span class="cov7" title="5">{
                 s.chatSuffix = "&gt;"
-        }</span> else<span class="cov6" title="3"> {
+        }</span> else<span class="cov5" title="3"> {
                 s.chatSuffix = opts.ChatSuffix
         }</span>
-        <span class="cov10" title="7">if len(opts.ChatPrefixes) == 0 </span><span class="cov7" title="4">{
+        <span class="cov10" title="8">if len(opts.ChatPrefixes) == 0 </span><span class="cov7" title="5">{
                 s.chatPrefixes = []string{"?", "!", ":", ";"}
-        }</span> else<span class="cov6" title="3"> {
+        }</span> else<span class="cov5" title="3"> {
                 s.chatPrefixes = append([]string{}, opts.ChatPrefixes...)
         }</span>
 
         // Prompts
-        <span class="cov10" title="7">s.promptCompSysGeneral = opts.PromptCompSysGeneral
+        <span class="cov10" title="8">s.promptCompSysGeneral = opts.PromptCompSysGeneral
         s.promptCompSysParams = opts.PromptCompSysParams
         s.promptCompSysInline = opts.PromptCompSysInline
         s.promptCompUserGeneral = opts.PromptCompUserGeneral
@@ -6571,21 +6736,23 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
                 s.customActions = append([]CustomAction{}, opts.CustomActions...)
         }</span>
 
-        // Assign package-level inline trigger chars for free helper functions
-        <span class="cov10" title="7">if s.inlineOpen != "" </span><span class="cov10" title="7">{
-                inlineOpenChar = s.inlineOpen[0]
+        <span class="cov10" title="8">if s.inlineOpen != "" </span><span class="cov10" title="8">{
+                s.inlineOpenChar = s.inlineOpen[0]
+        }</span> else<span class="cov0" title="0"> {
+                s.inlineOpenChar = '&gt;'
         }</span>
-        <span class="cov10" title="7">if s.inlineClose != "" </span><span class="cov10" title="7">{
-                inlineCloseChar = s.inlineClose[0]
+        <span class="cov10" title="8">if s.inlineClose != "" </span><span class="cov10" title="8">{
+                s.inlineCloseChar = s.inlineClose[0]
+        }</span> else<span class="cov0" title="0"> {
+                s.inlineCloseChar = '&gt;'
         }</span>
-        <span class="cov10" title="7">if s.chatSuffix != "" </span><span class="cov10" title="7">{
-                chatSuffixChar = s.chatSuffix[0]
-        }</span>
-        <span class="cov10" title="7">if len(s.chatPrefixes) &gt; 0 </span><span class="cov10" title="7">{
-                chatPrefixSingles = append([]string{}, s.chatPrefixes...)
+        <span class="cov10" title="8">if s.chatSuffix != "" </span><span class="cov10" title="8">{
+                s.chatSuffixChar = s.chatSuffix[0]
+        }</span> else<span class="cov0" title="0"> {
+                s.chatSuffixChar = '&gt;'
         }</span>
         // Initialize dispatch table
-        <span class="cov10" title="7">s.handlers = map[string]func(Request){
+        <span class="cov10" title="8">s.handlers = map[string]func(Request){
                 "initialize":               s.handleInitialize,
                 "initialized":              func(_ Request) </span><span class="cov0" title="0">{ s.handleInitialized() }</span>,
                 "shutdown":                 s.handleShutdown,
@@ -6598,7 +6765,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
                 "codeAction/resolve":       s.handleCodeActionResolve,
                 "workspace/executeCommand": s.handleExecuteCommand,
         }
-        <span class="cov10" title="7">return s</span>
+        <span class="cov10" title="8">return s</span>
 }
 
 func (s *Server) Run() error <span class="cov1" title="1">{
@@ -6644,7 +6811,7 @@ import (
 func (s *Server) readMessage() ([]byte, error) <span class="cov2" title="2">{
         tp := textproto.NewReader(s.in)
         var contentLength int
-        for </span><span class="cov4" title="3">{
+        for </span><span class="cov3" title="3">{
                 line, err := tp.ReadLine()
                 if err != nil </span><span class="cov1" title="1">{
                         return nil, err
@@ -6677,25 +6844,53 @@ func (s *Server) readMessage() ([]byte, error) <span class="cov2" title="2">{
         <span class="cov1" title="1">return buf, nil</span>
 }
 
-func (s *Server) writeMessage(v any) <span class="cov10" title="25">{
+func (s *Server) writeMessage(v any) <span class="cov10" title="41">{
+        s.outMu.Lock()
+        defer s.outMu.Unlock()
+
         data, err := json.Marshal(v)
         if err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "marshal error: %v", err)
                 return
         }</span>
-        <span class="cov10" title="25">header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(data))
+        <span class="cov10" title="41">header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(data))
         if _, err := io.WriteString(s.out, header); err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "write header error: %v", err)
                 return
         }</span>
-        <span class="cov10" title="25">if _, err := s.out.Write(data); err != nil </span><span class="cov0" title="0">{
+        <span class="cov10" title="41">if _, err := s.out.Write(data); err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "write body error: %v", err)
                 return
         }</span>
 }
 </pre>
 		
-		<pre class="file" id="file33" style="display: none">// Package stats provides a simple, process-safe, on-disk cache of Hexai LLM usage
+		<pre class="file" id="file33" style="display: none">//go:build !windows
+
+package stats
+
+import (
+        "errors"
+
+        "golang.org/x/sys/unix"
+)
+
+func tryLockFile(fd uintptr) error <span class="cov10" title="227">{
+        if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil </span><span class="cov9" title="153">{
+                if errors.Is(err, unix.EWOULDBLOCK) </span><span class="cov9" title="153">{
+                        return errLockWouldBlock
+                }</span>
+                <span class="cov0" title="0">return err</span>
+        }
+        <span class="cov8" title="74">return nil</span>
+}
+
+func unlockFile(fd uintptr) error <span class="cov8" title="74">{
+        return unix.Flock(int(fd), unix.LOCK_UN)
+}</span>
+</pre>
+		
+		<pre class="file" id="file34" style="display: none">// Package stats provides a simple, process-safe, on-disk cache of Hexai LLM usage
 // statistics shared across all binaries. It appends compact events (ts, provider,
 // model, sent, recv) to a JSON file guarded by an advisory file lock, prunes
 // entries older than the configured window (default 1h), and computes aggregated
@@ -6711,7 +6906,6 @@ import (
         "path/filepath"
         "strconv"
         "sync/atomic"
-        "syscall"
         "time"
 )
 
@@ -6724,19 +6918,21 @@ const (
 
 var windowSeconds int64 = int64(defaultWindow.Seconds())
 
+var errLockWouldBlock = errors.New("stats: lock would block")
+
 // SetWindow sets the sliding window used for pruning and aggregation.
-func SetWindow(d time.Duration) <span class="cov4" title="73">{
+func SetWindow(d time.Duration) <span class="cov5" title="77">{
         if d &lt; time.Second </span><span class="cov0" title="0">{
                 d = time.Second
         }</span>
-        <span class="cov4" title="73">if d &gt; 24*time.Hour </span><span class="cov0" title="0">{
+        <span class="cov5" title="77">if d &gt; 24*time.Hour </span><span class="cov0" title="0">{
                 d = 24 * time.Hour
         }</span>
-        <span class="cov4" title="73">atomic.StoreInt64(&amp;windowSeconds, int64(d.Seconds()))</span>
+        <span class="cov5" title="77">atomic.StoreInt64(&amp;windowSeconds, int64(d.Seconds()))</span>
 }
 
 // Window returns the current sliding window.
-func Window() time.Duration <span class="cov4" title="72">{ return time.Duration(atomic.LoadInt64(&amp;windowSeconds)) * time.Second }</span>
+func Window() time.Duration <span class="cov5" title="74">{ return time.Duration(atomic.LoadInt64(&amp;windowSeconds)) * time.Second }</span>
 
 // Event represents a single request/response with sizes.
 type Event struct {
@@ -6771,97 +6967,108 @@ type Snapshot struct {
 }
 
 // Update appends one event and prunes old entries under lock.
-func Update(ctx context.Context, provider, model string, sentBytes, recvBytes int) error <span class="cov4" title="72">{
+func Update(ctx context.Context, provider, model string, sentBytes, recvBytes int) error <span class="cov5" title="74">{
         dir, err := CacheDir()
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov4" title="72">if err := os.MkdirAll(dir, 0o755); err != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="74">if err := os.MkdirAll(dir, 0o755); err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov4" title="72">lockPath := filepath.Join(dir, lockFileName)
+        <span class="cov5" title="74">lockPath := filepath.Join(dir, lockFileName)
         f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov4" title="72">defer f.Close()
-        // Acquire exclusive flock; best-effort ctx support via polling
-        for </span><span class="cov6" title="242">{
-                if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err == nil </span><span class="cov4" title="72">{
-                        defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-                        break</span>
-                }
-                // Wait a bit or exit if context canceled
-                <span class="cov5" title="170">select </span>{
-                case &lt;-ctx.Done():<span class="cov0" title="0">
-                        return ctx.Err()</span>
-                case &lt;-time.After(5 * time.Millisecond):<span class="cov5" title="170"></span>
-                }
-        }
+        <span class="cov5" title="74">defer f.Close()
+        unlock, err := acquireFileLock(ctx, f)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov5" title="74">defer func() </span><span class="cov5" title="74">{ _ = unlock() }</span>()
         // Read existing file (if any)
-        <span class="cov4" title="72">path := filepath.Join(dir, fileName)
+        <span class="cov5" title="74">path := filepath.Join(dir, fileName)
         var sf File
-        if b, rerr := os.ReadFile(path); rerr == nil </span><span class="cov4" title="69">{
+        if b, rerr := os.ReadFile(path); rerr == nil </span><span class="cov5" title="71">{
                 _ = json.Unmarshal(b, &amp;sf)
         }</span>
-        <span class="cov4" title="72">if sf.Version != fileVersion </span><span class="cov2" title="3">{
+        <span class="cov5" title="74">if sf.Version != fileVersion </span><span class="cov2" title="3">{
                 sf = File{Version: fileVersion}
         }</span>
-        <span class="cov4" title="72">now := time.Now()
+        <span class="cov5" title="74">now := time.Now()
         win := Window()
         sf.WindowSeconds = int(win.Seconds())
         // Append event
         sf.Events = append(sf.Events, Event{TS: now, Provider: provider, Model: model, Sent: int64(sentBytes), Recv: int64(recvBytes)})
         // Prune old
         cutoff := now.Add(-win)
-        if len(sf.Events) &gt; 0 </span><span class="cov4" title="72">{
+        if len(sf.Events) &gt; 0 </span><span class="cov5" title="74">{
                 // Find first &gt;= cutoff
                 i := 0
-                for ; i &lt; len(sf.Events); i++ </span><span class="cov4" title="73">{
-                        if !sf.Events[i].TS.Before(cutoff) </span><span class="cov4" title="72">{
+                for ; i &lt; len(sf.Events); i++ </span><span class="cov5" title="75">{
+                        if !sf.Events[i].TS.Before(cutoff) </span><span class="cov5" title="74">{
                                 break</span>
                         }
                 }
-                <span class="cov4" title="72">if i &gt; 0 </span><span class="cov1" title="1">{
+                <span class="cov5" title="74">if i &gt; 0 </span><span class="cov1" title="1">{
                         sf.Events = append([]Event(nil), sf.Events[i:]...)
                 }</span>
         }
-        <span class="cov4" title="72">sf.UpdatedAt = now
+        <span class="cov5" title="74">sf.UpdatedAt = now
         // Write atomically
         tmp, err := os.CreateTemp(dir, fileName+".tmp.")
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov4" title="72">enc := json.NewEncoder(tmp)
+        <span class="cov5" title="74">enc := json.NewEncoder(tmp)
         enc.SetEscapeHTML(false)
         if err := enc.Encode(&amp;sf); err != nil </span><span class="cov0" title="0">{
                 tmp.Close()
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov4" title="72">if err := tmp.Sync(); err != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="74">if err := tmp.Sync(); err != nil </span><span class="cov0" title="0">{
                 tmp.Close()
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov4" title="72">if err := tmp.Close(); err != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="74">if err := tmp.Close(); err != nil </span><span class="cov0" title="0">{
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov4" title="72">if err := os.Rename(tmp.Name(), path); err != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="74">if err := os.Rename(tmp.Name(), path); err != nil </span><span class="cov0" title="0">{
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov4" title="72">return nil</span>
+        <span class="cov5" title="74">return nil</span>
+}
+
+func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) <span class="cov5" title="74">{
+        fd := f.Fd()
+        for </span><span class="cov6" title="227">{
+                err := tryLockFile(fd)
+                if err == nil </span><span class="cov5" title="74">{
+                        return func() error </span><span class="cov5" title="74">{ return unlockFile(fd) }</span>, nil
+                }
+                <span class="cov5" title="153">if errors.Is(err, errLockWouldBlock) </span><span class="cov5" title="153">{
+                        select </span>{
+                        case &lt;-ctx.Done():<span class="cov0" title="0">
+                                return nil, ctx.Err()</span>
+                        case &lt;-time.After(5 * time.Millisecond):<span class="cov5" title="153"></span>
+                        }
+                        <span class="cov5" title="153">continue</span>
+                }
+                <span class="cov0" title="0">return nil, err</span>
+        }
 }
 
 // Snapshot reads and aggregates events within the configured window.
-func TakeSnapshot() (Snapshot, error) <span class="cov4" title="62">{
+func TakeSnapshot() (Snapshot, error) <span class="cov5" title="64">{
         dir, err := CacheDir()
         if err != nil </span><span class="cov0" title="0">{
                 return Snapshot{}, err
         }</span>
-        <span class="cov4" title="62">path := filepath.Join(dir, fileName)
+        <span class="cov5" title="64">path := filepath.Join(dir, fileName)
         b, err := os.ReadFile(path)
         if err != nil </span><span class="cov0" title="0">{
                 if errors.Is(err, os.ErrNotExist) </span><span class="cov0" title="0">{
@@ -6869,30 +7076,30 @@ func TakeSnapshot() (Snapshot, error) <span class="cov4" title="62">{
                 }</span>
                 <span class="cov0" title="0">return Snapshot{}, err</span>
         }
-        <span class="cov4" title="62">var sf File
+        <span class="cov5" title="64">var sf File
         if err := json.Unmarshal(b, &amp;sf); err != nil </span><span class="cov0" title="0">{
                 return Snapshot{}, err
         }</span>
-        <span class="cov4" title="62">win := time.Duration(sf.WindowSeconds) * time.Second
+        <span class="cov5" title="64">win := time.Duration(sf.WindowSeconds) * time.Second
         if win &lt;= 0 </span><span class="cov0" title="0">{
                 win = Window()
-        }</span> else<span class="cov4" title="62"> {
+        }</span> else<span class="cov5" title="64"> {
                 SetWindow(win) // align process with file window if changed elsewhere
         }</span>
-        <span class="cov4" title="62">cutoff := time.Now().Add(-win)
+        <span class="cov5" title="64">cutoff := time.Now().Add(-win)
         snap := Snapshot{Providers: make(map[string]ProviderEntry), Window: win}
-        for _, ev := range sf.Events </span><span class="cov10" title="18725">{
+        for _, ev := range sf.Events </span><span class="cov10" title="11074">{
                 if ev.TS.Before(cutoff) </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov10" title="18725">snap.Global.Reqs++
+                <span class="cov10" title="11074">snap.Global.Reqs++
                 snap.Global.Sent += ev.Sent
                 snap.Global.Recv += ev.Recv
                 pe := snap.Providers[ev.Provider]
-                if pe.Models == nil </span><span class="cov6" title="416">{
+                if pe.Models == nil </span><span class="cov6" title="430">{
                         pe.Models = make(map[string]Counters)
                 }</span>
-                <span class="cov10" title="18725">pe.Totals.Reqs++
+                <span class="cov10" title="11074">pe.Totals.Reqs++
                 pe.Totals.Sent += ev.Sent
                 pe.Totals.Recv += ev.Recv
                 mc := pe.Models[ev.Model]
@@ -6902,37 +7109,37 @@ func TakeSnapshot() (Snapshot, error) <span class="cov4" title="62">{
                 pe.Models[ev.Model] = mc
                 snap.Providers[ev.Provider] = pe</span>
         }
-        <span class="cov4" title="62">mins := win.Minutes()
+        <span class="cov5" title="64">mins := win.Minutes()
         if mins &lt;= 0 </span><span class="cov0" title="0">{
                 mins = 0.001
         }</span>
-        <span class="cov4" title="62">snap.RPM = float64(snap.Global.Reqs) / mins
+        <span class="cov5" title="64">snap.RPM = float64(snap.Global.Reqs) / mins
         return snap, nil</span>
 }
 
 // CacheDir resolves the cache directory for stats.
-func CacheDir() (string, error) <span class="cov5" title="135">{
+func CacheDir() (string, error) <span class="cov5" title="139">{
         if x := os.Getenv("XDG_CACHE_HOME"); stringsTrim(x) != "" </span><span class="cov4" title="27">{
                 return filepath.Join(x, "hexai"), nil
         }</span>
-        <span class="cov5" title="108">home, err := os.UserHomeDir()
+        <span class="cov5" title="112">home, err := os.UserHomeDir()
         if err != nil </span><span class="cov0" title="0">{
                 return "", fmt.Errorf("cannot resolve home: %w", err)
         }</span>
-        <span class="cov5" title="108">return filepath.Join(home, ".cache", "hexai"), nil</span>
+        <span class="cov5" title="112">return filepath.Join(home, ".cache", "hexai"), nil</span>
 }
 
 // stringsTrim is a tiny helper to avoid importing strings everywhere here.
-func stringsTrim(s string) string <span class="cov5" title="135">{
+func stringsTrim(s string) string <span class="cov5" title="139">{
         i := 0
         j := len(s)
         for i &lt; j &amp;&amp; (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') </span><span class="cov0" title="0">{
                 i++
         }</span>
-        <span class="cov5" title="135">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
+        <span class="cov5" title="139">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
                 j--
         }</span>
-        <span class="cov5" title="135">if i == 0 &amp;&amp; j == len(s) </span><span class="cov5" title="135">{
+        <span class="cov5" title="139">if i == 0 &amp;&amp; j == len(s) </span><span class="cov5" title="139">{
                 return s
         }</span>
         <span class="cov0" title="0">return s[i:j]</span>
@@ -6944,7 +7151,7 @@ func (s Snapshot) DebugString() string <span class="cov1" title="1">{
 }</span>
 </pre>
 		
-		<pre class="file" id="file34" style="display: none">package testutil
+		<pre class="file" id="file35" style="display: none">package testutil
 
 // MultilineDocBlock returns a realistic multi-line documentation block.
 func MultilineDocBlock() string <span class="cov8" title="1">{
@@ -6972,34 +7179,34 @@ func MalformedJSON() string <span class="cov8" title="1">{
 }</span>
 </pre>
 		
-		<pre class="file" id="file35" style="display: none">package textutil
+		<pre class="file" id="file36" style="display: none">package textutil
 
 import "fmt"
 
 // HumanBytes renders n in a short human-friendly form using base-1000 units.
 // Examples: 999 -&gt; 999B, 1200 -&gt; 1.2k, 1540000 -&gt; 1.5M
-func HumanBytes(n int64) string <span class="cov10" title="124">{
+func HumanBytes(n int64) string <span class="cov10" title="128">{
         if n &lt; 1000 </span><span class="cov2" title="2">{
                 return fmt.Sprintf("%dB", n)
         }</span>
-        <span class="cov9" title="122">const unit = 1000.0
+        <span class="cov9" title="126">const unit = 1000.0
         v := float64(n)
         suffix := []string{"k", "M", "G", "T"}
         i := 0
-        for v &gt;= unit &amp;&amp; i &lt; len(suffix)-1 </span><span class="cov9" title="122">{
+        for v &gt;= unit &amp;&amp; i &lt; len(suffix)-1 </span><span class="cov9" title="126">{
                 v /= unit
                 i++
         }</span>
-        <span class="cov9" title="122">s := fmt.Sprintf("%.1f%s", v, suffix[i])
+        <span class="cov9" title="126">s := fmt.Sprintf("%.1f%s", v, suffix[i])
         // Strip trailing ".0"
         if len(s) &gt;= 3 &amp;&amp; s[len(s)-2:] == ".0" </span><span class="cov0" title="0">{
                 s = fmt.Sprintf("%d%s", int(v), suffix[i])
         }</span>
-        <span class="cov9" title="122">return s</span>
+        <span class="cov9" title="126">return s</span>
 }
 </pre>
 		
-		<pre class="file" id="file36" style="display: none">package textutil
+		<pre class="file" id="file37" style="display: none">package textutil
 
 import "strings"
 
@@ -7129,7 +7336,7 @@ func FindStrictInlineTag(line string) (text string, left, right int, ok bool) <s
 }
 </pre>
 		
-		<pre class="file" id="file37" style="display: none">package tmux
+		<pre class="file" id="file38" style="display: none">package tmux
 
 import (
         "fmt"
@@ -7153,9 +7360,9 @@ const (
 )
 
 // Enabled reports whether tmux status updates are enabled via env (default: on).
-func Enabled() bool <span class="cov7" title="68">{
+func Enabled() bool <span class="cov7" title="72">{
         v := strings.TrimSpace(os.Getenv("HEXAI_TMUX_STATUS"))
-        if v == "" </span><span class="cov7" title="68">{
+        if v == "" </span><span class="cov7" title="72">{
                 return true
         }</span>
         <span class="cov0" title="0">v = strings.ToLower(v)
@@ -7163,20 +7370,20 @@ func Enabled() bool <span class="cov7" title="68">{
 }
 
 // SetUserOption sets a global tmux user option like @hexai_status to value.
-func SetUserOption(key, value string) error <span class="cov7" title="68">{
+func SetUserOption(key, value string) error <span class="cov7" title="72">{
         if !Enabled() || !HasBinary() || !InSession() </span><span class="cov0" title="0">{
                 return nil
         }</span>
-        <span class="cov7" title="68">k := strings.TrimPrefix(strings.TrimSpace(key), "@")
+        <span class="cov7" title="72">k := strings.TrimPrefix(strings.TrimSpace(key), "@")
         if k == "" </span><span class="cov0" title="0">{
                 return nil
         }</span>
         // Use set-option -g so it appears for all windows
-        <span class="cov7" title="68">return exec.Command("tmux", "set-option", "-g", "@"+k, value).Run()</span>
+        <span class="cov7" title="72">return exec.Command("tmux", "set-option", "-g", "@"+k, value).Run()</span>
 }
 
 // SetStatus is a convenience for setting @hexai_status.
-func SetStatus(value string) error <span class="cov7" title="68">{ return SetUserOption("hexai_status", applyTheme(value)) }</span>
+func SetStatus(value string) error <span class="cov7" title="72">{ return SetUserOption("hexai_status", applyTheme(value)) }</span>
 
 // FormatLLMStatsStatus builds a compact tmux status string for LLM heartbeats.
 // Example: "LLM:gpt-4.1 5r 0.8rpm in12k out34k"
@@ -7202,7 +7409,7 @@ func FormatLLMStatsStatusColored(provider, model string, reqs int64, rpm float64
 // scoped provider:model tail. The window indicator (e.g., Σ@1h) should be composed
 // by the caller if needed; this function focuses on numbers and labels.
 // Example: "Σ ↑120k ↓340k 4.2rpm | openai:gpt-4.1 3.1rpm 80r"
-func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, globalOut int64, scopeProvider, scopeModel string, scopeRPM float64, scopeReqs int64, window time.Duration) string <span class="cov7" title="60">{
+func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, globalOut int64, scopeProvider, scopeModel string, scopeRPM float64, scopeReqs int64, window time.Duration) string <span class="cov7" title="62">{
         gin := textutil.HumanBytes(globalIn)
         gout := textutil.HumanBytes(globalOut)
         head := fmt.Sprintf("%sΣ@%s %s↑%s%s %s↓%s%s %.1frpm", baseFGToken, humanWindow(window), arrowUpToken, baseFGToken, gin, arrowDownToken, baseFGToken, gout, globalRPM)
@@ -7210,7 +7417,7 @@ func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, gl
         if narrowEnabled() || stringsTrim(scopeProvider) == "" || stringsTrim(scopeModel) == "" </span><span class="cov1" title="1">{
                 return head
         }</span>
-        <span class="cov7" title="59">tail := fmt.Sprintf(" | %s:%s %.1frpm %dr", scopeProvider, scopeModel, scopeRPM, scopeReqs)
+        <span class="cov7" title="61">tail := fmt.Sprintf(" | %s:%s %.1frpm %dr", scopeProvider, scopeModel, scopeRPM, scopeReqs)
         // Respect max length when configured: drop tail if it would overflow
         if ml := maxStatusLen(); ml &gt; 0 </span><span class="cov1" title="1">{
                 if len(head) &lt;= ml &amp;&amp; len(head)+len(tail) &gt; ml </span><span class="cov0" title="0">{
@@ -7220,15 +7427,15 @@ func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, gl
                         return truncateStatus(head, ml)
                 }</span>
         }
-        <span class="cov7" title="58">return head + tail</span>
+        <span class="cov7" title="60">return head + tail</span>
 }
 
-func humanWindow(d time.Duration) string <span class="cov7" title="60">{
+func humanWindow(d time.Duration) string <span class="cov7" title="62">{
         if d &lt;= 0 </span><span class="cov0" title="0">{
                 return "?"
         }</span>
-        <span class="cov7" title="60">mins := int(d.Minutes())
-        if mins%60 == 0 </span><span class="cov7" title="58">{
+        <span class="cov7" title="62">mins := int(d.Minutes())
+        if mins%60 == 0 </span><span class="cov7" title="60">{
                 return fmt.Sprintf("%dh", mins/60)
         }</span>
         <span class="cov2" title="2">if mins &gt;= 60 </span><span class="cov0" title="0">{
@@ -7238,9 +7445,9 @@ func humanWindow(d time.Duration) string <span class="cov7" title="60">{
 }
 
 // narrowEnabled returns true when HEXAI_TMUX_STATUS_NARROW is truthy (1/true/yes/on).
-func narrowEnabled() bool <span class="cov7" title="60">{
+func narrowEnabled() bool <span class="cov7" title="62">{
         v := strings.ToLower(stringsTrim(os.Getenv("HEXAI_TMUX_STATUS_NARROW")))
-        if v == "" </span><span class="cov7" title="59">{
+        if v == "" </span><span class="cov7" title="61">{
                 return false
         }</span>
         <span class="cov1" title="1">switch v </span>{
@@ -7252,9 +7459,9 @@ func narrowEnabled() bool <span class="cov7" title="60">{
 }
 
 // maxStatusLen returns HEXAI_TMUX_STATUS_MAXLEN parsed as int; 0 disables.
-func maxStatusLen() int <span class="cov7" title="59">{
+func maxStatusLen() int <span class="cov7" title="61">{
         v := stringsTrim(os.Getenv("HEXAI_TMUX_STATUS_MAXLEN"))
-        if v == "" </span><span class="cov7" title="58">{
+        if v == "" </span><span class="cov7" title="60">{
                 return 0
         }</span>
         <span class="cov1" title="1">n, err := strconv.Atoi(v)
@@ -7277,16 +7484,16 @@ func truncateStatus(s string, n int) string <span class="cov1" title="1">{
         <span class="cov1" title="1">return s[:n-1] + "…"</span>
 }
 
-func stringsTrim(s string) string <span class="cov10" title="237">{
+func stringsTrim(s string) string <span class="cov10" title="245">{
         i := 0
         j := len(s)
         for i &lt; j &amp;&amp; (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') </span><span class="cov0" title="0">{
                 i++
         }</span>
-        <span class="cov10" title="237">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
+        <span class="cov10" title="245">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
                 j--
         }</span>
-        <span class="cov10" title="237">if i == 0 &amp;&amp; j == len(s) </span><span class="cov10" title="237">{
+        <span class="cov10" title="245">if i == 0 &amp;&amp; j == len(s) </span><span class="cov10" title="245">{
                 return s
         }</span>
         <span class="cov0" title="0">return s[i:j]</span>
@@ -7294,13 +7501,13 @@ func stringsTrim(s string) string <span class="cov10" title="237">{
 
 // FormatLLMStartStatus renders a short colored heartbeat at start/initialize time.
 // Example: "LLM:openai:gpt-4.1 ⏳"
-func FormatLLMStartStatus(provider, model string) string <span class="cov4" title="10">{
+func FormatLLMStartStatus(provider, model string) string <span class="cov5" title="12">{
         return fmt.Sprintf("%sLLM:%s:%s #[fg=colour11]⏳%s", baseFGToken, provider, model, baseFGToken)
 }</span>
 
 // applyTheme wraps the status string with a user-selected tmux style if requested.
 // Set HEXAI_TMUX_STATUS_THEME=white-on-purple to get white-on-purple background.
-func applyTheme(s string) string <span class="cov7" title="68">{
+func applyTheme(s string) string <span class="cov7" title="72">{
         theme := strings.ToLower(strings.TrimSpace(os.Getenv("HEXAI_TMUX_STATUS_THEME")))
         // Allow explicit fg/bg override
         fg := strings.TrimSpace(os.Getenv("HEXAI_TMUX_STATUS_FG"))
@@ -7316,23 +7523,23 @@ func applyTheme(s string) string <span class="cov7" title="68">{
                         baseFG = fg
                 }</span>
                 // bg used as provided (may be empty)
-        } else<span class="cov7" title="68"> {
+        } else<span class="cov7" title="72"> {
                 switch theme </span>{
-                case "white-on-purple", "purple", "magenta", "white-on-magenta":<span class="cov7" title="68">
+                case "white-on-purple", "purple", "magenta", "white-on-magenta":<span class="cov7" title="72">
                         baseFG, bg, wrap = "white", "magenta", true</span>
                 case "black-on-yellow", "yellow", "black-on-gold":<span class="cov0" title="0">
                         baseFG, bg, wrap = "black", "yellow", true</span>
                 case "white-on-blue", "blue", "white-on-navy":<span class="cov0" title="0">
                         baseFG, bg, wrap = "white", "blue", true</span>
                 }
-                <span class="cov7" title="68">if baseFG == "" </span><span class="cov0" title="0">{ // no theme selected
+                <span class="cov7" title="72">if baseFG == "" </span><span class="cov0" title="0">{ // no theme selected
                         baseFG = "default"
                 }</span>
         }
 
         // Theme-aware arrow styles
-        <span class="cov7" title="68">upStyle, downStyle := "#[fg=colour3]", "#[fg=colour2]" // defaults: yellow up, green down
-        if fg != "" || bg != "" </span><span class="cov7" title="68">{                              // explicit override path: match arrows to base fg, bold for visibility
+        <span class="cov7" title="72">upStyle, downStyle := "#[fg=colour3]", "#[fg=colour2]" // defaults: yellow up, green down
+        if fg != "" || bg != "" </span><span class="cov7" title="72">{                              // explicit override path: match arrows to base fg, bold for visibility
                 upStyle = "#[bold,fg=" + baseFG + "]"
                 downStyle = upStyle
         }</span> else<span class="cov0" title="0"> {
@@ -7347,30 +7554,30 @@ func applyTheme(s string) string <span class="cov7" title="68">{
         }
 
         // Replace base-foreground and arrow placeholders with selected styles
-        <span class="cov7" title="68">if strings.Contains(s, baseFGToken) </span><span class="cov7" title="68">{
+        <span class="cov7" title="72">if strings.Contains(s, baseFGToken) </span><span class="cov7" title="72">{
                 s = strings.ReplaceAll(s, baseFGToken, "#[fg="+baseFG+"]")
         }</span>
-        <span class="cov7" title="68">if strings.Contains(s, arrowUpToken) </span><span class="cov7" title="58">{
+        <span class="cov7" title="72">if strings.Contains(s, arrowUpToken) </span><span class="cov7" title="60">{
                 s = strings.ReplaceAll(s, arrowUpToken, upStyle)
         }</span>
-        <span class="cov7" title="68">if strings.Contains(s, arrowDownToken) </span><span class="cov7" title="58">{
+        <span class="cov7" title="72">if strings.Contains(s, arrowDownToken) </span><span class="cov7" title="60">{
                 s = strings.ReplaceAll(s, arrowDownToken, downStyle)
         }</span>
 
-        <span class="cov7" title="68">if !wrap </span><span class="cov0" title="0">{
+        <span class="cov7" title="72">if !wrap </span><span class="cov0" title="0">{
                 return s
         }</span>
         // Wrap with base fg and optional bg, then reset at the end
-        <span class="cov7" title="68">prefix := "#[fg=" + baseFG
-        if bg != "" </span><span class="cov7" title="68">{
+        <span class="cov7" title="72">prefix := "#[fg=" + baseFG
+        if bg != "" </span><span class="cov7" title="72">{
                 prefix += ",bg=" + bg
         }</span>
-        <span class="cov7" title="68">prefix += "]"
+        <span class="cov7" title="72">prefix += "]"
         return prefix + s + "#[fg=default,bg=default]"</span>
 }
 </pre>
 		
-		<pre class="file" id="file38" style="display: none">package tmux
+		<pre class="file" id="file39" style="display: none">package tmux
 
 import (
         "os"
@@ -7388,10 +7595,10 @@ var (
         command  = exec.Command
 )
 
-func HasBinary() bool <span class="cov10" title="72">{ _, err := lookPath("tmux"); return err == nil }</span>
+func HasBinary() bool <span class="cov10" title="76">{ _, err := lookPath("tmux"); return err == nil }</span>
 
 // InSession reports whether we seem to be running inside a tmux session.
-func InSession() bool <span class="cov9" title="71">{ return strings.TrimSpace(os.Getenv("TMUX")) != "" }</span>
+func InSession() bool <span class="cov9" title="75">{ return strings.TrimSpace(os.Getenv("TMUX")) != "" }</span>
 
 // SplitOpts controls how a new pane is created for running a command.
 type SplitOpts struct {

@@ -12,6 +12,10 @@ import (
 	"codeberg.org/snonux/hexai/internal/llm"
 )
 
+type failingReader struct{ err error }
+
+func (f failingReader) Read([]byte) (int, error) { return 0, f.err }
+
 func TestReadInput_Combinations(t *testing.T) {
 	// stdin + arg
 	restore, f := setStdin(t, "from-stdin")
@@ -38,6 +42,15 @@ func TestReadInput_Combinations(t *testing.T) {
 	_, err = readInput(f3, nil)
 	if err == nil {
 		t.Fatalf("expected error for no input")
+	}
+}
+
+func TestReadInput_PropagatesStdinError(t *testing.T) {
+	restore, _ := setStdin(t, "ignored")
+	defer restore()
+	bad := failingReader{err: io.ErrUnexpectedEOF}
+	if _, err := readInput(bad, nil); err == nil || !strings.Contains(err.Error(), "failed to read stdin") {
+		t.Fatalf("expected stdin read error, got %v", err)
 	}
 }
 

@@ -13,6 +13,7 @@ func TestResolveGoTest_CreatesTestFile(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 	s := &Server{} // minimal server with nil llmClient to trigger stub
+	initServerDefaults(s)
 	uri := "file://" + src
 	we, jumpURI, jumpRange, ok := s.resolveGoTest(uri, Position{Line: 2})
 	if !ok || jumpURI == "" || jumpRange.Start.Line < 0 {

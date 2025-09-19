@@ -5,6 +5,7 @@ import "testing"
 // Ensure completion is suppressed when a chat trigger is at EOL (?>,!>,:>,;>)
 func TestCompletionSuppressedOnChatTriggerEOL(t *testing.T) {
 	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	initServerDefaults(s)
 	s.llmClient = &countingLLM{}
 	tests := []string{"What now?>", "Explain!>", "Refactor:>", "note ;>"}
 	for i, line := range tests {

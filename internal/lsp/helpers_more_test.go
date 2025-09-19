@@ -25,10 +25,10 @@ func TestLeadingAndApplyIndent(t *testing.T) {
 }
 
 func TestFindStrictInlineTag(t *testing.T) {
-	if _, _, _, ok := findStrictInlineTag(">do this> next"); !ok {
+	if _, _, _, ok := findStrictInlineTag(">do this> next", '>', '>'); !ok {
 		t.Fatalf("expected strict tag")
 	}
-	if _, _, _, ok := findStrictInlineTag("> spaced >"); ok {
+	if _, _, _, ok := findStrictInlineTag("> spaced >", '>', '>'); ok {
 		t.Fatalf("should ignore spaced tag")
 	}
 }
@@ -81,11 +81,11 @@ func TestRangesOverlapAndOrder(t *testing.T) {
 }
 
 func TestPromptRemovalEditsForLine(t *testing.T) {
-	edits := promptRemovalEditsForLine(">>do thing>", 3)
+	edits := promptRemovalEditsForLine(">>do thing>", 3, '>', '>')
 	if len(edits) != 1 || edits[0].Range.Start.Line != 3 {
 		t.Fatalf("expected full-line removal for double-semicolon")
 	}
-	edits2 := promptRemovalEditsForLine(">act> and >b>", 1)
+	edits2 := promptRemovalEditsForLine(">act> and >b>", 1, '>', '>')
 	if len(edits2) == 0 {
 		t.Fatalf("expected edits to remove strict markers")
 	}
@@ -143,10 +143,10 @@ func TestComputeTextEditAndFilter(t *testing.T) {
 }
 
 func TestIsBareDoubleOpen(t *testing.T) {
-	if !isBareDoubleOpen(">>   ") {
+	if !isBareDoubleOpen(">>   ", '>', '>') {
 		t.Fatalf("expected true")
 	}
-	if isBareDoubleOpen(">>x>") {
+	if isBareDoubleOpen(">>x>", '>', '>') {
 		t.Fatalf("expected false for content form")
 	}
 }

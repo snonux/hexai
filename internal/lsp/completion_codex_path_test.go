@@ -40,6 +40,7 @@ func (f *fakeCodeLLM) DefaultModel() string { return "m" }
 
 func TestTryLLMCompletion_PrefersCodeCompleterOverChat(t *testing.T) {
 	s := &Server{maxTokens: 32, triggerChars: []string{"."}, compCache: make(map[string]string)}
+	initServerDefaults(s)
 	fake := &fakeCodeLLM{result: "DoThing()"}
 	s.llmClient = fake
 	line := "obj."
@@ -58,6 +59,7 @@ func TestTryLLMCompletion_PrefersCodeCompleterOverChat(t *testing.T) {
 
 func TestTryLLMCompletion_FallsBackToChatOnCodeCompleterError(t *testing.T) {
 	s := &Server{maxTokens: 32, triggerChars: []string{"."}, compCache: make(map[string]string)}
+	initServerDefaults(s)
 	fake := &fakeCodeLLM{result: "DoThing()", codeErr: errors.New("boom")}
 	s.llmClient = fake
 	line := "obj."

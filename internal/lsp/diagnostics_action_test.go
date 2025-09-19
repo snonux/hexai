@@ -9,6 +9,7 @@ import (
 
 func TestHandleCodeAction_ListsDiagnosticsActionWhenOverlap(t *testing.T) {
 	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document)}
+	initServerDefaults(s)
 	s.llmClient = fakeLLM{resp: "fixed"}
 	uri := "file:///x.go"
 	s.setDocument(uri, "package p\nvar a=1\n")

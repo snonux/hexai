@@ -5,7 +5,8 @@ import "testing"
 
 func TestFindFirstInstructionInLine_NoMarker(t *testing.T) {
 	line := "fmt.Println(\"hello\")"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if ok {
 		t.Fatalf("expected ok=false; got ok=true with instr=%q cleaned=%q", instr, cleaned)
 	}
@@ -16,7 +17,8 @@ func TestFindFirstInstructionInLine_NoMarker(t *testing.T) {
 
 func TestFindFirstInstructionInLine_StrictInline_Basic(t *testing.T) {
 	line := "prefix >rename var> suffix"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -31,7 +33,8 @@ func TestFindFirstInstructionInLine_StrictInline_Basic(t *testing.T) {
 
 func TestFindFirstInstructionInLine_StrictInline_TrailingSpacesTrimmed(t *testing.T) {
 	line := "code>fix>   \t\t"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -50,7 +53,8 @@ func TestFindFirstInstructionInLine_Inline_InvalidPatterns(t *testing.T) {
 		"prefix > > suffix",    // empty inner ⇒ invalid
 	}
 	for _, line := range cases {
-		if instr, _, ok := findFirstInstructionInLine(line); ok && instr != "" {
+		s := newTestServer()
+		if instr, _, ok := s.findFirstInstructionInLine(line); ok && instr != "" {
 			t.Fatalf("%q: expected no inline instruction; got instr=%q", line, instr)
 		}
 	}
@@ -58,7 +62,8 @@ func TestFindFirstInstructionInLine_Inline_InvalidPatterns(t *testing.T) {
 
 func TestFindFirstInstructionInLine_CBlockComment(t *testing.T) {
 	line := "foo /* update this part */ bar"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -72,7 +77,8 @@ func TestFindFirstInstructionInLine_CBlockComment(t *testing.T) {
 
 func TestFindFirstInstructionInLine_HTMLComment(t *testing.T) {
 	line := "foo <!--  do x  --> bar"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -86,7 +92,8 @@ func TestFindFirstInstructionInLine_HTMLComment(t *testing.T) {
 
 func TestFindFirstInstructionInLine_SlashSlash(t *testing.T) {
 	line := "val // do this change"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -100,7 +107,8 @@ func TestFindFirstInstructionInLine_SlashSlash(t *testing.T) {
 
 func TestFindFirstInstructionInLine_Hash(t *testing.T) {
 	line := "val # do this"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -114,7 +122,8 @@ func TestFindFirstInstructionInLine_Hash(t *testing.T) {
 
 func TestFindFirstInstructionInLine_DoubleDash(t *testing.T) {
 	line := "SQL -- fix query"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -128,7 +137,8 @@ func TestFindFirstInstructionInLine_DoubleDash(t *testing.T) {
 
 func TestFindFirstInstructionInLine_EarliestWins_CommentOverInline(t *testing.T) {
 	line := "aa // comment >not this> trailing"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -142,7 +152,8 @@ func TestFindFirstInstructionInLine_EarliestWins_CommentOverInline(t *testing.T)
 
 func TestFindFirstInstructionInLine_EarliestWins_InlineOverComment(t *testing.T) {
 	line := "aa >short> // comment"
-	instr, cleaned, ok := findFirstInstructionInLine(line)
+	s := newTestServer()
+	instr, cleaned, ok := s.findFirstInstructionInLine(line)
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -157,19 +168,19 @@ func TestFindFirstInstructionInLine_EarliestWins_InlineOverComment(t *testing.T)
 
 func TestFindStrictInlineTag_Various(t *testing.T) {
 	// basic
-	if text, l, r, ok := findStrictInlineTag("pre>do it>post"); !ok || text != "do it" || l != 3 || r != 10 {
+	if text, l, r, ok := findStrictInlineTag("pre>do it>post", '>', '>'); !ok || text != "do it" || l != 3 || r != 10 {
 		t.Fatalf("unexpected: ok=%v text=%q l=%d r=%d", ok, text, l, r)
 	}
 	// at start
-	if text, l, r, ok := findStrictInlineTag(">x>"); !ok || text != "x" || l != 0 || r != 3 {
+	if text, l, r, ok := findStrictInlineTag(">x>", '>', '>'); !ok || text != "x" || l != 0 || r != 3 {
 		t.Fatalf("unexpected at start: ok=%v text=%q l=%d r=%d", ok, text, l, r)
 	}
 	// double opening '>>' should still allow a tag starting at the second '>'
-	if text, _, _, ok := findStrictInlineTag("prefix >>bad> suffix"); !ok || text != "bad" {
+	if text, _, _, ok := findStrictInlineTag("prefix >>bad> suffix", '>', '>'); !ok || text != "bad" {
 		t.Fatalf("unexpected double-open handling: ok=%v text=%q", ok, text)
 	}
 	// inner spaces directly after first '>' or before last '>' invalidate the tag
-	if _, _, _, ok := findStrictInlineTag("a>  inner  >b"); ok {
+	if _, _, _, ok := findStrictInlineTag("a>  inner  >b", '>', '>'); ok {
 		t.Fatalf("expected invalid strict tag due to spaces at boundaries")
 	}
 }

@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
-	"syscall"
 	"time"
 )
 
@@ -26,6 +25,8 @@ const (
 )
 
 var windowSeconds int64 = int64(defaultWindow.Seconds())
+
+var errLockWouldBlock = errors.New("stats: lock would block")
 
 // SetWindow sets the sliding window used for pruning and aggregation.
 func SetWindow(d time.Duration) {
@@ -88,19 +89,11 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
 		return err
 	}
 	defer f.Close()
-	// Acquire exclusive flock; best-effort ctx support via polling
-	for {
-		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err == nil {
-			defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-			break
-		}
-		// Wait a bit or exit if context canceled
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(5 * time.Millisecond):
-		}
+	unlock, err := acquireFileLock(ctx, f)
+	if err != nil {
+		return err
 	}
+	defer func() { _ = unlock() }()
 	// Read existing file (if any)
 	path := filepath.Join(dir, fileName)
 	var sf File
@@ -156,6 +149,25 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
 		return err
 	}
 	return nil
+}
+
+func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) {
+	fd := f.Fd()
+	for {
+		err := tryLockFile(fd)
+		if err == nil {
+			return func() error { return unlockFile(fd) }, nil
+		}
+		if errors.Is(err, errLockWouldBlock) {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(5 * time.Millisecond):
+			}
+			continue
+		}
+		return nil, err
+	}
 }
 
 // Snapshot reads and aggregates events within the configured window.

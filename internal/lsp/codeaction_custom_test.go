@@ -27,7 +27,18 @@ func capResp(t *testing.T, buf *bytes.Buffer) Response {
 
 func TestHandleCodeAction_ListsCustomActions(t *testing.T) {
 	var out bytes.Buffer
-	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
+	s := &Server{
+		logger:          log.New(io.Discard, "", 0),
+		docs:            make(map[string]*document),
+		out:             &out,
+		inlineOpen:      ">",
+		inlineClose:     ">",
+		inlineOpenChar:  '>',
+		inlineCloseChar: '>',
+		chatSuffix:      ">",
+		chatSuffixChar:  '>',
+		chatPrefixes:    []string{"?", "!", ":", ";"},
+	}
 	s.llmClient = fakeLLM{resp: "IGN"}
 	// Inject two custom actions
 	s.customActions = []CustomAction{

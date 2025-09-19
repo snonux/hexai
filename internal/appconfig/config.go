@@ -247,9 +247,36 @@ type sectionStats struct {
 }
 
 type sectionOpenAI struct {
-	Model       string   `toml:"model"`
-	BaseURL     string   `toml:"base_url"`
-	Temperature *float64 `toml:"temperature"`
+	Model       string            `toml:"model"`
+	BaseURL     string            `toml:"base_url"`
+	Temperature *float64          `toml:"temperature"`
+	Presets     map[string]string `toml:"presets"`
+}
+
+func (s sectionOpenAI) isZero() bool {
+	return strings.TrimSpace(s.Model) == "" && strings.TrimSpace(s.BaseURL) == "" && s.Temperature == nil && len(s.Presets) == 0
+}
+
+func (s sectionOpenAI) resolvedModel() string {
+	model := strings.TrimSpace(s.Model)
+	if model == "" {
+		return ""
+	}
+	if len(s.Presets) == 0 {
+		return model
+	}
+	if mapped := strings.TrimSpace(s.Presets[model]); mapped != "" {
+		return mapped
+	}
+	lower := strings.ToLower(model)
+	for k, v := range s.Presets {
+		if strings.ToLower(strings.TrimSpace(k)) == lower {
+			if mapped := strings.TrimSpace(v); mapped != "" {
+				return mapped
+			}
+		}
+	}
+	return model
 }
 
 type sectionCopilot struct {
@@ -380,10 +407,10 @@ func (fc *fileConfig) toApp() App {
 	}
 
 	// openai
-	if (fc.OpenAI != sectionOpenAI{}) || fc.OpenAI.Temperature != nil {
+	if !fc.OpenAI.isZero() || fc.OpenAI.Temperature != nil {
 		tmp := App{
 			OpenAIBaseURL:     fc.OpenAI.BaseURL,
-			OpenAIModel:       fc.OpenAI.Model,
+			OpenAIModel:       fc.OpenAI.resolvedModel(),
 			OpenAITemperature: fc.OpenAI.Temperature,
 		}
 		out.mergeProviderFields(&tmp)
@@ -939,13 +966,46 @@ func loadFromEnv(logger *log.Logger) *App {
 		any = true
 	}
 
+	modelForce := strings.TrimSpace(getenv("HEXAI_MODEL_FORCE"))
+	modelGeneric := strings.TrimSpace(getenv("HEXAI_MODEL"))
+	providerLower := strings.ToLower(strings.TrimSpace(out.Provider))
+	forceUsed := false
+	genericUsed := false
+	pickModel := func(providerName, specific string) (string, bool) {
+		specific = strings.TrimSpace(specific)
+		nameLower := strings.ToLower(strings.TrimSpace(providerName))
+		if modelForce != "" {
+			if providerLower == nameLower {
+				forceUsed = true
+				return modelForce, true
+			}
+			if providerLower == "" && !forceUsed {
+				forceUsed = true
+				return modelForce, true
+			}
+		}
+		if specific != "" {
+			return specific, true
+		}
+		if modelGeneric != "" {
+			if providerLower == nameLower {
+				return modelGeneric, true
+			}
+			if providerLower == "" && !genericUsed {
+				genericUsed = true
+				return modelGeneric, true
+			}
+		}
+		return "", false
+	}
+
 	// Provider-specific
 	if s := getenv("HEXAI_OPENAI_BASE_URL"); s != "" {
 		out.OpenAIBaseURL = s
 		any = true
 	}
-	if s := getenv("HEXAI_OPENAI_MODEL"); s != "" {
-		out.OpenAIModel = s
+	if model, ok := pickModel("openai", getenv("HEXAI_OPENAI_MODEL")); ok {
+		out.OpenAIModel = model
 		any = true
 	}
 	if f, ok := parseFloatPtr("HEXAI_OPENAI_TEMPERATURE"); ok {
@@ -957,8 +1017,8 @@ func loadFromEnv(logger *log.Logger) *App {
 		out.OllamaBaseURL = s
 		any = true
 	}
-	if s := getenv("HEXAI_OLLAMA_MODEL"); s != "" {
-		out.OllamaModel = s
+	if model, ok := pickModel("ollama", getenv("HEXAI_OLLAMA_MODEL")); ok {
+		out.OllamaModel = model
 		any = true
 	}
 	if f, ok := parseFloatPtr("HEXAI_OLLAMA_TEMPERATURE"); ok {
@@ -970,8 +1030,8 @@ func loadFromEnv(logger *log.Logger) *App {
 		out.CopilotBaseURL = s
 		any = true
 	}
-	if s := getenv("HEXAI_COPILOT_MODEL"); s != "" {
-		out.CopilotModel = s
+	if model, ok := pickModel("copilot", getenv("HEXAI_COPILOT_MODEL")); ok {
+		out.CopilotModel = model
 		any = true
 	}
 	if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok {

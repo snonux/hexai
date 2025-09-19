@@ -18,6 +18,7 @@ import (
 type Server struct {
 	in               *bufio.Reader
 	out              io.Writer
+	outMu            sync.Mutex
 	logger           *log.Logger
 	exited           bool
 	mu               sync.RWMutex
@@ -55,10 +56,13 @@ type Server struct {
 	handlers map[string]func(Request)
 
 	// Configurable trigger characters
-	inlineOpen   string
-	inlineClose  string
-	chatSuffix   string
-	chatPrefixes []string
+	inlineOpen      string
+	inlineClose     string
+	chatSuffix      string
+	chatPrefixes    []string
+	inlineOpenChar  byte
+	inlineCloseChar byte
+	chatSuffixChar  byte
 
 	// Prompt templates
 	// Completion
@@ -230,18 +234,20 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 		s.customActions = append([]CustomAction{}, opts.CustomActions...)
 	}
 
-	// Assign package-level inline trigger chars for free helper functions
 	if s.inlineOpen != "" {
-		inlineOpenChar = s.inlineOpen[0]
+		s.inlineOpenChar = s.inlineOpen[0]
+	} else {
+		s.inlineOpenChar = '>'
 	}
 	if s.inlineClose != "" {
-		inlineCloseChar = s.inlineClose[0]
+		s.inlineCloseChar = s.inlineClose[0]
+	} else {
+		s.inlineCloseChar = '>'
 	}
 	if s.chatSuffix != "" {
-		chatSuffixChar = s.chatSuffix[0]
-	}
-	if len(s.chatPrefixes) > 0 {
-		chatPrefixSingles = append([]string{}, s.chatPrefixes...)
+		s.chatSuffixChar = s.chatSuffix[0]
+	} else {
+		s.chatSuffixChar = '>'
 	}
 	// Initialize dispatch table
 	s.handlers = map[string]func(Request){

@@ -42,6 +42,7 @@ func TestStripDuplicateAssignmentPrefix_AssignAndWalrus(t *testing.T) {
 
 func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
 	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	initServerDefaults(s)
 	s.llmClient = fakeLLM{resp: tut.MultilineFunctionSuggestion()}
 	line := "func fib(i int) " // cursor after space
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://x.go"}}
@@ -58,6 +59,7 @@ func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
 
 func TestTryLLMCompletion_InlinePromptAlwaysTriggers(t *testing.T) {
 	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	initServerDefaults(s)
 	s.llmClient = fakeLLM{resp: "replacement"}
 	line := "prefix >do something> suffix"
 	// No trigger char immediately before cursor; place cursor at end
@@ -69,7 +71,17 @@ func TestTryLLMCompletion_InlinePromptAlwaysTriggers(t *testing.T) {
 }
 
 func TestTryLLMCompletion_DoubleOpenEmpty_DoesNotAutoTrigger(t *testing.T) {
-	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	s := &Server{
+		maxTokens:       32,
+		triggerChars:    []string{".", ":", "/", "_"},
+		compCache:       make(map[string]string),
+		inlineOpen:      ">",
+		inlineClose:     ">",
+		inlineOpenChar:  '>',
+		inlineCloseChar: '>',
+	}
+	initServerDefaults(s)
+	initServerDefaults(s)
 	fake := &countingLLM{}
 	s.llmClient = fake
 	line := ">>   " // empty content after double-open should not force-trigger
@@ -87,22 +99,30 @@ func TestTryLLMCompletion_DoubleOpenEmpty_DoesNotAutoTrigger(t *testing.T) {
 }
 
 func TestHasDoubleSemicolonTrigger_Variants(t *testing.T) {
-	if hasDoubleOpenTrigger(">>") {
+	if hasDoubleOpenTrigger(">>", '>', '>') {
 		t.Fatalf("bare double-open should not trigger")
 	}
-	if hasDoubleOpenTrigger(">> ") {
+	if hasDoubleOpenTrigger(">> ", '>', '>') {
 		t.Fatalf("double-open followed by space should not trigger")
 	}
-	if hasDoubleOpenTrigger(">>>") {
+	if hasDoubleOpenTrigger(">>>", '>', '>') {
 		t.Fatalf("';;;' should not trigger (no content)")
 	}
-	if !hasDoubleOpenTrigger(">>x>") {
+	if !hasDoubleOpenTrigger(">>x>", '>', '>') {
 		t.Fatalf("expected trigger for ';;x;' pattern")
 	}
 }
 
 func TestBareDoubleOpenPreventsAutoTriggerEvenWithOtherTriggers(t *testing.T) {
-	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	s := &Server{
+		maxTokens:       32,
+		triggerChars:    []string{".", ":", "/", "_"},
+		compCache:       make(map[string]string),
+		inlineOpen:      ">",
+		inlineClose:     ">",
+		inlineOpenChar:  '>',
+		inlineCloseChar: '>',
+	}
 	fake := &countingLLM{}
 	s.llmClient = fake
 	// Place a '.' earlier but also include bare double-open at end; should not auto-trigger
@@ -122,6 +142,7 @@ func TestBareDoubleOpenPreventsAutoTriggerEvenWithOtherTriggers(t *testing.T) {
 
 func TestBareDoubleOpenOnNextLine_PreventsAutoTrigger(t *testing.T) {
 	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	initServerDefaults(s)
 	fake := &countingLLM{}
 	s.llmClient = fake
 	current := "expression := flag.String(\"expression\", \"\", \"Expression to evaluate\")"
@@ -141,6 +162,7 @@ func TestBareDoubleOpenOnNextLine_PreventsAutoTrigger(t *testing.T) {
 
 func TestBareDoubleOpenPreventsManualInvoke(t *testing.T) {
 	s := &Server{maxTokens: 32, triggerChars: []string{".", ":", "/", "_"}, compCache: make(map[string]string)}
+	initServerDefaults(s)
 	fake := &countingLLM{}
 	s.llmClient = fake
 	line := ">>"
