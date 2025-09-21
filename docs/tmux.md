@@ -3,6 +3,7 @@
 This guide gets you from zero to editing with Hexai in Helix, with tmux showing live LLM status.
 
 ![tmux status bar showing Hexai integration](tmux-status-bar.png)
+
 Hexai can surface live progress in tmux's status line via a user option. Add this to your `~/.tmux.conf`:
 
 ## Configure it
