@@ -1,4 +1,4 @@
-# Helix + tmux Quickstart
+# Hexai & Tmux Quickstart
 
 This guide gets you from zero to editing with Hexai in Helix, with tmux showing live LLM status.
 
