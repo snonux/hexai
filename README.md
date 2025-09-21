@@ -8,11 +8,11 @@ It has got improved capabilities for Go code understanding (for example, create 
 
 ## Features
 
-* LSP Code auto-completion
-* LSP Code actions
+* LSP AI Code auto-completion
+* LSP AI Code actions
 * LSP in-editor chat with the LLM
 * Stand-alone command line tool for LLM interaction
-* TUI code-action runner (`hexai-tmux-action`) with Bubble Tea
+* TUI AI code-action runner (`hexai-tmux-action`) with Bubble Tea
   - Includes a “Custom prompt” action (hotkey `p`) that opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary Markdown file.
 * Support for OpenAI, GitHub Copilot, and Ollama
 
