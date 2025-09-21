@@ -50,7 +50,7 @@ set-environment -g HEXAI_TMUX_STATUS_THEME white-on-purple   # or black-on-yello
 
 ## Use it
 
-- Start tmux, open Helix on a Go file.
+- Start tmux, open Helix on a file.
 - Try completions or inline prompts; or select code and press Alt-a for the action menu.
 - Watch the right side of your tmux status for live LLM stats:
   - Start heartbeat: provider:model ⏳
