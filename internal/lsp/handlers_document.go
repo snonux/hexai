@@ -86,13 +86,11 @@ func (s *Server) docBeforeAfter(uri string, pos Position) (string, string) {
 // a new trigger pair (e.g., "?>" ",>" ":>" ";>") at EOL and inserts the LLM
 // reply below.
 func (s *Server) detectAndHandleChat(uri string) {
-	if s.llmClient == nil {
-		return
-	}
 	d := s.getDocument(uri)
 	if d == nil || len(d.lines) == 0 {
 		return
 	}
+	suffix, prefixes, _ := s.chatConfig()
 	for i, raw := range d.lines {
 		// Find last non-space character index
 		j := len(raw) - 1
@@ -107,11 +105,11 @@ func (s *Server) detectAndHandleChat(uri string) {
 			continue
 		}
 		// Check suffix/prefix according to configuration
-		if s.chatSuffix == "" {
+		if suffix == "" {
 			continue
 		}
 		// Last non-space must equal suffix
-		if string(raw[j]) != s.chatSuffix {
+		if string(raw[j]) != suffix {
 			continue
 		}
 		// Require at least one char before suffix and that char must be in chatPrefixes
@@ -120,7 +118,7 @@ func (s *Server) detectAndHandleChat(uri string) {
 		}
 		prev := string(raw[j-1])
 		isTrigger := false
-		for _, pfx := range s.chatPrefixes {
+		for _, pfx := range prefixes {
 			if prev == pfx {
 				isTrigger = true
 				break
@@ -138,7 +136,7 @@ func (s *Server) detectAndHandleChat(uri string) {
 			continue
 		}
 		// Derive prompt by removing only the trailing '>'
-		removeCount := len(s.chatSuffix)
+		removeCount := len(suffix)
 		base := raw[:j+1-removeCount]
 		prompt := strings.TrimSpace(base)
 		if prompt == "" {
@@ -146,6 +144,16 @@ func (s *Server) detectAndHandleChat(uri string) {
 		}
 		lineIdx := i
 		lastIdx := j
+		if resp, ok := s.chatCommandResponse(uri, lineIdx, prompt); ok {
+			msg := strings.TrimSpace(resp.message)
+			if msg != "" {
+				s.applyChatEdits(uri, lineIdx, lastIdx, removeCount, "> "+msg)
+			}
+			return
+		}
+		if s.currentLLMClient() == nil {
+			continue
+		}
 		go func(prompt string, remove int) {
 			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 			defer cancel()
@@ -153,7 +161,11 @@ func (s *Server) detectAndHandleChat(uri string) {
 			pos := Position{Line: lineIdx, Character: lastIdx + 1}
 			msgs := s.buildChatMessages(uri, pos, prompt)
 			opts := s.llmRequestOpts()
-			logging.Logf("lsp ", "chat llm=requesting model=%s", s.llmClient.DefaultModel())
+			client := s.currentLLMClient()
+			if client == nil {
+				return
+			}
+			logging.Logf("lsp ", "chat llm=requesting model=%s", client.DefaultModel())
 			text, err := s.chatWithStats(ctx, msgs, opts...)
 			if err != nil {
 				logging.Logf("lsp ", "chat llm error: %v", err)
@@ -252,9 +264,10 @@ func (s *Server) stripTrailingTrigger(sx string) string {
 	if len(trim) == 0 {
 		return sx
 	}
-	if len(trim) >= 2 && s.chatSuffixChar != 0 && trim[len(trim)-1] == s.chatSuffixChar {
+	_, prefixes, suffixChar := s.chatConfig()
+	if len(trim) >= 2 && suffixChar != 0 && trim[len(trim)-1] == suffixChar {
 		prev := string(trim[len(trim)-2])
-		for _, pf := range s.chatPrefixes {
+		for _, pf := range prefixes {
 			if prev == pf {
 				return strings.TrimRight(trim[:len(trim)-1], " \t")
 			}
@@ -275,7 +288,8 @@ func (s *Server) stripTrailingTrigger(sx string) string {
 // - optional extra context per general.context_mode (window/full-file/new-func)
 func (s *Server) buildChatMessages(uri string, pos Position, prompt string) []llm.Message {
 	// Base system and history
-	sys := s.promptChatSystem
+	cfg := s.currentConfig()
+	sys := cfg.PromptChatSystem
 	// Determine line index for history from position
 	lineIdx := pos.Line
 	history := s.buildChatHistory(uri, lineIdx, prompt)
@@ -285,7 +299,7 @@ func (s *Server) buildChatMessages(uri string, pos Position, prompt string) []ll
 	newFunc := s.isDefiningNewFunction(uri, pos)
 	if extra, has := s.buildAdditionalContext(newFunc, uri, pos); has && strings.TrimSpace(extra) != "" {
 		// Reuse completion's extra header template to avoid duplication
-		header := renderTemplate(s.promptCompExtraHeader, map[string]string{"context": extra})
+		header := renderTemplate(cfg.PromptCompletionExtraHeader, map[string]string{"context": extra})
 		if strings.TrimSpace(header) == "" {
 			header = extra
 		}

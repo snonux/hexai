@@ -77,7 +77,9 @@ func TestProviderNativeCompletion_UsesPromptTemplate(t *testing.T) {
 	s := newTestServer()
 	cap := &fakeCompleterCapture{}
 	s.llmClient = cap
-	s.promptNativeCompletion = "NATIVE {{path}} {{before}}"
+	cfg := s.cfg
+	cfg.PromptNativeCompletion = "NATIVE {{path}} {{before}}"
+	s.cfg = cfg
 	uri := "file:///x.go"
 	s.setDocument(uri, "AAA\nBBB\nCCC")
 	current := "fmt."

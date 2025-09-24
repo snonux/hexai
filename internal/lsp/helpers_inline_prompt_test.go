@@ -18,7 +18,9 @@ func TestLineHasInlinePrompt_BasicAndDoubleOpen(t *testing.T) {
 
 func TestIsTriggerEvent_TriggerCharNotAllowed(t *testing.T) {
 	s := newTestServer()
-	s.triggerChars = []string{"."} // only dot allowed
+	cfg := s.cfg
+	cfg.TriggerCharacters = []string{"."}
+	s.cfg = cfg
 	p := CompletionParams{Position: Position{Line: 0, Character: 3}}
 	if s.isTriggerEvent(p, "ab:") { // ':' not in triggerChars
 		t.Fatalf("expected false when TriggerCharacter not configured")
@@ -27,7 +29,9 @@ func TestIsTriggerEvent_TriggerCharNotAllowed(t *testing.T) {
 
 func TestShouldSuppressForChatTriggerEOL_EmptySuffix_NoSuppression(t *testing.T) {
 	s := newTestServer()
-	s.chatSuffix = "" // disabled
+	cfg := s.cfg
+	cfg.ChatSuffix = ""
+	s.cfg = cfg
 	p := CompletionParams{Position: Position{Line: 0, Character: 5}}
 	if s.shouldSuppressForChatTriggerEOL("What?>", p) {
 		t.Fatalf("expected no suppression when chat suffix is empty")
@@ -49,7 +53,9 @@ func TestIsTriggerEvent_TriggerCharacterMissing_ReturnsFalse(t *testing.T) {
 
 func TestIsTriggerEvent_TriggerForIncomplete_FallsBackToChar(t *testing.T) {
 	s := newTestServer()
-	s.triggerChars = []string{"."}
+	cfg := s.cfg
+	cfg.TriggerCharacters = []string{"."}
+	s.cfg = cfg
 	// TriggerKind=3 should consult fallback char check
 	ctx := struct {
 		TriggerKind int `json:"triggerKind"`

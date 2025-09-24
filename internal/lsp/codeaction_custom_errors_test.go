@@ -7,13 +7,16 @@ import (
 	"errors"
 	"testing"
 
+	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
 )
 
 func TestResolveCodeAction_Custom_UnknownID(t *testing.T) {
 	s := newTestServer()
 	// No matching custom action configured
-	s.customActions = []CustomAction{{ID: "known", Title: "Known", Instruction: "x"}}
+	cfg := s.cfg
+	cfg.CustomActions = []appconfig.CustomAction{{ID: "known", Title: "Known", Instruction: "x"}}
+	s.cfg = cfg
 	uri := "file:///t.go"
 	payload := struct {
 		Type      string `json:"type"`
@@ -41,7 +44,9 @@ func TestResolveCodeAction_Custom_EmptyAndError(t *testing.T) {
 	// empty output case
 	s1 := newTestServer()
 	s1.llmClient = fakeLLM{resp: "   \n\n"}
-	s1.customActions = []CustomAction{{ID: "empty", Title: "Empty", Instruction: "x"}}
+	cfg1 := s1.cfg
+	cfg1.CustomActions = []appconfig.CustomAction{{ID: "empty", Title: "Empty", Instruction: "x"}}
+	s1.cfg = cfg1
 	raw1, _ := json.Marshal(struct {
 		Type, ID, URI, Selection string
 		Range                    Range
@@ -53,7 +58,9 @@ func TestResolveCodeAction_Custom_EmptyAndError(t *testing.T) {
 	// error case
 	s2 := newTestServer()
 	s2.llmClient = errLLM{}
-	s2.customActions = []CustomAction{{ID: "err", Title: "Err", Instruction: "x"}}
+	cfg2 := s2.cfg
+	cfg2.CustomActions = []appconfig.CustomAction{{ID: "err", Title: "Err", Instruction: "x"}}
+	s2.cfg = cfg2
 	raw2, _ := json.Marshal(struct {
 		Type, ID, URI, Selection string
 		Range                    Range
@@ -67,10 +74,12 @@ func TestHandleCodeAction_Custom_SelectionSuppressedWhenEmpty(t *testing.T) {
 	s := newTestServer()
 	s.llmClient = fakeLLM{resp: "IGN"}
 	// One selection-scoped and one diagnostics-scoped custom
-	s.customActions = []CustomAction{
+	cfg := s.cfg
+	cfg.CustomActions = []appconfig.CustomAction{
 		{ID: "sel", Title: "Sel", Scope: "selection", Instruction: "x"},
 		{ID: "diag", Title: "Diag", Scope: "diagnostics", User: "{{diagnostics}}"},
 	}
+	s.cfg = cfg
 	uri := "file:///t.go"
 	s.setDocument(uri, "package p\nfunc f(){}\n")
 	// Empty selection range (start==end)

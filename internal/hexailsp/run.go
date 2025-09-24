@@ -13,6 +13,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/lsp"
+	"codeberg.org/snonux/hexai/internal/runtimeconfig"
 	"codeberg.org/snonux/hexai/internal/stats"
 )
 
@@ -55,8 +56,26 @@ func RunWithFactory(logPath string, stdin io.Reader, stdout io.Writer, logger *l
 	client = buildClientIfNil(cfg, client)
 	factory = ensureFactory(factory)
 
-	opts := makeServerOptions(cfg, strings.TrimSpace(logPath) != "", client)
+	store := runtimeconfig.New(cfg)
+	logContext := strings.TrimSpace(logPath) != ""
+	opts := makeServerOptions(cfg, logContext, client)
+	opts.ConfigStore = store
 	server := factory(stdin, stdout, logger, opts)
+	if configurable, ok := server.(interface{ ApplyOptions(lsp.ServerOptions) }); ok {
+		store.Subscribe(func(oldCfg, newCfg appconfig.App) {
+			updated := newCfg
+			normalizeLoggingConfig(&updated)
+			if updated.StatsWindowMinutes > 0 {
+				stats.SetWindow(time.Duration(updated.StatsWindowMinutes) * time.Minute)
+			}
+			if newClient := buildClientIfNil(updated, nil); newClient != nil {
+				client = newClient
+			}
+			opts := makeServerOptions(updated, logContext, client)
+			opts.ConfigStore = store
+			configurable.ApplyOptions(opts)
+		})
+	}
 	if err := server.Run(); err != nil {
 		logger.Fatalf("server error: %v", err)
 	}
@@ -135,6 +154,8 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) ls
 	}
 	return lsp.ServerOptions{
 		LogContext:            logContext,
+		ConfigStore:           nil,
+		Config:                &cfg,
 		MaxTokens:             cfg.MaxTokens,
 		ContextMode:           cfg.ContextMode,
 		WindowLines:           cfg.ContextWindowLines,

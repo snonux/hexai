@@ -113,7 +113,8 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 		hasExtra:  hasExtra,
 		extraText: extraText,
 	}
-	plan.inlinePrompt = lineHasInlinePrompt(current, s.inlineOpenChar, s.inlineCloseChar)
+	_, _, openChar, closeChar := s.inlineMarkers()
+	plan.inlinePrompt = lineHasInlinePrompt(current, openChar, closeChar)
 	if !plan.inlinePrompt && !s.isTriggerEvent(p, current) {
 		logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return plan, []CompletionItem{}, true
@@ -130,7 +131,7 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 			logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
 		return plan, s.makeCompletionItems(cleaned, plan.inParams, current, p, docStr), true
 	}
-	if isBareDoubleOpen(current, s.inlineOpenChar, s.inlineCloseChar) || isBareDoubleOpen(below, s.inlineOpenChar, s.inlineCloseChar) {
+	if isBareDoubleOpen(current, openChar, closeChar) || isBareDoubleOpen(below, openChar, closeChar) {
 		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return plan, []CompletionItem{}, true
 	}
@@ -148,19 +149,17 @@ func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan)
 		sentSize += len(m.Content)
 	}
 	s.incSentCounters(sentSize)
-	opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens)}
-	if s.codingTemperature != nil {
-		opts = append(opts, llm.WithTemperature(*s.codingTemperature))
-	}
+	opts := s.llmRequestOpts()
 	s.waitForDebounce(ctx)
 	if !s.waitForThrottle(ctx) {
 		return nil, false
 	}
-	if s.llmClient == nil {
+	client := s.currentLLMClient()
+	if client == nil {
 		return nil, false
 	}
-	logging.Logf("lsp ", "completion llm=requesting model=%s", s.llmClient.DefaultModel())
-	text, err := s.llmClient.Chat(ctx, messages, opts...)
+	logging.Logf("lsp ", "completion llm=requesting model=%s", client.DefaultModel())
+	text, err := client.Chat(ctx, messages, opts...)
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
 		s.logLLMStats()
@@ -198,15 +197,16 @@ func parseManualInvoke(ctx any) bool {
 // shouldSuppressForChatTriggerEOL returns true when a chat trigger like ">" follows ?, !, :, or ; at EOL.
 func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionParams) bool {
 	t := strings.TrimRight(current, " \t")
-	if s.chatSuffix == "" {
+	suffix, prefixes, _ := s.chatConfig()
+	if suffix == "" {
 		return false
 	}
-	if strings.HasSuffix(t, s.chatSuffix) {
-		if len(t) < len(s.chatSuffix)+1 {
+	if strings.HasSuffix(t, suffix) {
+		if len(t) < len(suffix)+1 {
 			return false
 		}
-		prev := string(t[len(t)-len(s.chatSuffix)-1])
-		for _, pf := range s.chatPrefixes {
+		prev := string(t[len(t)-len(suffix)-1])
+		for _, pf := range prefixes {
 			if prev == pf {
 				logging.Logf("lsp ", "completion skip=chat-trigger-eol uri=%s line=%d", p.TextDocument.URI, p.Position.Line)
 				return true
@@ -246,33 +246,38 @@ func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p Comp
 	}
 	start := computeWordStart(current, j)
 	min := 1
-	if manualInvoke && s.manualInvokeMinPrefix >= 0 {
-		min = s.manualInvokeMinPrefix
+	if manualInvoke {
+		if v := s.manualInvokeMinPrefix(); v >= 0 {
+			min = v
+		}
 	}
 	return j-start >= min
 }
 
 // tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
 func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams, above, below, funcCtx, docStr string, hasExtra bool, extraText string, inParams bool) ([]CompletionItem, bool) {
-	cc, ok := s.llmClient.(llm.CodeCompleter)
+	client := s.currentLLMClient()
+	cc, ok := client.(llm.CodeCompleter)
 	if !ok {
 		return nil, false
 	}
 	before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
 	path := strings.TrimPrefix(p.TextDocument.URI, "file://")
 	// Build provider-native prompt from template
-	prompt := renderTemplate(s.promptNativeCompletion, map[string]string{
+	cfg := s.currentConfig()
+	_, _, openChar, closeChar := s.inlineMarkers()
+	prompt := renderTemplate(cfg.PromptNativeCompletion, map[string]string{
 		"path":   path,
 		"before": before,
 	})
 	lang := ""
 	temp := 0.0
-	if s.codingTemperature != nil {
-		temp = *s.codingTemperature
+	if cfg.CodingTemperature != nil {
+		temp = *cfg.CodingTemperature
 	}
 	prov := ""
-	if s.llmClient != nil {
-		prov = s.llmClient.Name()
+	if client != nil {
+		prov = client.Name()
 	}
 	logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
@@ -291,8 +296,8 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 		s.incSentCounters(sentBytes)
 		s.incRecvCounters(len(suggestions[0]))
 		// Contribute to global stats (provider-native path)
-		if s.llmClient != nil {
-			_ = stats.Update(ctx2, s.llmClient.Name(), s.llmClient.DefaultModel(), sentBytes, len(suggestions[0]))
+		if client != nil {
+			_ = stats.Update(ctx2, client.Name(), client.DefaultModel(), sentBytes, len(suggestions[0]))
 		}
 		s.logLLMStats()
 		cleaned := strings.TrimSpace(suggestions[0])
@@ -301,7 +306,7 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 			if cleaned != "" {
 				cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
 			}
-			if cleaned != "" && hasDoubleOpenTrigger(current, s.inlineOpenChar, s.inlineCloseChar) {
+			if cleaned != "" && hasDoubleOpenTrigger(current, openChar, closeChar) {
 				indent := leadingIndent(current)
 				if indent != "" {
 					cleaned = applyIndent(indent, cleaned)
@@ -325,7 +330,7 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 // waitForDebounce sleeps until there has been no input activity for at least
 // completionDebounce. If debounce is zero or ctx is done, it returns promptly.
 func (s *Server) waitForDebounce(ctx context.Context) {
-	d := s.completionDebounce
+	d := s.completionDebounce()
 	if d <= 0 {
 		return
 	}
@@ -355,7 +360,7 @@ func (s *Server) waitForDebounce(ctx context.Context) {
 // waitForThrottle enforces a minimum spacing between LLM calls. Returns false
 // if the context is canceled while waiting.
 func (s *Server) waitForThrottle(ctx context.Context) bool {
-	interval := s.throttleInterval
+	interval := s.completionThrottle()
 	if interval <= 0 {
 		return true
 	}
@@ -386,7 +391,6 @@ func (s *Server) waitForThrottle(ctx context.Context) bool {
 
 // buildCompletionMessages constructs the LLM messages for completion.
 func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText string, inParams bool, p CompletionParams, above, current, below, funcCtx string) []llm.Message {
-	// Vars for templates
 	vars := map[string]string{
 		"file":     p.TextDocument.URI,
 		"function": funcCtx,
@@ -395,19 +399,20 @@ func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText 
 		"below":    below,
 		"char":     fmt.Sprintf("%d", p.Position.Character),
 	}
-	sys := s.promptCompSysGeneral
-	userTpl := s.promptCompUserGeneral
+	cfg := s.currentConfig()
+	sys := cfg.PromptCompletionSystemGeneral
+	userTpl := cfg.PromptCompletionUserGeneral
 	if inParams {
-		sys = s.promptCompSysParams
-		userTpl = s.promptCompUserParams
+		sys = cfg.PromptCompletionSystemParams
+		userTpl = cfg.PromptCompletionUserParams
 	}
-	if inlinePrompt && strings.TrimSpace(s.promptCompSysInline) != "" {
-		sys = s.promptCompSysInline
+	if inlinePrompt && strings.TrimSpace(cfg.PromptCompletionSystemInline) != "" {
+		sys = cfg.PromptCompletionSystemInline
 	}
 	user := renderTemplate(userTpl, vars)
 	messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 	if hasExtra && strings.TrimSpace(extraText) != "" {
-		extra := renderTemplate(s.promptCompExtraHeader, map[string]string{"context": extraText})
+		extra := renderTemplate(cfg.PromptCompletionExtraHeader, map[string]string{"context": extraText})
 		if strings.TrimSpace(extra) == "" {
 			extra = extraText
 		}
@@ -430,7 +435,8 @@ func (s *Server) postProcessCompletion(text string, leftOfCursor string, current
 	if cleaned != "" {
 		cleaned = stripDuplicateGeneralPrefix(leftOfCursor, cleaned)
 	}
-	if cleaned != "" && hasDoubleOpenTrigger(currentLine, s.inlineOpenChar, s.inlineCloseChar) {
+	_, _, openChar, closeChar := s.inlineMarkers()
+	if cleaned != "" && hasDoubleOpenTrigger(currentLine, openChar, closeChar) {
 		if indent := leadingIndent(currentLine); indent != "" {
 			cleaned = applyIndent(indent, cleaned)
 		}

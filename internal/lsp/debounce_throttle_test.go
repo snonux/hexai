@@ -22,9 +22,11 @@ func (t *timeLLM) DefaultModel() string { return "m" }
 func TestCompletionDebounce_WaitsUntilQuiet(t *testing.T) {
 	s := newTestServer()
 	s.compCache = make(map[string]string)
-	s.triggerChars = []string{".", ":", "/", "_"}
-	s.maxTokens = 32
-	s.completionDebounce = 30 * time.Millisecond
+	cfg := s.cfg
+	cfg.TriggerCharacters = []string{".", ":", "/", "_"}
+	cfg.MaxTokens = 32
+	cfg.CompletionDebounceMs = 30
+	s.cfg = cfg
 	s.markActivity() // simulate recent input
 
 	f := &timeLLM{}
@@ -50,9 +52,11 @@ func TestCompletionDebounce_WaitsUntilQuiet(t *testing.T) {
 func TestCompletionThrottle_SerializesCalls(t *testing.T) {
 	s := newTestServer()
 	s.compCache = make(map[string]string)
-	s.triggerChars = []string{".", ":", "/", "_"}
-	s.maxTokens = 32
-	s.throttleInterval = 25 * time.Millisecond
+	cfg := s.cfg
+	cfg.TriggerCharacters = []string{".", ":", "/", "_"}
+	cfg.MaxTokens = 32
+	cfg.CompletionThrottleMs = 25
+	s.cfg = cfg
 
 	// first call uses timeLLM to record time
 	f1 := &timeLLM{}
@@ -79,7 +83,8 @@ func TestCompletionThrottle_SerializesCalls(t *testing.T) {
 	if f2.t.IsZero() {
 		t.Fatalf("expected second call time recorded")
 	}
-	if f2.t.Sub(start) < s.throttleInterval {
-		t.Fatalf("expected throttle spacing >= %s, got %s", s.throttleInterval, f2.t.Sub(start))
+	interval := time.Duration(cfg.CompletionThrottleMs) * time.Millisecond
+	if f2.t.Sub(start) < interval {
+		t.Fatalf("expected throttle spacing >= %s, got %s", interval, f2.t.Sub(start))
 	}
 }

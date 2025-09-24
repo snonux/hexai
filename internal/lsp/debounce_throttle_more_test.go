@@ -8,7 +8,9 @@ import (
 
 func TestWaitForDebounce_WaitsRoughlyDebounce(t *testing.T) {
 	s := newTestServer()
-	s.completionDebounce = 20 * time.Millisecond
+	cfg := s.cfg
+	cfg.CompletionDebounceMs = 20
+	s.cfg = cfg
 	s.mu.Lock()
 	s.lastInput = time.Now()
 	s.mu.Unlock()
@@ -21,7 +23,9 @@ func TestWaitForDebounce_WaitsRoughlyDebounce(t *testing.T) {
 
 func TestWaitForThrottle_WaitsRoughlyInterval(t *testing.T) {
 	s := newTestServer()
-	s.throttleInterval = 20 * time.Millisecond
+	cfg := s.cfg
+	cfg.CompletionThrottleMs = 20
+	s.cfg = cfg
 	s.mu.Lock()
 	s.lastLLMCall = time.Now()
 	s.mu.Unlock()

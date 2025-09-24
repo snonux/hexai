@@ -12,8 +12,10 @@ import (
 func TestShouldSuppressForChatTriggerEOL_CustomConfig(t *testing.T) {
 	s := newTestServer()
 	// Customize: only ")#" at EOL suppresses
-	s.chatSuffix = "#"
-	s.chatPrefixes = []string{")"}
+	cfg := s.cfg
+	cfg.ChatSuffix = "#"
+	cfg.ChatPrefixes = []string{")"}
+	s.cfg = cfg
 
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x"}, Position: Position{Line: 0, Character: 6}}
 	if !s.shouldSuppressForChatTriggerEOL("ok)#", p) {
@@ -29,14 +31,15 @@ func TestNewServer_AssignsTriggerGlobals_AndParsingUsesThem(t *testing.T) {
 	s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{
 		InlineOpen: "<", InlineClose: ">", ChatSuffix: ")", ChatPrefixes: []string{":"},
 	})
-	_ = s // ensure server constructed applies globals
-	if s.inlineOpenChar != '<' || s.inlineCloseChar != '>' {
-		t.Fatalf("inline markers not applied: %q %q", string(s.inlineOpenChar), string(s.inlineCloseChar))
+	_, _, openChar, closeChar := s.inlineMarkers()
+	if openChar != '<' || closeChar != '>' {
+		t.Fatalf("inline markers not applied: %q %q", string(openChar), string(closeChar))
 	}
-	if s.chatSuffixChar != ')' || len(s.chatPrefixes) == 0 || s.chatPrefixes[0] != ":" {
-		t.Fatalf("chat markers not applied: suffix=%q prefixes=%v", string(s.chatSuffixChar), s.chatPrefixes)
+	_, prefixes, suffixChar := s.chatConfig()
+	if suffixChar != ')' || len(prefixes) == 0 || prefixes[0] != ":" {
+		t.Fatalf("chat markers not applied: suffix=%q prefixes=%v", string(suffixChar), prefixes)
 	}
-	if txt, l, r, ok := findStrictInlineTag("x<do>y", s.inlineOpenChar, s.inlineCloseChar); !ok || txt != "do" || l != 1 || r != 5 {
+	if txt, l, r, ok := findStrictInlineTag("x<do>y", openChar, closeChar); !ok || txt != "do" || l != 1 || r != 5 {
 		t.Fatalf("findStrictInlineTag failed: ok=%v txt=%q l=%d r=%d", ok, txt, l, r)
 	}
 	if got := s.stripTrailingTrigger("note:)"); got != "note:" {
@@ -46,8 +49,10 @@ func TestNewServer_AssignsTriggerGlobals_AndParsingUsesThem(t *testing.T) {
 
 func TestIsTriggerEvent_BareDoubleOpenBlocksEvenWithContextTriggerChar(t *testing.T) {
 	s := newTestServer()
-	s.inlineOpen = ">" // ensure bare ">>" check is active
-	s.triggerChars = []string{"."}
+	cfg := s.cfg
+	cfg.InlineOpen = ">"
+	cfg.TriggerCharacters = []string{"."}
+	s.cfg = cfg
 	// LSP context indicates TriggerCharacter '.' but current line is bare ">>"
 	ctx := struct {
 		TriggerKind      int    `json:"triggerKind"`

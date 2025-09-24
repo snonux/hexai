@@ -14,7 +14,7 @@ import (
 // - file-on-new-func: include full file only when defining a new function
 // - always-full: always include the full file
 func (s *Server) buildAdditionalContext(newFunc bool, uri string, pos Position) (string, bool) {
-	mode := s.contextMode
+	mode := s.contextMode()
 	switch mode {
 	case "minimal":
 		return "", false
@@ -40,7 +40,7 @@ func (s *Server) windowContext(uri string, pos Position) string {
 		return ""
 	}
 	n := len(d.lines)
-	half := s.windowLines / 2
+	half := s.windowLines() / 2
 	start := pos.Line - half
 	if start < 0 {
 		start = 0
@@ -50,7 +50,7 @@ func (s *Server) windowContext(uri string, pos Position) string {
 		end = n
 	}
 	text := strings.Join(d.lines[start:end], "\n")
-	return truncateToApproxTokens(text, s.maxContextTokens)
+	return truncateToApproxTokens(text, s.maxContextTokens())
 }
 
 func (s *Server) fullFileContext(uri string) string {
@@ -59,7 +59,7 @@ func (s *Server) fullFileContext(uri string) string {
 		logging.Logf("lsp ", "context: full-file requested but document not open; skipping uri=%s", uri)
 		return ""
 	}
-	return truncateToApproxTokens(d.text, s.maxContextTokens)
+	return truncateToApproxTokens(d.text, s.maxContextTokens())
 }
 
 // truncateToApproxTokens naively truncates the input to fit approx N tokens.

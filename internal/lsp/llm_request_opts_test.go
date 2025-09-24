@@ -18,7 +18,7 @@ func (f fakeClient) DefaultModel() string { return f.model }
 func TestLlmRequestOpts_Gpt5_ForcesTemp1(t *testing.T) {
 	s := newTestServer()
 	one := 0.2
-	s.codingTemperature = &one
+	s.cfg.CodingTemperature = &one
 	s.llmClient = fakeClient{name: "openai", model: "gpt-5.0"}
 	opts := s.llmRequestOpts()
 	var got llm.Options

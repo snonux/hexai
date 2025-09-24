@@ -37,7 +37,7 @@ func TestBuildCompletionMessages_ExtraContextIncluded(t *testing.T) {
 func TestPrefixHeuristic_AllVariants(t *testing.T) {
 	s := newTestServer()
 	// manual invoke requires at least min prefix; set to 2
-	s.manualInvokeMinPrefix = 2
+	s.cfg.ManualInvokeMinPrefix = 2
 	cur := "a"
 	p := CompletionParams{Position: Position{Line: 0, Character: 1}}
 	if s.prefixHeuristicAllows(false, cur, p, true) {

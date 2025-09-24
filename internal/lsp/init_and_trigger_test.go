@@ -10,9 +10,12 @@ import (
 
 func TestHandleInitialize_Capabilities(t *testing.T) {
 	var out bytes.Buffer
-	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
-	initServerDefaults(s)
-	s.triggerChars = []string{".", ":"}
+	s := newTestServer()
+	s.logger = log.New(io.Discard, "", 0)
+	s.out = &out
+	cfg := s.cfg
+	cfg.TriggerCharacters = []string{".", ":"}
+	s.cfg = cfg
 	req := Request{JSONRPC: "2.0", ID: json.RawMessage("7"), Method: "initialize"}
 	out.Reset()
 	s.handleInitialize(req)
@@ -41,7 +44,9 @@ func TestHandleInitialize_Capabilities(t *testing.T) {
 
 func TestIsTriggerEvent_Variants(t *testing.T) {
 	s := newTestServer()
-	s.triggerChars = []string{".", ":"}
+	cfg := s.cfg
+	cfg.TriggerCharacters = []string{".", ":"}
+	s.cfg = cfg
 	// 1) Manual invoke via context
 	ctx := struct {
 		TriggerKind int `json:"triggerKind"`

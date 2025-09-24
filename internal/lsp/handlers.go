@@ -51,7 +51,8 @@ func (s *Server) findFirstInstructionInLine(line string) (instr string, cleaned 
 		text       string
 	}
 	cands := []cand{}
-	if t, l, r, ok := findStrictInlineTag(line, s.inlineOpenChar, s.inlineCloseChar); ok {
+	_, _, openChar, closeChar := s.inlineMarkers()
+	if t, l, r, ok := findStrictInlineTag(line, openChar, closeChar); ok {
 		cands = append(cands, cand{start: l, end: r, text: t})
 	}
 	if i := strings.Index(line, "/*"); i >= 0 {
@@ -201,13 +202,13 @@ func (s *Server) completionCacheKey(p CompletionParams, above, current, below, f
 	}
 	prov := ""
 	model := ""
-	if s.llmClient != nil {
-		prov = s.llmClient.Name()
-		model = s.llmClient.DefaultModel()
+	if client := s.currentLLMClient(); client != nil {
+		prov = client.Name()
+		model = client.DefaultModel()
 	}
 	temp := ""
-	if s.codingTemperature != nil {
-		temp = fmt.Sprintf("%.3f", *s.codingTemperature)
+	if tempPtr := s.codingTemperature(); tempPtr != nil {
+		temp = fmt.Sprintf("%.3f", *tempPtr)
 	}
 	extra := ""
 	if hasExtra {
@@ -286,6 +287,8 @@ func (s *Server) compCacheTouchLocked(key string) {
 // CompletionContext if provided and also falls back to inspecting the character
 // immediately to the left of the cursor.
 func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
+	open, _, openChar, closeChar := s.inlineMarkers()
+	triggerChars := s.triggerCharacters()
 	// 1) Inspect LSP completion context if present
 	if p.Context != nil {
 		var ctx struct {
@@ -300,7 +303,7 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 		}
 		// If configured and the line contains a bare double-open marker (e.g., '>>' with no '>>text>'),
 		// do not treat as a trigger source.
-		if s.inlineOpen != "" && strings.Contains(current, s.inlineOpen+s.inlineOpen) && !hasDoubleOpenTrigger(current, s.inlineOpenChar, s.inlineCloseChar) {
+		if open != "" && strings.Contains(current, open+open) && !hasDoubleOpenTrigger(current, openChar, closeChar) {
 			return false
 		}
 		// TriggerKind 1 = Invoked (manual). Always allow manual invoke.
@@ -310,7 +313,7 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 		// TriggerKind 2 is TriggerCharacter per LSP spec
 		if ctx.TriggerKind == 2 {
 			if ctx.TriggerCharacter != "" {
-				for _, c := range s.triggerChars {
+				for _, c := range triggerChars {
 					if c == ctx.TriggerCharacter {
 						return true
 					}
@@ -328,11 +331,11 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 		return false
 	}
 	// Bare double-open should not trigger via fallback char either (only when configured)
-	if s.inlineOpen != "" && strings.Contains(current, s.inlineOpen+s.inlineOpen) && !hasDoubleOpenTrigger(current, s.inlineOpenChar, s.inlineCloseChar) {
+	if open != "" && strings.Contains(current, open+open) && !hasDoubleOpenTrigger(current, openChar, closeChar) {
 		return false
 	}
 	ch := string(current[idx-1])
-	for _, c := range s.triggerChars {
+	for _, c := range triggerChars {
 		if c == ch {
 			return true
 		}
@@ -345,8 +348,8 @@ func (s *Server) makeCompletionItems(cleaned string, inParams bool, current stri
 	rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
 	label := labelForCompletion(cleaned, filter)
 	detail := "Hexai LLM completion"
-	if s.llmClient != nil {
-		detail = "Hexai " + s.llmClient.Name() + ":" + s.llmClient.DefaultModel()
+	if client := s.currentLLMClient(); client != nil {
+		detail = "Hexai " + client.Name() + ":" + client.DefaultModel()
 	}
 	return []CompletionItem{{
 		Label:               label,

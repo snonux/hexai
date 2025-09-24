@@ -7,6 +7,8 @@ import (
 	"log"
 	"strings"
 	"testing"
+
+	"codeberg.org/snonux/hexai/internal/appconfig"
 )
 
 // local copy of captureResponse for this test file
@@ -27,24 +29,23 @@ func capResp(t *testing.T, buf *bytes.Buffer) Response {
 
 func TestHandleCodeAction_ListsCustomActions(t *testing.T) {
 	var out bytes.Buffer
+	cfg := appconfig.App{
+		InlineOpen:   ">",
+		InlineClose:  ">",
+		ChatSuffix:   ">",
+		ChatPrefixes: []string{"?", "!", ":", ";"},
+		CustomActions: []appconfig.CustomAction{
+			{ID: "extract", Title: "Extract function", Scope: "selection", Kind: "refactor.extract", Instruction: "Extract into function"},
+			{ID: "fix", Title: "Fix diagnostics", Scope: "diagnostics", Kind: "quickfix", User: "Fix:\n{{diagnostics}}\n\n{{selection}}"},
+		},
+	}
 	s := &Server{
-		logger:          log.New(io.Discard, "", 0),
-		docs:            make(map[string]*document),
-		out:             &out,
-		inlineOpen:      ">",
-		inlineClose:     ">",
-		inlineOpenChar:  '>',
-		inlineCloseChar: '>',
-		chatSuffix:      ">",
-		chatSuffixChar:  '>',
-		chatPrefixes:    []string{"?", "!", ":", ";"},
+		logger: log.New(io.Discard, "", 0),
+		docs:   make(map[string]*document),
+		out:    &out,
+		cfg:    cfg,
 	}
-	s.llmClient = fakeLLM{resp: "IGN"}
-	// Inject two custom actions
-	s.customActions = []CustomAction{
-		{ID: "extract", Title: "Extract function", Scope: "selection", Kind: "refactor.extract", Instruction: "Extract into function"},
-		{ID: "fix", Title: "Fix diagnostics", Scope: "diagnostics", Kind: "quickfix", User: "Fix:\n{{diagnostics}}\n\n{{selection}}"},
-	}
+	s.llmClient = fakeLLM{resp: "ok"}
 	// Prepare document and params
 	uri := "file:///t.go"
 	s.setDocument(uri, "package x\n\nfunc f(){}\n")
@@ -82,11 +83,12 @@ func TestHandleCodeAction_ListsCustomActions(t *testing.T) {
 func TestResolveCodeAction_CustomInstructionAndUser(t *testing.T) {
 	s := newTestServer()
 	s.llmClient = fakeLLM{resp: "REPLACED"}
-	// one instruction-based and one user-based
-	s.customActions = []CustomAction{
+	cfg := s.cfg
+	cfg.CustomActions = []appconfig.CustomAction{
 		{ID: "extract", Title: "Extract function", Scope: "selection", Kind: "refactor.extract", Instruction: "Extract into function"},
 		{ID: "fix", Title: "Fix diagnostics", Scope: "diagnostics", Kind: "quickfix", User: "Fix: {{diagnostics}}\n{{selection}}"},
 	}
+	s.cfg = cfg
 	uri := "file:///t.go"
 	p := CodeActionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Range: Range{Start: Position{Line: 1}, End: Position{Line: 1, Character: 3}}}
 

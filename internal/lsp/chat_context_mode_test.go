@@ -11,9 +11,9 @@ import (
 func TestChat_RespectsContextModeWindow(t *testing.T) {
 	s := newTestServer()
 	// Configure window mode with small window
-	s.contextMode = "window"
-	s.windowLines = 2
-	s.maxContextTokens = 2000
+	s.cfg.ContextMode = "window"
+	s.cfg.ContextWindowLines = 2
+	s.cfg.MaxContextTokens = 2000
 	cap := &captureLLM{}
 	s.llmClient = cap
 	var out bytes.Buffer
@@ -54,8 +54,8 @@ func TestChat_RespectsContextModeWindow(t *testing.T) {
 
 func TestChat_ContextModeMinimal_NoExtra(t *testing.T) {
 	s := newTestServer()
-	s.contextMode = "minimal"
-	s.maxContextTokens = 2000
+	s.cfg.ContextMode = "minimal"
+	s.cfg.MaxContextTokens = 2000
 	cap := &captureLLM{}
 	s.llmClient = cap
 	var out bytes.Buffer
@@ -78,8 +78,8 @@ func TestChat_ContextModeMinimal_NoExtra(t *testing.T) {
 
 func TestChat_ContextModeAlwaysFull_AddsExtra(t *testing.T) {
 	s := newTestServer()
-	s.contextMode = "always-full"
-	s.maxContextTokens = 2000
+	s.cfg.ContextMode = "always-full"
+	s.cfg.MaxContextTokens = 2000
 	cap := &captureLLM{}
 	s.llmClient = cap
 	var out bytes.Buffer
@@ -108,8 +108,8 @@ func TestChat_ContextModeAlwaysFull_AddsExtra(t *testing.T) {
 
 func TestChat_ContextModeFileOnNewFunc_NoExtraWithoutSignature(t *testing.T) {
 	s := newTestServer()
-	s.contextMode = "file-on-new-func"
-	s.maxContextTokens = 2000
+	s.cfg.ContextMode = "file-on-new-func"
+	s.cfg.MaxContextTokens = 2000
 	cap := &captureLLM{}
 	s.llmClient = cap
 	var out bytes.Buffer
@@ -129,8 +129,8 @@ func TestChat_ContextModeFileOnNewFunc_NoExtraWithoutSignature(t *testing.T) {
 
 func TestChat_ContextModeFileOnNewFunc_WithSignature_AddsExtra(t *testing.T) {
 	s := newTestServer()
-	s.contextMode = "file-on-new-func"
-	s.maxContextTokens = 2000
+	s.cfg.ContextMode = "file-on-new-func"
+	s.cfg.MaxContextTokens = 2000
 	cap := &captureLLM{}
 	s.llmClient = cap
 	var out bytes.Buffer

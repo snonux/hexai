@@ -10,16 +10,17 @@ import (
 )
 
 func (s *Server) handleInitialize(req Request) {
+	client := s.currentLLMClient()
 	version := internal.Version
-	if s.llmClient != nil {
-		version = version + " [" + s.llmClient.Name() + ":" + s.llmClient.DefaultModel() + "]"
+	if client != nil {
+		version = version + " [" + client.Name() + ":" + client.DefaultModel() + "]"
 	}
 	res := InitializeResult{
 		Capabilities: ServerCapabilities{
 			TextDocumentSync: 1, // 1 = TextDocumentSyncKindFull
 			CompletionProvider: &CompletionOptions{
 				ResolveProvider:   false,
-				TriggerCharacters: s.triggerChars,
+				TriggerCharacters: s.triggerCharacters(),
 			},
 			CodeActionProvider: CodeActionOptions{ResolveProvider: true},
 		},
@@ -31,8 +32,8 @@ func (s *Server) handleInitialize(req Request) {
 func (s *Server) handleInitialized() {
 	logging.Logf("lsp ", "client initialized")
 	// Emit an initial tmux heartbeat with provider/model
-	if s.llmClient != nil {
-		_ = tmx.SetStatus(tmx.FormatLLMStartStatus(s.llmClient.Name(), s.llmClient.DefaultModel()))
+	if client := s.currentLLMClient(); client != nil {
+		_ = tmx.SetStatus(tmx.FormatLLMStartStatus(client.Name(), client.DefaultModel()))
 	}
 }
 

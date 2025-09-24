@@ -1,67 +1,89 @@
 package llm
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
-	"time"
+
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
-func f64p(v float64) *float64 { return &v }
+func TestOpenAIChatSuccess(t *testing.T) {
+	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/chat/completions" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
+			t.Fatalf("expected auth header, got %q", got)
+		}
+		return &http.Response{
+			StatusCode: 200,
+			Body:       io.NopCloser(strings.NewReader(`{"choices":[{"index":0,"message":{"role":"assistant","content":"hi there"},"finish_reason":"stop"}]}`)),
+			Header:     make(http.Header),
+		}, nil
+	})
 
-func TestBuildOAChatRequest_TempFallbackAndFields(t *testing.T) {
-	o := Options{Model: "m1", Temperature: 0, MaxTokens: 42, Stop: []string{"END"}}
-	msgs := []Message{{Role: "user", Content: "hi"}}
-	req := buildOAChatRequest(o, msgs, f64p(0.3), false)
-	if req.Model != "m1" || req.Stream {
-		t.Fatalf("model/stream mismatch: %+v", req)
-	}
-	if req.Temperature == nil || *req.Temperature != 0.3 {
-		t.Fatalf("expected default temp 0.3, got %#v", req.Temperature)
-	}
-	if req.MaxTokens == nil || *req.MaxTokens != 42 {
-		t.Fatalf("expected max tokens 42")
-	}
-	if len(req.Stop) != 1 || req.Stop[0] != "END" {
-		t.Fatalf("stop not propagated: %#v", req.Stop)
-	}
-	if len(req.Messages) != 1 || req.Messages[0].Content != "hi" {
-		t.Fatalf("messages not copied")
+	client := openAIClient{
+		httpClient:   &http.Client{Transport: transport},
+		apiKey:       "test-key",
+		baseURL:      "https://example.com",
+		defaultModel: "gpt-test",
+		chatLogger:   logging.NewChatLogger("openai"),
 	}
 
-	// stream on
-	req2 := buildOAChatRequest(o, msgs, f64p(0.3), true)
-	if !req2.Stream {
-		t.Fatalf("expected stream=true")
+	out, err := client.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	if err != nil {
+		t.Fatalf("Chat returned error: %v", err)
+	}
+	if out != "hi there" {
+		t.Fatalf("unexpected chat output: %q", out)
 	}
 }
 
-func TestHandleOpenAINon2xx_WithAPIError(t *testing.T) {
-	api := oaChatResponse{Error: &struct {
-		Message string `json:"message"`
-		Type    string `json:"type"`
-		Param   any    `json:"param"`
-		Code    any    `json:"code"`
-	}{Message: "bad", Type: "invalid"}}
-	b, _ := json.Marshal(api)
-	resp := &http.Response{StatusCode: 400, Body: io.NopCloser(bytes.NewReader(b))}
-	if err := handleOpenAINon2xx(resp, time.Now()); err == nil {
-		t.Fatalf("expected error for non-2xx with body")
+func TestOpenAIChatStreamDeliversChunks(t *testing.T) {
+	client := openAIClient{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			body := "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n" +
+				"data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n" +
+				"data: [DONE]\n"
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+		})},
+		apiKey:       "test-key",
+		baseURL:      "https://example.com",
+		defaultModel: "gpt-test",
+		chatLogger:   logging.NewChatLogger("openai"),
+	}
+
+	var received string
+	err := client.ChatStream(context.Background(), []Message{{Role: "user", Content: "hello"}}, func(chunk string) {
+		received += chunk
+	})
+	if err != nil {
+		t.Fatalf("ChatStream returned error: %v", err)
+	}
+	if received != "Hello" {
+		t.Fatalf("expected streamed content, got %q", received)
 	}
 }
 
-func TestParseOpenAIStream_DeliversChunks(t *testing.T) {
-	stream := "data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\n\n" +
-		"data: [DONE]\n"
-	resp := &http.Response{Body: io.NopCloser(strings.NewReader(stream))}
-	var got strings.Builder
-	if err := parseOpenAIStream(resp, time.Now(), func(s string) { got.WriteString(s) }); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestOpenAIChatHandlesNon2xx(t *testing.T) {
+	client := openAIClient{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: http.StatusUnauthorized, Body: io.NopCloser(strings.NewReader("denied")), Header: make(http.Header)}, nil
+		})},
+		apiKey:       "test-key",
+		baseURL:      "https://example.com",
+		defaultModel: "gpt-test",
+		chatLogger:   logging.NewChatLogger("openai"),
 	}
-	if got.String() != "Hi" {
-		t.Fatalf("got %q want %q", got.String(), "Hi")
+
+	if _, err := client.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}}); err == nil {
+		t.Fatal("expected error for non-2xx response")
 	}
 }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

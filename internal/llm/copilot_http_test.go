@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,7 +23,7 @@ func TestCopilot_EnsureSession_AndChat_Success(t *testing.T) {
 		t.Skip("skip network-bound tests in restricted environments")
 	}
 	// Mock chat endpoint
-	chatSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	chatSrv := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/chat/completions" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -92,7 +93,7 @@ func TestCopilot_Chat_MultiChoice_And_ErrorBody(t *testing.T) {
 		t.Skip("skip network-bound tests in restricted environments")
 	}
 	// Chat multi-choice: return two choices; client returns first content
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"choices": []map[string]any{
 				{"index": 0, "finish_reason": "stop", "message": map[string]string{"role": "assistant", "content": "FIRST"}},
@@ -120,7 +121,7 @@ func TestCopilot_Chat_MultiChoice_And_ErrorBody(t *testing.T) {
 	}
 
 	// Non-2xx with error body
-	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv2 := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(403)
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"message": "denied", "type": "forbidden"}})
 	}))
@@ -136,7 +137,7 @@ func TestCopilot_Chat_NoChoices_Error(t *testing.T) {
 	if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" {
 		t.Skip("skip network-bound tests in restricted environments")
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{}})
 	}))
 	defer srv.Close()
@@ -162,7 +163,7 @@ func TestCopilot_Chat_DecodeError_StatusOK(t *testing.T) {
 		t.Skip("skip network-bound tests in restricted environments")
 	}
 	// Chat returns 200 but invalid JSON; expect decode error
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "{invalid")
 	}))
 	defer srv.Close()
@@ -252,6 +253,20 @@ func TestParseJWTExp_AndParseInt64(t *testing.T) {
 	if n, err := parseInt64("123"); err != nil || n != 123 {
 		t.Fatalf("parseInt64: %v %d", err, n)
 	}
+}
+
+func newIPv4Server(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	l, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen on tcp4: %v", err)
+	}
+	srv := &httptest.Server{
+		Listener: l,
+		Config:   &http.Server{Handler: handler},
+	}
+	srv.Start()
+	return srv
 }
 
 // bytesReader wraps a byte slice with an io.ReadCloser without importing extra.

@@ -10,29 +10,26 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/logging"
+	"codeberg.org/snonux/hexai/internal/runtimeconfig"
 )
 
 // Server implements a minimal LSP over stdio.
 type Server struct {
-	in               *bufio.Reader
-	out              io.Writer
-	outMu            sync.Mutex
-	logger           *log.Logger
-	exited           bool
-	mu               sync.RWMutex
-	docs             map[string]*document
-	logContext       bool
-	llmClient        llm.Client
-	lastInput        time.Time
-	maxTokens        int
-	contextMode      string
-	windowLines      int
-	maxContextTokens int
-	triggerChars     []string
-	// If set, used as the LSP coding temperature for all LLM calls
-	codingTemperature *float64
+	in          *bufio.Reader
+	out         io.Writer
+	outMu       sync.Mutex
+	logger      *log.Logger
+	exited      bool
+	mu          sync.RWMutex
+	docs        map[string]*document
+	logContext  bool
+	configStore *runtimeconfig.Store
+	cfg         appconfig.App
+	llmClient   llm.Client
+	lastInput   time.Time
 	// LLM request stats
 	llmReqTotal       int64
 	llmSentBytesTotal int64
@@ -43,58 +40,18 @@ type Server struct {
 	compCache      map[string]string
 	compCacheOrder []string // most-recent at end; cap ~10
 	// Outgoing JSON-RPC id counter for server-initiated requests
-	nextID int64
-	// Minimum identifier chars required for manual invoke to bypass prefix checks
-	manualInvokeMinPrefix int
-
-	// Debounce and throttle settings
-	completionDebounce time.Duration
-	throttleInterval   time.Duration
-	lastLLMCall        time.Time
+	nextID      int64
+	lastLLMCall time.Time
 
 	// Dispatch table for JSON-RPC methods → handler functions
 	handlers map[string]func(Request)
-
-	// Configurable trigger characters
-	inlineOpen      string
-	inlineClose     string
-	chatSuffix      string
-	chatPrefixes    []string
-	inlineOpenChar  byte
-	inlineCloseChar byte
-	chatSuffixChar  byte
-
-	// Prompt templates
-	// Completion
-	promptCompSysGeneral  string
-	promptCompSysParams   string
-	promptCompSysInline   string
-	promptCompUserGeneral string
-	promptCompUserParams  string
-	promptCompExtraHeader string
-	// Provider-native code completion
-	promptNativeCompletion string
-	// In-editor chat
-	promptChatSystem string
-	// Code actions
-	promptRewriteSystem     string
-	promptDiagnosticsSystem string
-	promptDocumentSystem    string
-	promptRewriteUser       string
-	promptDiagnosticsUser   string
-	promptDocumentUser      string
-	promptGoTestSystem      string
-	promptGoTestUser        string
-	promptSimplifySystem    string
-	promptSimplifyUser      string
-
-	// Custom actions configured by user
-	customActions []CustomAction
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
 type ServerOptions struct {
 	LogContext       bool
+	ConfigStore      *runtimeconfig.Store
+	Config           *appconfig.App
 	MaxTokens        int
 	ContextMode      string
 	WindowLines      int
@@ -149,106 +106,10 @@ type CustomAction struct {
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
-	s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: opts.LogContext}
-	maxTokens := opts.MaxTokens
-	if maxTokens <= 0 {
-		maxTokens = 500
-	}
-	s.maxTokens = maxTokens
-	contextMode := opts.ContextMode
-	if contextMode == "" {
-		contextMode = "file-on-new-func"
-	}
-	windowLines := opts.WindowLines
-	if windowLines <= 0 {
-		windowLines = 120
-	}
-	maxContextTokens := opts.MaxContextTokens
-	if maxContextTokens <= 0 {
-		maxContextTokens = 2000
-	}
-	s.contextMode = contextMode
-	s.windowLines = windowLines
-	s.maxContextTokens = maxContextTokens
-
+	s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: opts.LogContext, configStore: opts.ConfigStore}
 	s.startTime = time.Now()
-	s.llmClient = opts.Client
-	if len(opts.TriggerCharacters) == 0 {
-		// Defaults (no space to avoid auto-trigger after whitespace)
-		s.triggerChars = []string{".", ":", "/", "_", ")", "{"}
-	} else {
-		s.triggerChars = append([]string{}, opts.TriggerCharacters...)
-	}
-	s.codingTemperature = opts.CodingTemperature
 	s.compCache = make(map[string]string)
-	s.manualInvokeMinPrefix = opts.ManualInvokeMinPrefix
-	if opts.CompletionDebounceMs > 0 {
-		s.completionDebounce = time.Duration(opts.CompletionDebounceMs) * time.Millisecond
-	}
-	if opts.CompletionThrottleMs > 0 {
-		s.throttleInterval = time.Duration(opts.CompletionThrottleMs) * time.Millisecond
-	}
-	// Trigger character config (with sane defaults if missing)
-	if strings.TrimSpace(opts.InlineOpen) == "" {
-		s.inlineOpen = ">"
-	} else {
-		s.inlineOpen = opts.InlineOpen
-	}
-	if strings.TrimSpace(opts.InlineClose) == "" {
-		s.inlineClose = ">"
-	} else {
-		s.inlineClose = opts.InlineClose
-	}
-	if strings.TrimSpace(opts.ChatSuffix) == "" {
-		s.chatSuffix = ">"
-	} else {
-		s.chatSuffix = opts.ChatSuffix
-	}
-	if len(opts.ChatPrefixes) == 0 {
-		s.chatPrefixes = []string{"?", "!", ":", ";"}
-	} else {
-		s.chatPrefixes = append([]string{}, opts.ChatPrefixes...)
-	}
-
-	// Prompts
-	s.promptCompSysGeneral = opts.PromptCompSysGeneral
-	s.promptCompSysParams = opts.PromptCompSysParams
-	s.promptCompSysInline = opts.PromptCompSysInline
-	s.promptCompUserGeneral = opts.PromptCompUserGeneral
-	s.promptCompUserParams = opts.PromptCompUserParams
-	s.promptCompExtraHeader = opts.PromptCompExtraHeader
-	s.promptNativeCompletion = opts.PromptNativeCompletion
-	s.promptChatSystem = opts.PromptChatSystem
-	s.promptRewriteSystem = opts.PromptRewriteSystem
-	s.promptDiagnosticsSystem = opts.PromptDiagnosticsSystem
-	s.promptDocumentSystem = opts.PromptDocumentSystem
-	s.promptRewriteUser = opts.PromptRewriteUser
-	s.promptDiagnosticsUser = opts.PromptDiagnosticsUser
-	s.promptDocumentUser = opts.PromptDocumentUser
-	s.promptGoTestSystem = opts.PromptGoTestSystem
-	s.promptGoTestUser = opts.PromptGoTestUser
-	s.promptSimplifySystem = opts.PromptSimplifySystem
-	s.promptSimplifyUser = opts.PromptSimplifyUser
-
-	if len(opts.CustomActions) > 0 {
-		s.customActions = append([]CustomAction{}, opts.CustomActions...)
-	}
-
-	if s.inlineOpen != "" {
-		s.inlineOpenChar = s.inlineOpen[0]
-	} else {
-		s.inlineOpenChar = '>'
-	}
-	if s.inlineClose != "" {
-		s.inlineCloseChar = s.inlineClose[0]
-	} else {
-		s.inlineCloseChar = '>'
-	}
-	if s.chatSuffix != "" {
-		s.chatSuffixChar = s.chatSuffix[0]
-	} else {
-		s.chatSuffixChar = '>'
-	}
+	s.applyOptions(opts)
 	// Initialize dispatch table
 	s.handlers = map[string]func(Request){
 		"initialize":               s.handleInitialize,
@@ -264,6 +125,220 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 		"workspace/executeCommand": s.handleExecuteCommand,
 	}
 	return s
+}
+
+func (s *Server) applyOptions(opts ServerOptions) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.logContext = opts.LogContext
+	if opts.ConfigStore != nil {
+		s.configStore = opts.ConfigStore
+	}
+	if opts.Config != nil {
+		s.cfg = *opts.Config
+	} else if opts.ConfigStore != nil {
+		s.cfg = opts.ConfigStore.Snapshot()
+	} else {
+		s.cfg = appconfig.App{}
+		// populate from legacy ServerOptions fields
+		s.cfg.MaxTokens = opts.MaxTokens
+		s.cfg.ContextMode = opts.ContextMode
+		s.cfg.ContextWindowLines = opts.WindowLines
+		s.cfg.MaxContextTokens = opts.MaxContextTokens
+		s.cfg.TriggerCharacters = append([]string{}, opts.TriggerCharacters...)
+		s.cfg.CodingTemperature = opts.CodingTemperature
+		s.cfg.ManualInvokeMinPrefix = opts.ManualInvokeMinPrefix
+		s.cfg.CompletionDebounceMs = opts.CompletionDebounceMs
+		s.cfg.CompletionThrottleMs = opts.CompletionThrottleMs
+		s.cfg.InlineOpen = opts.InlineOpen
+		s.cfg.InlineClose = opts.InlineClose
+		s.cfg.ChatSuffix = opts.ChatSuffix
+		s.cfg.ChatPrefixes = append([]string{}, opts.ChatPrefixes...)
+		s.cfg.PromptCompletionSystemGeneral = opts.PromptCompSysGeneral
+		s.cfg.PromptCompletionSystemParams = opts.PromptCompSysParams
+		s.cfg.PromptCompletionSystemInline = opts.PromptCompSysInline
+		s.cfg.PromptCompletionUserGeneral = opts.PromptCompUserGeneral
+		s.cfg.PromptCompletionUserParams = opts.PromptCompUserParams
+		s.cfg.PromptCompletionExtraHeader = opts.PromptCompExtraHeader
+		s.cfg.PromptNativeCompletion = opts.PromptNativeCompletion
+		s.cfg.PromptChatSystem = opts.PromptChatSystem
+		s.cfg.PromptCodeActionRewriteSystem = opts.PromptRewriteSystem
+		s.cfg.PromptCodeActionDiagnosticsSystem = opts.PromptDiagnosticsSystem
+		s.cfg.PromptCodeActionDocumentSystem = opts.PromptDocumentSystem
+		s.cfg.PromptCodeActionRewriteUser = opts.PromptRewriteUser
+		s.cfg.PromptCodeActionDiagnosticsUser = opts.PromptDiagnosticsUser
+		s.cfg.PromptCodeActionDocumentUser = opts.PromptDocumentUser
+		s.cfg.PromptCodeActionGoTestSystem = opts.PromptGoTestSystem
+		s.cfg.PromptCodeActionGoTestUser = opts.PromptGoTestUser
+		s.cfg.PromptCodeActionSimplifySystem = opts.PromptSimplifySystem
+		s.cfg.PromptCodeActionSimplifyUser = opts.PromptSimplifyUser
+		s.cfg.CustomActions = make([]appconfig.CustomAction, len(opts.CustomActions))
+		for i, ca := range opts.CustomActions {
+			s.cfg.CustomActions[i] = appconfig.CustomAction{
+				ID:          ca.ID,
+				Title:       ca.Title,
+				Kind:        ca.Kind,
+				Scope:       ca.Scope,
+				Instruction: ca.Instruction,
+				System:      ca.System,
+				User:        ca.User,
+			}
+		}
+	}
+	s.llmClient = opts.Client
+}
+
+// ApplyOptions updates the server's configuration at runtime.
+func (s *Server) ApplyOptions(opts ServerOptions) {
+	s.applyOptions(opts)
+}
+
+func (s *Server) currentLLMClient() llm.Client {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.llmClient
+}
+
+func (s *Server) currentConfig() appconfig.App {
+	if s.configStore != nil {
+		return s.configStore.Snapshot()
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg
+}
+
+func (s *Server) maxTokens() int {
+	cfg := s.currentConfig()
+	if cfg.MaxTokens <= 0 {
+		return 500
+	}
+	return cfg.MaxTokens
+}
+
+func (s *Server) contextMode() string {
+	mode := strings.TrimSpace(s.currentConfig().ContextMode)
+	if mode == "" {
+		return "file-on-new-func"
+	}
+	return mode
+}
+
+func (s *Server) windowLines() int {
+	cfg := s.currentConfig()
+	if cfg.ContextWindowLines <= 0 {
+		return 120
+	}
+	return cfg.ContextWindowLines
+}
+
+func (s *Server) maxContextTokens() int {
+	cfg := s.currentConfig()
+	if cfg.MaxContextTokens <= 0 {
+		return 2000
+	}
+	return cfg.MaxContextTokens
+}
+
+func (s *Server) triggerCharacters() []string {
+	cfg := s.currentConfig()
+	if len(cfg.TriggerCharacters) == 0 {
+		return []string{".", ":", "/", "_", ")", "{"}
+	}
+	return append([]string{}, cfg.TriggerCharacters...)
+}
+
+func (s *Server) codingTemperature() *float64 {
+	cfg := s.currentConfig()
+	return cfg.CodingTemperature
+}
+
+func (s *Server) manualInvokeMinPrefix() int {
+	return s.currentConfig().ManualInvokeMinPrefix
+}
+
+func (s *Server) completionDebounce() time.Duration {
+	cfg := s.currentConfig()
+	if cfg.CompletionDebounceMs <= 0 {
+		return 0
+	}
+	return time.Duration(cfg.CompletionDebounceMs) * time.Millisecond
+}
+
+func (s *Server) completionThrottle() time.Duration {
+	cfg := s.currentConfig()
+	if cfg.CompletionThrottleMs <= 0 {
+		return 0
+	}
+	return time.Duration(cfg.CompletionThrottleMs) * time.Millisecond
+}
+
+func (s *Server) inlineMarkers() (open string, close string, openChar byte, closeChar byte) {
+	cfg := s.currentConfig()
+	open = strings.TrimSpace(cfg.InlineOpen)
+	if open == "" {
+		open = ">"
+	}
+	close = strings.TrimSpace(cfg.InlineClose)
+	if close == "" {
+		close = ">"
+	}
+	openChar = '>'
+	if len(open) > 0 {
+		openChar = open[0]
+	}
+	closeChar = '>'
+	if len(close) > 0 {
+		closeChar = close[0]
+	}
+	return open, close, openChar, closeChar
+}
+
+func (s *Server) chatConfig() (suffix string, prefixes []string, suffixChar byte) {
+	cfg := s.currentConfig()
+	suffix = cfg.ChatSuffix
+	if suffix != "" {
+		suffix = strings.TrimSpace(suffix)
+		if suffix == "" {
+			suffix = ">"
+		}
+	} else {
+		suffix = ""
+	}
+	if len(cfg.ChatPrefixes) == 0 {
+		prefixes = []string{"?", "!", ":", ";"}
+	} else {
+		prefixes = append([]string{}, cfg.ChatPrefixes...)
+	}
+	suffixChar = '>'
+	if len(suffix) > 0 {
+		suffixChar = suffix[0]
+	}
+	return suffix, prefixes, suffixChar
+}
+
+func (s *Server) promptSet() appconfig.App {
+	return s.currentConfig()
+}
+
+func (s *Server) customActions() []CustomAction {
+	cfg := s.currentConfig()
+	if len(cfg.CustomActions) == 0 {
+		return nil
+	}
+	customs := make([]CustomAction, 0, len(cfg.CustomActions))
+	for _, ca := range cfg.CustomActions {
+		customs = append(customs, CustomAction{
+			ID:          ca.ID,
+			Title:       ca.Title,
+			Kind:        ca.Kind,
+			Scope:       ca.Scope,
+			Instruction: ca.Instruction,
+			System:      ca.System,
+			User:        ca.User,
+		})
+	}
+	return customs
 }
 
 func (s *Server) Run() error {

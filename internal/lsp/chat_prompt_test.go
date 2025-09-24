@@ -10,7 +10,9 @@ func TestDetectAndHandleChat_UsesConfiguredSystemPrompt(t *testing.T) {
 	s := newTestServer()
 	cap := &captureLLM{}
 	s.llmClient = cap
-	s.promptChatSystem = "CHAT-SYS"
+	cfg := s.cfg
+	cfg.PromptChatSystem = "CHAT-SYS"
+	s.cfg = cfg
 	uri := "file:///chat.txt"
 	// Avoid nil writer in applyChatEdits
 	var out bytes.Buffer

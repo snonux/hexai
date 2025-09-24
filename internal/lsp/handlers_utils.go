@@ -3,6 +3,7 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -15,12 +16,15 @@ import (
 
 // llmRequestOpts builds request options from server settings.
 func (s *Server) llmRequestOpts() []llm.RequestOption {
-	opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens)}
-	if s.codingTemperature != nil {
-		temp := *s.codingTemperature
-		if s.llmClient != nil {
-			prov := strings.ToLower(strings.TrimSpace(s.llmClient.Name()))
-			model := strings.ToLower(strings.TrimSpace(s.llmClient.DefaultModel()))
+	maxTokens := s.maxTokens()
+	client := s.currentLLMClient()
+	tempPtr := s.codingTemperature()
+	opts := []llm.RequestOption{llm.WithMaxTokens(maxTokens)}
+	if tempPtr != nil {
+		temp := *tempPtr
+		if client != nil {
+			prov := strings.ToLower(strings.TrimSpace(client.Name()))
+			model := strings.ToLower(strings.TrimSpace(client.DefaultModel()))
 			if prov == "openai" && strings.HasPrefix(model, "gpt-5") {
 				temp = 1.0
 			}
@@ -68,23 +72,25 @@ func (s *Server) logLLMStats() {
 	logging.Logf("lsp ", "llm stats (local) reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpmLocal, sentPerMin, recvPerMin)
 	// Global snapshot for tmux status
 	snap, err := stats.TakeSnapshot()
-	if err == nil && s.llmClient != nil {
-		provider := s.llmClient.Name()
-		model := s.llmClient.DefaultModel()
-		// Per-scope rpm estimated from window
-		scopeReqs := int64(0)
-		if pe, ok := snap.Providers[provider]; ok {
-			if mc, ok2 := pe.Models[model]; ok2 {
-				scopeReqs = mc.Reqs
+	if err == nil {
+		if client := s.currentLLMClient(); client != nil {
+			provider := client.Name()
+			model := client.DefaultModel()
+			// Per-scope rpm estimated from window
+			scopeReqs := int64(0)
+			if pe, ok := snap.Providers[provider]; ok {
+				if mc, ok2 := pe.Models[model]; ok2 {
+					scopeReqs = mc.Reqs
+				}
 			}
+			minsWin := snap.Window.Minutes()
+			if minsWin <= 0 {
+				minsWin = 0.001
+			}
+			scopeRPM := float64(scopeReqs) / minsWin
+			status := tmx.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, provider, model, scopeRPM, scopeReqs, snap.Window)
+			_ = tmx.SetStatus(status)
 		}
-		minsWin := snap.Window.Minutes()
-		if minsWin <= 0 {
-			minsWin = 0.001
-		}
-		scopeRPM := float64(scopeReqs) / minsWin
-		status := tmx.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, provider, model, scopeRPM, scopeReqs, snap.Window)
-		_ = tmx.SetStatus(status)
 	}
 }
 
@@ -161,16 +167,18 @@ func (s *Server) chatWithStats(ctx context.Context, msgs []llm.Message, opts ...
 		return "", context.Canceled
 	}
 	// Perform request
-	txt, err := s.llmClient.Chat(ctx, msgs, opts...)
+	client := s.currentLLMClient()
+	if client == nil {
+		return "", fmt.Errorf("llm client unavailable")
+	}
+	txt, err := client.Chat(ctx, msgs, opts...)
 	if err != nil {
 		s.logLLMStats()
 		return "", err
 	}
 	s.incRecvCounters(len(txt))
 	// Update global stats cache
-	if s.llmClient != nil {
-		_ = stats.Update(ctx, s.llmClient.Name(), s.llmClient.DefaultModel(), sent, len(txt))
-	}
+	_ = stats.Update(ctx, client.Name(), client.DefaultModel(), sent, len(txt))
 	s.logLLMStats()
 	return txt, nil
 }
@@ -427,8 +435,9 @@ func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit {
 		return nil
 	}
 	var edits []TextEdit
+	_, _, openChar, closeChar := s.inlineMarkers()
 	for i, line := range d.lines {
-		edits = append(edits, promptRemovalEditsForLine(line, i, s.inlineOpenChar, s.inlineCloseChar)...)
+		edits = append(edits, promptRemovalEditsForLine(line, i, openChar, closeChar)...)
 	}
 	return edits
 }

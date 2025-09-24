@@ -23,7 +23,7 @@ func (s *Server) handleCodeAction(req Request) {
 		return
 	}
 	d := s.getDocument(p.TextDocument.URI)
-	if d == nil || len(d.lines) == 0 || s.llmClient == nil {
+	if d == nil || len(d.lines) == 0 || s.currentLLMClient() == nil {
 		if len(req.ID) != 0 {
 			s.reply(req.ID, []CodeAction{}, nil)
 		}
@@ -56,11 +56,12 @@ func (s *Server) handleCodeAction(req Request) {
 
 // appendCustomActions adds user-defined actions depending on scope and availability.
 func (s *Server) appendCustomActions(actions *[]CodeAction, p CodeActionParams, sel string) {
-	if len(s.customActions) == 0 {
+	customs := s.customActions()
+	if len(customs) == 0 {
 		return
 	}
 	diags := s.diagnosticsInRange(p.Context, p.Range)
-	for _, ca := range s.customActions {
+	for _, ca := range customs {
 		title := strings.TrimSpace(ca.Title)
 		if title == "" {
 			continue
@@ -155,7 +156,7 @@ func (s *Server) buildDiagnosticsCodeAction(p CodeActionParams, sel string) *Cod
 }
 
 func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
-	if s.llmClient == nil || len(ca.Data) == 0 {
+	if s.currentLLMClient() == nil || len(ca.Data) == 0 {
 		return ca, false
 	}
 	var payload struct {
@@ -170,25 +171,14 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 	if err := json.Unmarshal(ca.Data, &payload); err != nil {
 		return ca, false
 	}
+	cfg := s.currentConfig()
 	switch payload.Type {
 	case "rewrite":
-		sys := s.promptRewriteSystem
-		user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-		opts := s.llmRequestOpts()
-		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
-			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-				ca.Edit = &edit
-				return ca, true
-			}
-		} else {
-			logging.Logf("lsp ", "codeAction rewrite llm error: %v", err)
-		}
+		sys := cfg.PromptCodeActionRewriteSystem
+		user := renderTemplate(cfg.PromptCodeActionRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
+		return s.completeCodeAction(ca, payload.URI, payload.Range, sys, user, 20*time.Second)
 	case "diagnostics":
-		sys := s.promptDiagnosticsSystem
+		sys := cfg.PromptCodeActionDiagnosticsSystem
 		var b strings.Builder
 		for i, dgn := range payload.Diagnostics {
 			if dgn.Source != "" {
@@ -198,114 +188,72 @@ func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
 			}
 		}
 		diagList := b.String()
-		user := renderTemplate(s.promptDiagnosticsUser, map[string]string{"diagnostics": diagList, "selection": payload.Selection})
-		ctx, cancel := context.WithTimeout(context.Background(), 22*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-		opts := s.llmRequestOpts()
-		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
-			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-				ca.Edit = &edit
-				return ca, true
-			}
-		} else {
-			logging.Logf("lsp ", "codeAction diagnostics llm error: %v", err)
-		}
+		user := renderTemplate(cfg.PromptCodeActionDiagnosticsUser, map[string]string{"diagnostics": diagList, "selection": payload.Selection})
+		return s.completeCodeAction(ca, payload.URI, payload.Range, sys, user, 22*time.Second)
 	case "document":
-		sys := s.promptDocumentSystem
-		user := renderTemplate(s.promptDocumentUser, map[string]string{"selection": payload.Selection})
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-		opts := s.llmRequestOpts()
-		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
-			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-				ca.Edit = &edit
-				return ca, true
-			}
-		} else {
-			logging.Logf("lsp ", "codeAction document llm error: %v", err)
-		}
+		sys := cfg.PromptCodeActionDocumentSystem
+		user := renderTemplate(cfg.PromptCodeActionDocumentUser, map[string]string{"selection": payload.Selection})
+		return s.completeCodeAction(ca, payload.URI, payload.Range, sys, user, 20*time.Second)
 	case "go_test":
 		if edit, jumpURI, jumpRange, ok := s.resolveGoTest(payload.URI, payload.Range.Start); ok {
 			ca.Edit = &edit
-			// After edit is applied, ask client to jump to new test function
 			ca.Command = &Command{Title: "Jump to generated test", Command: "hexai.showDocument", Arguments: []any{jumpURI, jumpRange}}
-			// Also send a server-initiated showDocument shortly after resolve to cover
-			// clients that do not execute commands from code actions.
 			s.deferShowDocument(jumpURI, jumpRange)
 			return ca, true
 		}
 	case "simplify":
-		sys := s.promptRewriteSystem
-		// Reuse rewrite user template with a fixed instruction
-		user := renderTemplate(s.promptRewriteUser, map[string]string{"instruction": "Simplify and improve the code while preserving behavior. Return only the improved code.", "selection": payload.Selection})
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-		opts := s.llmRequestOpts()
-		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
-			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-				ca.Edit = &edit
-				return ca, true
-			}
-		} else {
-			logging.Logf("lsp ", "codeAction simplify llm error: %v", err)
-		}
+		sys := cfg.PromptCodeActionRewriteSystem
+		user := renderTemplate(cfg.PromptCodeActionRewriteUser, map[string]string{"instruction": "Simplify and improve the code while preserving behavior. Return only the improved code.", "selection": payload.Selection})
+		return s.completeCodeAction(ca, payload.URI, payload.Range, sys, user, 20*time.Second)
 	case "custom":
-		// Lookup action by ID
 		var action *CustomAction
-		for i := range s.customActions {
-			if s.customActions[i].ID == payload.ID {
-				action = &s.customActions[i]
+		for _, caDef := range s.customActions() {
+			if caDef.ID == payload.ID {
+				action = &caDef
 				break
 			}
 		}
 		if action == nil {
 			return ca, false
 		}
-		// Build messages
 		var sys, user string
 		if strings.TrimSpace(action.User) != "" {
 			if strings.TrimSpace(action.System) != "" {
 				sys = action.System
 			} else {
-				sys = s.promptRewriteSystem
+				sys = cfg.PromptCodeActionRewriteSystem
 			}
 			var diagList string
 			if len(payload.Diagnostics) > 0 {
 				var b strings.Builder
-				for i, dgn := range payload.Diagnostics {
-					if dgn.Source != "" {
-						fmt.Fprintf(&b, "%d. [%s] %s\n", i+1, dgn.Source, dgn.Message)
-					} else {
-						fmt.Fprintf(&b, "%d. %s\n", i+1, dgn.Message)
-					}
+				for _, d := range payload.Diagnostics {
+					fmt.Fprintf(&b, "%s\n", d.Message)
 				}
 				diagList = b.String()
 			}
-			user = renderTemplate(action.User, map[string]string{"selection": payload.Selection, "diagnostics": diagList})
+			user = renderTemplate(action.User, map[string]string{"selection": payload.Selection, "diagnostics": strings.TrimSpace(diagList)})
 		} else {
-			// Use rewrite templates with fixed instruction
-			sys = s.promptRewriteSystem
-			user = renderTemplate(s.promptRewriteUser, map[string]string{"instruction": action.Instruction, "selection": payload.Selection})
+			sys = cfg.PromptCodeActionRewriteSystem
+			user = renderTemplate(cfg.PromptCodeActionRewriteUser, map[string]string{"instruction": payload.Instruction, "selection": payload.Selection})
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-		opts := s.llmRequestOpts()
-		if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
-			if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-				edit := WorkspaceEdit{Changes: map[string][]TextEdit{payload.URI: {{Range: payload.Range, NewText: out}}}}
-				ca.Edit = &edit
-				return ca, true
-			}
-		} else {
-			logging.Logf("lsp ", "codeAction custom id=%s llm error: %v", action.ID, err)
+		return s.completeCodeAction(ca, payload.URI, payload.Range, sys, user, 20*time.Second)
+	}
+	return ca, false
+}
+
+func (s *Server) completeCodeAction(ca CodeAction, uri string, rng Range, sys, user string, timeout time.Duration) (CodeAction, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+	opts := s.llmRequestOpts()
+	if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
+		if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
+			edit := WorkspaceEdit{Changes: map[string][]TextEdit{uri: {{Range: rng, NewText: out}}}}
+			ca.Edit = &edit
+			return ca, true
 		}
+	} else {
+		logging.Logf("lsp ", "codeAction llm error: %v", err)
 	}
 	return ca, false
 }
@@ -410,7 +358,7 @@ func (s *Server) buildGoUnitTestCodeAction(p CodeActionParams) *CodeAction {
 
 // buildDocumentCodeAction offers to document the selected code by injecting comments.
 func (s *Server) buildDocumentCodeAction(p CodeActionParams, sel string) *CodeAction {
-	if s.llmClient == nil {
+	if s.currentLLMClient() == nil {
 		return nil
 	}
 	if strings.TrimSpace(sel) == "" {
@@ -607,9 +555,10 @@ func findGoFunctionAtLine(lines []string, idx int) (int, int) {
 
 // generateGoTestFunction uses LLM to produce a test function; falls back to a stub when unavailable.
 func (s *Server) generateGoTestFunction(funcCode string) string {
-	if s.llmClient != nil {
-		sys := s.promptGoTestSystem
-		user := renderTemplate(s.promptGoTestUser, map[string]string{"function": funcCode})
+	if client := s.currentLLMClient(); client != nil {
+		cfg := s.currentConfig()
+		sys := cfg.PromptCodeActionGoTestSystem
+		user := renderTemplate(cfg.PromptCodeActionGoTestUser, map[string]string{"function": funcCode})
 		ctx, cancel := context.WithTimeout(context.Background(), 18*time.Second)
 		defer cancel()
 		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}

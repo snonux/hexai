@@ -12,9 +12,13 @@ import (
 func TestCompletionCache_IgnoresWhitespaceBeforeCursor(t *testing.T) {
 	var buf bytes.Buffer
 	logger := log.New(&buf, "", 0)
-	s := NewServer(bytes.NewBuffer(nil), &buf, logger, ServerOptions{})
+	s := newTestServer()
+	s.logger = logger
+	s.out = &buf
 	logging.Bind(logger)
-	s.triggerChars = []string{" ", "."}
+	cfg := s.cfg
+	cfg.TriggerCharacters = []string{" ", "."}
+	s.cfg = cfg
 	fake := &countingLLM{}
 	s.llmClient = fake
 

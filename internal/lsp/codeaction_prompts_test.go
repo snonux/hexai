@@ -9,8 +9,10 @@ func TestResolveCodeAction_UsesRewritePrompts(t *testing.T) {
 	s := newTestServer()
 	cap := &captureLLM{}
 	s.llmClient = cap
-	s.promptRewriteSystem = "RSYS"
-	s.promptRewriteUser = "RUSER {{instruction}} {{selection}}"
+	cfg := s.cfg
+	cfg.PromptCodeActionRewriteSystem = "RSYS"
+	cfg.PromptCodeActionRewriteUser = "RUSER {{instruction}} {{selection}}"
+	s.cfg = cfg
 	uri := "file:///x.go"
 	s.setDocument(uri, "package p\nvar a=1\n")
 	payload := struct {
@@ -35,8 +37,10 @@ func TestResolveCodeAction_UsesDiagnosticsPrompts(t *testing.T) {
 	s := newTestServer()
 	cap := &captureLLM{}
 	s.llmClient = cap
-	s.promptDiagnosticsSystem = "DSYS"
-	s.promptDiagnosticsUser = "DUSER {{diagnostics}} {{selection}}"
+	cfg := s.cfg
+	cfg.PromptCodeActionDiagnosticsSystem = "DSYS"
+	cfg.PromptCodeActionDiagnosticsUser = "DUSER {{diagnostics}} {{selection}}"
+	s.cfg = cfg
 	uri := "file:///x.go"
 	s.setDocument(uri, "package p\nvar a=1\n")
 	payload := struct {
@@ -64,8 +68,10 @@ func TestResolveCodeAction_UsesDocumentPrompts(t *testing.T) {
 	s := newTestServer()
 	cap := &captureLLM{}
 	s.llmClient = cap
-	s.promptDocumentSystem = "DOCSYS"
-	s.promptDocumentUser = "DOCUSER {{selection}}"
+	cfg := s.cfg
+	cfg.PromptCodeActionDocumentSystem = "DOCSYS"
+	cfg.PromptCodeActionDocumentUser = "DOCUSER {{selection}}"
+	s.cfg = cfg
 	uri := "file:///x.go"
 	s.setDocument(uri, "package p\nvar a=1\n")
 	payload := struct {
@@ -89,8 +95,10 @@ func TestGenerateGoTest_UsesPrompts(t *testing.T) {
 	s := newTestServer()
 	cap := &captureLLM{}
 	s.llmClient = cap
-	s.promptGoTestSystem = "GTSYS"
-	s.promptGoTestUser = "GTUSER {{function}}"
+	cfg := s.cfg
+	cfg.PromptCodeActionGoTestSystem = "GTSYS"
+	cfg.PromptCodeActionGoTestUser = "GTUSER {{function}}"
+	s.cfg = cfg
 	_ = s.generateGoTestFunction("func Add(a,b int) int {return a+b}")
 	if len(cap.msgs) < 2 {
 		t.Fatalf("expected chat messages")

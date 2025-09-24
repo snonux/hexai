@@ -162,7 +162,16 @@ func newDefaultConfig() App {
 
 // Load reads configuration from a file and merges with defaults.
 // It respects the XDG Base Directory Specification.
-func Load(logger *log.Logger) App {
+func Load(logger *log.Logger) App { return LoadWithOptions(logger, LoadOptions{}) }
+
+// LoadOptions tune how configuration is loaded at runtime.
+type LoadOptions struct {
+	// IgnoreEnv skips applying environment overrides when true.
+	IgnoreEnv bool
+}
+
+// LoadWithOptions reads configuration and applies the requested loading options.
+func LoadWithOptions(logger *log.Logger, opts LoadOptions) App {
 	cfg := newDefaultConfig()
 	if logger == nil {
 		return cfg // Return defaults if no logger is provided (e.g. in tests)
@@ -171,18 +180,20 @@ func Load(logger *log.Logger) App {
 	configPath, err := getConfigPath()
 	if err != nil {
 		logger.Printf("%v", err)
-		// Even if config path cannot be resolved, still allow env overrides below.
+		// Even if config path cannot be resolved, keep defaults and optionally apply env overrides below.
 	} else {
 		if fileCfg, err := loadFromFile(configPath, logger); err == nil && fileCfg != nil {
 			cfg.mergeWith(fileCfg)
 		}
 		// When the config file is missing or invalid, we keep defaults and still
-		// apply any environment overrides below.
+		// apply any environment overrides below (unless disabled).
 	}
 
-	// Environment overrides (take precedence over file)
-	if envCfg := loadFromEnv(logger); envCfg != nil {
-		cfg.mergeWith(envCfg)
+	if !opts.IgnoreEnv {
+		// Environment overrides (take precedence over file)
+		if envCfg := loadFromEnv(logger); envCfg != nil {
+			cfg.mergeWith(envCfg)
+		}
 	}
 	return cfg
 }

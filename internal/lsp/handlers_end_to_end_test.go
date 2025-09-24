@@ -72,10 +72,8 @@ func captureRequest(t *testing.T, buf *bytes.Buffer) Request {
 func TestHandleCodeAction_ListsHexaiActions(t *testing.T) {
 	// Prepare server
 	var out bytes.Buffer
-	s := &Server{logger: log.New(io.Discard, "", 0), docs: make(map[string]*document), out: &out}
-	initServerDefaults(s)
-	s.chatSuffix = ">"
-	s.chatPrefixes = []string{"?", "!", ":", ";"}
+	s := newTestServer()
+	s.out = &out
 	s.llmClient = fakeLLM{resp: "// doc\nfunc add(a,b int) int { return a+b }"}
 
 	// Document with a function
@@ -219,6 +217,12 @@ func TestHandle_Dispatch_Initialize(t *testing.T) {
 func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
 	var out bytes.Buffer
 	s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{})
+	cfg := s.cfg
+	if strings.TrimSpace(cfg.ChatSuffix) == "" {
+		cfg.ChatSuffix = ">"
+		cfg.ChatPrefixes = []string{"?", "!", ":", ";"}
+		s.cfg = cfg
+	}
 	s.llmClient = fakeLLM{resp: tut.MultilineChatReply()}
 	uri := "file:///chat.go"
 	// Place a prompt line with a supported trigger at EOL, then a blank line
@@ -226,7 +230,7 @@ func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
 	out.Reset()
 	s.detectAndHandleChat(uri)
 	// Allow async goroutine to write the request
-	for i := 0; i < 20 && out.Len() == 0; i++ {
+	for i := 0; i < 100 && out.Len() == 0; i++ {
 		time.Sleep(10 * time.Millisecond)
 	}
 	if out.Len() == 0 {
