@@ -7213,9 +7213,9 @@ import (
         "golang.org/x/sys/unix"
 )
 
-func tryLockFile(fd uintptr) error <span class="cov10" title="213">{
-        if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil </span><span class="cov9" title="136">{
-                if errors.Is(err, unix.EWOULDBLOCK) </span><span class="cov9" title="136">{
+func tryLockFile(fd uintptr) error <span class="cov10" title="198">{
+        if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil </span><span class="cov9" title="121">{
+                if errors.Is(err, unix.EWOULDBLOCK) </span><span class="cov9" title="121">{
                         return errLockWouldBlock
                 }</span>
                 <span class="cov0" title="0">return err</span>
@@ -7259,18 +7259,18 @@ var windowSeconds int64 = int64(defaultWindow.Seconds())
 var errLockWouldBlock = errors.New("stats: lock would block")
 
 // SetWindow sets the sliding window used for pruning and aggregation.
-func SetWindow(d time.Duration) <span class="cov4" title="82">{
+func SetWindow(d time.Duration) <span class="cov5" title="82">{
         if d &lt; time.Second </span><span class="cov0" title="0">{
                 d = time.Second
         }</span>
-        <span class="cov4" title="82">if d &gt; 24*time.Hour </span><span class="cov0" title="0">{
+        <span class="cov5" title="82">if d &gt; 24*time.Hour </span><span class="cov0" title="0">{
                 d = 24 * time.Hour
         }</span>
-        <span class="cov4" title="82">atomic.StoreInt64(&amp;windowSeconds, int64(d.Seconds()))</span>
+        <span class="cov5" title="82">atomic.StoreInt64(&amp;windowSeconds, int64(d.Seconds()))</span>
 }
 
 // Window returns the current sliding window.
-func Window() time.Duration <span class="cov4" title="77">{ return time.Duration(atomic.LoadInt64(&amp;windowSeconds)) * time.Second }</span>
+func Window() time.Duration <span class="cov5" title="77">{ return time.Duration(atomic.LoadInt64(&amp;windowSeconds)) * time.Second }</span>
 
 // Event represents a single request/response with sizes.
 type Event struct {
@@ -7305,108 +7305,108 @@ type Snapshot struct {
 }
 
 // Update appends one event and prunes old entries under lock.
-func Update(ctx context.Context, provider, model string, sentBytes, recvBytes int) error <span class="cov4" title="77">{
+func Update(ctx context.Context, provider, model string, sentBytes, recvBytes int) error <span class="cov5" title="77">{
         dir, err := CacheDir()
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov4" title="77">if err := os.MkdirAll(dir, 0o755); err != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="77">if err := os.MkdirAll(dir, 0o755); err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov4" title="77">lockPath := filepath.Join(dir, lockFileName)
+        <span class="cov5" title="77">lockPath := filepath.Join(dir, lockFileName)
         f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov4" title="77">defer f.Close()
+        <span class="cov5" title="77">defer f.Close()
         unlock, err := acquireFileLock(ctx, f)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov4" title="77">defer func() </span><span class="cov4" title="77">{ _ = unlock() }</span>()
+        <span class="cov5" title="77">defer func() </span><span class="cov5" title="77">{ _ = unlock() }</span>()
         // Read existing file (if any)
-        <span class="cov4" title="77">path := filepath.Join(dir, fileName)
+        <span class="cov5" title="77">path := filepath.Join(dir, fileName)
         var sf File
-        if b, rerr := os.ReadFile(path); rerr == nil </span><span class="cov4" title="74">{
+        if b, rerr := os.ReadFile(path); rerr == nil </span><span class="cov5" title="74">{
                 _ = json.Unmarshal(b, &amp;sf)
         }</span>
-        <span class="cov4" title="77">if sf.Version != fileVersion </span><span class="cov1" title="3">{
+        <span class="cov5" title="77">if sf.Version != fileVersion </span><span class="cov2" title="3">{
                 sf = File{Version: fileVersion}
         }</span>
-        <span class="cov4" title="77">now := time.Now()
+        <span class="cov5" title="77">now := time.Now()
         win := Window()
         sf.WindowSeconds = int(win.Seconds())
         // Append event
         sf.Events = append(sf.Events, Event{TS: now, Provider: provider, Model: model, Sent: int64(sentBytes), Recv: int64(recvBytes)})
         // Prune old
         cutoff := now.Add(-win)
-        if len(sf.Events) &gt; 0 </span><span class="cov4" title="77">{
+        if len(sf.Events) &gt; 0 </span><span class="cov5" title="77">{
                 // Find first &gt;= cutoff
                 i := 0
-                for ; i &lt; len(sf.Events); i++ </span><span class="cov4" title="78">{
-                        if !sf.Events[i].TS.Before(cutoff) </span><span class="cov4" title="77">{
+                for ; i &lt; len(sf.Events); i++ </span><span class="cov5" title="78">{
+                        if !sf.Events[i].TS.Before(cutoff) </span><span class="cov5" title="77">{
                                 break</span>
                         }
                 }
-                <span class="cov4" title="77">if i &gt; 0 </span><span class="cov1" title="1">{
+                <span class="cov5" title="77">if i &gt; 0 </span><span class="cov1" title="1">{
                         sf.Events = append([]Event(nil), sf.Events[i:]...)
                 }</span>
         }
-        <span class="cov4" title="77">sf.UpdatedAt = now
+        <span class="cov5" title="77">sf.UpdatedAt = now
         // Write atomically
         tmp, err := os.CreateTemp(dir, fileName+".tmp.")
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov4" title="77">enc := json.NewEncoder(tmp)
+        <span class="cov5" title="77">enc := json.NewEncoder(tmp)
         enc.SetEscapeHTML(false)
         if err := enc.Encode(&amp;sf); err != nil </span><span class="cov0" title="0">{
                 tmp.Close()
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov4" title="77">if err := tmp.Sync(); err != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="77">if err := tmp.Sync(); err != nil </span><span class="cov0" title="0">{
                 tmp.Close()
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov4" title="77">if err := tmp.Close(); err != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="77">if err := tmp.Close(); err != nil </span><span class="cov0" title="0">{
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov4" title="77">if err := os.Rename(tmp.Name(), path); err != nil </span><span class="cov0" title="0">{
+        <span class="cov5" title="77">if err := os.Rename(tmp.Name(), path); err != nil </span><span class="cov0" title="0">{
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov4" title="77">return nil</span>
+        <span class="cov5" title="77">return nil</span>
 }
 
-func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) <span class="cov4" title="77">{
+func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) <span class="cov5" title="77">{
         fd := f.Fd()
-        for </span><span class="cov5" title="213">{
+        for </span><span class="cov6" title="198">{
                 err := tryLockFile(fd)
-                if err == nil </span><span class="cov4" title="77">{
-                        return func() error </span><span class="cov4" title="77">{ return unlockFile(fd) }</span>, nil
+                if err == nil </span><span class="cov5" title="77">{
+                        return func() error </span><span class="cov5" title="77">{ return unlockFile(fd) }</span>, nil
                 }
-                <span class="cov5" title="136">if errors.Is(err, errLockWouldBlock) </span><span class="cov5" title="136">{
+                <span class="cov5" title="121">if errors.Is(err, errLockWouldBlock) </span><span class="cov5" title="121">{
                         select </span>{
                         case &lt;-ctx.Done():<span class="cov0" title="0">
                                 return nil, ctx.Err()</span>
-                        case &lt;-time.After(5 * time.Millisecond):<span class="cov5" title="136"></span>
+                        case &lt;-time.After(5 * time.Millisecond):<span class="cov5" title="121"></span>
                         }
-                        <span class="cov5" title="136">continue</span>
+                        <span class="cov5" title="121">continue</span>
                 }
                 <span class="cov0" title="0">return nil, err</span>
         }
 }
 
 // Snapshot reads and aggregates events within the configured window.
-func TakeSnapshot() (Snapshot, error) <span class="cov4" title="69">{
+func TakeSnapshot() (Snapshot, error) <span class="cov5" title="69">{
         dir, err := CacheDir()
         if err != nil </span><span class="cov0" title="0">{
                 return Snapshot{}, err
         }</span>
-        <span class="cov4" title="69">path := filepath.Join(dir, fileName)
+        <span class="cov5" title="69">path := filepath.Join(dir, fileName)
         b, err := os.ReadFile(path)
         if err != nil </span><span class="cov0" title="0">{
                 if errors.Is(err, os.ErrNotExist) </span><span class="cov0" title="0">{
@@ -7414,30 +7414,30 @@ func TakeSnapshot() (Snapshot, error) <span class="cov4" title="69">{
                 }</span>
                 <span class="cov0" title="0">return Snapshot{}, err</span>
         }
-        <span class="cov4" title="69">var sf File
+        <span class="cov5" title="69">var sf File
         if err := json.Unmarshal(b, &amp;sf); err != nil </span><span class="cov0" title="0">{
                 return Snapshot{}, err
         }</span>
-        <span class="cov4" title="69">win := time.Duration(sf.WindowSeconds) * time.Second
+        <span class="cov5" title="69">win := time.Duration(sf.WindowSeconds) * time.Second
         if win &lt;= 0 </span><span class="cov0" title="0">{
                 win = Window()
-        }</span> else<span class="cov4" title="69"> {
+        }</span> else<span class="cov5" title="69"> {
                 SetWindow(win) // align process with file window if changed elsewhere
         }</span>
-        <span class="cov4" title="69">cutoff := time.Now().Add(-win)
+        <span class="cov5" title="69">cutoff := time.Now().Add(-win)
         snap := Snapshot{Providers: make(map[string]ProviderEntry), Window: win}
-        for _, ev := range sf.Events </span><span class="cov10" title="25908">{
+        for _, ev := range sf.Events </span><span class="cov10" title="5778">{
                 if ev.TS.Before(cutoff) </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov10" title="25908">snap.Global.Reqs++
+                <span class="cov10" title="5778">snap.Global.Reqs++
                 snap.Global.Sent += ev.Sent
                 snap.Global.Recv += ev.Recv
                 pe := snap.Providers[ev.Provider]
-                if pe.Models == nil </span><span class="cov6" title="465">{
+                if pe.Models == nil </span><span class="cov7" title="465">{
                         pe.Models = make(map[string]Counters)
                 }</span>
-                <span class="cov10" title="25908">pe.Totals.Reqs++
+                <span class="cov10" title="5778">pe.Totals.Reqs++
                 pe.Totals.Sent += ev.Sent
                 pe.Totals.Recv += ev.Recv
                 mc := pe.Models[ev.Model]
@@ -7447,17 +7447,17 @@ func TakeSnapshot() (Snapshot, error) <span class="cov4" title="69">{
                 pe.Models[ev.Model] = mc
                 snap.Providers[ev.Provider] = pe</span>
         }
-        <span class="cov4" title="69">mins := win.Minutes()
+        <span class="cov5" title="69">mins := win.Minutes()
         if mins &lt;= 0 </span><span class="cov0" title="0">{
                 mins = 0.001
         }</span>
-        <span class="cov4" title="69">snap.RPM = float64(snap.Global.Reqs) / mins
+        <span class="cov5" title="69">snap.RPM = float64(snap.Global.Reqs) / mins
         return snap, nil</span>
 }
 
 // CacheDir resolves the cache directory for stats.
-func CacheDir() (string, error) <span class="cov5" title="147">{
-        if x := os.Getenv("XDG_CACHE_HOME"); stringsTrim(x) != "" </span><span class="cov3" title="27">{
+func CacheDir() (string, error) <span class="cov6" title="147">{
+        if x := os.Getenv("XDG_CACHE_HOME"); stringsTrim(x) != "" </span><span class="cov4" title="27">{
                 return filepath.Join(x, "hexai"), nil
         }</span>
         <span class="cov5" title="120">home, err := os.UserHomeDir()
@@ -7468,16 +7468,16 @@ func CacheDir() (string, error) <span class="cov5" title="147">{
 }
 
 // stringsTrim is a tiny helper to avoid importing strings everywhere here.
-func stringsTrim(s string) string <span class="cov5" title="147">{
+func stringsTrim(s string) string <span class="cov6" title="147">{
         i := 0
         j := len(s)
         for i &lt; j &amp;&amp; (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') </span><span class="cov0" title="0">{
                 i++
         }</span>
-        <span class="cov5" title="147">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
+        <span class="cov6" title="147">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
                 j--
         }</span>
-        <span class="cov5" title="147">if i == 0 &amp;&amp; j == len(s) </span><span class="cov5" title="147">{
+        <span class="cov6" title="147">if i == 0 &amp;&amp; j == len(s) </span><span class="cov6" title="147">{
                 return s
         }</span>
         <span class="cov0" title="0">return s[i:j]</span>
