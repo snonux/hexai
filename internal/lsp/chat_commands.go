@@ -45,19 +45,7 @@ func (s *Server) handleReloadCommand() chatCommandResult {
 		s.logger.Printf("config reload failed: %v", err)
 		return chatCommandResult{message: fmt.Sprintf("Reload failed: %v", err)}
 	}
-	summary := formatReloadSummary(changes)
+	summary := runtimeconfig.FormatSummary("Reloaded config", changes)
 	s.logger.Print(summary)
 	return chatCommandResult{message: summary}
-}
-
-func formatReloadSummary(changes []runtimeconfig.Change) string {
-	if len(changes) == 0 {
-		return "Reloaded config (no changes detected)."
-	}
-	lines := make([]string, 0, len(changes)+1)
-	lines = append(lines, fmt.Sprintf("Reloaded config (%d changes):", len(changes)))
-	for _, ch := range changes {
-		lines = append(lines, fmt.Sprintf("- %s: %s → %s", ch.Key, ch.Old, ch.New))
-	}
-	return strings.Join(lines, "\n")
 }

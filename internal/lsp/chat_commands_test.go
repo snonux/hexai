@@ -17,7 +17,7 @@ func TestFormatReloadSummary(t *testing.T) {
 		{Key: "max_tokens", Old: "200", New: "128"},
 		{Key: "provider", Old: "openai", New: "ollama"},
 	}
-	got := formatReloadSummary(changes)
+	got := runtimeconfig.FormatSummary("Reloaded config", changes)
 	if !strings.Contains(got, "Reloaded config (2 changes):") {
 		t.Fatalf("expected change count line, got %q", got)
 	}

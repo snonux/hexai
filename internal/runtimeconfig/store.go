@@ -85,7 +85,11 @@ func (s *Store) Reload(logger *log.Logger, opts appconfig.LoadOptions) ([]Change
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
-	return s.Set(cfg), nil
+	changes := s.Set(cfg)
+	if logger != nil {
+		logger.Print(FormatSummary("Reloaded config", changes))
+	}
+	return changes, nil
 }
 
 // Diff computes a stable, sorted list of key/value changes between two configuration snapshots.
@@ -175,4 +179,17 @@ func stringifyValue(v reflect.Value) string {
 	default:
 		return fmt.Sprint(v.Interface())
 	}
+}
+
+// FormatSummary creates a human-readable summary for configuration changes.
+func FormatSummary(prefix string, changes []Change) string {
+	if len(changes) == 0 {
+		return fmt.Sprintf("%s (no changes detected).", prefix)
+	}
+	lines := make([]string, 0, len(changes)+1)
+	lines = append(lines, fmt.Sprintf("%s (%d changes):", prefix, len(changes)))
+	for _, ch := range changes {
+		lines = append(lines, fmt.Sprintf("- %s: %s → %s", ch.Key, ch.Old, ch.New))
+	}
+	return strings.Join(lines, "\n")
 }
