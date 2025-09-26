@@ -7269,9 +7269,9 @@ import (
         "golang.org/x/sys/unix"
 )
 
-func tryLockFile(fd uintptr) error <span class="cov10" title="214">{
-        if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil </span><span class="cov9" title="137">{
-                if errors.Is(err, unix.EWOULDBLOCK) </span><span class="cov9" title="137">{
+func tryLockFile(fd uintptr) error <span class="cov10" title="213">{
+        if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil </span><span class="cov9" title="136">{
+                if errors.Is(err, unix.EWOULDBLOCK) </span><span class="cov9" title="136">{
                         return errLockWouldBlock
                 }</span>
                 <span class="cov0" title="0">return err</span>
@@ -7315,14 +7315,14 @@ var windowSeconds int64 = int64(defaultWindow.Seconds())
 var errLockWouldBlock = errors.New("stats: lock would block")
 
 // SetWindow sets the sliding window used for pruning and aggregation.
-func SetWindow(d time.Duration) <span class="cov5" title="83">{
+func SetWindow(d time.Duration) <span class="cov4" title="83">{
         if d &lt; time.Second </span><span class="cov0" title="0">{
                 d = time.Second
         }</span>
-        <span class="cov5" title="83">if d &gt; 24*time.Hour </span><span class="cov0" title="0">{
+        <span class="cov4" title="83">if d &gt; 24*time.Hour </span><span class="cov0" title="0">{
                 d = 24 * time.Hour
         }</span>
-        <span class="cov5" title="83">atomic.StoreInt64(&amp;windowSeconds, int64(d.Seconds()))</span>
+        <span class="cov4" title="83">atomic.StoreInt64(&amp;windowSeconds, int64(d.Seconds()))</span>
 }
 
 // Window returns the current sliding window.
@@ -7386,7 +7386,7 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
         if b, rerr := os.ReadFile(path); rerr == nil </span><span class="cov4" title="74">{
                 _ = json.Unmarshal(b, &amp;sf)
         }</span>
-        <span class="cov4" title="77">if sf.Version != fileVersion </span><span class="cov2" title="3">{
+        <span class="cov4" title="77">if sf.Version != fileVersion </span><span class="cov1" title="3">{
                 sf = File{Version: fileVersion}
         }</span>
         <span class="cov4" title="77">now := time.Now()
@@ -7439,18 +7439,18 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
 
 func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) <span class="cov4" title="77">{
         fd := f.Fd()
-        for </span><span class="cov5" title="214">{
+        for </span><span class="cov5" title="213">{
                 err := tryLockFile(fd)
                 if err == nil </span><span class="cov4" title="77">{
                         return func() error </span><span class="cov4" title="77">{ return unlockFile(fd) }</span>, nil
                 }
-                <span class="cov5" title="137">if errors.Is(err, errLockWouldBlock) </span><span class="cov5" title="137">{
+                <span class="cov5" title="136">if errors.Is(err, errLockWouldBlock) </span><span class="cov5" title="136">{
                         select </span>{
                         case &lt;-ctx.Done():<span class="cov0" title="0">
                                 return nil, ctx.Err()</span>
-                        case &lt;-time.After(5 * time.Millisecond):<span class="cov5" title="137"></span>
+                        case &lt;-time.After(5 * time.Millisecond):<span class="cov5" title="136"></span>
                         }
-                        <span class="cov5" title="137">continue</span>
+                        <span class="cov5" title="136">continue</span>
                 }
                 <span class="cov0" title="0">return nil, err</span>
         }
@@ -7482,18 +7482,18 @@ func TakeSnapshot() (Snapshot, error) <span class="cov4" title="70">{
         }</span>
         <span class="cov4" title="70">cutoff := time.Now().Add(-win)
         snap := Snapshot{Providers: make(map[string]ProviderEntry), Window: win}
-        for _, ev := range sf.Events </span><span class="cov10" title="18479">{
+        for _, ev := range sf.Events </span><span class="cov10" title="22097">{
                 if ev.TS.Before(cutoff) </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov10" title="18479">snap.Global.Reqs++
+                <span class="cov10" title="22097">snap.Global.Reqs++
                 snap.Global.Sent += ev.Sent
                 snap.Global.Recv += ev.Recv
                 pe := snap.Providers[ev.Provider]
                 if pe.Models == nil </span><span class="cov6" title="472">{
                         pe.Models = make(map[string]Counters)
                 }</span>
-                <span class="cov10" title="18479">pe.Totals.Reqs++
+                <span class="cov10" title="22097">pe.Totals.Reqs++
                 pe.Totals.Sent += ev.Sent
                 pe.Totals.Recv += ev.Recv
                 mc := pe.Models[ev.Model]
@@ -7513,7 +7513,7 @@ func TakeSnapshot() (Snapshot, error) <span class="cov4" title="70">{
 
 // CacheDir resolves the cache directory for stats.
 func CacheDir() (string, error) <span class="cov5" title="148">{
-        if x := os.Getenv("XDG_CACHE_HOME"); stringsTrim(x) != "" </span><span class="cov4" title="27">{
+        if x := os.Getenv("XDG_CACHE_HOME"); stringsTrim(x) != "" </span><span class="cov3" title="27">{
                 return filepath.Join(x, "hexai"), nil
         }</span>
         <span class="cov5" title="121">home, err := os.UserHomeDir()
