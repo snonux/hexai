@@ -95,11 +95,16 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		return items, true
 	}
 
-	if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, plan.inParams); ok {
+	spec := s.buildRequestSpec(surfaceCompletion)
+	client := s.clientFor(spec)
+	if client == nil {
+		return nil, false
+	}
+	if items, ok := s.tryProviderNativeCompletion(spec, client, current, p, above, below, funcCtx, docStr, hasExtra, extraText, plan.inParams); ok {
 		return items, true
 	}
 
-	return s.executeChatCompletion(ctx, plan)
+	return s.executeChatCompletion(ctx, plan, spec, client)
 }
 
 func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) {
@@ -142,31 +147,31 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 	return plan, nil, false
 }
 
-func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan) ([]CompletionItem, bool) {
+func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client) ([]CompletionItem, bool) {
 	messages := s.buildCompletionMessages(plan.inlinePrompt, plan.hasExtra, plan.extraText, plan.inParams, plan.params, plan.above, plan.current, plan.below, plan.funcCtx)
 	sentSize := 0
 	for _, m := range messages {
 		sentSize += len(m.Content)
 	}
 	s.incSentCounters(sentSize)
-	opts := s.llmRequestOpts()
+	opts := spec.options
 	s.waitForDebounce(ctx)
 	if !s.waitForThrottle(ctx) {
 		return nil, false
 	}
-	client := s.currentLLMClient()
-	if client == nil {
-		return nil, false
+	modelUsed := spec.effectiveModel()
+	if strings.TrimSpace(modelUsed) == "" {
+		modelUsed = client.DefaultModel()
 	}
-	logging.Logf("lsp ", "completion llm=requesting model=%s", client.DefaultModel())
+	logging.Logf("lsp ", "completion llm=requesting model=%s", modelUsed)
 	text, err := client.Chat(ctx, messages, opts...)
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
-		s.logLLMStats()
+		s.logLLMStats(modelUsed)
 		return nil, false
 	}
 	s.incRecvCounters(len(text))
-	s.logLLMStats()
+	s.logLLMStats(modelUsed)
 	trimmed := strings.TrimSpace(text)
 	cleaned := s.postProcessCompletion(trimmed, plan.current[:plan.params.Position.Character], plan.current)
 	if cleaned == "" {
@@ -255,8 +260,7 @@ func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p Comp
 }
 
 // tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
-func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams, above, below, funcCtx, docStr string, hasExtra bool, extraText string, inParams bool) ([]CompletionItem, bool) {
-	client := s.currentLLMClient()
+func (s *Server) tryProviderNativeCompletion(spec requestSpec, client llm.Client, current string, p CompletionParams, above, below, funcCtx, docStr string, hasExtra bool, extraText string, inParams bool) ([]CompletionItem, bool) {
 	cc, ok := client.(llm.CodeCompleter)
 	if !ok {
 		return nil, false
@@ -271,15 +275,11 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 		"before": before,
 	})
 	lang := ""
-	temp := 0.0
-	if cfg.CodingTemperature != nil {
-		temp = *cfg.CodingTemperature
+	provider := spec.provider
+	if provider == "" {
+		provider = canonicalProvider(cfg.Provider)
 	}
-	prov := ""
-	if client != nil {
-		prov = client.Name()
-	}
-	logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", prov, path)
+	logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", provider, path)
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel2()
 
@@ -290,16 +290,24 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 	}
 	// Count approximate payload sizes: prompt+after sent; first suggestion received
 	sentBytes := len(prompt) + len(after)
-	suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, temp)
+	modelUsed := spec.effectiveModel()
+	if strings.TrimSpace(modelUsed) == "" {
+		modelUsed = client.DefaultModel()
+	}
+	tempVal := 0.0
+	if val, ok := chooseSurfaceTemperature(surfaceCompletion, cfg, provider, spec.modelOverride, spec.fallbackModel); ok {
+		tempVal = val
+	}
+	suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, tempVal)
 	if err == nil && len(suggestions) > 0 {
 		// Update counters and heartbeat
 		s.incSentCounters(sentBytes)
 		s.incRecvCounters(len(suggestions[0]))
 		// Contribute to global stats (provider-native path)
 		if client != nil {
-			_ = stats.Update(ctx2, client.Name(), client.DefaultModel(), sentBytes, len(suggestions[0]))
+			_ = stats.Update(ctx2, client.Name(), modelUsed, sentBytes, len(suggestions[0]))
 		}
-		s.logLLMStats()
+		s.logLLMStats(modelUsed)
 		cleaned := strings.TrimSpace(suggestions[0])
 		if cleaned != "" {
 			cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
@@ -322,7 +330,7 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 		logging.Logf("lsp ", "completion path=codex error=%v (falling back to chat)", err)
 		// Still emit a heartbeat for visibility, even on error
 		s.incSentCounters(sentBytes)
-		s.logLLMStats()
+		s.logLLMStats(modelUsed)
 	}
 	return nil, false
 }

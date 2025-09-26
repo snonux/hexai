@@ -13,3 +13,4 @@ This document shows future items and items in progress. Already completed ones a
 * [/] Review documentation
 * [/] Manual review the code 
 * [ ] ASCIInema: Record and share terminal sessions for demos and bug reports
+* [ ] Release notes: highlight per-surface model overrides once bundled

@@ -16,6 +16,11 @@ type failingReader struct{ err error }
 
 func (f failingReader) Read([]byte) (int, error) { return 0, f.err }
 
+func floatPtr(v float64) *float64 {
+	x := v
+	return &x
+}
+
 func TestReadInput_Combinations(t *testing.T) {
 	// stdin + arg
 	restore, f := setStdin(t, "from-stdin")
@@ -72,7 +77,8 @@ func TestRunChat_StreamAndNonStream(t *testing.T) {
 	// stream path
 	fc := &fakeStreamer{fakeClient: fakeClient{name: "p", model: "m"}, chunks: []string{"H", "i", "!"}}
 	var out, errb bytes.Buffer
-	if err := runChat(context.Background(), fc, buildMessages("hello"), "hello", &out, &errb); err != nil {
+	req := requestArgs{model: fc.DefaultModel()}
+	if err := runChat(context.Background(), fc, req, buildMessages("hello"), "hello", &out, &errb); err != nil {
 		t.Fatalf("stream: %v", err)
 	}
 	if out.String() != "Hi!" || !strings.Contains(errb.String(), "provider=p model=m") {
@@ -82,7 +88,7 @@ func TestRunChat_StreamAndNonStream(t *testing.T) {
 	fc2 := &fakeClient{name: "p2", model: "m2", resp: "Yo"}
 	out.Reset()
 	errb.Reset()
-	if err := runChat(context.Background(), fc2, buildMessages("hello"), "hello", &out, &errb); err != nil {
+	if err := runChat(context.Background(), fc2, requestArgs{model: fc2.DefaultModel()}, buildMessages("hello"), "hello", &out, &errb); err != nil {
 		t.Fatalf("non-stream: %v", err)
 	}
 	if out.String() != "Yo" || !strings.Contains(errb.String(), "provider=p2 model=m2") {
@@ -101,7 +107,7 @@ func (c clientErr) DefaultModel() string { return c.model }
 func TestRunChat_ErrorPaths(t *testing.T) {
 	ctx := context.Background()
 	out, errb := &bytes.Buffer{}, &bytes.Buffer{}
-	if err := runChat(ctx, clientErr{"p", "m"}, buildMessages("hi"), "hi", out, errb); err == nil {
+	if err := runChat(ctx, clientErr{"p", "m"}, requestArgs{model: "m"}, buildMessages("hi"), "hi", out, errb); err == nil {
 		t.Fatalf("expected error from Chat")
 	}
 }
@@ -139,9 +145,39 @@ func TestRun_OpenAI_NoKey_ShowsError(t *testing.T) {
 
 func TestPrintProviderInfo(t *testing.T) {
 	var b bytes.Buffer
-	printProviderInfo(&b, &fakeClient{name: "x", model: "y"})
+	printProviderInfo(&b, &fakeClient{name: "x", model: "y"}, "y")
 	if !strings.Contains(b.String(), "provider=x model=y") {
 		t.Fatalf("missing provider line: %q", b.String())
+	}
+}
+
+func TestBuildCLIRequestArgs_Override(t *testing.T) {
+	cfg := appconfig.App{CLIModel: "override", CLITemperature: floatPtr(0.7), Provider: "openai", CLIProvider: "copilot", CopilotModel: "gpt-4o"}
+	req := buildCLIRequestArgs(cfg, &fakeClient{name: "copilot", model: "default"})
+	if req.model != "override" {
+		t.Fatalf("expected model override, got %q", req.model)
+	}
+	var opts llm.Options
+	for _, o := range req.options {
+		o(&opts)
+	}
+	if opts.Model != "override" || opts.Temperature != 0.7 {
+		t.Fatalf("unexpected options: %+v", opts)
+	}
+}
+
+func TestBuildCLIRequestArgs_Gpt5Temp(t *testing.T) {
+	cfg := appconfig.App{Provider: "openai", CodingTemperature: floatPtr(0.2)}
+	req := buildCLIRequestArgs(cfg, &fakeClient{name: "openai", model: "gpt-5.1"})
+	if req.model != "gpt-5.1" {
+		t.Fatalf("expected fallback model, got %q", req.model)
+	}
+	var opts llm.Options
+	for _, o := range req.options {
+		o(&opts)
+	}
+	if opts.Temperature != 1.0 {
+		t.Fatalf("expected temp 1.0, got %v", opts.Temperature)
 	}
 }
 

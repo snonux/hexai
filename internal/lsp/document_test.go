@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/llm"
 )
 
 func newTestServer() *Server {
@@ -35,9 +36,11 @@ func newTestServer() *Server {
 		PromptCodeActionGoTestUser:        "Function under test:\n{{function}}",
 	}
 	return &Server{
-		logger: log.New(io.Discard, "", 0),
-		docs:   make(map[string]*document),
-		cfg:    cfg,
+		logger:      log.New(io.Discard, "", 0),
+		docs:        make(map[string]*document),
+		cfg:         cfg,
+		altClients:  make(map[string]llm.Client),
+		llmProvider: canonicalProvider(cfg.Provider),
 	}
 }
 

@@ -41,12 +41,19 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(cfg.CustomActions) > 0 {
 		chooseActionFn = func() (ActionKind, error) { return RunTUIWithCustom(cfg.CustomActions, cfg.TmuxCustomMenuHotkey) }
 	}
+	if providerOverride := strings.TrimSpace(cfg.CodeActionProvider); providerOverride != "" {
+		cfg.Provider = providerOverride
+	}
 	cli, err := newClientFromApp(cfg)
 	if err != nil {
 		fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
-	_ = tmux.SetStatus(tmux.FormatLLMStartStatus(cli.Name(), cli.DefaultModel()))
+	primaryModel := strings.TrimSpace(reqOptsFrom(cfg).model)
+	if primaryModel == "" {
+		primaryModel = cli.DefaultModel()
+	}
+	_ = tmux.SetStatus(tmux.FormatLLMStartStatus(cli.Name(), primaryModel))
 	var client chatDoer = cli
 	parts, err := ParseInput(stdin)
 	if err != nil {

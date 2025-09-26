@@ -15,17 +15,22 @@ func (f fakeClient) Chat(_ context.Context, _ []llm.Message, _ ...llm.RequestOpt
 func (f fakeClient) Name() string         { return f.name }
 func (f fakeClient) DefaultModel() string { return f.model }
 
-func TestLlmRequestOpts_Gpt5_ForcesTemp1(t *testing.T) {
+func TestRequestSpec_Gpt5_ForcesTemp1(t *testing.T) {
 	s := newTestServer()
 	one := 0.2
 	s.cfg.CodingTemperature = &one
 	s.llmClient = fakeClient{name: "openai", model: "gpt-5.0"}
-	opts := s.llmRequestOpts()
+	s.cfg.OpenAIModel = "gpt-5.0"
+
+	spec := s.buildRequestSpec(surfaceCompletion)
 	var got llm.Options
-	for _, o := range opts {
+	for _, o := range spec.options {
 		o(&got)
 	}
 	if got.Temperature != 1.0 {
 		t.Fatalf("expected temp 1.0 for gpt-5, got %v", got.Temperature)
+	}
+	if model := spec.effectiveModel(); model != "gpt-5.0" {
+		t.Fatalf("expected fallback model gpt-5.0, got %q", model)
 	}
 }

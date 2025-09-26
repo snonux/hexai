@@ -25,11 +25,52 @@ type chatDoer interface {
 
 type providerNamer interface{ Name() string }
 
+type requestArgs struct {
+	model   string
+	options []llm.RequestOption
+}
+
 func providerOf(c any) string {
 	if n, ok := c.(providerNamer); ok {
 		return n.Name()
 	}
 	return "llm"
+}
+
+func canonicalProvider(name string) string {
+	p := strings.ToLower(strings.TrimSpace(name))
+	if p == "" {
+		return "openai"
+	}
+	return p
+}
+
+func defaultModelForProvider(cfg appconfig.App, provider string) string {
+	switch provider {
+	case "ollama":
+		return cfg.OllamaModel
+	case "copilot":
+		return cfg.CopilotModel
+	default:
+		return cfg.OpenAIModel
+	}
+}
+
+func selectActionTemperature(cfg appconfig.App, provider, model string) (float64, bool) {
+	if cfg.CodeActionTemperature != nil {
+		return *cfg.CodeActionTemperature, true
+	}
+	if cfg.CodingTemperature != nil {
+		temp := *cfg.CodingTemperature
+		if provider == "openai" && strings.HasPrefix(strings.ToLower(model), "gpt-5") && temp == 0.2 {
+			temp = 1.0
+		}
+		return temp, true
+	}
+	if provider == "openai" && strings.HasPrefix(strings.ToLower(model), "gpt-5") {
+		return 1.0, true
+	}
+	return 0, false
 }
 
 func runRewrite(ctx context.Context, cfg appconfig.App, client chatDoer, instruction, selection string) (string, error) {
@@ -118,9 +159,9 @@ func runOnce(ctx context.Context, client chatDoer, sys, user string) (string, er
 	return out, nil
 }
 
-func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, opts []llm.RequestOption) (string, error) {
+func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, req requestArgs) (string, error) {
 	msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-	txt, err := client.Chat(ctx, msgs, opts...)
+	txt, err := client.Chat(ctx, msgs, req.options...)
 	if err != nil {
 		return "", err
 	}
@@ -131,7 +172,11 @@ func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, opt
 		sent += len(m.Content)
 	}
 	recv := len(out)
-	_ = stats.Update(ctx, providerOf(client), client.DefaultModel(), sent, recv)
+	model := strings.TrimSpace(req.model)
+	if model == "" {
+		model = client.DefaultModel()
+	}
+	_ = stats.Update(ctx, providerOf(client), model, sent, recv)
 	if snap, err := stats.TakeSnapshot(); err == nil {
 		minsWin := snap.Window.Minutes()
 		if minsWin <= 0 {
@@ -139,30 +184,39 @@ func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, opt
 		}
 		scopeReqs := int64(0)
 		if pe, ok := snap.Providers[providerOf(client)]; ok {
-			if mc, ok2 := pe.Models[client.DefaultModel()]; ok2 {
+			if mc, ok2 := pe.Models[model]; ok2 {
 				scopeReqs = mc.Reqs
 			}
 		}
 		scopeRPM := float64(scopeReqs) / minsWin
-		_ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, providerOf(client), client.DefaultModel(), scopeRPM, scopeReqs, snap.Window))
+		_ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, providerOf(client), model, scopeRPM, scopeReqs, snap.Window))
 	}
 	return out, nil
 }
 
 // reqOptsFrom builds LLM request options similar to LSP behavior.
-func reqOptsFrom(cfg appconfig.App) []llm.RequestOption {
-	opts := []llm.RequestOption{llm.WithMaxTokens(cfg.MaxTokens)}
-	// Apply temperature, with special-case for gpt-5 (default temp must be 1.0)
-	if cfg.CodingTemperature != nil {
-		temp := *cfg.CodingTemperature
-		prov := strings.ToLower(strings.TrimSpace(cfg.Provider))
-		model := strings.ToLower(strings.TrimSpace(cfg.OpenAIModel))
-		if prov == "openai" && strings.HasPrefix(model, "gpt-5") {
-			temp = 1.0
-		}
+func reqOptsFrom(cfg appconfig.App) requestArgs {
+	opts := make([]llm.RequestOption, 0, 3)
+	if cfg.MaxTokens > 0 {
+		opts = append(opts, llm.WithMaxTokens(cfg.MaxTokens))
+	}
+	provider := canonicalProvider(cfg.Provider)
+	if strings.TrimSpace(cfg.CodeActionProvider) != "" {
+		provider = canonicalProvider(cfg.CodeActionProvider)
+	}
+	override := strings.TrimSpace(cfg.CodeActionModel)
+	fallback := strings.TrimSpace(defaultModelForProvider(cfg, provider))
+	effective := override
+	if effective == "" {
+		effective = fallback
+	}
+	if override != "" {
+		opts = append(opts, llm.WithModel(override))
+	}
+	if temp, ok := selectActionTemperature(cfg, provider, effective); ok {
 		opts = append(opts, llm.WithTemperature(temp))
 	}
-	return opts
+	return requestArgs{model: effective, options: opts}
 }
 
 // Timeout helpers to mirror LSP behavior.

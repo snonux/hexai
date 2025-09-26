@@ -161,22 +161,23 @@ func (s *Server) detectAndHandleChat(uri string) {
 			}
 			return
 		}
-		if s.currentLLMClient() == nil {
-			continue
-		}
 		go func(prompt string, remove int) {
 			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 			defer cancel()
 			// Build messages with history and context_mode aware extras.
 			pos := Position{Line: lineIdx, Character: lastIdx + 1}
 			msgs := s.buildChatMessages(uri, pos, prompt)
-			opts := s.llmRequestOpts()
-			client := s.currentLLMClient()
+			spec := s.buildRequestSpec(surfaceChat)
+			client := s.clientFor(spec)
 			if client == nil {
 				return
 			}
-			logging.Logf("lsp ", "chat llm=requesting model=%s", client.DefaultModel())
-			text, err := s.chatWithStats(ctx, msgs, opts...)
+			modelUsed := spec.effectiveModel()
+			if strings.TrimSpace(modelUsed) == "" {
+				modelUsed = client.DefaultModel()
+			}
+			logging.Logf("lsp ", "chat llm=requesting model=%s", modelUsed)
+			text, err := s.chatWithStats(ctx, surfaceChat, spec, msgs)
 			if err != nil {
 				logging.Logf("lsp ", "chat llm error: %v", err)
 				return

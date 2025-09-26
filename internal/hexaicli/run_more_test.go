@@ -26,7 +26,8 @@ func TestRunChat_Streaming(t *testing.T) {
 	var out, errw bytes.Buffer
 	input := "hello"
 	msgs := []llm.Message{{Role: "user", Content: input}}
-	if err := runChat(context.Background(), streamClient{}, msgs, input, &out, &errw); err != nil {
+	req := requestArgs{model: "m"}
+	if err := runChat(context.Background(), streamClient{}, req, msgs, input, &out, &errw); err != nil {
 		t.Fatalf("runChat failed: %v", err)
 	}
 	if out.String() != "AB" {

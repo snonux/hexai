@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,8 @@ type Server struct {
 	configStore *runtimeconfig.Store
 	cfg         appconfig.App
 	llmClient   llm.Client
+	llmProvider string
+	altClients  map[string]llm.Client
 	lastInput   time.Time
 	// LLM request stats
 	llmReqTotal       int64
@@ -186,6 +189,12 @@ func (s *Server) applyOptions(opts ServerOptions) {
 		}
 	}
 	s.llmClient = opts.Client
+	if opts.Client != nil {
+		s.llmProvider = canonicalProvider(opts.Client.Name())
+	} else {
+		s.llmProvider = canonicalProvider(s.cfg.Provider)
+	}
+	s.altClients = make(map[string]llm.Client)
 }
 
 // ApplyOptions updates the server's configuration at runtime.
@@ -197,6 +206,82 @@ func (s *Server) currentLLMClient() llm.Client {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.llmClient
+}
+
+func newClientForProvider(cfg appconfig.App, provider string) (llm.Client, error) {
+	llmCfg := llm.Config{
+		Provider:           provider,
+		OpenAIBaseURL:      cfg.OpenAIBaseURL,
+		OpenAIModel:        cfg.OpenAIModel,
+		OpenAITemperature:  cfg.OpenAITemperature,
+		OllamaBaseURL:      cfg.OllamaBaseURL,
+		OllamaModel:        cfg.OllamaModel,
+		OllamaTemperature:  cfg.OllamaTemperature,
+		CopilotBaseURL:     cfg.CopilotBaseURL,
+		CopilotModel:       cfg.CopilotModel,
+		CopilotTemperature: cfg.CopilotTemperature,
+	}
+	oaKey := strings.TrimSpace(os.Getenv("HEXAI_OPENAI_API_KEY"))
+	if oaKey == "" {
+		oaKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+	}
+	cpKey := strings.TrimSpace(os.Getenv("HEXAI_COPILOT_API_KEY"))
+	if cpKey == "" {
+		cpKey = strings.TrimSpace(os.Getenv("COPILOT_API_KEY"))
+	}
+	return llm.NewFromConfig(llmCfg, oaKey, cpKey)
+}
+
+func (s *Server) clientFor(spec requestSpec) llm.Client {
+	provider := canonicalProvider(spec.provider)
+	s.mu.RLock()
+	baseProvider := s.llmProvider
+	baseClient := s.llmClient
+	if baseClient != nil && strings.TrimSpace(baseProvider) == "" {
+		baseProvider = canonicalProvider(baseClient.Name())
+	}
+	if provider == "" {
+		provider = baseProvider
+	}
+	if provider == baseProvider && baseClient != nil {
+		s.mu.RUnlock()
+		return baseClient
+	}
+	if c, ok := s.altClients[provider]; ok {
+		s.mu.RUnlock()
+		return c
+	}
+	cfg := s.cfg
+	store := s.configStore
+	s.mu.RUnlock()
+	if store != nil {
+		cfg = store.Snapshot()
+	}
+	client, err := newClientForProvider(cfg, provider)
+	if err != nil {
+		logging.Logf("lsp ", "failed to build client for provider=%s: %v", provider, err)
+		if baseClient != nil {
+			return baseClient
+		}
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if provider == s.llmProvider {
+		if s.llmClient == nil {
+			s.llmClient = client
+			s.llmProvider = provider
+		}
+		return s.llmClient
+	}
+	if existing, ok := s.altClients[provider]; ok {
+		return existing
+	}
+	if s.altClients == nil {
+		s.altClients = make(map[string]llm.Client)
+	}
+	s.altClients[provider] = client
+	return client
 }
 
 func (s *Server) currentConfig() appconfig.App {

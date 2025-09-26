@@ -27,6 +27,21 @@ inline_close = ">"                  # single-character
 chat_suffix   = ">"                 # single-character
 chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 
+[models]
+# Shorthand string form per surface
+# completion = "gpt-4o-mini"
+# chat = "gpt-4.1"
+
+[models.code_action]
+# model = "gpt-4o"
+# provider = "copilot"
+# temperature = 0.4
+
+[models.cli]
+# model = "gpt-4.1"
+# provider = "openai"
+# temperature = 0.6
+
 [provider]
 name = "openai"                      # openai | copilot | ollama
 

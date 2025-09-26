@@ -88,6 +88,24 @@ completion_throttle_ms = 300
 [triggers]
 trigger_characters = [".", ":"]
 
+[models.completion]
+model = "gpt-file-complete"
+provider = "openai"
+
+[models.code_action]
+model = "gpt-file-action"
+temperature = 0.45
+provider = "copilot"
+
+[models.chat]
+model = "gpt-file-chat"
+provider = "openai"
+
+[models.cli]
+model = "gpt-file-cli"
+temperature = 0.15
+provider = "ollama"
+
 [provider]
 name = "openai"
 
@@ -106,6 +124,10 @@ base_url = "http://copilot"
 model = "ghost"
 temperature = 0.0
 `)
+
+	if _, err := loadFromFile(cfgPath, newLogger()); err != nil {
+		t.Fatalf("loadFromFile: %v", err)
+	}
 
 	// Env overrides take precedence
 	withEnv(t, "HEXAI_MAX_TOKENS", "321")
@@ -128,6 +150,18 @@ temperature = 0.0
 	withEnv(t, "HEXAI_COPILOT_BASE_URL", "http://copilot-override")
 	withEnv(t, "HEXAI_COPILOT_MODEL", "ghost-override")
 	withEnv(t, "HEXAI_COPILOT_TEMPERATURE", "0.3")
+	withEnv(t, "HEXAI_MODEL_COMPLETION", "env-completion")
+	withEnv(t, "HEXAI_TEMPERATURE_COMPLETION", "0.33")
+	withEnv(t, "HEXAI_PROVIDER_COMPLETION", "copilot")
+	withEnv(t, "HEXAI_MODEL_CODE_ACTION", "env-action")
+	withEnv(t, "HEXAI_TEMPERATURE_CODE_ACTION", "0.55")
+	withEnv(t, "HEXAI_PROVIDER_CODE_ACTION", "openai")
+	withEnv(t, "HEXAI_MODEL_CHAT", "env-chat")
+	withEnv(t, "HEXAI_TEMPERATURE_CHAT", "0.66")
+	withEnv(t, "HEXAI_PROVIDER_CHAT", "copilot")
+	withEnv(t, "HEXAI_MODEL_CLI", "env-cli")
+	withEnv(t, "HEXAI_TEMPERATURE_CLI", "0.77")
+	withEnv(t, "HEXAI_PROVIDER_CLI", "ollama")
 
 	logger := newLogger()
 	cfg := Load(logger)
@@ -158,11 +192,35 @@ temperature = 0.0
 	if cfg.CopilotBaseURL != "http://copilot-override" || cfg.CopilotModel != "ghost-override" || cfg.CopilotTemperature == nil || *cfg.CopilotTemperature != 0.3 {
 		t.Fatalf("copilot overrides not applied: %+v", cfg)
 	}
+	if cfg.CompletionModel != "env-completion" || cfg.CompletionTemperature == nil || *cfg.CompletionTemperature != 0.33 {
+		t.Fatalf("completion overrides not applied: model=%q temp=%v", cfg.CompletionModel, cfg.CompletionTemperature)
+	}
+	if cfg.CompletionProvider != "copilot" {
+		t.Fatalf("completion provider override not applied: %q", cfg.CompletionProvider)
+	}
+	if cfg.CodeActionModel != "env-action" || cfg.CodeActionTemperature == nil || *cfg.CodeActionTemperature != 0.55 {
+		t.Fatalf("code action overrides not applied: model=%q temp=%v", cfg.CodeActionModel, cfg.CodeActionTemperature)
+	}
+	if cfg.CodeActionProvider != "openai" {
+		t.Fatalf("code action provider override not applied: %q", cfg.CodeActionProvider)
+	}
+	if cfg.ChatModel != "env-chat" || cfg.ChatTemperature == nil || *cfg.ChatTemperature != 0.66 {
+		t.Fatalf("chat overrides not applied: model=%q temp=%v", cfg.ChatModel, cfg.ChatTemperature)
+	}
+	if cfg.ChatProvider != "copilot" {
+		t.Fatalf("chat provider override not applied: %q", cfg.ChatProvider)
+	}
+	if cfg.CLIModel != "env-cli" || cfg.CLITemperature == nil || *cfg.CLITemperature != 0.77 {
+		t.Fatalf("cli overrides not applied: model=%q temp=%v", cfg.CLIModel, cfg.CLITemperature)
+	}
+	if cfg.CLIProvider != "ollama" {
+		t.Fatalf("cli provider override not applied: %q", cfg.CLIProvider)
+	}
 
 	// Ensure file values would have applied absent env
 	// Spot-check: reset env and reload
 	for _, k := range []string{
-		"HEXAI_MAX_TOKENS", "HEXAI_CONTEXT_MODE", "HEXAI_CONTEXT_WINDOW_LINES", "HEXAI_MAX_CONTEXT_TOKENS", "HEXAI_LOG_PREVIEW_LIMIT", "HEXAI_CODING_TEMPERATURE", "HEXAI_MANUAL_INVOKE_MIN_PREFIX", "HEXAI_COMPLETION_DEBOUNCE_MS", "HEXAI_COMPLETION_THROTTLE_MS", "HEXAI_TRIGGER_CHARACTERS", "HEXAI_PROVIDER", "HEXAI_OPENAI_BASE_URL", "HEXAI_OPENAI_MODEL", "HEXAI_OPENAI_TEMPERATURE", "HEXAI_OLLAMA_BASE_URL", "HEXAI_OLLAMA_MODEL", "HEXAI_OLLAMA_TEMPERATURE", "HEXAI_COPILOT_BASE_URL", "HEXAI_COPILOT_MODEL", "HEXAI_COPILOT_TEMPERATURE",
+		"HEXAI_MAX_TOKENS", "HEXAI_CONTEXT_MODE", "HEXAI_CONTEXT_WINDOW_LINES", "HEXAI_MAX_CONTEXT_TOKENS", "HEXAI_LOG_PREVIEW_LIMIT", "HEXAI_CODING_TEMPERATURE", "HEXAI_MANUAL_INVOKE_MIN_PREFIX", "HEXAI_COMPLETION_DEBOUNCE_MS", "HEXAI_COMPLETION_THROTTLE_MS", "HEXAI_TRIGGER_CHARACTERS", "HEXAI_PROVIDER", "HEXAI_OPENAI_BASE_URL", "HEXAI_OPENAI_MODEL", "HEXAI_OPENAI_TEMPERATURE", "HEXAI_OLLAMA_BASE_URL", "HEXAI_OLLAMA_MODEL", "HEXAI_OLLAMA_TEMPERATURE", "HEXAI_COPILOT_BASE_URL", "HEXAI_COPILOT_MODEL", "HEXAI_COPILOT_TEMPERATURE", "HEXAI_MODEL_COMPLETION", "HEXAI_TEMPERATURE_COMPLETION", "HEXAI_MODEL_CODE_ACTION", "HEXAI_TEMPERATURE_CODE_ACTION", "HEXAI_MODEL_CHAT", "HEXAI_TEMPERATURE_CHAT", "HEXAI_MODEL_CLI", "HEXAI_TEMPERATURE_CLI", "HEXAI_PROVIDER_COMPLETION", "HEXAI_PROVIDER_CODE_ACTION", "HEXAI_PROVIDER_CHAT", "HEXAI_PROVIDER_CLI",
 	} {
 		t.Setenv(k, "")
 	}
@@ -175,6 +233,30 @@ temperature = 0.0
 	}
 	if cfg2.OpenAIBaseURL != "https://api.example" || cfg2.OpenAIModel != "gpt-x" || cfg2.OpenAITemperature == nil || *cfg2.OpenAITemperature != 0.0 {
 		t.Fatalf("file merge (openai) not applied: %+v", cfg2)
+	}
+	if cfg2.CompletionModel != "gpt-file-complete" || cfg2.CompletionTemperature != nil {
+		t.Fatalf("file merge (completion) not applied: %+v", cfg2)
+	}
+	if cfg2.CompletionProvider != "openai" {
+		t.Fatalf("file merge (completion provider) not applied: %q", cfg2.CompletionProvider)
+	}
+	if cfg2.CodeActionModel != "gpt-file-action" || cfg2.CodeActionTemperature == nil || *cfg2.CodeActionTemperature != 0.45 {
+		t.Fatalf("file merge (code action) not applied: %+v", cfg2)
+	}
+	if cfg2.CodeActionProvider != "copilot" {
+		t.Fatalf("file merge (code action provider) not applied: %q", cfg2.CodeActionProvider)
+	}
+	if cfg2.ChatModel != "gpt-file-chat" || cfg2.ChatTemperature != nil {
+		t.Fatalf("file merge (chat) not applied: %+v", cfg2)
+	}
+	if cfg2.ChatProvider != "openai" {
+		t.Fatalf("file merge (chat provider) not applied: %q", cfg2.ChatProvider)
+	}
+	if cfg2.CLIModel != "gpt-file-cli" || cfg2.CLITemperature == nil || *cfg2.CLITemperature != 0.15 {
+		t.Fatalf("file merge (cli) not applied: %+v", cfg2)
+	}
+	if cfg2.CLIProvider != "ollama" {
+		t.Fatalf("file merge (cli provider) not applied: %q", cfg2.CLIProvider)
 	}
 }
 

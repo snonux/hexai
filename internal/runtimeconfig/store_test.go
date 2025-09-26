@@ -94,3 +94,18 @@ func TestStoreReloadLogsSummary(t *testing.T) {
 		t.Fatalf("expected change details in log, got %q", logOutput)
 	}
 }
+
+func TestDiff_SurfaceModel(t *testing.T) {
+	oldCfg := appconfig.App{CompletionModel: "gpt-4o", CompletionProvider: "openai"}
+	newCfg := appconfig.App{CompletionModel: "gpt-4.1", CompletionProvider: "copilot"}
+	changes := Diff(oldCfg, newCfg)
+	if len(changes) != 2 {
+		t.Fatalf("expected single change, got %+v", changes)
+	}
+	if changes[0].Key != "completion_model" || changes[0].Old != "gpt-4o" || changes[0].New != "gpt-4.1" {
+		t.Fatalf("unexpected diff entry: %+v", changes[0])
+	}
+	if changes[1].Key != "completion_provider" || changes[1].Old != "openai" || changes[1].New != "copilot" {
+		t.Fatalf("unexpected provider diff: %+v", changes[1])
+	}
+}

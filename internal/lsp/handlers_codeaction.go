@@ -245,8 +245,8 @@ func (s *Server) completeCodeAction(ca CodeAction, uri string, rng Range, sys, u
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-	opts := s.llmRequestOpts()
-	if text, err := s.chatWithStats(ctx, messages, opts...); err == nil {
+	spec := s.buildRequestSpec(surfaceCodeAction)
+	if text, err := s.chatWithStats(ctx, surfaceCodeAction, spec, messages); err == nil {
 		if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
 			edit := WorkspaceEdit{Changes: map[string][]TextEdit{uri: {{Range: rng, NewText: out}}}}
 			ca.Edit = &edit
@@ -555,22 +555,20 @@ func findGoFunctionAtLine(lines []string, idx int) (int, int) {
 
 // generateGoTestFunction uses LLM to produce a test function; falls back to a stub when unavailable.
 func (s *Server) generateGoTestFunction(funcCode string) string {
-	if client := s.currentLLMClient(); client != nil {
-		cfg := s.currentConfig()
-		sys := cfg.PromptCodeActionGoTestSystem
-		user := renderTemplate(cfg.PromptCodeActionGoTestUser, map[string]string{"function": funcCode})
-		ctx, cancel := context.WithTimeout(context.Background(), 18*time.Second)
-		defer cancel()
-		messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-		opts := s.llmRequestOpts()
-		if out, err := s.chatWithStats(ctx, messages, opts...); err == nil {
-			cleaned := strings.TrimSpace(stripCodeFences(out))
-			if cleaned != "" {
-				return cleaned
-			}
-		} else {
-			logging.Logf("lsp ", "codeAction go_test llm error: %v", err)
+	spec := s.buildRequestSpec(surfaceCodeAction)
+	cfg := s.currentConfig()
+	sys := cfg.PromptCodeActionGoTestSystem
+	user := renderTemplate(cfg.PromptCodeActionGoTestUser, map[string]string{"function": funcCode})
+	ctx, cancel := context.WithTimeout(context.Background(), 18*time.Second)
+	defer cancel()
+	messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
+	if out, err := s.chatWithStats(ctx, surfaceCodeAction, spec, messages); err == nil {
+		cleaned := strings.TrimSpace(stripCodeFences(out))
+		if cleaned != "" {
+			return cleaned
 		}
+	} else {
+		logging.Logf("lsp ", "codeAction go_test llm error: %v", err)
 	}
 	// Fallback stub
 	name := deriveGoFuncName(funcCode)

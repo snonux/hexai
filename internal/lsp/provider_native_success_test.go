@@ -21,10 +21,11 @@ func (fakeCompleterOk) CodeCompletion(context.Context, string, string, int, stri
 func TestProviderNativeCompletion_Success(t *testing.T) {
 	s := newTestServer()
 	s.llmClient = fakeCompleterOk{}
+	spec := s.buildRequestSpec(surfaceCompletion)
 	// current line with dot trigger; position after dot
 	current := "fmt."
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x.go"}, Position: Position{Line: 0, Character: len(current)}}
-	items, ok := s.tryProviderNativeCompletion(current, p, "", "", "func f(){}", "doc", false, "", false)
+	items, ok := s.tryProviderNativeCompletion(spec, s.llmClient, current, p, "", "", "func f(){}", "doc", false, "", false)
 	if !ok || len(items) == 0 {
 		t.Fatalf("expected provider-native items")
 	}
@@ -47,9 +48,10 @@ func (fakeCompleterIndent) CodeCompletion(context.Context, string, string, int, 
 func TestProviderNativeCompletion_IndentWithDoubleOpen(t *testing.T) {
 	s := newTestServer()
 	s.llmClient = fakeCompleterIndent{}
+	spec := s.buildRequestSpec(surfaceCompletion)
 	current := "  >>do>" // leading indent + double-open marker
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x.go"}, Position: Position{Line: 0, Character: len(current)}}
-	items, ok := s.tryProviderNativeCompletion(current, p, "", "", "func f(){}", "doc", false, "", false)
+	items, ok := s.tryProviderNativeCompletion(spec, s.llmClient, current, p, "", "", "func f(){}", "doc", false, "", false)
 	if !ok || len(items) == 0 {
 		t.Fatalf("expected provider-native items")
 	}
@@ -80,12 +82,13 @@ func TestProviderNativeCompletion_UsesPromptTemplate(t *testing.T) {
 	cfg := s.cfg
 	cfg.PromptNativeCompletion = "NATIVE {{path}} {{before}}"
 	s.cfg = cfg
+	spec := s.buildRequestSpec(surfaceCompletion)
 	uri := "file:///x.go"
 	s.setDocument(uri, "AAA\nBBB\nCCC")
 	current := "fmt."
 	// Cursor at line 1, char 1 -> before should be "AAA\nB"
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: 1, Character: 1}}
-	if _, ok := s.tryProviderNativeCompletion(current, p, "", "", "func f(){}", "doc", false, "", false); !ok {
+	if _, ok := s.tryProviderNativeCompletion(spec, s.llmClient, current, p, "", "", "func f(){}", "doc", false, "", false); !ok {
 		t.Fatalf("expected provider-native path")
 	}
 	if cap.lastPrompt == "" {
