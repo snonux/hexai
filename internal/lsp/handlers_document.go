@@ -91,7 +91,11 @@ func (s *Server) detectAndHandleChat(uri string) {
 		return
 	}
 	suffix, prefixes, _ := s.chatConfig()
+	_, _, openChar, closeChar := s.inlineMarkers()
 	for i, raw := range d.lines {
+		if lineHasInlinePrompt(raw, openChar, closeChar) {
+			continue
+		}
 		// Find last non-space character index
 		j := len(raw) - 1
 		for j >= 0 {
