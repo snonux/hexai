@@ -80,3 +80,42 @@ func TestHandleReloadCommandReloadsStore(t *testing.T) {
 		t.Fatalf("expected summary logged, got %q", logBuf.String())
 	}
 }
+
+func TestDetectAndHandleChatExecutesSlashCommand(t *testing.T) {
+	tmp := t.TempDir()
+	configDir := filepath.Join(tmp, "hexai")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	configPath := filepath.Join(configDir, "config.toml")
+	if err := os.WriteFile(configPath, []byte("[general]\nmax_tokens = 128\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("HEXAI_MAX_TOKENS", "")
+
+	var logBuf bytes.Buffer
+	logger := log.New(&logBuf, "", 0)
+
+	initial := appconfig.Load(logger)
+	store := runtimeconfig.New(initial)
+
+	s := newTestServer()
+	s.logger = logger
+	s.configStore = store
+	var out bytes.Buffer
+	s.out = &out
+
+	uri := "file:///cmd.go"
+	s.setDocument(uri, "/reload>\n")
+
+	s.detectAndHandleChat(uri)
+
+	outStr := out.String()
+	if !strings.Contains(outStr, "Reloaded config") {
+		t.Fatalf("expected reload summary in applyEdit payload, got %q", outStr)
+	}
+	if !strings.Contains(logBuf.String(), "Reloaded config") {
+		t.Fatalf("expected reload summary logged, got %q", logBuf.String())
+	}
+}

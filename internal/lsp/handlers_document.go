@@ -104,28 +104,37 @@ func (s *Server) detectAndHandleChat(uri string) {
 		if j < 0 {
 			continue
 		}
-		// Check suffix/prefix according to configuration
+		// Check suffix and derive the prompt text before validating prefixes
 		if suffix == "" {
 			continue
 		}
-		// Last non-space must equal suffix
 		if string(raw[j]) != suffix {
 			continue
 		}
-		// Require at least one char before suffix and that char must be in chatPrefixes
-		if j < 1 {
+		removeCount := len(suffix)
+		base := raw[:j+1-removeCount]
+		prompt := strings.TrimSpace(base)
+		if prompt == "" {
 			continue
 		}
-		prev := string(raw[j-1])
-		isTrigger := false
-		for _, pfx := range prefixes {
-			if prev == pfx {
-				isTrigger = true
-				break
+		// Slash commands (`/foo>`) do not require a prefix trigger.
+		isCommand := strings.HasPrefix(prompt, "/")
+		if !isCommand {
+			// Require at least one char before suffix and that char must be in chatPrefixes
+			if j < 1 {
+				continue
 			}
-		}
-		if !isTrigger {
-			continue
+			prev := string(raw[j-1])
+			match := false
+			for _, pfx := range prefixes {
+				if prev == pfx {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
+			}
 		}
 		// Avoid double-answering: if the next non-empty line starts with '>' we skip.
 		k := i + 1
@@ -133,13 +142,6 @@ func (s *Server) detectAndHandleChat(uri string) {
 			k++
 		}
 		if k < len(d.lines) && strings.HasPrefix(strings.TrimSpace(d.lines[k]), ">") {
-			continue
-		}
-		// Derive prompt by removing only the trailing '>'
-		removeCount := len(suffix)
-		base := raw[:j+1-removeCount]
-		prompt := strings.TrimSpace(base)
-		if prompt == "" {
 			continue
 		}
 		lineIdx := i
