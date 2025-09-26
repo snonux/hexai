@@ -151,13 +151,13 @@ func TestPrintProviderInfo(t *testing.T) {
 	}
 }
 
-func TestBuildCLIRequestArgs_Override(t *testing.T) {
+func TestBuildCLIRequest_Override(t *testing.T) {
 	cfg := appconfig.App{
 		Provider:     "openai",
 		CopilotModel: "gpt-4o",
-		CLIConfigs:   []appconfig.SurfaceConfig{{Provider: "copilot", Model: "override", Temperature: floatPtr(0.7)}},
 	}
-	req := buildCLIRequestArgs(cfg, &fakeClient{name: "copilot", model: "default"})
+	entry := appconfig.SurfaceConfig{Provider: "copilot", Model: "override", Temperature: floatPtr(0.7)}
+	req := buildCLIRequest(entry, "copilot", cfg, &fakeClient{name: "copilot", model: "default"})
 	if req.model != "override" {
 		t.Fatalf("expected model override, got %q", req.model)
 	}
@@ -170,9 +170,10 @@ func TestBuildCLIRequestArgs_Override(t *testing.T) {
 	}
 }
 
-func TestBuildCLIRequestArgs_Gpt5Temp(t *testing.T) {
+func TestBuildCLIRequest_Gpt5Temp(t *testing.T) {
 	cfg := appconfig.App{Provider: "openai", CodingTemperature: floatPtr(0.2)}
-	req := buildCLIRequestArgs(cfg, &fakeClient{name: "openai", model: "gpt-5.1"})
+	entry := appconfig.SurfaceConfig{}
+	req := buildCLIRequest(entry, "openai", cfg, &fakeClient{name: "openai", model: "gpt-5.1"})
 	if req.model != "gpt-5.1" {
 		t.Fatalf("expected fallback model, got %q", req.model)
 	}
@@ -182,6 +183,45 @@ func TestBuildCLIRequestArgs_Gpt5Temp(t *testing.T) {
 	}
 	if opts.Temperature != 1.0 {
 		t.Fatalf("expected temp 1.0, got %v", opts.Temperature)
+	}
+}
+
+func TestBuildCLIJobs_MultiEntries(t *testing.T) {
+	old := newClientFromApp
+	defer func() { newClientFromApp = old }()
+	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
+		model := cfg.OpenAIModel
+		if cfg.Provider == "copilot" {
+			model = cfg.CopilotModel
+		}
+		if cfg.Provider == "ollama" {
+			model = cfg.OllamaModel
+		}
+		if strings.TrimSpace(model) == "" {
+			model = "default"
+		}
+		return &fakeClient{name: cfg.Provider, model: model}, nil
+	}
+	cfg := appconfig.App{
+		Provider:    "ollama",
+		OllamaModel: "llama3",
+		CLIConfigs: []appconfig.SurfaceConfig{
+			{Provider: "openai", Model: "gpt-4o"},
+			{Provider: "copilot", Model: "cpt"},
+		},
+	}
+	jobs, err := buildCLIJobs(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(jobs) != 2 {
+		t.Fatalf("expected 2 jobs, got %d", len(jobs))
+	}
+	if jobs[0].provider != "openai" || jobs[0].req.model != "gpt-4o" {
+		t.Fatalf("unexpected first job: %+v", jobs[0])
+	}
+	if jobs[1].provider != "copilot" || jobs[1].req.model != "cpt" {
+		t.Fatalf("unexpected second job: %+v", jobs[1])
 	}
 }
 

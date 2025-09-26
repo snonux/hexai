@@ -257,6 +257,28 @@ func (s *Server) clientFor(spec requestSpec) llm.Client {
 	if store != nil {
 		cfg = store.Snapshot()
 	}
+	cfg.Provider = provider
+	modelOverride := strings.TrimSpace(spec.entry.Model)
+	switch provider {
+	case "openai":
+		if modelOverride != "" {
+			cfg.OpenAIModel = modelOverride
+		} else if spec.fallbackModel != "" {
+			cfg.OpenAIModel = spec.fallbackModel
+		}
+	case "copilot":
+		if modelOverride != "" {
+			cfg.CopilotModel = modelOverride
+		} else if spec.fallbackModel != "" {
+			cfg.CopilotModel = spec.fallbackModel
+		}
+	case "ollama":
+		if modelOverride != "" {
+			cfg.OllamaModel = modelOverride
+		} else if spec.fallbackModel != "" {
+			cfg.OllamaModel = spec.fallbackModel
+		}
+	}
 	client, err := newClientForProvider(cfg, provider)
 	if err != nil {
 		logging.Logf("lsp ", "failed to build client for provider=%s: %v", provider, err)

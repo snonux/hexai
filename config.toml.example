@@ -44,6 +44,7 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 # temperature = 0.2
 
 # [[models.code_action]]
+# # Only the first entry is used; extras are ignored with a warning.
 # provider = "copilot"
 # model = "gpt-4o"
 # temperature = 0.4

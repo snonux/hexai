@@ -1,6 +1,7 @@
 package appconfig
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"os"
@@ -61,6 +62,33 @@ func TestLoad_Defaults_WithLogger_NoFile_NoEnv(t *testing.T) {
 	def := newDefaultConfig()
 	if cfg.MaxTokens != def.MaxTokens || cfg.ContextMode != def.ContextMode || cfg.ContextWindowLines != def.ContextWindowLines {
 		t.Fatalf("expected defaults; got %+v want %+v", cfg, def)
+	}
+}
+
+func TestParseSurfaceModels_CodeActionWarns(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	writeFile(t, path, `
+[models]
+  [[models.code_action]]
+  provider = "openai"
+  model = "gpt-4o"
+
+  [[models.code_action]]
+  provider = "copilot"
+  model = "cpt"
+`)
+	var buf bytes.Buffer
+	logger := log.New(&buf, "", 0)
+	app, err := loadFromFile(path, logger)
+	if err != nil {
+		t.Fatalf("loadFromFile: %v", err)
+	}
+	if len(app.CodeActionConfigs) != 1 || app.CodeActionConfigs[0].Model != "gpt-4o" {
+		t.Fatalf("expected single code action entry, got %+v", app.CodeActionConfigs)
+	}
+	if msg := buf.String(); !strings.Contains(msg, "models.code_action supports a single entry") {
+		t.Fatalf("expected warning, got %q", msg)
 	}
 }
 

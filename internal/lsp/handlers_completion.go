@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"codeberg.org/snonux/hexai/internal/llm"
@@ -94,17 +95,48 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	if handled {
 		return items, true
 	}
-
-	spec := s.buildRequestSpec(surfaceCompletion)
-	client := s.clientFor(spec)
-	if client == nil {
+	specs := s.buildRequestSpecs(surfaceCompletion)
+	if len(specs) == 0 {
 		return nil, false
 	}
-	if items, ok := s.tryProviderNativeCompletion(spec, client, current, p, above, below, funcCtx, docStr, hasExtra, extraText, plan.inParams); ok {
-		return items, true
+	type jobResult struct {
+		items []CompletionItem
+		ok    bool
 	}
-
-	return s.executeChatCompletion(ctx, plan, spec, client)
+	results := make([]jobResult, len(specs))
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	s.waitForDebounce(ctx)
+	if !s.waitForThrottle(ctx) {
+		return nil, false
+	}
+	for _, spec := range specs {
+		spec := spec
+		client := s.clientFor(spec)
+		if client == nil {
+			continue
+		}
+		wg.Add(1)
+		go func(idx int, spec requestSpec, client llm.Client) {
+			defer wg.Done()
+			items, ok := s.runCompletionForSpec(ctx, plan, spec, client)
+			mu.Lock()
+			results[idx] = jobResult{items: items, ok: ok}
+			mu.Unlock()
+		}(spec.index, spec, client)
+	}
+	wg.Wait()
+	accumulated := make([]CompletionItem, 0)
+	for _, res := range results {
+		if !res.ok {
+			continue
+		}
+		accumulated = append(accumulated, res.items...)
+	}
+	if len(accumulated) == 0 {
+		return nil, false
+	}
+	return accumulated, true
 }
 
 func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) {
@@ -130,12 +162,6 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 	plan.inParams = inParamList(current, p.Position.Character)
 	plan.manualInvoke = parseManualInvoke(p.Context)
 	plan.cacheKey = s.completionCacheKey(p, above, current, below, funcCtx, plan.inParams, hasExtra, extraText)
-	if cleaned, ok := s.completionCacheGet(plan.cacheKey); ok && strings.TrimSpace(cleaned) != "" {
-		logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
-			p.TextDocument.URI, p.Position.Line, p.Position.Character,
-			logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
-		return plan, s.makeCompletionItems(cleaned, plan.inParams, current, p, docStr), true
-	}
 	if isBareDoubleOpen(current, openChar, closeChar) || isBareDoubleOpen(below, openChar, closeChar) {
 		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return plan, []CompletionItem{}, true
@@ -147,38 +173,58 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 	return plan, nil, false
 }
 
-func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client) ([]CompletionItem, bool) {
+func (s *Server) runCompletionForSpec(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client) ([]CompletionItem, bool) {
+	sortPrefix := fmt.Sprintf("%04d", spec.index)
+	modelKey := spec.effectiveModel(client.DefaultModel())
+	providerKey := spec.provider
+	if providerKey == "" {
+		providerKey = canonicalProvider(client.Name())
+	}
+	cacheKey := plan.cacheKey + "|" + providerKey + ":" + modelKey
+	if cached, ok := s.completionCacheGet(cacheKey); ok && strings.TrimSpace(cached) != "" {
+		logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
+			plan.params.TextDocument.URI, plan.params.Position.Line, plan.params.Position.Character,
+			logging.AnsiGreen, logging.PreviewForLog(cached), logging.AnsiBase)
+		detail := fmt.Sprintf("Hexai %s:%s", client.Name(), modelKey)
+		items := s.makeCompletionItems(cached, plan.inParams, plan.current, plan.params, plan.docStr, detail, sortPrefix)
+		return items, true
+	}
+	if items, ok := s.tryProviderNativeCompletion(ctx, plan, spec, client, sortPrefix); ok {
+		return items, true
+	}
+	return s.executeChatCompletion(ctx, plan, spec, client, sortPrefix)
+}
+
+func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
 	messages := s.buildCompletionMessages(plan.inlinePrompt, plan.hasExtra, plan.extraText, plan.inParams, plan.params, plan.above, plan.current, plan.below, plan.funcCtx)
 	sentSize := 0
 	for _, m := range messages {
 		sentSize += len(m.Content)
 	}
 	s.incSentCounters(sentSize)
-	opts := spec.options
-	s.waitForDebounce(ctx)
-	if !s.waitForThrottle(ctx) {
-		return nil, false
-	}
-	modelUsed := spec.effectiveModel()
-	if strings.TrimSpace(modelUsed) == "" {
-		modelUsed = client.DefaultModel()
-	}
-	logging.Logf("lsp ", "completion llm=requesting model=%s", modelUsed)
-	text, err := client.Chat(ctx, messages, opts...)
+	text, err := client.Chat(ctx, messages, spec.options...)
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
-		s.logLLMStats(modelUsed)
+		s.logLLMStats("")
 		return nil, false
 	}
 	s.incRecvCounters(len(text))
+	modelUsed := spec.effectiveModel(client.DefaultModel())
+	_ = stats.Update(ctx, client.Name(), modelUsed, sentSize, len(text))
 	s.logLLMStats(modelUsed)
 	trimmed := strings.TrimSpace(text)
 	cleaned := s.postProcessCompletion(trimmed, plan.current[:plan.params.Position.Character], plan.current)
 	if cleaned == "" {
 		return nil, false
 	}
-	s.completionCachePut(plan.cacheKey, cleaned)
-	items := s.makeCompletionItems(cleaned, plan.inParams, plan.current, plan.params, plan.docStr)
+	detail := fmt.Sprintf("Hexai %s:%s", client.Name(), modelUsed)
+	providerKey := spec.provider
+	if providerKey == "" {
+		providerKey = canonicalProvider(client.Name())
+	}
+	cacheKey := plan.cacheKey + "|" + providerKey + ":" + modelUsed
+	s.completionCachePut(cacheKey, cleaned)
+	items := s.makeCompletionItems(cleaned, plan.inParams, plan.current, plan.params, plan.docStr, detail, sortPrefix)
 	return items, true
 }
 
@@ -260,79 +306,75 @@ func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p Comp
 }
 
 // tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
-func (s *Server) tryProviderNativeCompletion(spec requestSpec, client llm.Client, current string, p CompletionParams, above, below, funcCtx, docStr string, hasExtra bool, extraText string, inParams bool) ([]CompletionItem, bool) {
+func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
 	cc, ok := client.(llm.CodeCompleter)
 	if !ok {
 		return nil, false
 	}
+	current := plan.current
+	p := plan.params
 	before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
 	path := strings.TrimPrefix(p.TextDocument.URI, "file://")
-	// Build provider-native prompt from template
 	cfg := s.currentConfig()
 	_, _, openChar, closeChar := s.inlineMarkers()
 	prompt := renderTemplate(cfg.PromptNativeCompletion, map[string]string{
 		"path":   path,
 		"before": before,
 	})
-	lang := ""
 	provider := spec.provider
 	if provider == "" {
 		provider = canonicalProvider(cfg.Provider)
 	}
 	logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", provider, path)
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx2, cancel2 := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel2()
-
-	// Debounce and throttle prior to provider-native call
-	s.waitForDebounce(ctx2)
-	if !s.waitForThrottle(ctx2) {
-		return nil, false
-	}
-	// Count approximate payload sizes: prompt+after sent; first suggestion received
 	sentBytes := len(prompt) + len(after)
-	modelUsed := spec.effectiveModel()
-	if strings.TrimSpace(modelUsed) == "" {
-		modelUsed = client.DefaultModel()
-	}
+	modelUsed := spec.effectiveModel(client.DefaultModel())
 	tempVal := 0.0
-	if val, ok := chooseSurfaceTemperature(surfaceCompletion, cfg, provider, spec.modelOverride, spec.fallbackModel); ok {
+	if val, ok := chooseSurfaceTemperature(surfaceCompletion, cfg, spec.entry, provider, modelUsed); ok {
 		tempVal = val
 	}
-	suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, lang, tempVal)
-	if err == nil && len(suggestions) > 0 {
-		// Update counters and heartbeat
-		s.incSentCounters(sentBytes)
-		s.incRecvCounters(len(suggestions[0]))
-		// Contribute to global stats (provider-native path)
-		if client != nil {
-			_ = stats.Update(ctx2, client.Name(), modelUsed, sentBytes, len(suggestions[0]))
+	suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, "", tempVal)
+	if err != nil || len(suggestions) == 0 {
+		if err != nil {
+			logging.Logf("lsp ", "completion path=codex error=%v (falling back)", err)
 		}
-		s.logLLMStats(modelUsed)
-		cleaned := strings.TrimSpace(suggestions[0])
-		if cleaned != "" {
-			cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
-			if cleaned != "" {
-				cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
-			}
-			if cleaned != "" && hasDoubleOpenTrigger(current, openChar, closeChar) {
-				indent := leadingIndent(current)
-				if indent != "" {
-					cleaned = applyIndent(indent, cleaned)
-				}
-			}
-			if strings.TrimSpace(cleaned) != "" {
-				key := s.completionCacheKey(p, above, current, below, funcCtx, inParams, hasExtra, extraText)
-				s.completionCachePut(key, cleaned)
-				return s.makeCompletionItems(cleaned, inParams, current, p, docStr), true
-			}
-		}
-	} else if err != nil {
-		logging.Logf("lsp ", "completion path=codex error=%v (falling back to chat)", err)
-		// Still emit a heartbeat for visibility, even on error
-		s.incSentCounters(sentBytes)
-		s.logLLMStats(modelUsed)
+		return nil, false
 	}
-	return nil, false
+	s.incSentCounters(sentBytes)
+	s.incRecvCounters(len(suggestions[0]))
+	_ = stats.Update(ctx2, client.Name(), modelUsed, sentBytes, len(suggestions[0]))
+	s.logLLMStats(modelUsed)
+	cleaned := strings.TrimSpace(suggestions[0])
+	if cleaned == "" {
+		return nil, false
+	}
+	cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
+	if cleaned == "" {
+		return nil, false
+	}
+	cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
+	if cleaned == "" {
+		return nil, false
+	}
+	if strings.TrimSpace(cleaned) != "" && hasDoubleOpenTrigger(current, openChar, closeChar) {
+		indent := leadingIndent(current)
+		if indent != "" {
+			cleaned = applyIndent(indent, cleaned)
+		}
+	}
+	if strings.TrimSpace(cleaned) == "" {
+		return nil, false
+	}
+	detail := fmt.Sprintf("Hexai %s:%s", client.Name(), modelUsed)
+	providerKey := provider
+	if providerKey == "" {
+		providerKey = canonicalProvider(client.Name())
+	}
+	cacheKey := plan.cacheKey + "|" + providerKey + ":" + modelUsed
+	s.completionCachePut(cacheKey, cleaned)
+	items := s.makeCompletionItems(cleaned, plan.inParams, current, p, plan.docStr, detail, sortPrefix)
+	return items, true
 }
 
 // waitForDebounce sleeps until there has been no input activity for at least

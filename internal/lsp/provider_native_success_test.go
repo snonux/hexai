@@ -25,7 +25,8 @@ func TestProviderNativeCompletion_Success(t *testing.T) {
 	// current line with dot trigger; position after dot
 	current := "fmt."
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x.go"}, Position: Position{Line: 0, Character: len(current)}}
-	items, ok := s.tryProviderNativeCompletion(spec, s.llmClient, current, p, "", "", "func f(){}", "doc", false, "", false)
+	plan := completionPlan{current: current, params: p, funcCtx: "func f(){}", docStr: "doc", cacheKey: "k"}
+	items, ok := s.tryProviderNativeCompletion(context.Background(), plan, spec, s.llmClient, "0000")
 	if !ok || len(items) == 0 {
 		t.Fatalf("expected provider-native items")
 	}
@@ -51,7 +52,8 @@ func TestProviderNativeCompletion_IndentWithDoubleOpen(t *testing.T) {
 	spec := s.buildRequestSpec(surfaceCompletion)
 	current := "  >>do>" // leading indent + double-open marker
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x.go"}, Position: Position{Line: 0, Character: len(current)}}
-	items, ok := s.tryProviderNativeCompletion(spec, s.llmClient, current, p, "", "", "func f(){}", "doc", false, "", false)
+	plan := completionPlan{current: current, params: p, funcCtx: "func f(){}", docStr: "doc", cacheKey: "k"}
+	items, ok := s.tryProviderNativeCompletion(context.Background(), plan, spec, s.llmClient, "0000")
 	if !ok || len(items) == 0 {
 		t.Fatalf("expected provider-native items")
 	}
@@ -88,7 +90,8 @@ func TestProviderNativeCompletion_UsesPromptTemplate(t *testing.T) {
 	current := "fmt."
 	// Cursor at line 1, char 1 -> before should be "AAA\nB"
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: 1, Character: 1}}
-	if _, ok := s.tryProviderNativeCompletion(spec, s.llmClient, current, p, "", "", "func f(){}", "doc", false, "", false); !ok {
+	plan := completionPlan{current: current, params: p, funcCtx: "func f(){}", docStr: "doc", cacheKey: "k"}
+	if _, ok := s.tryProviderNativeCompletion(context.Background(), plan, spec, s.llmClient, "0000"); !ok {
 		t.Fatalf("expected provider-native path")
 	}
 	if cap.lastPrompt == "" {

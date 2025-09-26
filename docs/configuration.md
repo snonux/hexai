@@ -27,7 +27,7 @@ Environment overrides
 Per-surface models
 
 - Use the `[models]` table in `config.toml` to tailor individual entry points (completion, code actions, chat, CLI) without changing the global provider default.
-- Each key accepts either a string (shortcut) or a table with `model` / `temperature` fields, e.g.:
+- Each key accepts either a string (shortcut) or one or more tables with `model` / `temperature` fields, e.g.:
 
   ```toml
   [models]
@@ -42,6 +42,8 @@ Per-surface models
   model = "gpt-4.1"
   provider = "openai"
   ```
+
+- Repeating the table (`[[models.<surface>]]`) configures multiple provider/model pairs. Completion requests and the Hexai CLI fan out to every configured entry concurrently and label the responses with `provider:model`. Code actions continue to use the first entry only; any extra [[models.code_action]] tables are ignored at runtime and the loader logs a warning so you know an additional entry was skipped.
 
 - When a per-surface value is omitted, Hexai falls back to the provider’s configured default. Temperatures inherit from `coding_temperature` unless explicitly set, and OpenAI `gpt-5*` models automatically raise an unspecified coding temperature to `1.0` for exploratory behavior. Provider overrides support `"openai"`, `"copilot"`, or `"ollama"` and read the matching credential variables.
 

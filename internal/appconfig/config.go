@@ -670,7 +670,15 @@ func parseSurfaceModels(raw map[string]any, logger *log.Logger) *App {
 		return true
 	}
 	any := appendEntries(&out.CompletionConfigs, "models.completion", table["completion"])
-	any = appendEntries(&out.CodeActionConfigs, "models.code_action", table["code_action"]) || any
+	if ok := appendEntries(&out.CodeActionConfigs, "models.code_action", table["code_action"]); ok {
+		if len(out.CodeActionConfigs) > 1 {
+			if logger != nil {
+				logger.Printf("config: models.code_action supports a single entry; ignoring %d extra", len(out.CodeActionConfigs)-1)
+			}
+			out.CodeActionConfigs = out.CodeActionConfigs[:1]
+		}
+		any = true
+	}
 	any = appendEntries(&out.ChatConfigs, "models.chat", table["chat"]) || any
 	any = appendEntries(&out.CLIConfigs, "models.cli", table["cli"]) || any
 	if !any {

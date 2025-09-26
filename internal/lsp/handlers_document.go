@@ -172,10 +172,7 @@ func (s *Server) detectAndHandleChat(uri string) {
 			if client == nil {
 				return
 			}
-			modelUsed := spec.effectiveModel()
-			if strings.TrimSpace(modelUsed) == "" {
-				modelUsed = client.DefaultModel()
-			}
+			modelUsed := spec.effectiveModel(client.DefaultModel())
 			logging.Logf("lsp ", "chat llm=requesting model=%s", modelUsed)
 			text, err := s.chatWithStats(ctx, surfaceChat, spec, msgs)
 			if err != nil {

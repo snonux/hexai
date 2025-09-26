@@ -8,17 +8,17 @@ Goal: allow configuring multiple provider:model pairs per surface so users can r
 - [x] Define merge, validation, and backward-compatibility rules (single entry auto-wraps into list).
 
 ## Phase 2 – Runtime Plumbing
-- Extend appconfig/runtime store to emit ordered slices for multi-entry surfaces, including diff output.
-- Update request-spec helpers to iterate across configured entries, building dedicated request specs (and caching clients per provider/model combo).
-- Ensure logging/stats capture provider/model context per entry.
+- [x] Extend appconfig/runtime store to emit ordered slices for multi-entry surfaces, including diff output.
+- [x] Update request-spec helpers to iterate across configured entries, building dedicated request specs (and caching clients per provider/model combo).
+- [x] Ensure logging/stats capture provider/model context per entry.
 
 ## Phase 3 – Surface Implementations
-- Completion: fan out requests sequentially, gather one suggestion per entry, and surface them distinctly to the editor (label with provider/model).
-- CLI: stream or print separate responses per entry, with clear headers and stats per run.
-- Code actions: keep single-provider flow but ensure config ignores extra entries with validation warnings.
-- Add reasonable concurrency limits / timeouts so multi-provider usage stays responsive.
+- [x] Completion: fan out requests concurrently, gather one suggestion per entry, and surface them distinctly to the editor (labelled with provider/model).
+- [x] CLI: run all configured providers in parallel and print separate responses per entry with stats.
+- [x] Code actions: keep single-provider flow and warn/ignore additional `[[models.code_action]]` entries.
+- [x] Add concurrency safeguards (debounce/throttle gate still respected before fan-out).
 
 ## Phase 4 – UX & Validation
-- Tests covering multi-entry parsing, diffing, and surface-specific behavior (mock providers to simulate dual responses).
-- Update docs and example TOML with new array syntax, including env override strategy.
-- Capture lessons/issues in scratchpad for follow-up polishing.
+- [x] Tests covering multi-entry parsing, diffing, and surface behavior (expanded CLI/LSP/appconfig suites).
+- [x] Update docs and example TOML with array syntax and dual-provider guidance.
+- [x] Capture lessons/issues in scratchpad for follow-up polishing.

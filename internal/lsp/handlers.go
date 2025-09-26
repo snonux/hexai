@@ -343,13 +343,15 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 	return false
 }
 
-func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string) []CompletionItem {
+func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string, detail string, sortPrefix string) []CompletionItem {
 	te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
 	rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
 	label := labelForCompletion(cleaned, filter)
-	detail := "Hexai LLM completion"
-	if client := s.currentLLMClient(); client != nil {
-		detail = "Hexai " + client.Name() + ":" + client.DefaultModel()
+	if strings.TrimSpace(detail) == "" {
+		detail = "Hexai LLM completion"
+	}
+	if sortPrefix == "" {
+		sortPrefix = "0000"
 	}
 	return []CompletionItem{{
 		Label:               label,
@@ -359,7 +361,7 @@ func (s *Server) makeCompletionItems(cleaned string, inParams bool, current stri
 		FilterText:          strings.TrimLeft(filter, " \t"),
 		TextEdit:            te,
 		AdditionalTextEdits: rm,
-		SortText:            "0000",
+		SortText:            sortPrefix,
 		Documentation:       docStr,
 	}}
 }
