@@ -22,6 +22,12 @@ Environment overrides
   - `HEXAI_COPILOT_MODEL`, `HEXAI_COPILOT_BASE_URL`, `HEXAI_COPILOT_TEMPERATURE`
   - `HEXAI_OLLAMA_MODEL`, `HEXAI_OLLAMA_BASE_URL`, `HEXAI_OLLAMA_TEMPERATURE`
 
+Runtime reloads
+
+- The Hexai LSP can reload `config.toml` without restarting the editor session.
+- Type `/reload>` in an inline chat prompt to reapply file changes; environment overrides are ignored during this reload so the file becomes authoritative.
+- The client echoes a summary of the detected differences and logs the same details.
+
 API keys:
 
 - OpenAI: prefer `HEXAI_OPENAI_API_KEY`, falling back to `OPENAI_API_KEY`.
