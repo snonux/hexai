@@ -111,13 +111,13 @@
 				
 				<option value="file27">codeberg.org/snonux/hexai/internal/lsp/handlers_completion.go (88.8%)</option>
 				
-				<option value="file28">codeberg.org/snonux/hexai/internal/lsp/handlers_document.go (89.4%)</option>
+				<option value="file28">codeberg.org/snonux/hexai/internal/lsp/handlers_document.go (77.7%)</option>
 				
 				<option value="file29">codeberg.org/snonux/hexai/internal/lsp/handlers_execute.go (75.0%)</option>
 				
 				<option value="file30">codeberg.org/snonux/hexai/internal/lsp/handlers_init.go (66.7%)</option>
 				
-				<option value="file31">codeberg.org/snonux/hexai/internal/lsp/handlers_utils.go (89.9%)</option>
+				<option value="file31">codeberg.org/snonux/hexai/internal/lsp/handlers_utils.go (90.2%)</option>
 				
 				<option value="file32">codeberg.org/snonux/hexai/internal/lsp/server.go (86.8%)</option>
 				
@@ -3593,7 +3593,7 @@ type RequestOption func(*Options)
 
 func WithModel(model string) RequestOption    <span class="cov1" title="1">{ return func(o *Options) </span><span class="cov1" title="1">{ o.Model = model }</span> }
 func WithTemperature(t float64) RequestOption <span class="cov7" title="15">{ return func(o *Options) </span><span class="cov2" title="2">{ o.Temperature = t }</span> }
-func WithMaxTokens(n int) RequestOption       <span class="cov10" title="53">{ return func(o *Options) </span><span class="cov2" title="2">{ o.MaxTokens = n }</span> }
+func WithMaxTokens(n int) RequestOption       <span class="cov10" title="54">{ return func(o *Options) </span><span class="cov2" title="2">{ o.MaxTokens = n }</span> }
 func WithStop(stop ...string) RequestOption <span class="cov1" title="1">{
         return func(o *Options) </span><span class="cov1" title="1">{ o.Stop = append([]string{}, stop...) }</span>
 }
@@ -3773,11 +3773,11 @@ var std *log.Logger
 func Bind(l *log.Logger) <span class="cov2" title="3">{ std = l }</span>
 
 // Logf prints a formatted message with a module prefix and base ANSI style.
-func Logf(prefix, format string, args ...any) <span class="cov10" title="199">{
+func Logf(prefix, format string, args ...any) <span class="cov10" title="202">{
         if std == nil </span><span class="cov9" title="141">{
                 return
         }</span>
-        <span class="cov7" title="58">msg := fmt.Sprintf(format, args...)
+        <span class="cov7" title="61">msg := fmt.Sprintf(format, args...)
         std.Print(AnsiBase + prefix + msg + AnsiReset)</span>
 }
 
@@ -3868,18 +3868,18 @@ import (
 // - window: include a window of lines around the cursor
 // - file-on-new-func: include full file only when defining a new function
 // - always-full: always include the full file
-func (s *Server) buildAdditionalContext(newFunc bool, uri string, pos Position) (string, bool) <span class="cov10" title="13">{
+func (s *Server) buildAdditionalContext(newFunc bool, uri string, pos Position) (string, bool) <span class="cov10" title="14">{
         mode := s.contextMode()
         switch mode </span>{
         case "minimal":<span class="cov3" title="2">
                 return "", false</span>
         case "window":<span class="cov1" title="1">
                 return s.windowContext(uri, pos), true</span>
-        case "file-on-new-func":<span class="cov8" title="8">
+        case "file-on-new-func":<span class="cov8" title="9">
                 if newFunc </span><span class="cov3" title="2">{
                         return s.fullFileContext(uri), true
                 }</span>
-                <span class="cov7" title="6">return "", false</span>
+                <span class="cov7" title="7">return "", false</span>
         case "always-full":<span class="cov3" title="2">
                 return s.fullFileContext(uri), true</span>
         default:<span class="cov0" title="0">
@@ -3953,7 +3953,7 @@ type document struct {
         lines []string
 }
 
-func (s *Server) setDocument(uri, text string) <span class="cov8" title="40">{
+func (s *Server) setDocument(uri, text string) <span class="cov8" title="41">{
         s.mu.Lock()
         defer s.mu.Unlock()
         s.docs[uri] = &amp;document{uri: uri, text: text, lines: splitLines(text)}
@@ -3971,76 +3971,76 @@ func (s *Server) markActivity() <span class="cov3" title="4">{
         s.mu.Unlock()
 }</span>
 
-func (s *Server) getDocument(uri string) *document <span class="cov10" title="87">{
+func (s *Server) getDocument(uri string) *document <span class="cov10" title="90">{
         s.mu.RLock()
         defer s.mu.RUnlock()
         return s.docs[uri]
 }</span>
 
 // splitLines splits the input string into lines, normalizing line endings to '\n'.
-func splitLines(sx string) []string <span class="cov8" title="52">{
+func splitLines(sx string) []string <span class="cov8" title="53">{
         sx = strings.ReplaceAll(sx, "\r\n", "\n")
         return strings.Split(sx, "\n")
 }</span>
 
-func (s *Server) lineContext(uri string, pos Position) (above, current, below, funcCtx string) <span class="cov4" title="7">{
+func (s *Server) lineContext(uri string, pos Position) (above, current, below, funcCtx string) <span class="cov5" title="8">{
         d := s.getDocument(uri)
         if d == nil || len(d.lines) == 0 </span><span class="cov1" title="1">{
                 return "", "", "", ""
         }</span>
-        <span class="cov4" title="6">idx := pos.Line
+        <span class="cov4" title="7">idx := pos.Line
         if idx &lt; 0 </span><span class="cov0" title="0">{
                 idx = 0
         }</span>
-        <span class="cov4" title="6">if idx &gt;= len(d.lines) </span><span class="cov0" title="0">{
+        <span class="cov4" title="7">if idx &gt;= len(d.lines) </span><span class="cov0" title="0">{
                 idx = len(d.lines) - 1
         }</span>
-        <span class="cov4" title="6">current = d.lines[idx]
+        <span class="cov4" title="7">current = d.lines[idx]
         if idx-1 &gt;= 0 </span><span class="cov4" title="6">{
                 above = d.lines[idx-1]
         }</span>
-        <span class="cov4" title="6">if idx+1 &lt; len(d.lines) </span><span class="cov4" title="6">{
+        <span class="cov4" title="7">if idx+1 &lt; len(d.lines) </span><span class="cov4" title="6">{
                 below = d.lines[idx+1]
         }</span>
-        <span class="cov4" title="6">for i := idx; i &gt;= 0; i-- </span><span class="cov5" title="8">{
+        <span class="cov4" title="7">for i := idx; i &gt;= 0; i-- </span><span class="cov5" title="9">{
                 line := strings.TrimSpace(d.lines[i])
                 if hasAny(line, []string{"func ", "def ", "class ", "fn ", "procedure ", "sub "}) </span><span class="cov4" title="6">{
                         funcCtx = line
                         break</span>
                 }
         }
-        <span class="cov4" title="6">return above, current, below, funcCtx</span>
+        <span class="cov4" title="7">return above, current, below, funcCtx</span>
 }
 
 // isDefiningNewFunction returns true when the cursor appears to be within
 // a function declaration/signature and before the opening '{' of the body.
 // Heuristic: find nearest preceding line containing "func "; ensure no '{'
 // appears before the cursor across those lines.
-func (s *Server) isDefiningNewFunction(uri string, pos Position) bool <span class="cov5" title="11">{
+func (s *Server) isDefiningNewFunction(uri string, pos Position) bool <span class="cov5" title="12">{
         d := s.getDocument(uri)
         if d == nil || len(d.lines) == 0 </span><span class="cov0" title="0">{
                 return false
         }</span>
-        <span class="cov5" title="11">idx := pos.Line
+        <span class="cov5" title="12">idx := pos.Line
         if idx &lt; 0 </span><span class="cov0" title="0">{
                 idx = 0
         }</span>
-        <span class="cov5" title="11">if idx &gt;= len(d.lines) </span><span class="cov0" title="0">{
+        <span class="cov5" title="12">if idx &gt;= len(d.lines) </span><span class="cov0" title="0">{
                 idx = len(d.lines) - 1
         }</span>
         // Find signature start
-        <span class="cov5" title="11">sigStart := -1
-        for i := idx; i &gt;= 0; i-- </span><span class="cov7" title="20">{
+        <span class="cov5" title="12">sigStart := -1
+        for i := idx; i &gt;= 0; i-- </span><span class="cov7" title="21">{
                 if strings.Contains(d.lines[i], "func ") </span><span class="cov3" title="4">{
                         sigStart = i
                         break</span>
                 }
                 // stop if we hit a closing brace which likely ends a previous block
-                <span class="cov6" title="16">if strings.Contains(d.lines[i], "}") </span><span class="cov0" title="0">{
+                <span class="cov6" title="17">if strings.Contains(d.lines[i], "}") </span><span class="cov0" title="0">{
                         break</span>
                 }
         }
-        <span class="cov5" title="11">if sigStart == -1 </span><span class="cov4" title="7">{
+        <span class="cov5" title="12">if sigStart == -1 </span><span class="cov5" title="8">{
                 return false
         }</span>
         // Scan for '{' from sigStart up to cursor position; if found before or at cursor, we're in body
@@ -4060,29 +4060,29 @@ func (s *Server) isDefiningNewFunction(uri string, pos Position) bool <span clas
         <span class="cov2" title="2">return true</span>
 }
 
-func hasAny(s string, needles []string) bool <span class="cov5" title="8">{
-        for _, n := range needles </span><span class="cov6" title="18">{
+func hasAny(s string, needles []string) bool <span class="cov5" title="9">{
+        for _, n := range needles </span><span class="cov7" title="24">{
                 if strings.Contains(s, n) </span><span class="cov4" title="6">{
                         return true
                 }</span>
         }
-        <span class="cov2" title="2">return false</span>
+        <span class="cov3" title="3">return false</span>
 }
 
-func trimLen(s string) string <span class="cov8" title="42">{
+func trimLen(s string) string <span class="cov8" title="47">{
         s = strings.TrimSpace(s)
         if len(s) &gt; 200 </span><span class="cov1" title="1">{
                 return s[:200] + "…"
         }</span>
-        <span class="cov8" title="41">return s</span>
+        <span class="cov8" title="46">return s</span>
 }
 
-func firstLine(s string) string <span class="cov7" title="26">{
+func firstLine(s string) string <span class="cov7" title="27">{
         s = strings.ReplaceAll(s, "\r\n", "\n")
         if idx := strings.IndexByte(s, '\n'); idx &gt;= 0 </span><span class="cov4" title="6">{
                 return s[:idx]
         }</span>
-        <span class="cov7" title="20">return s</span>
+        <span class="cov7" title="21">return s</span>
 }
 </pre>
 		
@@ -4203,7 +4203,7 @@ func (s *Server) findFirstInstructionInLine(line string) (instr string, cleaned 
 
 // handleCompletion moved to handlers_completion.go
 
-func (s *Server) reply(id json.RawMessage, result any, err *RespError) <span class="cov10" title="29">{
+func (s *Server) reply(id json.RawMessage, result any, err *RespError) <span class="cov10" title="30">{
         resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
         s.writeMessage(resp)
 }</span>
@@ -4277,33 +4277,33 @@ func (s *Server) reply(id json.RawMessage, result any, err *RespError) <span cla
 
 // --- small completion cache (last ~10 entries) ---
 
-func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string <span class="cov8" title="14">{
+func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string <span class="cov8" title="15">{
         // Normalize left-of-cursor by trimming trailing spaces/tabs
         idx := p.Position.Character
         if idx &gt; len(current) </span><span class="cov0" title="0">{
                 idx = len(current)
         }</span>
-        <span class="cov8" title="14">left := strings.TrimRight(current[:idx], " \t")
+        <span class="cov8" title="15">left := strings.TrimRight(current[:idx], " \t")
         right := ""
         if idx &lt; len(current) </span><span class="cov1" title="1">{
                 right = current[idx:]
         }</span>
-        <span class="cov8" title="14">prov := ""
+        <span class="cov8" title="15">prov := ""
         model := ""
-        if client := s.currentLLMClient(); client != nil </span><span class="cov8" title="14">{
+        if client := s.currentLLMClient(); client != nil </span><span class="cov8" title="15">{
                 prov = client.Name()
                 model = client.DefaultModel()
         }</span>
-        <span class="cov8" title="14">temp := ""
+        <span class="cov8" title="15">temp := ""
         if tempPtr := s.codingTemperature(); tempPtr != nil </span><span class="cov0" title="0">{
                 temp = fmt.Sprintf("%.3f", *tempPtr)
         }</span>
-        <span class="cov8" title="14">extra := ""
+        <span class="cov8" title="15">extra := ""
         if hasExtra </span><span class="cov0" title="0">{
                 extra = strings.TrimSpace(extraText)
         }</span>
         // Compose a key from essential context parts
-        <span class="cov8" title="14">return strings.Join([]string{
+        <span class="cov8" title="15">return strings.Join([]string{
                 "v1", // version for future-proofing
                 prov,
                 model,
@@ -4320,11 +4320,11 @@ func (s *Server) completionCacheKey(p CompletionParams, above, current, below, f
         }, "\x1f")</span> // use unit separator to avoid collisions
 }
 
-func (s *Server) completionCacheGet(key string) (string, bool) <span class="cov7" title="10">{
+func (s *Server) completionCacheGet(key string) (string, bool) <span class="cov7" title="11">{
         s.mu.Lock()
         defer s.mu.Unlock()
         v, ok := s.compCache[key]
-        if !ok </span><span class="cov6" title="9">{
+        if !ok </span><span class="cov7" title="10">{
                 return "", false
         }</span>
         // move to most-recent
@@ -4332,13 +4332,13 @@ func (s *Server) completionCacheGet(key string) (string, bool) <span class="cov7
         return v, true</span>
 }
 
-func (s *Server) completionCachePut(key, value string) <span class="cov7" title="12">{
+func (s *Server) completionCachePut(key, value string) <span class="cov7" title="13">{
         s.mu.Lock()
         defer s.mu.Unlock()
         if s.compCache == nil </span><span class="cov5" title="5">{
                 s.compCache = make(map[string]string)
         }</span>
-        <span class="cov7" title="12">if _, exists := s.compCache[key]; !exists </span><span class="cov7" title="12">{
+        <span class="cov7" title="13">if _, exists := s.compCache[key]; !exists </span><span class="cov7" title="13">{
                 s.compCacheOrder = append(s.compCacheOrder, key)
                 s.compCache[key] = value
                 if len(s.compCacheOrder) &gt; 10 </span><span class="cov0" title="0">{
@@ -4347,7 +4347,7 @@ func (s *Server) completionCachePut(key, value string) <span class="cov7" title=
                         s.compCacheOrder = s.compCacheOrder[1:]
                         delete(s.compCache, old)
                 }</span>
-                <span class="cov7" title="12">return</span>
+                <span class="cov7" title="13">return</span>
         }
         // update existing and mark most-recent
         <span class="cov0" title="0">s.compCache[key] = value
@@ -4431,15 +4431,15 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool <span c
         <span class="cov5" title="6">return false</span>
 }
 
-func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string) []CompletionItem <span class="cov7" title="13">{
+func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string) []CompletionItem <span class="cov7" title="14">{
         te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
         rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
         label := labelForCompletion(cleaned, filter)
         detail := "Hexai LLM completion"
-        if client := s.currentLLMClient(); client != nil </span><span class="cov7" title="13">{
+        if client := s.currentLLMClient(); client != nil </span><span class="cov7" title="14">{
                 detail = "Hexai " + client.Name() + ":" + client.DefaultModel()
         }</span>
-        <span class="cov7" title="13">return []CompletionItem{{
+        <span class="cov7" title="14">return []CompletionItem{{
                 Label:               label,
                 Kind:                1,
                 Detail:              detail,
@@ -5183,10 +5183,10 @@ type completionPlan struct {
         cacheKey     string
 }
 
-func (s *Server) handleCompletion(req Request) <span class="cov1" title="1">{
+func (s *Server) handleCompletion(req Request) <span class="cov2" title="2">{
         var p CompletionParams
         var docStr string
-        if err := json.Unmarshal(req.Params, &amp;p); err == nil </span><span class="cov1" title="1">{
+        if err := json.Unmarshal(req.Params, &amp;p); err == nil </span><span class="cov2" title="2">{
                 // Log trigger information for every completion request from client
                 tk, tch := extractTriggerInfo(p)
                 logging.Logf("lsp ", "completion trigger kind=%d char=%q uri=%s line=%d char=%d",
@@ -5196,11 +5196,11 @@ func (s *Server) handleCompletion(req Request) <span class="cov1" title="1">{
                 if s.logContext </span><span class="cov0" title="0">{
                         s.logCompletionContext(p, above, current, below, funcCtx)
                 }</span>
-                <span class="cov1" title="1">if s.llmClient != nil </span><span class="cov1" title="1">{
+                <span class="cov2" title="2">if s.llmClient != nil </span><span class="cov2" title="2">{
                         newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
                         extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
                         items, ok := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
-                        if ok </span><span class="cov1" title="1">{
+                        if ok </span><span class="cov2" title="2">{
                                 s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
                                 return
                         }</span>
@@ -5212,26 +5212,26 @@ func (s *Server) handleCompletion(req Request) <span class="cov1" title="1">{
 
 // extractTriggerInfo returns the LSP completion TriggerKind and TriggerCharacter
 // if provided by the client; when absent it returns zeros.
-func extractTriggerInfo(p CompletionParams) (kind int, ch string) <span class="cov2" title="2">{
+func extractTriggerInfo(p CompletionParams) (kind int, ch string) <span class="cov3" title="3">{
         if p.Context == nil </span><span class="cov0" title="0">{
                 return 0, ""
         }</span>
-        <span class="cov2" title="2">var ctx struct {
+        <span class="cov3" title="3">var ctx struct {
                 TriggerKind      int    `json:"triggerKind"`
                 TriggerCharacter string `json:"triggerCharacter,omitempty"`
         }
         if raw, ok := p.Context.(json.RawMessage); ok </span><span class="cov1" title="1">{
                 _ = json.Unmarshal(raw, &amp;ctx)
-        }</span> else<span class="cov1" title="1"> {
+        }</span> else<span class="cov2" title="2"> {
                 b, _ := json.Marshal(p.Context)
                 _ = json.Unmarshal(b, &amp;ctx)
         }</span>
-        <span class="cov2" title="2">return ctx.TriggerKind, ctx.TriggerCharacter</span>
+        <span class="cov3" title="3">return ctx.TriggerKind, ctx.TriggerCharacter</span>
 }
 
 // --- completion helpers ---
 
-func (s *Server) buildDocString(p CompletionParams, above, current, below, funcCtx string) string <span class="cov2" title="2">{
+func (s *Server) buildDocString(p CompletionParams, above, current, below, funcCtx string) string <span class="cov3" title="3">{
         return fmt.Sprintf("file: %s\nline: %d\nabove: %s\ncurrent: %s\nbelow: %s\nfunction: %s",
                 p.TextDocument.URI, p.Position.Line, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
 }</span>
@@ -5241,7 +5241,7 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
                 p.TextDocument.URI, p.Position.Line, p.Position.Character, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
 }</span>
 
-func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) <span class="cov8" title="18">{
+func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) <span class="cov8" title="19">{
         ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
         defer cancel()
 
@@ -5250,14 +5250,14 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
                 return items, true
         }</span>
 
-        <span class="cov6" title="9">if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, plan.inParams); ok </span><span class="cov1" title="1">{
+        <span class="cov6" title="10">if items, ok := s.tryProviderNativeCompletion(current, p, above, below, funcCtx, docStr, hasExtra, extraText, plan.inParams); ok </span><span class="cov1" title="1">{
                 return items, true
         }</span>
 
-        <span class="cov6" title="8">return s.executeChatCompletion(ctx, plan)</span>
+        <span class="cov6" title="9">return s.executeChatCompletion(ctx, plan)</span>
 }
 
-func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) <span class="cov8" title="18">{
+func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) <span class="cov8" title="19">{
         plan := completionPlan{
                 params:    p,
                 above:     above,
@@ -5274,10 +5274,10 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
                 logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
                 return plan, []CompletionItem{}, true
         }</span>
-        <span class="cov6" title="10">if s.shouldSuppressForChatTriggerEOL(current, p) </span><span class="cov0" title="0">{
+        <span class="cov6" title="11">if s.shouldSuppressForChatTriggerEOL(current, p) </span><span class="cov0" title="0">{
                 return plan, []CompletionItem{}, true
         }</span>
-        <span class="cov6" title="10">plan.inParams = inParamList(current, p.Position.Character)
+        <span class="cov6" title="11">plan.inParams = inParamList(current, p.Position.Character)
         plan.manualInvoke = parseManualInvoke(p.Context)
         plan.cacheKey = s.completionCacheKey(p, above, current, below, funcCtx, plan.inParams, hasExtra, extraText)
         if cleaned, ok := s.completionCacheGet(plan.cacheKey); ok &amp;&amp; strings.TrimSpace(cleaned) != "" </span><span class="cov1" title="1">{
@@ -5286,107 +5286,107 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
                         logging.AnsiGreen, logging.PreviewForLog(cleaned), logging.AnsiBase)
                 return plan, s.makeCompletionItems(cleaned, plan.inParams, current, p, docStr), true
         }</span>
-        <span class="cov6" title="9">if isBareDoubleOpen(current, openChar, closeChar) || isBareDoubleOpen(below, openChar, closeChar) </span><span class="cov0" title="0">{
+        <span class="cov6" title="10">if isBareDoubleOpen(current, openChar, closeChar) || isBareDoubleOpen(below, openChar, closeChar) </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
                 return plan, []CompletionItem{}, true
         }</span>
-        <span class="cov6" title="9">if !plan.inParams &amp;&amp; !s.prefixHeuristicAllows(plan.inlinePrompt, current, p, plan.manualInvoke) </span><span class="cov0" title="0">{
+        <span class="cov6" title="10">if !plan.inParams &amp;&amp; !s.prefixHeuristicAllows(plan.inlinePrompt, current, p, plan.manualInvoke) </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
                 return plan, []CompletionItem{}, true
         }</span>
-        <span class="cov6" title="9">return plan, nil, false</span>
+        <span class="cov6" title="10">return plan, nil, false</span>
 }
 
-func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan) ([]CompletionItem, bool) <span class="cov6" title="8">{
+func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan) ([]CompletionItem, bool) <span class="cov6" title="9">{
         messages := s.buildCompletionMessages(plan.inlinePrompt, plan.hasExtra, plan.extraText, plan.inParams, plan.params, plan.above, plan.current, plan.below, plan.funcCtx)
         sentSize := 0
-        for _, m := range messages </span><span class="cov7" title="16">{
+        for _, m := range messages </span><span class="cov7" title="18">{
                 sentSize += len(m.Content)
         }</span>
-        <span class="cov6" title="8">s.incSentCounters(sentSize)
+        <span class="cov6" title="9">s.incSentCounters(sentSize)
         opts := s.llmRequestOpts()
         s.waitForDebounce(ctx)
         if !s.waitForThrottle(ctx) </span><span class="cov0" title="0">{
                 return nil, false
         }</span>
-        <span class="cov6" title="8">client := s.currentLLMClient()
+        <span class="cov6" title="9">client := s.currentLLMClient()
         if client == nil </span><span class="cov0" title="0">{
                 return nil, false
         }</span>
-        <span class="cov6" title="8">logging.Logf("lsp ", "completion llm=requesting model=%s", client.DefaultModel())
+        <span class="cov6" title="9">logging.Logf("lsp ", "completion llm=requesting model=%s", client.DefaultModel())
         text, err := client.Chat(ctx, messages, opts...)
         if err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "llm completion error: %v", err)
                 s.logLLMStats()
                 return nil, false
         }</span>
-        <span class="cov6" title="8">s.incRecvCounters(len(text))
+        <span class="cov6" title="9">s.incRecvCounters(len(text))
         s.logLLMStats()
         trimmed := strings.TrimSpace(text)
         cleaned := s.postProcessCompletion(trimmed, plan.current[:plan.params.Position.Character], plan.current)
         if cleaned == "" </span><span class="cov0" title="0">{
                 return nil, false
         }</span>
-        <span class="cov6" title="8">s.completionCachePut(plan.cacheKey, cleaned)
+        <span class="cov6" title="9">s.completionCachePut(plan.cacheKey, cleaned)
         items := s.makeCompletionItems(cleaned, plan.inParams, plan.current, plan.params, plan.docStr)
         return items, true</span>
 }
 
 // parseManualInvoke inspects the LSP completion context and reports whether the user manually invoked completion.
-func parseManualInvoke(ctx any) bool <span class="cov6" title="11">{
+func parseManualInvoke(ctx any) bool <span class="cov6" title="12">{
         if ctx == nil </span><span class="cov4" title="5">{
                 return false
         }</span>
-        <span class="cov5" title="6">var c struct {
+        <span class="cov5" title="7">var c struct {
                 TriggerKind int `json:"triggerKind"`
         }
         if raw, ok := ctx.(json.RawMessage); ok </span><span class="cov4" title="5">{
                 _ = json.Unmarshal(raw, &amp;c)
-        }</span> else<span class="cov1" title="1"> {
+        }</span> else<span class="cov2" title="2"> {
                 b, _ := json.Marshal(ctx)
                 _ = json.Unmarshal(b, &amp;c)
         }</span>
-        <span class="cov5" title="6">return c.TriggerKind == 1</span>
+        <span class="cov5" title="7">return c.TriggerKind == 1</span>
 }
 
 // shouldSuppressForChatTriggerEOL returns true when a chat trigger like "&gt;" follows ?, !, :, or ; at EOL.
-func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionParams) bool <span class="cov7" title="15">{
+func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionParams) bool <span class="cov7" title="16">{
         t := strings.TrimRight(current, " \t")
         suffix, prefixes, _ := s.chatConfig()
         if suffix == "" </span><span class="cov1" title="1">{
                 return false
         }</span>
-        <span class="cov7" title="14">if strings.HasSuffix(t, suffix) </span><span class="cov4" title="4">{
+        <span class="cov7" title="15">if strings.HasSuffix(t, suffix) </span><span class="cov4" title="5">{
                 if len(t) &lt; len(suffix)+1 </span><span class="cov0" title="0">{
                         return false
                 }</span>
-                <span class="cov4" title="4">prev := string(t[len(t)-len(suffix)-1])
-                for _, pf := range prefixes </span><span class="cov6" title="10">{
+                <span class="cov4" title="5">prev := string(t[len(t)-len(suffix)-1])
+                for _, pf := range prefixes </span><span class="cov7" title="14">{
                         if prev == pf </span><span class="cov2" title="2">{
                                 logging.Logf("lsp ", "completion skip=chat-trigger-eol uri=%s line=%d", p.TextDocument.URI, p.Position.Line)
                                 return true
                         }</span>
                 }
         }
-        <span class="cov7" title="12">return false</span>
+        <span class="cov7" title="13">return false</span>
 }
 
 // prefixHeuristicAllows applies minimal prefix rules unless inlinePrompt or structural triggers apply.
-func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p CompletionParams, manualInvoke bool) bool <span class="cov7" title="14">{
+func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p CompletionParams, manualInvoke bool) bool <span class="cov7" title="15">{
         // Determine the effective cursor index within current line, clamped, and
         // skip over trailing spaces/tabs to support cases like "type Matrix| ".
         idx := p.Position.Character
         if idx &gt; len(current) </span><span class="cov0" title="0">{
                 idx = len(current)
         }</span>
-        <span class="cov7" title="14">allowNoPrefix := inlinePrompt
-        if idx &gt; 0 </span><span class="cov7" title="12">{
+        <span class="cov7" title="15">allowNoPrefix := inlinePrompt
+        if idx &gt; 0 </span><span class="cov7" title="13">{
                 ch := current[idx-1]
                 if ch == '.' || ch == ':' || ch == '/' || ch == '_' || ch == ')' </span><span class="cov4" title="5">{
                         allowNoPrefix = true
                 }</span>
         }
-        <span class="cov7" title="14">if allowNoPrefix </span><span class="cov5" title="7">{
+        <span class="cov7" title="15">if allowNoPrefix </span><span class="cov6" title="8">{
                 return true
         }</span>
         // Walk left over whitespace
@@ -5410,10 +5410,10 @@ func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p Comp
 }
 
 // tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
-func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams, above, below, funcCtx, docStr string, hasExtra bool, extraText string, inParams bool) ([]CompletionItem, bool) <span class="cov7" title="12">{
+func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams, above, below, funcCtx, docStr string, hasExtra bool, extraText string, inParams bool) ([]CompletionItem, bool) <span class="cov7" title="13">{
         client := s.currentLLMClient()
         cc, ok := client.(llm.CodeCompleter)
-        if !ok </span><span class="cov5" title="6">{
+        if !ok </span><span class="cov5" title="7">{
                 return nil, false
         }</span>
         <span class="cov5" title="6">before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
@@ -5484,9 +5484,9 @@ func (s *Server) tryProviderNativeCompletion(current string, p CompletionParams,
 
 // waitForDebounce sleeps until there has been no input activity for at least
 // completionDebounce. If debounce is zero or ctx is done, it returns promptly.
-func (s *Server) waitForDebounce(ctx context.Context) <span class="cov10" title="41">{
+func (s *Server) waitForDebounce(ctx context.Context) <span class="cov10" title="42">{
         d := s.completionDebounce()
-        if d &lt;= 0 </span><span class="cov9" title="39">{
+        if d &lt;= 0 </span><span class="cov9" title="40">{
                 return
         }</span>
         <span class="cov2" title="2">for </span><span class="cov4" title="4">{
@@ -5514,9 +5514,9 @@ func (s *Server) waitForDebounce(ctx context.Context) <span class="cov10" title=
 
 // waitForThrottle enforces a minimum spacing between LLM calls. Returns false
 // if the context is canceled while waiting.
-func (s *Server) waitForThrottle(ctx context.Context) bool <span class="cov10" title="41">{
+func (s *Server) waitForThrottle(ctx context.Context) bool <span class="cov10" title="42">{
         interval := s.completionThrottle()
-        if interval &lt;= 0 </span><span class="cov9" title="38">{
+        if interval &lt;= 0 </span><span class="cov9" title="39">{
                 return true
         }</span>
         <span class="cov3" title="3">var wait time.Duration
@@ -5545,7 +5545,7 @@ func (s *Server) waitForThrottle(ctx context.Context) bool <span class="cov10" t
 }
 
 // buildCompletionMessages constructs the LLM messages for completion.
-func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText string, inParams bool, p CompletionParams, above, current, below, funcCtx string) []llm.Message <span class="cov7" title="14">{
+func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText string, inParams bool, p CompletionParams, above, current, below, funcCtx string) []llm.Message <span class="cov7" title="15">{
         vars := map[string]string{
                 "file":     p.TextDocument.URI,
                 "function": funcCtx,
@@ -5561,10 +5561,10 @@ func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText 
                 sys = cfg.PromptCompletionSystemParams
                 userTpl = cfg.PromptCompletionUserParams
         }</span>
-        <span class="cov7" title="14">if inlinePrompt &amp;&amp; strings.TrimSpace(cfg.PromptCompletionSystemInline) != "" </span><span class="cov2" title="2">{
+        <span class="cov7" title="15">if inlinePrompt &amp;&amp; strings.TrimSpace(cfg.PromptCompletionSystemInline) != "" </span><span class="cov2" title="2">{
                 sys = cfg.PromptCompletionSystemInline
         }</span>
-        <span class="cov7" title="14">user := renderTemplate(userTpl, vars)
+        <span class="cov7" title="15">user := renderTemplate(userTpl, vars)
         messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
         if hasExtra &amp;&amp; strings.TrimSpace(extraText) != "" </span><span class="cov1" title="1">{
                 extra := renderTemplate(cfg.PromptCompletionExtraHeader, map[string]string{"context": extraText})
@@ -5573,30 +5573,30 @@ func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText 
                 }</span>
                 <span class="cov1" title="1">messages = append(messages, llm.Message{Role: "user", Content: extra})</span>
         }
-        <span class="cov7" title="14">return messages</span>
+        <span class="cov7" title="15">return messages</span>
 }
 
 // postProcessCompletion normalizes and deduplicates completion text and applies indentation rules.
-func (s *Server) postProcessCompletion(text string, leftOfCursor string, currentLine string) string <span class="cov6" title="11">{
+func (s *Server) postProcessCompletion(text string, leftOfCursor string, currentLine string) string <span class="cov6" title="12">{
         cleaned := stripCodeFences(text)
         if cleaned != "" &amp;&amp; strings.ContainsRune(cleaned, '`') </span><span class="cov0" title="0">{
                 if inline := stripInlineCodeSpan(cleaned); strings.TrimSpace(inline) != "" </span><span class="cov0" title="0">{
                         cleaned = inline
                 }</span>
         }
-        <span class="cov6" title="11">if cleaned != "" </span><span class="cov6" title="11">{
+        <span class="cov6" title="12">if cleaned != "" </span><span class="cov6" title="12">{
                 cleaned = stripDuplicateAssignmentPrefix(leftOfCursor, cleaned)
         }</span>
-        <span class="cov6" title="11">if cleaned != "" </span><span class="cov6" title="11">{
+        <span class="cov6" title="12">if cleaned != "" </span><span class="cov6" title="12">{
                 cleaned = stripDuplicateGeneralPrefix(leftOfCursor, cleaned)
         }</span>
-        <span class="cov6" title="11">_, _, openChar, closeChar := s.inlineMarkers()
-        if cleaned != "" &amp;&amp; hasDoubleOpenTrigger(currentLine, openChar, closeChar) </span><span class="cov1" title="1">{
+        <span class="cov6" title="12">_, _, openChar, closeChar := s.inlineMarkers()
+        if cleaned != "" &amp;&amp; hasDoubleOpenTrigger(currentLine, openChar, closeChar) </span><span class="cov2" title="2">{
                 if indent := leadingIndent(currentLine); indent != "" </span><span class="cov1" title="1">{
                         cleaned = applyIndent(indent, cleaned)
                 }</span>
         }
-        <span class="cov6" title="11">return cleaned</span>
+        <span class="cov6" title="12">return cleaned</span>
 }
 </pre>
 		
@@ -5696,7 +5696,11 @@ func (s *Server) detectAndHandleChat(uri string) <span class="cov7" title="11">{
         _, _, openChar, closeChar := s.inlineMarkers()
         for i, raw := range d.lines </span><span class="cov10" title="23">{
                 if lineHasInlinePrompt(raw, openChar, closeChar) </span><span class="cov0" title="0">{
-                        continue</span>
+                        if s.currentLLMClient() != nil </span><span class="cov0" title="0">{
+                                pos := Position{Line: i, Character: len(raw)}
+                                go s.runInlinePrompt(uri, pos)
+                        }</span>
+                        <span class="cov0" title="0">continue</span>
                 }
                 // Find last non-space character index
                 <span class="cov10" title="23">j := len(raw) - 1
@@ -5810,6 +5814,47 @@ func (s *Server) applyChatEdits(uri string, lineIdx int, lastNonSpace int, remov
         }
         we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
         s.clientApplyEdit("Hexai: insert chat response", we)</span>
+}
+
+func (s *Server) runInlinePrompt(uri string, pos Position) <span class="cov0" title="0">{
+        if s.currentLLMClient() == nil </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov0" title="0">d := s.getDocument(uri)
+        if d == nil || pos.Line &lt; 0 || pos.Line &gt;= len(d.lines) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov0" title="0">line := d.lines[pos.Line]
+        _, _, openChar, closeChar := s.inlineMarkers()
+        if !lineHasInlinePrompt(line, openChar, closeChar) </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov0" title="0">p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: pos.Line, Character: len(line)}}
+        p.Context = map[string]int{"triggerKind": 1}
+        above, current, below, funcCtx := s.lineContext(uri, p.Position)
+        docStr := s.buildDocString(p, above, current, below, funcCtx)
+        newFunc := s.isDefiningNewFunction(uri, p.Position)
+        extra, hasExtra := s.buildAdditionalContext(newFunc, uri, p.Position)
+        items, ok := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, hasExtra, extra)
+        if !ok || len(items) == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov0" title="0">s.applyInlineCompletion(uri, items[0])</span>
+}
+
+func (s *Server) applyInlineCompletion(uri string, item CompletionItem) <span class="cov0" title="0">{
+        var edits []TextEdit
+        if len(item.AdditionalTextEdits) &gt; 0 </span><span class="cov0" title="0">{
+                edits = append(edits, item.AdditionalTextEdits...)
+        }</span>
+        <span class="cov0" title="0">if item.TextEdit != nil </span><span class="cov0" title="0">{
+                edits = append(edits, *item.TextEdit)
+        }</span>
+        <span class="cov0" title="0">if len(edits) == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov0" title="0">we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
+        s.clientApplyEdit("Hexai: inline prompt", we)</span>
 }
 
 // buildChatHistory walks upwards from the current line to collect the most recent
@@ -6068,7 +6113,7 @@ import (
 )
 
 // llmRequestOpts builds request options from server settings.
-func (s *Server) llmRequestOpts() []llm.RequestOption <span class="cov7" title="35">{
+func (s *Server) llmRequestOpts() []llm.RequestOption <span class="cov7" title="36">{
         maxTokens := s.maxTokens()
         client := s.currentLLMClient()
         tempPtr := s.codingTemperature()
@@ -6084,63 +6129,63 @@ func (s *Server) llmRequestOpts() []llm.RequestOption <span class="cov7" title="
                 }
                 <span class="cov1" title="1">opts = append(opts, llm.WithTemperature(temp))</span>
         }
-        <span class="cov7" title="35">return opts</span>
+        <span class="cov7" title="36">return opts</span>
 }
 
 // small helpers for LLM traffic stats
-func (s *Server) incSentCounters(n int) <span class="cov8" title="41">{
+func (s *Server) incSentCounters(n int) <span class="cov7" title="42">{
         s.mu.Lock()
         s.llmReqTotal++
         s.llmSentBytesTotal += int64(n)
         s.mu.Unlock()
 }</span>
 
-func (s *Server) incRecvCounters(n int) <span class="cov8" title="38">{
+func (s *Server) incRecvCounters(n int) <span class="cov7" title="39">{
         s.mu.Lock()
         s.llmRespTotal++
         s.llmRespBytesTotal += int64(n)
         s.mu.Unlock()
 }</span>
 
-func (s *Server) logLLMStats() <span class="cov8" title="41">{
+func (s *Server) logLLMStats() <span class="cov7" title="42">{
         s.mu.RLock()
         avgSent := int64(0)
-        if s.llmReqTotal &gt; 0 </span><span class="cov8" title="41">{
+        if s.llmReqTotal &gt; 0 </span><span class="cov7" title="42">{
                 avgSent = s.llmSentBytesTotal / s.llmReqTotal
         }</span>
-        <span class="cov8" title="41">avgRecv := int64(0)
-        if s.llmRespTotal &gt; 0 </span><span class="cov8" title="38">{
+        <span class="cov7" title="42">avgRecv := int64(0)
+        if s.llmRespTotal &gt; 0 </span><span class="cov7" title="39">{
                 avgRecv = s.llmRespBytesTotal / s.llmRespTotal
         }</span>
-        <span class="cov8" title="41">reqs, sentTot, recvTot := s.llmReqTotal, s.llmSentBytesTotal, s.llmRespBytesTotal
+        <span class="cov7" title="42">reqs, sentTot, recvTot := s.llmReqTotal, s.llmSentBytesTotal, s.llmRespBytesTotal
         s.mu.RUnlock()
         mins := time.Since(s.startTime).Minutes()
         if mins &lt;= 0 </span><span class="cov0" title="0">{
                 mins = 0.001
         }</span>
-        <span class="cov8" title="41">rpmLocal := float64(reqs) / mins
+        <span class="cov7" title="42">rpmLocal := float64(reqs) / mins
         sentPerMin := float64(sentTot) / mins
         recvPerMin := float64(recvTot) / mins
         // Log local process counters
         logging.Logf("lsp ", "llm stats (local) reqs=%d avg_sent=%d avg_recv=%d sent_total=%d recv_total=%d rpm=%.2f sent_per_min=%.0f recv_per_min=%.0f", reqs, avgSent, avgRecv, sentTot, recvTot, rpmLocal, sentPerMin, recvPerMin)
         // Global snapshot for tmux status
         snap, err := stats.TakeSnapshot()
-        if err == nil </span><span class="cov8" title="41">{
-                if client := s.currentLLMClient(); client != nil </span><span class="cov8" title="40">{
+        if err == nil </span><span class="cov7" title="42">{
+                if client := s.currentLLMClient(); client != nil </span><span class="cov7" title="41">{
                         provider := client.Name()
                         model := client.DefaultModel()
                         // Per-scope rpm estimated from window
                         scopeReqs := int64(0)
-                        if pe, ok := snap.Providers[provider]; ok </span><span class="cov8" title="40">{
-                                if mc, ok2 := pe.Models[model]; ok2 </span><span class="cov8" title="40">{
+                        if pe, ok := snap.Providers[provider]; ok </span><span class="cov7" title="41">{
+                                if mc, ok2 := pe.Models[model]; ok2 </span><span class="cov7" title="40">{
                                         scopeReqs = mc.Reqs
                                 }</span>
                         }
-                        <span class="cov8" title="40">minsWin := snap.Window.Minutes()
+                        <span class="cov7" title="41">minsWin := snap.Window.Minutes()
                         if minsWin &lt;= 0 </span><span class="cov0" title="0">{
                                 minsWin = 0.001
                         }</span>
-                        <span class="cov8" title="40">scopeRPM := float64(scopeReqs) / minsWin
+                        <span class="cov7" title="41">scopeRPM := float64(scopeReqs) / minsWin
                         status := tmx.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, provider, model, scopeRPM, scopeReqs, snap.Window)
                         _ = tmx.SetStatus(status)</span>
                 }
@@ -6148,8 +6193,8 @@ func (s *Server) logLLMStats() <span class="cov8" title="41">{
 }
 
 // Completion prompt builders and filters
-func inParamList(current string, cursor int) bool <span class="cov5" title="13">{
-        if !strings.Contains(current, "func ") </span><span class="cov4" title="7">{
+func inParamList(current string, cursor int) bool <span class="cov5" title="14">{
+        if !strings.Contains(current, "func ") </span><span class="cov4" title="8">{
                 return false
         }</span>
         <span class="cov4" title="6">open := strings.Index(current, "(")
@@ -6158,78 +6203,78 @@ func inParamList(current string, cursor int) bool <span class="cov5" title="13">
 }
 
 // renderTemplate performs simple {{var}} replacement in a template string.
-func renderTemplate(t string, vars map[string]string) string <span class="cov8" title="42">{ return textutil.RenderTemplate(t, vars) }</span>
+func renderTemplate(t string, vars map[string]string) string <span class="cov7" title="43">{ return textutil.RenderTemplate(t, vars) }</span>
 
-func computeTextEditAndFilter(cleaned string, inParams bool, current string, p CompletionParams) (*TextEdit, string) <span class="cov6" title="18">{
-        if inParams </span><span class="cov3" title="3">{
+func computeTextEditAndFilter(cleaned string, inParams bool, current string, p CompletionParams) (*TextEdit, string) <span class="cov6" title="19">{
+        if inParams </span><span class="cov2" title="3">{
                 open := strings.Index(current, "(")
                 close := strings.Index(current, ")")
-                if open &gt;= 0 </span><span class="cov3" title="3">{
+                if open &gt;= 0 </span><span class="cov2" title="3">{
                         left := open + 1
                         right := len(current)
-                        if close &gt;= 0 &amp;&amp; close &gt;= left </span><span class="cov3" title="3">{
+                        if close &gt;= 0 &amp;&amp; close &gt;= left </span><span class="cov2" title="3">{
                                 right = close
                         }</span>
-                        <span class="cov3" title="3">if p.Position.Character &lt; right </span><span class="cov2" title="2">{
+                        <span class="cov2" title="3">if p.Position.Character &lt; right </span><span class="cov2" title="2">{
                                 right = p.Position.Character
                         }</span>
-                        <span class="cov3" title="3">te := &amp;TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: left}, End: Position{Line: p.Position.Line, Character: right}}, NewText: cleaned}
+                        <span class="cov2" title="3">te := &amp;TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: left}, End: Position{Line: p.Position.Line, Character: right}}, NewText: cleaned}
                         var filter string
-                        if left &gt;= 0 &amp;&amp; right &gt;= left &amp;&amp; right &lt;= len(current) </span><span class="cov3" title="3">{
+                        if left &gt;= 0 &amp;&amp; right &gt;= left &amp;&amp; right &lt;= len(current) </span><span class="cov2" title="3">{
                                 filter = strings.TrimLeft(current[left:right], " \t")
                         }</span>
-                        <span class="cov3" title="3">return te, filter</span>
+                        <span class="cov2" title="3">return te, filter</span>
                 }
         }
-        <span class="cov6" title="15">startChar := computeWordStart(current, p.Position.Character)
+        <span class="cov6" title="16">startChar := computeWordStart(current, p.Position.Character)
         te := &amp;TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: startChar}, End: Position{Line: p.Position.Line, Character: p.Position.Character}}, NewText: cleaned}
         filter := strings.TrimLeft(current[startChar:p.Position.Character], " \t")
         return te, filter</span>
 }
 
-func computeWordStart(current string, at int) int <span class="cov7" title="25">{
+func computeWordStart(current string, at int) int <span class="cov6" title="26">{
         if at &gt; len(current) </span><span class="cov0" title="0">{
                 at = len(current)
         }</span>
-        <span class="cov7" title="25">for at &gt; 0 </span><span class="cov8" title="50">{
+        <span class="cov6" title="26">for at &gt; 0 </span><span class="cov8" title="51">{
                 ch := current[at-1]
                 if (ch &gt;= 'a' &amp;&amp; ch &lt;= 'z') || (ch &gt;= 'A' &amp;&amp; ch &lt;= 'Z') || (ch &gt;= '0' &amp;&amp; ch &lt;= '9') || ch == '_' </span><span class="cov7" title="31">{
                         at--
                         continue</span>
                 }
-                <span class="cov6" title="19">break</span>
+                <span class="cov6" title="20">break</span>
         }
-        <span class="cov7" title="25">return at</span>
+        <span class="cov6" title="26">return at</span>
 }
 
-func isIdentChar(ch byte) bool <span class="cov7" title="26">{
+func isIdentChar(ch byte) bool <span class="cov6" title="26">{
         return (ch &gt;= 'a' &amp;&amp; ch &lt;= 'z') || (ch &gt;= 'A' &amp;&amp; ch &lt;= 'Z') || (ch &gt;= '0' &amp;&amp; ch &lt;= '9') || ch == '_'
 }</span>
 
 // chatWithStats wraps llmClient.Chat to increment counters and emit a tmux heartbeat.
-func (s *Server) chatWithStats(ctx context.Context, msgs []llm.Message, opts ...llm.RequestOption) (string, error) <span class="cov7" title="26">{
+func (s *Server) chatWithStats(ctx context.Context, msgs []llm.Message, opts ...llm.RequestOption) (string, error) <span class="cov6" title="26">{
         // Count bytes sent
         sent := 0
         for _, m := range msgs </span><span class="cov8" title="55">{
                 sent += len(m.Content)
         }</span>
-        <span class="cov7" title="26">s.incSentCounters(sent)
+        <span class="cov6" title="26">s.incSentCounters(sent)
         // Debounce/throttle if configured (reuse completion gates)
         s.waitForDebounce(ctx)
         if !s.waitForThrottle(ctx) </span><span class="cov0" title="0">{
                 return "", context.Canceled
         }</span>
         // Perform request
-        <span class="cov7" title="26">client := s.currentLLMClient()
+        <span class="cov6" title="26">client := s.currentLLMClient()
         if client == nil </span><span class="cov0" title="0">{
                 return "", fmt.Errorf("llm client unavailable")
         }</span>
-        <span class="cov7" title="26">txt, err := client.Chat(ctx, msgs, opts...)
+        <span class="cov6" title="26">txt, err := client.Chat(ctx, msgs, opts...)
         if err != nil </span><span class="cov1" title="1">{
                 s.logLLMStats()
                 return "", err
         }</span>
-        <span class="cov7" title="25">s.incRecvCounters(len(txt))
+        <span class="cov6" title="25">s.incRecvCounters(len(txt))
         // Update global stats cache
         _ = stats.Update(ctx, client.Name(), client.DefaultModel(), sent, len(txt))
         s.logLLMStats()
@@ -6238,23 +6283,23 @@ func (s *Server) chatWithStats(ctx context.Context, msgs []llm.Message, opts ...
 
 // Inline prompt utilities
 
-func lineHasInlinePrompt(line string, open, close byte) bool <span class="cov8" title="44">{
-        if _, _, _, ok := findStrictInlineTag(line, open, close); ok </span><span class="cov3" title="4">{
+func lineHasInlinePrompt(line string, open, close byte) bool <span class="cov7" title="45">{
+        if _, _, _, ok := findStrictInlineTag(line, open, close); ok </span><span class="cov3" title="5">{
                 return true
         }</span>
-        <span class="cov8" title="40">return hasDoubleOpenTrigger(line, open, close)</span>
+        <span class="cov7" title="40">return hasDoubleOpenTrigger(line, open, close)</span>
 }
 
-func leadingIndent(line string) string <span class="cov3" title="4">{
+func leadingIndent(line string) string <span class="cov3" title="5">{
         i := 0
-        for i &lt; len(line) </span><span class="cov6" title="14">{
+        for i &lt; len(line) </span><span class="cov5" title="15">{
                 if line[i] == ' ' || line[i] == '\t' </span><span class="cov5" title="10">{
                         i++
                         continue</span>
                 }
-                <span class="cov3" title="4">break</span>
+                <span class="cov3" title="5">break</span>
         }
-        <span class="cov3" title="4">if i == 0 </span><span class="cov0" title="0">{
+        <span class="cov3" title="5">if i == 0 </span><span class="cov1" title="1">{
                 return ""
         }</span>
         <span class="cov3" title="4">return line[:i]</span>
@@ -6269,10 +6314,10 @@ func applyIndent(indent, suggestion string) string <span class="cov3" title="4">
                 if strings.TrimSpace(ln) == "" </span><span class="cov1" title="1">{
                         continue</span>
                 }
-                <span class="cov5" title="9">if strings.HasPrefix(ln, indent) </span><span class="cov0" title="0">{
+                <span class="cov4" title="9">if strings.HasPrefix(ln, indent) </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov5" title="9">lines[i] = indent + ln</span>
+                <span class="cov4" title="9">lines[i] = indent + ln</span>
         }
         <span class="cov3" title="4">return strings.Join(lines, "\n")</span>
 }
@@ -6282,36 +6327,36 @@ func applyIndent(indent, suggestion string) string <span class="cov3" title="4">
 // findStrictInlineTag finds &gt;text&gt; (configurable), with no space after the first
 // opening marker and no space immediately before the closing marker. Returns the
 // text between markers, the start index, the end index just after closing, and ok.
-func findStrictInlineTag(line string, open, close byte) (string, int, int, bool) <span class="cov9" title="75">{
+func findStrictInlineTag(line string, open, close byte) (string, int, int, bool) <span class="cov8" title="76">{
         pos := 0
-        for pos &lt; len(line) </span><span class="cov9" title="87">{
+        for pos &lt; len(line) </span><span class="cov9" title="89">{
                 // find opening marker
                 j := strings.IndexByte(line[pos:], open)
-                if j &lt; 0 </span><span class="cov8" title="39">{
+                if j &lt; 0 </span><span class="cov7" title="39">{
                         return "", 0, 0, false
                 }</span>
-                <span class="cov8" title="48">j += pos
+                <span class="cov8" title="50">j += pos
                 // ensure single open (not double) and non-space after
-                if j+1 &gt;= len(line) || line[j+1] == open || line[j+1] == ' ' </span><span class="cov7" title="31">{
+                if j+1 &gt;= len(line) || line[j+1] == open || line[j+1] == ' ' </span><span class="cov7" title="32">{
                         pos = j + 1
                         continue</span>
                 }
                 // find closing marker
-                <span class="cov6" title="17">k := strings.IndexByte(line[j+1:], close)
+                <span class="cov6" title="18">k := strings.IndexByte(line[j+1:], close)
                 if k &lt; 0 </span><span class="cov1" title="1">{
                         return "", 0, 0, false
                 }</span>
-                <span class="cov6" title="16">closeIdx := j + 1 + k
+                <span class="cov6" title="17">closeIdx := j + 1 + k
                 if closeIdx-1 &lt; 0 || line[closeIdx-1] == ' ' </span><span class="cov1" title="1">{
                         pos = closeIdx + 1
                         continue</span>
                 }
-                <span class="cov6" title="15">inner := strings.TrimSpace(line[j+1 : closeIdx])
+                <span class="cov6" title="16">inner := strings.TrimSpace(line[j+1 : closeIdx])
                 if inner == "" </span><span class="cov0" title="0">{
                         pos = closeIdx + 1
                         continue</span>
                 }
-                <span class="cov6" title="15">end := closeIdx + 1
+                <span class="cov6" title="16">end := closeIdx + 1
                 return inner, j, end, true</span>
         }
         <span class="cov6" title="20">return "", 0, 0, false</span>
@@ -6320,14 +6365,14 @@ func findStrictInlineTag(line string, open, close byte) (string, int, int, bool)
 // isBareDoubleSemicolon reports whether the line contains a standalone
 // double-semicolon marker with no inline content (";;" possibly with only
 // whitespace after it). It explicitly excludes the valid form ";;text;".
-func isBareDoubleOpen(line string, open, close byte) bool <span class="cov6" title="20">{
+func isBareDoubleOpen(line string, open, close byte) bool <span class="cov6" title="22">{
         t := strings.TrimSpace(line)
         // check for double-open pattern
         dbl := string([]byte{open, open})
-        if !strings.Contains(t, dbl) </span><span class="cov6" title="18">{
+        if !strings.Contains(t, dbl) </span><span class="cov6" title="19">{
                 return false
         }</span>
-        <span class="cov2" title="2">if hasDoubleOpenTrigger(t, open, close) </span><span class="cov1" title="1">{
+        <span class="cov2" title="3">if hasDoubleOpenTrigger(t, open, close) </span><span class="cov2" title="2">{
                 return false
         }</span>
         <span class="cov1" title="1">if strings.HasPrefix(t, dbl) </span><span class="cov1" title="1">{
@@ -6340,7 +6385,7 @@ func isBareDoubleOpen(line string, open, close byte) bool <span class="cov6" tit
 }
 
 // stripDuplicateAssignmentPrefix removes a duplicated assignment prefix from the suggestion.
-func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) string <span class="cov6" title="20">{
+func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) string <span class="cov6" title="21">{
         s2 := strings.TrimLeft(suggestion, " \t")
         // Prefer := if present at end of prefix
         if idx := strings.LastIndex(prefixBeforeCursor, ":="); idx &gt;= 0 &amp;&amp; idx+2 &lt;= len(prefixBeforeCursor) </span><span class="cov3" title="4">{
@@ -6358,7 +6403,7 @@ func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) strin
                 }
         }
         // Fallback to plain '=' if present
-        <span class="cov6" title="16">if idx := strings.LastIndex(prefixBeforeCursor, "="); idx &gt;= 0 </span><span class="cov2" title="2">{
+        <span class="cov6" title="17">if idx := strings.LastIndex(prefixBeforeCursor, "="); idx &gt;= 0 </span><span class="cov2" title="2">{
                 if !(idx &gt; 0 &amp;&amp; prefixBeforeCursor[idx-1] == ':') </span><span class="cov2" title="2">{ // not :=
                         tail := prefixBeforeCursor[idx+1:]
                         if strings.TrimSpace(tail) == "" </span><span class="cov2" title="2">{
@@ -6374,40 +6419,40 @@ func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) strin
                         }
                 }
         }
-        <span class="cov6" title="14">return suggestion</span>
+        <span class="cov5" title="15">return suggestion</span>
 }
 
 // stripDuplicateGeneralPrefix removes any already-typed prefix that the model repeated.
-func stripDuplicateGeneralPrefix(prefixBeforeCursor, suggestion string) string <span class="cov6" title="20">{
+func stripDuplicateGeneralPrefix(prefixBeforeCursor, suggestion string) string <span class="cov6" title="21">{
         if suggestion == "" </span><span class="cov0" title="0">{
                 return suggestion
         }</span>
-        <span class="cov6" title="20">s := strings.TrimLeft(suggestion, " \t")
+        <span class="cov6" title="21">s := strings.TrimLeft(suggestion, " \t")
         p := strings.TrimRight(prefixBeforeCursor, " \t")
-        if p != "" &amp;&amp; strings.HasPrefix(s, p) </span><span class="cov4" title="5">{
+        if p != "" &amp;&amp; strings.HasPrefix(s, p) </span><span class="cov3" title="5">{
                 return strings.TrimLeft(s[len(p):], " \t")
         }</span>
-        <span class="cov6" title="15">for k := len(p) - 1; k &gt; 0; k-- </span><span class="cov10" title="103">{
-                if !isIdentBoundary(p[k-1]) </span><span class="cov9" title="80">{
+        <span class="cov6" title="16">for k := len(p) - 1; k &gt; 0; k-- </span><span class="cov10" title="146">{
+                if !isIdentBoundary(p[k-1]) </span><span class="cov9" title="116">{
                         continue</span>
                 }
-                <span class="cov7" title="23">suf := strings.TrimLeft(p[k:], " \t")
+                <span class="cov7" title="30">suf := strings.TrimLeft(p[k:], " \t")
                 if suf == "" </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov7" title="23">if strings.HasPrefix(s, suf) </span><span class="cov0" title="0">{
+                <span class="cov7" title="30">if strings.HasPrefix(s, suf) </span><span class="cov0" title="0">{
                         return strings.TrimLeft(s[len(suf):], " \t")
                 }</span>
         }
-        <span class="cov6" title="15">return suggestion</span>
+        <span class="cov6" title="16">return suggestion</span>
 }
 
-func isIdentBoundary(ch byte) bool <span class="cov10" title="103">{
+func isIdentBoundary(ch byte) bool <span class="cov10" title="146">{
         return !((ch &gt;= 'a' &amp;&amp; ch &lt;= 'z') || (ch &gt;= 'A' &amp;&amp; ch &lt;= 'Z') || (ch &gt;= '0' &amp;&amp; ch &lt;= '9') || ch == '_')
 }</span>
 
 // stripCodeFences removes surrounding Markdown code fences from a model response.
-func stripCodeFences(s string) string <span class="cov8" title="45">{ return textutil.StripCodeFences(s) }</span>
+func stripCodeFences(s string) string <span class="cov7" title="46">{ return textutil.StripCodeFences(s) }</span>
 
 // stripInlineCodeSpan returns the contents of the first inline backtick code span if present.
 func stripInlineCodeSpan(s string) string <span class="cov5" title="11">{
@@ -6419,7 +6464,7 @@ func stripInlineCodeSpan(s string) string <span class="cov5" title="11">{
         if i &lt; 0 </span><span class="cov2" title="2">{
                 return t
         }</span>
-        <span class="cov5" title="9">jrel := strings.IndexByte(t[i+1:], '`')
+        <span class="cov4" title="9">jrel := strings.IndexByte(t[i+1:], '`')
         if jrel &lt; 0 </span><span class="cov2" title="2">{
                 return t
         }</span>
@@ -6428,25 +6473,25 @@ func stripInlineCodeSpan(s string) string <span class="cov5" title="11">{
 }
 
 // labelForCompletion picks a short, readable label for the completion list.
-func labelForCompletion(cleaned, filter string) string <span class="cov6" title="21">{
+func labelForCompletion(cleaned, filter string) string <span class="cov6" title="22">{
         label := trimLen(firstLine(cleaned))
-        if filter != "" &amp;&amp; !strings.HasPrefix(strings.ToLower(label), strings.ToLower(filter)) </span><span class="cov4" title="5">{
+        if filter != "" &amp;&amp; !strings.HasPrefix(strings.ToLower(label), strings.ToLower(filter)) </span><span class="cov3" title="5">{
                 return filter
         }</span>
-        <span class="cov6" title="16">return label</span>
+        <span class="cov6" title="17">return label</span>
 }
 
 // extractRangeText returns the exact text within the given document range.
 func extractRangeText(d *document, r Range) string <span class="cov4" title="6">{
-        if r.Start.Line == r.End.Line </span><span class="cov4" title="5">{
+        if r.Start.Line == r.End.Line </span><span class="cov3" title="5">{
                 line := d.lines[r.Start.Line]
                 if r.Start.Character &lt; 0 </span><span class="cov0" title="0">{
                         r.Start.Character = 0
                 }</span>
-                <span class="cov4" title="5">if r.End.Character &gt; len(line) </span><span class="cov0" title="0">{
+                <span class="cov3" title="5">if r.End.Character &gt; len(line) </span><span class="cov0" title="0">{
                         r.End.Character = len(line)
                 }</span>
-                <span class="cov4" title="5">if r.Start.Character &gt; r.End.Character </span><span class="cov1" title="1">{
+                <span class="cov3" title="5">if r.Start.Character &gt; r.End.Character </span><span class="cov1" title="1">{
                         return ""
                 }</span>
                 <span class="cov3" title="4">return line[r.Start.Character:r.End.Character]</span>
@@ -6482,61 +6527,61 @@ func extractRangeText(d *document, r Range) string <span class="cov4" title="6">
 }
 
 // collectPromptRemovalEdits returns edits to remove all inline prompt markers.
-func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit <span class="cov6" title="14">{
+func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit <span class="cov5" title="15">{
         d := s.getDocument(uri)
         if d == nil || len(d.lines) == 0 </span><span class="cov5" title="11">{
                 return nil
         }</span>
-        <span class="cov3" title="3">var edits []TextEdit
+        <span class="cov3" title="4">var edits []TextEdit
         _, _, openChar, closeChar := s.inlineMarkers()
-        for i, line := range d.lines </span><span class="cov5" title="12">{
+        for i, line := range d.lines </span><span class="cov5" title="13">{
                 edits = append(edits, promptRemovalEditsForLine(line, i, openChar, closeChar)...)
         }</span>
-        <span class="cov3" title="3">return edits</span>
+        <span class="cov3" title="4">return edits</span>
 }
 
-func promptRemovalEditsForLine(line string, lineNum int, open, close byte) []TextEdit <span class="cov6" title="16">{
-        if hasDoubleOpenTrigger(line, open, close) </span><span class="cov3" title="4">{
+func promptRemovalEditsForLine(line string, lineNum int, open, close byte) []TextEdit <span class="cov6" title="17">{
+        if hasDoubleOpenTrigger(line, open, close) </span><span class="cov3" title="5">{
                 return []TextEdit{{Range: Range{Start: Position{Line: lineNum, Character: 0}, End: Position{Line: lineNum, Character: len(line)}}, NewText: ""}}
         }</span>
         <span class="cov5" title="12">return collectSemicolonMarkers(line, lineNum, open, close)</span>
 }
 
-func hasDoubleOpenTrigger(line string, open, close byte) bool <span class="cov9" title="87">{
+func hasDoubleOpenTrigger(line string, open, close byte) bool <span class="cov9" title="90">{
         pos := 0
-        for pos &lt; len(line) </span><span class="cov9" title="86">{
+        for pos &lt; len(line) </span><span class="cov9" title="89">{
                 // look for double-open sequence
                 dbl := string([]byte{open, open})
                 j := strings.Index(line[pos:], dbl)
-                if j &lt; 0 </span><span class="cov9" title="62">{
+                if j &lt; 0 </span><span class="cov8" title="62">{
                         return false
                 }</span>
-                <span class="cov7" title="24">j += pos
+                <span class="cov6" title="27">j += pos
                 contentStart := j + len(dbl)
-                if contentStart &gt;= len(line) </span><span class="cov5" title="8">{
+                if contentStart &gt;= len(line) </span><span class="cov4" title="8">{
                         return false
                 }</span>
-                <span class="cov6" title="16">first := line[contentStart]
-                if first == ' ' || first == open </span><span class="cov4" title="5">{
+                <span class="cov6" title="19">first := line[contentStart]
+                if first == ' ' || first == open </span><span class="cov3" title="5">{
                         pos = contentStart + 1
                         continue</span>
                 }
                 // find closing
-                <span class="cov5" title="11">k := strings.IndexByte(line[contentStart+1:], close)
+                <span class="cov5" title="14">k := strings.IndexByte(line[contentStart+1:], close)
                 if k &lt; 0 </span><span class="cov0" title="0">{
                         return false
                 }</span>
-                <span class="cov5" title="11">closeIdx := contentStart + 1 + k
+                <span class="cov5" title="14">closeIdx := contentStart + 1 + k
                 if closeIdx-1 &gt;= 0 &amp;&amp; line[closeIdx-1] == ' ' </span><span class="cov1" title="1">{
                         pos = closeIdx + 1
                         continue</span>
                 }
-                <span class="cov5" title="10">return true</span>
+                <span class="cov5" title="13">return true</span>
         }
         <span class="cov4" title="7">return false</span>
 }
 
-func collectSemicolonMarkers(line string, lineNum int, open, close byte) []TextEdit <span class="cov6" title="14">{
+func collectSemicolonMarkers(line string, lineNum int, open, close byte) []TextEdit <span class="cov5" title="14">{
         var edits []TextEdit
         startSemi := 0
         for startSemi &lt; len(line) </span><span class="cov6" title="18">{
@@ -6573,7 +6618,7 @@ func collectSemicolonMarkers(line string, lineNum int, open, close byte) []TextE
                 <span class="cov4" title="6">edits = append(edits, TextEdit{Range: Range{Start: Position{Line: lineNum, Character: j}, End: Position{Line: lineNum, Character: endChar}}, NewText: ""})
                 startSemi = endChar</span>
         }
-        <span class="cov6" title="14">return edits</span>
+        <span class="cov5" title="14">return edits</span>
 }
 </pre>
 		
@@ -6684,7 +6729,7 @@ type CustomAction struct {
         User        string // if set, use this user template
 }
 
-func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server <span class="cov3" title="7">{
+func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server <span class="cov4" title="8">{
         s := &amp;Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: opts.LogContext, configStore: opts.ConfigStore}
         s.startTime = time.Now()
         s.compCache = make(map[string]string)
@@ -6703,21 +6748,21 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
                 "codeAction/resolve":       s.handleCodeActionResolve,
                 "workspace/executeCommand": s.handleExecuteCommand,
         }
-        <span class="cov3" title="7">return s</span>
+        <span class="cov4" title="8">return s</span>
 }
 
-func (s *Server) applyOptions(opts ServerOptions) <span class="cov4" title="8">{
+func (s *Server) applyOptions(opts ServerOptions) <span class="cov4" title="9">{
         s.mu.Lock()
         defer s.mu.Unlock()
         s.logContext = opts.LogContext
         if opts.ConfigStore != nil </span><span class="cov1" title="1">{
                 s.configStore = opts.ConfigStore
         }</span>
-        <span class="cov4" title="8">if opts.Config != nil </span><span class="cov2" title="2">{
+        <span class="cov4" title="9">if opts.Config != nil </span><span class="cov2" title="2">{
                 s.cfg = *opts.Config
-        }</span> else<span class="cov3" title="6"> if opts.ConfigStore != nil </span><span class="cov0" title="0">{
+        }</span> else<span class="cov3" title="7"> if opts.ConfigStore != nil </span><span class="cov0" title="0">{
                 s.cfg = opts.ConfigStore.Snapshot()
-        }</span> else<span class="cov3" title="6"> {
+        }</span> else<span class="cov3" title="7"> {
                 s.cfg = appconfig.App{}
                 // populate from legacy ServerOptions fields
                 s.cfg.MaxTokens = opts.MaxTokens
@@ -6764,7 +6809,7 @@ func (s *Server) applyOptions(opts ServerOptions) <span class="cov4" title="8">{
                         }
                 }</span>
         }
-        <span class="cov4" title="8">s.llmClient = opts.Client</span>
+        <span class="cov4" title="9">s.llmClient = opts.Client</span>
 }
 
 // ApplyOptions updates the server's configuration at runtime.
@@ -6772,32 +6817,32 @@ func (s *Server) ApplyOptions(opts ServerOptions) <span class="cov1" title="1">{
         s.applyOptions(opts)
 }</span>
 
-func (s *Server) currentLLMClient() llm.Client <span class="cov8" title="199">{
+func (s *Server) currentLLMClient() llm.Client <span class="cov8" title="205">{
         s.mu.RLock()
         defer s.mu.RUnlock()
         return s.llmClient
 }</span>
 
-func (s *Server) currentConfig() appconfig.App <span class="cov10" title="420">{
+func (s *Server) currentConfig() appconfig.App <span class="cov10" title="431">{
         if s.configStore != nil </span><span class="cov3" title="5">{
                 return s.configStore.Snapshot()
         }</span>
-        <span class="cov9" title="415">s.mu.RLock()
+        <span class="cov9" title="426">s.mu.RLock()
         defer s.mu.RUnlock()
         return s.cfg</span>
 }
 
-func (s *Server) maxTokens() int <span class="cov6" title="35">{
+func (s *Server) maxTokens() int <span class="cov6" title="36">{
         cfg := s.currentConfig()
-        if cfg.MaxTokens &lt;= 0 </span><span class="cov6" title="29">{
+        if cfg.MaxTokens &lt;= 0 </span><span class="cov6" title="30">{
                 return 500
         }</span>
         <span class="cov3" title="6">return cfg.MaxTokens</span>
 }
 
-func (s *Server) contextMode() string <span class="cov4" title="13">{
+func (s *Server) contextMode() string <span class="cov4" title="14">{
         mode := strings.TrimSpace(s.currentConfig().ContextMode)
-        if mode == "" </span><span class="cov3" title="4">{
+        if mode == "" </span><span class="cov3" title="5">{
                 return "file-on-new-func"
         }</span>
         <span class="cov4" title="9">return mode</span>
@@ -6827,7 +6872,7 @@ func (s *Server) triggerCharacters() []string <span class="cov5" title="27">{
         <span class="cov5" title="24">return append([]string{}, cfg.TriggerCharacters...)</span>
 }
 
-func (s *Server) codingTemperature() *float64 <span class="cov6" title="49">{
+func (s *Server) codingTemperature() *float64 <span class="cov6" title="51">{
         cfg := s.currentConfig()
         return cfg.CodingTemperature
 }</span>
@@ -6836,47 +6881,47 @@ func (s *Server) manualInvokeMinPrefix() int <span class="cov3" title="5">{
         return s.currentConfig().ManualInvokeMinPrefix
 }</span>
 
-func (s *Server) completionDebounce() time.Duration <span class="cov6" title="41">{
+func (s *Server) completionDebounce() time.Duration <span class="cov6" title="42">{
         cfg := s.currentConfig()
-        if cfg.CompletionDebounceMs &lt;= 0 </span><span class="cov6" title="39">{
+        if cfg.CompletionDebounceMs &lt;= 0 </span><span class="cov6" title="40">{
                 return 0
         }</span>
         <span class="cov2" title="2">return time.Duration(cfg.CompletionDebounceMs) * time.Millisecond</span>
 }
 
-func (s *Server) completionThrottle() time.Duration <span class="cov6" title="41">{
+func (s *Server) completionThrottle() time.Duration <span class="cov6" title="42">{
         cfg := s.currentConfig()
-        if cfg.CompletionThrottleMs &lt;= 0 </span><span class="cov6" title="38">{
+        if cfg.CompletionThrottleMs &lt;= 0 </span><span class="cov6" title="39">{
                 return 0
         }</span>
         <span class="cov2" title="3">return time.Duration(cfg.CompletionThrottleMs) * time.Millisecond</span>
 }
 
-func (s *Server) inlineMarkers() (open string, close string, openChar byte, closeChar byte) <span class="cov7" title="99">{
+func (s *Server) inlineMarkers() (open string, close string, openChar byte, closeChar byte) <span class="cov7" title="102">{
         cfg := s.currentConfig()
         open = strings.TrimSpace(cfg.InlineOpen)
         if open == "" </span><span class="cov2" title="2">{
                 open = "&gt;"
         }</span>
-        <span class="cov7" title="99">close = strings.TrimSpace(cfg.InlineClose)
+        <span class="cov7" title="102">close = strings.TrimSpace(cfg.InlineClose)
         if close == "" </span><span class="cov2" title="2">{
                 close = "&gt;"
         }</span>
-        <span class="cov7" title="99">openChar = '&gt;'
-        if len(open) &gt; 0 </span><span class="cov7" title="99">{
+        <span class="cov7" title="102">openChar = '&gt;'
+        if len(open) &gt; 0 </span><span class="cov7" title="102">{
                 openChar = open[0]
         }</span>
-        <span class="cov7" title="99">closeChar = '&gt;'
-        if len(close) &gt; 0 </span><span class="cov7" title="99">{
+        <span class="cov7" title="102">closeChar = '&gt;'
+        if len(close) &gt; 0 </span><span class="cov7" title="102">{
                 closeChar = close[0]
         }</span>
-        <span class="cov7" title="99">return open, close, openChar, closeChar</span>
+        <span class="cov7" title="102">return open, close, openChar, closeChar</span>
 }
 
-func (s *Server) chatConfig() (suffix string, prefixes []string, suffixChar byte) <span class="cov6" title="46">{
+func (s *Server) chatConfig() (suffix string, prefixes []string, suffixChar byte) <span class="cov6" title="47">{
         cfg := s.currentConfig()
         suffix = cfg.ChatSuffix
-        if suffix != "" </span><span class="cov6" title="44">{
+        if suffix != "" </span><span class="cov6" title="45">{
                 suffix = strings.TrimSpace(suffix)
                 if suffix == "" </span><span class="cov0" title="0">{
                         suffix = "&gt;"
@@ -6884,16 +6929,16 @@ func (s *Server) chatConfig() (suffix string, prefixes []string, suffixChar byte
         } else<span class="cov2" title="2"> {
                 suffix = ""
         }</span>
-        <span class="cov6" title="46">if len(cfg.ChatPrefixes) == 0 </span><span class="cov0" title="0">{
+        <span class="cov6" title="47">if len(cfg.ChatPrefixes) == 0 </span><span class="cov0" title="0">{
                 prefixes = []string{"?", "!", ":", ";"}
-        }</span> else<span class="cov6" title="46"> {
+        }</span> else<span class="cov6" title="47"> {
                 prefixes = append([]string{}, cfg.ChatPrefixes...)
         }</span>
-        <span class="cov6" title="46">suffixChar = '&gt;'
-        if len(suffix) &gt; 0 </span><span class="cov6" title="44">{
+        <span class="cov6" title="47">suffixChar = '&gt;'
+        if len(suffix) &gt; 0 </span><span class="cov6" title="45">{
                 suffixChar = suffix[0]
         }</span>
-        <span class="cov6" title="46">return suffix, prefixes, suffixChar</span>
+        <span class="cov6" title="47">return suffix, prefixes, suffixChar</span>
 }
 
 func (s *Server) promptSet() appconfig.App <span class="cov2" title="2">{
@@ -6996,7 +7041,7 @@ func (s *Server) readMessage() ([]byte, error) <span class="cov2" title="2">{
         <span class="cov1" title="1">return buf, nil</span>
 }
 
-func (s *Server) writeMessage(v any) <span class="cov10" title="42">{
+func (s *Server) writeMessage(v any) <span class="cov10" title="43">{
         s.outMu.Lock()
         defer s.outMu.Unlock()
 
@@ -7005,12 +7050,12 @@ func (s *Server) writeMessage(v any) <span class="cov10" title="42">{
                 logging.Logf("lsp ", "marshal error: %v", err)
                 return
         }</span>
-        <span class="cov10" title="42">header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(data))
+        <span class="cov10" title="43">header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(data))
         if _, err := io.WriteString(s.out, header); err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "write header error: %v", err)
                 return
         }</span>
-        <span class="cov10" title="42">if _, err := s.out.Write(data); err != nil </span><span class="cov0" title="0">{
+        <span class="cov10" title="43">if _, err := s.out.Write(data); err != nil </span><span class="cov0" title="0">{
                 logging.Logf("lsp ", "write body error: %v", err)
                 return
         }</span>
@@ -7224,9 +7269,9 @@ import (
         "golang.org/x/sys/unix"
 )
 
-func tryLockFile(fd uintptr) error <span class="cov10" title="199">{
-        if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil </span><span class="cov9" title="122">{
-                if errors.Is(err, unix.EWOULDBLOCK) </span><span class="cov9" title="122">{
+func tryLockFile(fd uintptr) error <span class="cov10" title="214">{
+        if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil </span><span class="cov9" title="137">{
+                if errors.Is(err, unix.EWOULDBLOCK) </span><span class="cov9" title="137">{
                         return errLockWouldBlock
                 }</span>
                 <span class="cov0" title="0">return err</span>
@@ -7270,18 +7315,18 @@ var windowSeconds int64 = int64(defaultWindow.Seconds())
 var errLockWouldBlock = errors.New("stats: lock would block")
 
 // SetWindow sets the sliding window used for pruning and aggregation.
-func SetWindow(d time.Duration) <span class="cov5" title="82">{
+func SetWindow(d time.Duration) <span class="cov5" title="83">{
         if d &lt; time.Second </span><span class="cov0" title="0">{
                 d = time.Second
         }</span>
-        <span class="cov5" title="82">if d &gt; 24*time.Hour </span><span class="cov0" title="0">{
+        <span class="cov5" title="83">if d &gt; 24*time.Hour </span><span class="cov0" title="0">{
                 d = 24 * time.Hour
         }</span>
-        <span class="cov5" title="82">atomic.StoreInt64(&amp;windowSeconds, int64(d.Seconds()))</span>
+        <span class="cov5" title="83">atomic.StoreInt64(&amp;windowSeconds, int64(d.Seconds()))</span>
 }
 
 // Window returns the current sliding window.
-func Window() time.Duration <span class="cov5" title="77">{ return time.Duration(atomic.LoadInt64(&amp;windowSeconds)) * time.Second }</span>
+func Window() time.Duration <span class="cov4" title="77">{ return time.Duration(atomic.LoadInt64(&amp;windowSeconds)) * time.Second }</span>
 
 // Event represents a single request/response with sizes.
 type Event struct {
@@ -7316,108 +7361,108 @@ type Snapshot struct {
 }
 
 // Update appends one event and prunes old entries under lock.
-func Update(ctx context.Context, provider, model string, sentBytes, recvBytes int) error <span class="cov5" title="77">{
+func Update(ctx context.Context, provider, model string, sentBytes, recvBytes int) error <span class="cov4" title="77">{
         dir, err := CacheDir()
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov5" title="77">if err := os.MkdirAll(dir, 0o755); err != nil </span><span class="cov0" title="0">{
+        <span class="cov4" title="77">if err := os.MkdirAll(dir, 0o755); err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov5" title="77">lockPath := filepath.Join(dir, lockFileName)
+        <span class="cov4" title="77">lockPath := filepath.Join(dir, lockFileName)
         f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov5" title="77">defer f.Close()
+        <span class="cov4" title="77">defer f.Close()
         unlock, err := acquireFileLock(ctx, f)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov5" title="77">defer func() </span><span class="cov5" title="77">{ _ = unlock() }</span>()
+        <span class="cov4" title="77">defer func() </span><span class="cov4" title="77">{ _ = unlock() }</span>()
         // Read existing file (if any)
-        <span class="cov5" title="77">path := filepath.Join(dir, fileName)
+        <span class="cov4" title="77">path := filepath.Join(dir, fileName)
         var sf File
-        if b, rerr := os.ReadFile(path); rerr == nil </span><span class="cov5" title="74">{
+        if b, rerr := os.ReadFile(path); rerr == nil </span><span class="cov4" title="74">{
                 _ = json.Unmarshal(b, &amp;sf)
         }</span>
-        <span class="cov5" title="77">if sf.Version != fileVersion </span><span class="cov2" title="3">{
+        <span class="cov4" title="77">if sf.Version != fileVersion </span><span class="cov2" title="3">{
                 sf = File{Version: fileVersion}
         }</span>
-        <span class="cov5" title="77">now := time.Now()
+        <span class="cov4" title="77">now := time.Now()
         win := Window()
         sf.WindowSeconds = int(win.Seconds())
         // Append event
         sf.Events = append(sf.Events, Event{TS: now, Provider: provider, Model: model, Sent: int64(sentBytes), Recv: int64(recvBytes)})
         // Prune old
         cutoff := now.Add(-win)
-        if len(sf.Events) &gt; 0 </span><span class="cov5" title="77">{
+        if len(sf.Events) &gt; 0 </span><span class="cov4" title="77">{
                 // Find first &gt;= cutoff
                 i := 0
-                for ; i &lt; len(sf.Events); i++ </span><span class="cov5" title="78">{
-                        if !sf.Events[i].TS.Before(cutoff) </span><span class="cov5" title="77">{
+                for ; i &lt; len(sf.Events); i++ </span><span class="cov4" title="78">{
+                        if !sf.Events[i].TS.Before(cutoff) </span><span class="cov4" title="77">{
                                 break</span>
                         }
                 }
-                <span class="cov5" title="77">if i &gt; 0 </span><span class="cov1" title="1">{
+                <span class="cov4" title="77">if i &gt; 0 </span><span class="cov1" title="1">{
                         sf.Events = append([]Event(nil), sf.Events[i:]...)
                 }</span>
         }
-        <span class="cov5" title="77">sf.UpdatedAt = now
+        <span class="cov4" title="77">sf.UpdatedAt = now
         // Write atomically
         tmp, err := os.CreateTemp(dir, fileName+".tmp.")
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov5" title="77">enc := json.NewEncoder(tmp)
+        <span class="cov4" title="77">enc := json.NewEncoder(tmp)
         enc.SetEscapeHTML(false)
         if err := enc.Encode(&amp;sf); err != nil </span><span class="cov0" title="0">{
                 tmp.Close()
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov5" title="77">if err := tmp.Sync(); err != nil </span><span class="cov0" title="0">{
+        <span class="cov4" title="77">if err := tmp.Sync(); err != nil </span><span class="cov0" title="0">{
                 tmp.Close()
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov5" title="77">if err := tmp.Close(); err != nil </span><span class="cov0" title="0">{
+        <span class="cov4" title="77">if err := tmp.Close(); err != nil </span><span class="cov0" title="0">{
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov5" title="77">if err := os.Rename(tmp.Name(), path); err != nil </span><span class="cov0" title="0">{
+        <span class="cov4" title="77">if err := os.Rename(tmp.Name(), path); err != nil </span><span class="cov0" title="0">{
                 os.Remove(tmp.Name())
                 return err
         }</span>
-        <span class="cov5" title="77">return nil</span>
+        <span class="cov4" title="77">return nil</span>
 }
 
-func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) <span class="cov5" title="77">{
+func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) <span class="cov4" title="77">{
         fd := f.Fd()
-        for </span><span class="cov5" title="199">{
+        for </span><span class="cov5" title="214">{
                 err := tryLockFile(fd)
-                if err == nil </span><span class="cov5" title="77">{
-                        return func() error </span><span class="cov5" title="77">{ return unlockFile(fd) }</span>, nil
+                if err == nil </span><span class="cov4" title="77">{
+                        return func() error </span><span class="cov4" title="77">{ return unlockFile(fd) }</span>, nil
                 }
-                <span class="cov5" title="122">if errors.Is(err, errLockWouldBlock) </span><span class="cov5" title="122">{
+                <span class="cov5" title="137">if errors.Is(err, errLockWouldBlock) </span><span class="cov5" title="137">{
                         select </span>{
                         case &lt;-ctx.Done():<span class="cov0" title="0">
                                 return nil, ctx.Err()</span>
-                        case &lt;-time.After(5 * time.Millisecond):<span class="cov5" title="122"></span>
+                        case &lt;-time.After(5 * time.Millisecond):<span class="cov5" title="137"></span>
                         }
-                        <span class="cov5" title="122">continue</span>
+                        <span class="cov5" title="137">continue</span>
                 }
                 <span class="cov0" title="0">return nil, err</span>
         }
 }
 
 // Snapshot reads and aggregates events within the configured window.
-func TakeSnapshot() (Snapshot, error) <span class="cov4" title="69">{
+func TakeSnapshot() (Snapshot, error) <span class="cov4" title="70">{
         dir, err := CacheDir()
         if err != nil </span><span class="cov0" title="0">{
                 return Snapshot{}, err
         }</span>
-        <span class="cov4" title="69">path := filepath.Join(dir, fileName)
+        <span class="cov4" title="70">path := filepath.Join(dir, fileName)
         b, err := os.ReadFile(path)
         if err != nil </span><span class="cov0" title="0">{
                 if errors.Is(err, os.ErrNotExist) </span><span class="cov0" title="0">{
@@ -7425,30 +7470,30 @@ func TakeSnapshot() (Snapshot, error) <span class="cov4" title="69">{
                 }</span>
                 <span class="cov0" title="0">return Snapshot{}, err</span>
         }
-        <span class="cov4" title="69">var sf File
+        <span class="cov4" title="70">var sf File
         if err := json.Unmarshal(b, &amp;sf); err != nil </span><span class="cov0" title="0">{
                 return Snapshot{}, err
         }</span>
-        <span class="cov4" title="69">win := time.Duration(sf.WindowSeconds) * time.Second
+        <span class="cov4" title="70">win := time.Duration(sf.WindowSeconds) * time.Second
         if win &lt;= 0 </span><span class="cov0" title="0">{
                 win = Window()
-        }</span> else<span class="cov4" title="69"> {
+        }</span> else<span class="cov4" title="70"> {
                 SetWindow(win) // align process with file window if changed elsewhere
         }</span>
-        <span class="cov4" title="69">cutoff := time.Now().Add(-win)
+        <span class="cov4" title="70">cutoff := time.Now().Add(-win)
         snap := Snapshot{Providers: make(map[string]ProviderEntry), Window: win}
-        for _, ev := range sf.Events </span><span class="cov10" title="14622">{
+        for _, ev := range sf.Events </span><span class="cov10" title="18479">{
                 if ev.TS.Before(cutoff) </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov10" title="14622">snap.Global.Reqs++
+                <span class="cov10" title="18479">snap.Global.Reqs++
                 snap.Global.Sent += ev.Sent
                 snap.Global.Recv += ev.Recv
                 pe := snap.Providers[ev.Provider]
-                if pe.Models == nil </span><span class="cov6" title="465">{
+                if pe.Models == nil </span><span class="cov6" title="472">{
                         pe.Models = make(map[string]Counters)
                 }</span>
-                <span class="cov10" title="14622">pe.Totals.Reqs++
+                <span class="cov10" title="18479">pe.Totals.Reqs++
                 pe.Totals.Sent += ev.Sent
                 pe.Totals.Recv += ev.Recv
                 mc := pe.Models[ev.Model]
@@ -7458,37 +7503,37 @@ func TakeSnapshot() (Snapshot, error) <span class="cov4" title="69">{
                 pe.Models[ev.Model] = mc
                 snap.Providers[ev.Provider] = pe</span>
         }
-        <span class="cov4" title="69">mins := win.Minutes()
+        <span class="cov4" title="70">mins := win.Minutes()
         if mins &lt;= 0 </span><span class="cov0" title="0">{
                 mins = 0.001
         }</span>
-        <span class="cov4" title="69">snap.RPM = float64(snap.Global.Reqs) / mins
+        <span class="cov4" title="70">snap.RPM = float64(snap.Global.Reqs) / mins
         return snap, nil</span>
 }
 
 // CacheDir resolves the cache directory for stats.
-func CacheDir() (string, error) <span class="cov5" title="147">{
+func CacheDir() (string, error) <span class="cov5" title="148">{
         if x := os.Getenv("XDG_CACHE_HOME"); stringsTrim(x) != "" </span><span class="cov4" title="27">{
                 return filepath.Join(x, "hexai"), nil
         }</span>
-        <span class="cov5" title="120">home, err := os.UserHomeDir()
+        <span class="cov5" title="121">home, err := os.UserHomeDir()
         if err != nil </span><span class="cov0" title="0">{
                 return "", fmt.Errorf("cannot resolve home: %w", err)
         }</span>
-        <span class="cov5" title="120">return filepath.Join(home, ".cache", "hexai"), nil</span>
+        <span class="cov5" title="121">return filepath.Join(home, ".cache", "hexai"), nil</span>
 }
 
 // stringsTrim is a tiny helper to avoid importing strings everywhere here.
-func stringsTrim(s string) string <span class="cov5" title="147">{
+func stringsTrim(s string) string <span class="cov5" title="148">{
         i := 0
         j := len(s)
         for i &lt; j &amp;&amp; (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') </span><span class="cov0" title="0">{
                 i++
         }</span>
-        <span class="cov5" title="147">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
+        <span class="cov5" title="148">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
                 j--
         }</span>
-        <span class="cov5" title="147">if i == 0 &amp;&amp; j == len(s) </span><span class="cov5" title="147">{
+        <span class="cov5" title="148">if i == 0 &amp;&amp; j == len(s) </span><span class="cov5" title="148">{
                 return s
         }</span>
         <span class="cov0" title="0">return s[i:j]</span>
@@ -7534,24 +7579,24 @@ import "fmt"
 
 // HumanBytes renders n in a short human-friendly form using base-1000 units.
 // Examples: 999 -&gt; 999B, 1200 -&gt; 1.2k, 1540000 -&gt; 1.5M
-func HumanBytes(n int64) string <span class="cov10" title="138">{
+func HumanBytes(n int64) string <span class="cov10" title="140">{
         if n &lt; 1000 </span><span class="cov2" title="2">{
                 return fmt.Sprintf("%dB", n)
         }</span>
-        <span class="cov9" title="136">const unit = 1000.0
+        <span class="cov9" title="138">const unit = 1000.0
         v := float64(n)
         suffix := []string{"k", "M", "G", "T"}
         i := 0
-        for v &gt;= unit &amp;&amp; i &lt; len(suffix)-1 </span><span class="cov9" title="136">{
+        for v &gt;= unit &amp;&amp; i &lt; len(suffix)-1 </span><span class="cov9" title="138">{
                 v /= unit
                 i++
         }</span>
-        <span class="cov9" title="136">s := fmt.Sprintf("%.1f%s", v, suffix[i])
+        <span class="cov9" title="138">s := fmt.Sprintf("%.1f%s", v, suffix[i])
         // Strip trailing ".0"
         if len(s) &gt;= 3 &amp;&amp; s[len(s)-2:] == ".0" </span><span class="cov0" title="0">{
                 s = fmt.Sprintf("%d%s", int(v), suffix[i])
         }</span>
-        <span class="cov9" title="136">return s</span>
+        <span class="cov9" title="138">return s</span>
 }
 </pre>
 		
@@ -7560,8 +7605,8 @@ func HumanBytes(n int64) string <span class="cov10" title="138">{
 import "strings"
 
 // RenderTemplate performs simple {{var}} replacement in a template string.
-func RenderTemplate(t string, vars map[string]string) string <span class="cov8" title="63">{
-        if t == "" || len(vars) == 0 </span><span class="cov3" title="5">{
+func RenderTemplate(t string, vars map[string]string) string <span class="cov8" title="64">{
+        if t == "" || len(vars) == 0 </span><span class="cov4" title="6">{
                 return t
         }</span>
         <span class="cov8" title="58">out := t
@@ -7572,30 +7617,30 @@ func RenderTemplate(t string, vars map[string]string) string <span class="cov8" 
 }
 
 // StripCodeFences removes surrounding Markdown triple-backtick fences.
-func StripCodeFences(s string) string <span class="cov8" title="69">{
+func StripCodeFences(s string) string <span class="cov8" title="70">{
         t := strings.TrimSpace(s)
         if t == "" </span><span class="cov1" title="1">{
                 return t
         }</span>
-        <span class="cov8" title="68">lines := strings.Split(t, "\n")
+        <span class="cov8" title="69">lines := strings.Split(t, "\n")
         start := 0
         for start &lt; len(lines) &amp;&amp; strings.TrimSpace(lines[start]) == "" </span><span class="cov0" title="0">{
                 start++
         }</span>
-        <span class="cov8" title="68">end := len(lines) - 1
+        <span class="cov8" title="69">end := len(lines) - 1
         for end &gt;= 0 &amp;&amp; strings.TrimSpace(lines[end]) == "" </span><span class="cov0" title="0">{
                 end--
         }</span>
-        <span class="cov8" title="68">if start &gt;= len(lines) || end &lt; 0 || start &gt; end </span><span class="cov0" title="0">{
+        <span class="cov8" title="69">if start &gt;= len(lines) || end &lt; 0 || start &gt; end </span><span class="cov0" title="0">{
                 return t
         }</span>
-        <span class="cov8" title="68">first := strings.TrimSpace(lines[start])
+        <span class="cov8" title="69">first := strings.TrimSpace(lines[start])
         last := strings.TrimSpace(lines[end])
         if strings.HasPrefix(first, "```") &amp;&amp; last == "```" &amp;&amp; end &gt; start </span><span class="cov6" title="20">{
                 inner := strings.Join(lines[start+1:end], "\n")
                 return inner
         }</span>
-        <span class="cov7" title="48">return t</span>
+        <span class="cov7" title="49">return t</span>
 }
 
 // InstructionFromSelection extracts the first inline instruction and returns
@@ -7709,9 +7754,9 @@ const (
 )
 
 // Enabled reports whether tmux status updates are enabled via env (default: on).
-func Enabled() bool <span class="cov8" title="77">{
+func Enabled() bool <span class="cov8" title="78">{
         v := strings.TrimSpace(os.Getenv("HEXAI_TMUX_STATUS"))
-        if v == "" </span><span class="cov7" title="74">{
+        if v == "" </span><span class="cov7" title="75">{
                 return true
         }</span>
         <span class="cov2" title="3">v = strings.ToLower(v)
@@ -7719,20 +7764,20 @@ func Enabled() bool <span class="cov8" title="77">{
 }
 
 // SetUserOption sets a global tmux user option like @hexai_status to value.
-func SetUserOption(key, value string) error <span class="cov8" title="77">{
+func SetUserOption(key, value string) error <span class="cov8" title="78">{
         if !Enabled() || !HasBinary() || !InSession() </span><span class="cov2" title="3">{
                 return nil
         }</span>
-        <span class="cov7" title="74">k := strings.TrimPrefix(strings.TrimSpace(key), "@")
+        <span class="cov7" title="75">k := strings.TrimPrefix(strings.TrimSpace(key), "@")
         if k == "" </span><span class="cov0" title="0">{
                 return nil
         }</span>
         // Use set-option -g so it appears for all windows
-        <span class="cov7" title="74">return exec.Command("tmux", "set-option", "-g", "@"+k, value).Run()</span>
+        <span class="cov7" title="75">return exec.Command("tmux", "set-option", "-g", "@"+k, value).Run()</span>
 }
 
 // SetStatus is a convenience for setting @hexai_status.
-func SetStatus(value string) error <span class="cov8" title="77">{ return SetUserOption("hexai_status", applyTheme(value)) }</span>
+func SetStatus(value string) error <span class="cov8" title="78">{ return SetUserOption("hexai_status", applyTheme(value)) }</span>
 
 // FormatLLMStatsStatus builds a compact tmux status string for LLM heartbeats.
 // Example: "LLM:gpt-4.1 5r 0.8rpm in12k out34k"
@@ -7758,7 +7803,7 @@ func FormatLLMStatsStatusColored(provider, model string, reqs int64, rpm float64
 // scoped provider:model tail. The window indicator (e.g., Σ@1h) should be composed
 // by the caller if needed; this function focuses on numbers and labels.
 // Example: "Σ ↑120k ↓340k 4.2rpm | openai:gpt-4.1 3.1rpm 80r"
-func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, globalOut int64, scopeProvider, scopeModel string, scopeRPM float64, scopeReqs int64, window time.Duration) string <span class="cov7" title="67">{
+func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, globalOut int64, scopeProvider, scopeModel string, scopeRPM float64, scopeReqs int64, window time.Duration) string <span class="cov7" title="68">{
         gin := textutil.HumanBytes(globalIn)
         gout := textutil.HumanBytes(globalOut)
         head := fmt.Sprintf("%sΣ@%s %s↑%s%s %s↓%s%s %.1frpm", baseFGToken, humanWindow(window), arrowUpToken, baseFGToken, gin, arrowDownToken, baseFGToken, gout, globalRPM)
@@ -7766,7 +7811,7 @@ func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, gl
         if narrowEnabled() || stringsTrim(scopeProvider) == "" || stringsTrim(scopeModel) == "" </span><span class="cov1" title="1">{
                 return head
         }</span>
-        <span class="cov7" title="66">tail := fmt.Sprintf(" | %s:%s %.1frpm %dr", scopeProvider, scopeModel, scopeRPM, scopeReqs)
+        <span class="cov7" title="67">tail := fmt.Sprintf(" | %s:%s %.1frpm %dr", scopeProvider, scopeModel, scopeRPM, scopeReqs)
         // Respect max length when configured: drop tail if it would overflow
         if ml := maxStatusLen(); ml &gt; 0 </span><span class="cov1" title="1">{
                 if len(head) &lt;= ml &amp;&amp; len(head)+len(tail) &gt; ml </span><span class="cov0" title="0">{
@@ -7776,15 +7821,15 @@ func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, gl
                         return truncateStatus(head, ml)
                 }</span>
         }
-        <span class="cov7" title="65">return head + tail</span>
+        <span class="cov7" title="66">return head + tail</span>
 }
 
-func humanWindow(d time.Duration) string <span class="cov7" title="67">{
+func humanWindow(d time.Duration) string <span class="cov7" title="68">{
         if d &lt;= 0 </span><span class="cov0" title="0">{
                 return "?"
         }</span>
-        <span class="cov7" title="67">mins := int(d.Minutes())
-        if mins%60 == 0 </span><span class="cov7" title="65">{
+        <span class="cov7" title="68">mins := int(d.Minutes())
+        if mins%60 == 0 </span><span class="cov7" title="66">{
                 return fmt.Sprintf("%dh", mins/60)
         }</span>
         <span class="cov2" title="2">if mins &gt;= 60 </span><span class="cov0" title="0">{
@@ -7794,9 +7839,9 @@ func humanWindow(d time.Duration) string <span class="cov7" title="67">{
 }
 
 // narrowEnabled returns true when HEXAI_TMUX_STATUS_NARROW is truthy (1/true/yes/on).
-func narrowEnabled() bool <span class="cov7" title="67">{
+func narrowEnabled() bool <span class="cov7" title="68">{
         v := strings.ToLower(stringsTrim(os.Getenv("HEXAI_TMUX_STATUS_NARROW")))
-        if v == "" </span><span class="cov7" title="66">{
+        if v == "" </span><span class="cov7" title="67">{
                 return false
         }</span>
         <span class="cov1" title="1">switch v </span>{
@@ -7808,9 +7853,9 @@ func narrowEnabled() bool <span class="cov7" title="67">{
 }
 
 // maxStatusLen returns HEXAI_TMUX_STATUS_MAXLEN parsed as int; 0 disables.
-func maxStatusLen() int <span class="cov7" title="66">{
+func maxStatusLen() int <span class="cov7" title="67">{
         v := stringsTrim(os.Getenv("HEXAI_TMUX_STATUS_MAXLEN"))
-        if v == "" </span><span class="cov7" title="65">{
+        if v == "" </span><span class="cov7" title="66">{
                 return 0
         }</span>
         <span class="cov1" title="1">n, err := strconv.Atoi(v)
@@ -7833,16 +7878,16 @@ func truncateStatus(s string, n int) string <span class="cov1" title="1">{
         <span class="cov1" title="1">return s[:n-1] + "…"</span>
 }
 
-func stringsTrim(s string) string <span class="cov10" title="265">{
+func stringsTrim(s string) string <span class="cov10" title="269">{
         i := 0
         j := len(s)
         for i &lt; j &amp;&amp; (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') </span><span class="cov0" title="0">{
                 i++
         }</span>
-        <span class="cov10" title="265">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
+        <span class="cov10" title="269">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
                 j--
         }</span>
-        <span class="cov10" title="265">if i == 0 &amp;&amp; j == len(s) </span><span class="cov10" title="265">{
+        <span class="cov10" title="269">if i == 0 &amp;&amp; j == len(s) </span><span class="cov10" title="269">{
                 return s
         }</span>
         <span class="cov0" title="0">return s[i:j]</span>
@@ -7850,13 +7895,13 @@ func stringsTrim(s string) string <span class="cov10" title="265">{
 
 // FormatLLMStartStatus renders a short colored heartbeat at start/initialize time.
 // Example: "LLM:openai:gpt-4.1 ⏳"
-func FormatLLMStartStatus(provider, model string) string <span class="cov5" title="12">{
+func FormatLLMStartStatus(provider, model string) string <span class="cov4" title="12">{
         return fmt.Sprintf("%sLLM:%s:%s #[fg=colour11]⏳%s", baseFGToken, provider, model, baseFGToken)
 }</span>
 
 // applyTheme wraps the status string with a user-selected tmux style if requested.
 // Set HEXAI_TMUX_STATUS_THEME=white-on-purple to get white-on-purple background.
-func applyTheme(s string) string <span class="cov8" title="77">{
+func applyTheme(s string) string <span class="cov8" title="78">{
         theme := strings.ToLower(strings.TrimSpace(os.Getenv("HEXAI_TMUX_STATUS_THEME")))
         // Allow explicit fg/bg override
         fg := strings.TrimSpace(os.Getenv("HEXAI_TMUX_STATUS_FG"))
@@ -7872,23 +7917,23 @@ func applyTheme(s string) string <span class="cov8" title="77">{
                         baseFG = fg
                 }</span>
                 // bg used as provided (may be empty)
-        } else<span class="cov8" title="77"> {
+        } else<span class="cov8" title="78"> {
                 switch theme </span>{
-                case "white-on-purple", "purple", "magenta", "white-on-magenta":<span class="cov8" title="77">
+                case "white-on-purple", "purple", "magenta", "white-on-magenta":<span class="cov8" title="78">
                         baseFG, bg, wrap = "white", "magenta", true</span>
                 case "black-on-yellow", "yellow", "black-on-gold":<span class="cov0" title="0">
                         baseFG, bg, wrap = "black", "yellow", true</span>
                 case "white-on-blue", "blue", "white-on-navy":<span class="cov0" title="0">
                         baseFG, bg, wrap = "white", "blue", true</span>
                 }
-                <span class="cov8" title="77">if baseFG == "" </span><span class="cov0" title="0">{ // no theme selected
+                <span class="cov8" title="78">if baseFG == "" </span><span class="cov0" title="0">{ // no theme selected
                         baseFG = "default"
                 }</span>
         }
 
         // Theme-aware arrow styles
-        <span class="cov8" title="77">upStyle, downStyle := "#[fg=colour3]", "#[fg=colour2]" // defaults: yellow up, green down
-        if fg != "" || bg != "" </span><span class="cov8" title="77">{                              // explicit override path: match arrows to base fg, bold for visibility
+        <span class="cov8" title="78">upStyle, downStyle := "#[fg=colour3]", "#[fg=colour2]" // defaults: yellow up, green down
+        if fg != "" || bg != "" </span><span class="cov8" title="78">{                              // explicit override path: match arrows to base fg, bold for visibility
                 upStyle = "#[bold,fg=" + baseFG + "]"
                 downStyle = upStyle
         }</span> else<span class="cov0" title="0"> {
@@ -7903,25 +7948,25 @@ func applyTheme(s string) string <span class="cov8" title="77">{
         }
 
         // Replace base-foreground and arrow placeholders with selected styles
-        <span class="cov8" title="77">if strings.Contains(s, baseFGToken) </span><span class="cov8" title="77">{
+        <span class="cov8" title="78">if strings.Contains(s, baseFGToken) </span><span class="cov8" title="78">{
                 s = strings.ReplaceAll(s, baseFGToken, "#[fg="+baseFG+"]")
         }</span>
-        <span class="cov8" title="77">if strings.Contains(s, arrowUpToken) </span><span class="cov7" title="65">{
+        <span class="cov8" title="78">if strings.Contains(s, arrowUpToken) </span><span class="cov7" title="66">{
                 s = strings.ReplaceAll(s, arrowUpToken, upStyle)
         }</span>
-        <span class="cov8" title="77">if strings.Contains(s, arrowDownToken) </span><span class="cov7" title="65">{
+        <span class="cov8" title="78">if strings.Contains(s, arrowDownToken) </span><span class="cov7" title="66">{
                 s = strings.ReplaceAll(s, arrowDownToken, downStyle)
         }</span>
 
-        <span class="cov8" title="77">if !wrap </span><span class="cov0" title="0">{
+        <span class="cov8" title="78">if !wrap </span><span class="cov0" title="0">{
                 return s
         }</span>
         // Wrap with base fg and optional bg, then reset at the end
-        <span class="cov8" title="77">prefix := "#[fg=" + baseFG
-        if bg != "" </span><span class="cov8" title="77">{
+        <span class="cov8" title="78">prefix := "#[fg=" + baseFG
+        if bg != "" </span><span class="cov8" title="78">{
                 prefix += ",bg=" + bg
         }</span>
-        <span class="cov8" title="77">prefix += "]"
+        <span class="cov8" title="78">prefix += "]"
         return prefix + s + "#[fg=default,bg=default]"</span>
 }
 </pre>
@@ -7944,10 +7989,10 @@ var (
         command  = exec.Command
 )
 
-func HasBinary() bool <span class="cov10" title="78">{ _, err := lookPath("tmux"); return err == nil }</span>
+func HasBinary() bool <span class="cov10" title="79">{ _, err := lookPath("tmux"); return err == nil }</span>
 
 // InSession reports whether we seem to be running inside a tmux session.
-func InSession() bool <span class="cov9" title="77">{ return strings.TrimSpace(os.Getenv("TMUX")) != "" }</span>
+func InSession() bool <span class="cov9" title="78">{ return strings.TrimSpace(os.Getenv("TMUX")) != "" }</span>
 
 // SplitOpts controls how a new pane is created for running a command.
 type SplitOpts struct {

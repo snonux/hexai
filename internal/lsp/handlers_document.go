@@ -94,6 +94,10 @@ func (s *Server) detectAndHandleChat(uri string) {
 	_, _, openChar, closeChar := s.inlineMarkers()
 	for i, raw := range d.lines {
 		if lineHasInlinePrompt(raw, openChar, closeChar) {
+			if s.currentLLMClient() != nil {
+				pos := Position{Line: i, Character: len(raw)}
+				go s.runInlinePrompt(uri, pos)
+			}
 			continue
 		}
 		// Find last non-space character index
@@ -208,6 +212,47 @@ func (s *Server) applyChatEdits(uri string, lineIdx int, lastNonSpace int, remov
 	}
 	we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
 	s.clientApplyEdit("Hexai: insert chat response", we)
+}
+
+func (s *Server) runInlinePrompt(uri string, pos Position) {
+	if s.currentLLMClient() == nil {
+		return
+	}
+	d := s.getDocument(uri)
+	if d == nil || pos.Line < 0 || pos.Line >= len(d.lines) {
+		return
+	}
+	line := d.lines[pos.Line]
+	_, _, openChar, closeChar := s.inlineMarkers()
+	if !lineHasInlinePrompt(line, openChar, closeChar) {
+		return
+	}
+	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: pos.Line, Character: len(line)}}
+	p.Context = map[string]int{"triggerKind": 1}
+	above, current, below, funcCtx := s.lineContext(uri, p.Position)
+	docStr := s.buildDocString(p, above, current, below, funcCtx)
+	newFunc := s.isDefiningNewFunction(uri, p.Position)
+	extra, hasExtra := s.buildAdditionalContext(newFunc, uri, p.Position)
+	items, ok := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, hasExtra, extra)
+	if !ok || len(items) == 0 {
+		return
+	}
+	s.applyInlineCompletion(uri, items[0])
+}
+
+func (s *Server) applyInlineCompletion(uri string, item CompletionItem) {
+	var edits []TextEdit
+	if len(item.AdditionalTextEdits) > 0 {
+		edits = append(edits, item.AdditionalTextEdits...)
+	}
+	if item.TextEdit != nil {
+		edits = append(edits, *item.TextEdit)
+	}
+	if len(edits) == 0 {
+		return
+	}
+	we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
+	s.clientApplyEdit("Hexai: inline prompt", we)
 }
 
 // buildChatHistory walks upwards from the current line to collect the most recent
