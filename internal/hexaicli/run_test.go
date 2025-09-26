@@ -152,7 +152,11 @@ func TestPrintProviderInfo(t *testing.T) {
 }
 
 func TestBuildCLIRequestArgs_Override(t *testing.T) {
-	cfg := appconfig.App{CLIModel: "override", CLITemperature: floatPtr(0.7), Provider: "openai", CLIProvider: "copilot", CopilotModel: "gpt-4o"}
+	cfg := appconfig.App{
+		Provider:     "openai",
+		CopilotModel: "gpt-4o",
+		CLIConfigs:   []appconfig.SurfaceConfig{{Provider: "copilot", Model: "override", Temperature: floatPtr(0.7)}},
+	}
 	req := buildCLIRequestArgs(cfg, &fakeClient{name: "copilot", model: "default"})
 	if req.model != "override" {
 		t.Fatalf("expected model override, got %q", req.model)

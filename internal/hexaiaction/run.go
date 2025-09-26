@@ -41,8 +41,10 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(cfg.CustomActions) > 0 {
 		chooseActionFn = func() (ActionKind, error) { return RunTUIWithCustom(cfg.CustomActions, cfg.TmuxCustomMenuHotkey) }
 	}
-	if providerOverride := strings.TrimSpace(cfg.CodeActionProvider); providerOverride != "" {
-		cfg.Provider = providerOverride
+	if len(cfg.CodeActionConfigs) > 0 {
+		if provider := strings.TrimSpace(cfg.CodeActionConfigs[0].Provider); provider != "" {
+			cfg.Provider = provider
+		}
 	}
 	cli, err := newClientFromApp(cfg)
 	if err != nil {

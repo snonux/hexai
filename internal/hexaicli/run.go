@@ -27,44 +27,49 @@ type requestArgs struct {
 
 func buildCLIRequestArgs(cfg appconfig.App, client llm.Client) requestArgs {
 	provider := canonicalProvider(cfg.Provider)
-	if strings.TrimSpace(cfg.CLIProvider) != "" {
-		provider = canonicalProvider(cfg.CLIProvider)
+	entries := cfg.CLIConfigs
+	if len(entries) == 0 {
+		entries = []appconfig.SurfaceConfig{{Provider: cfg.Provider, Model: strings.TrimSpace(defaultModelForProvider(cfg, provider))}}
 	}
+	primary := entries[0]
+	if strings.TrimSpace(primary.Provider) != "" {
+		provider = canonicalProvider(primary.Provider)
+	}
+	model := strings.TrimSpace(primary.Model)
 	if client != nil {
 		provider = strings.ToLower(strings.TrimSpace(client.Name()))
-	}
-	override := strings.TrimSpace(cfg.CLIModel)
-	fallback := strings.TrimSpace(defaultModelForProvider(cfg, provider))
-	if client != nil {
-		if dm := strings.TrimSpace(client.DefaultModel()); dm != "" {
-			fallback = dm
+		if model == "" {
+			model = strings.TrimSpace(client.DefaultModel())
 		}
 	}
-	effective := override
-	if effective == "" {
-		effective = fallback
+	if model == "" {
+		model = strings.TrimSpace(defaultModelForProvider(cfg, provider))
 	}
 	opts := make([]llm.RequestOption, 0, 2)
-	if override != "" {
-		opts = append(opts, llm.WithModel(override))
+	if strings.TrimSpace(primary.Model) != "" {
+		opts = append(opts, llm.WithModel(strings.TrimSpace(primary.Model)))
 	}
-	if temp, ok := cliTemperature(cfg, provider, effective); ok {
+	if temp, ok := cliTemperatureFromEntry(cfg, provider, primary, model); ok {
 		opts = append(opts, llm.WithTemperature(temp))
 	}
-	return requestArgs{model: effective, options: opts}
+	return requestArgs{model: model, options: opts}
 }
 
 func defaultRequestArgs(cfg appconfig.App, client llm.Client) requestArgs {
-	model := strings.TrimSpace(cfg.CLIModel)
-	if model == "" && client != nil {
-		model = strings.TrimSpace(client.DefaultModel())
+	if len(cfg.CLIConfigs) > 0 {
+		if m := strings.TrimSpace(cfg.CLIConfigs[0].Model); m != "" {
+			return requestArgs{model: m}
+		}
 	}
-	return requestArgs{model: model}
+	if client != nil {
+		return requestArgs{model: strings.TrimSpace(client.DefaultModel())}
+	}
+	return requestArgs{}
 }
 
-func cliTemperature(cfg appconfig.App, provider, model string) (float64, bool) {
-	if cfg.CLITemperature != nil {
-		return *cfg.CLITemperature, true
+func cliTemperatureFromEntry(cfg appconfig.App, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {
+	if entry.Temperature != nil {
+		return *entry.Temperature, true
 	}
 	if cfg.CodingTemperature != nil {
 		temp := *cfg.CodingTemperature
@@ -107,9 +112,10 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if cfg.StatsWindowMinutes > 0 {
 		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
 	}
-	providerOverride := strings.TrimSpace(cfg.CLIProvider)
-	if providerOverride != "" {
-		cfg.Provider = providerOverride
+	if len(cfg.CLIConfigs) > 0 {
+		if provider := strings.TrimSpace(cfg.CLIConfigs[0].Provider); provider != "" {
+			cfg.Provider = provider
+		}
 	}
 	client, err := newClientFromApp(cfg)
 	if err != nil {

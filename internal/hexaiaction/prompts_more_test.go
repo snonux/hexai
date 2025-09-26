@@ -32,7 +32,12 @@ func TestRunOnce_StripsFences(t *testing.T) {
 }
 
 func TestReqOptsFrom_Override(t *testing.T) {
-	cfg := appconfig.App{MaxTokens: 123, CodeActionModel: "override", CodeActionTemperature: ptrFloat(0.6), Provider: "openai", CodeActionProvider: "copilot", CopilotModel: "gpt-4o"}
+	cfg := appconfig.App{
+		MaxTokens:         123,
+		Provider:          "openai",
+		CopilotModel:      "gpt-4o",
+		CodeActionConfigs: []appconfig.SurfaceConfig{{Provider: "copilot", Model: "override", Temperature: ptrFloat(0.6)}},
+	}
 	req := reqOptsFrom(cfg)
 	if req.model != "override" {
 		t.Fatalf("expected override model, got %q", req.model)

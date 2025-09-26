@@ -56,9 +56,9 @@ func defaultModelForProvider(cfg appconfig.App, provider string) string {
 	}
 }
 
-func selectActionTemperature(cfg appconfig.App, provider, model string) (float64, bool) {
-	if cfg.CodeActionTemperature != nil {
-		return *cfg.CodeActionTemperature, true
+func selectActionTemperature(cfg appconfig.App, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {
+	if entry.Temperature != nil {
+		return *entry.Temperature, true
 	}
 	if cfg.CodingTemperature != nil {
 		temp := *cfg.CodingTemperature
@@ -201,22 +201,25 @@ func reqOptsFrom(cfg appconfig.App) requestArgs {
 		opts = append(opts, llm.WithMaxTokens(cfg.MaxTokens))
 	}
 	provider := canonicalProvider(cfg.Provider)
-	if strings.TrimSpace(cfg.CodeActionProvider) != "" {
-		provider = canonicalProvider(cfg.CodeActionProvider)
+	entries := cfg.CodeActionConfigs
+	if len(entries) == 0 {
+		entries = []appconfig.SurfaceConfig{{Provider: cfg.Provider, Model: strings.TrimSpace(defaultModelForProvider(cfg, provider))}}
 	}
-	override := strings.TrimSpace(cfg.CodeActionModel)
-	fallback := strings.TrimSpace(defaultModelForProvider(cfg, provider))
-	effective := override
-	if effective == "" {
-		effective = fallback
+	primary := entries[0]
+	if strings.TrimSpace(primary.Provider) != "" {
+		provider = canonicalProvider(primary.Provider)
 	}
-	if override != "" {
-		opts = append(opts, llm.WithModel(override))
+	model := strings.TrimSpace(primary.Model)
+	if model == "" {
+		model = strings.TrimSpace(defaultModelForProvider(cfg, provider))
 	}
-	if temp, ok := selectActionTemperature(cfg, provider, effective); ok {
+	if strings.TrimSpace(primary.Model) != "" {
+		opts = append(opts, llm.WithModel(strings.TrimSpace(primary.Model)))
+	}
+	if temp, ok := selectActionTemperature(cfg, provider, primary, model); ok {
 		opts = append(opts, llm.WithTemperature(temp))
 	}
-	return requestArgs{model: effective, options: opts}
+	return requestArgs{model: model, options: opts}
 }
 
 // Timeout helpers to mirror LSP behavior.

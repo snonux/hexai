@@ -44,22 +44,30 @@ func TestEnv_SurfaceModelOverrides(t *testing.T) {
 	t.Setenv("HEXAI_TEMPERATURE_CLI", "0.22")
 	t.Setenv("HEXAI_PROVIDER_CLI", "ollama")
 	cfg := Load(log.New(os.Stderr, "test ", 0))
-	if cfg.CompletionModel != "gpt-c" {
-		t.Fatalf("expected completion model override, got %q", cfg.CompletionModel)
+	if len(cfg.CompletionConfigs) != 1 {
+		t.Fatalf("expected single completion entry, got %+v", cfg.CompletionConfigs)
 	}
-	if cfg.CompletionTemperature == nil || *cfg.CompletionTemperature != 0.44 {
-		t.Fatalf("expected completion temperature override, got %v", cfg.CompletionTemperature)
+	comp := cfg.CompletionConfigs[0]
+	if comp.Model != "gpt-c" {
+		t.Fatalf("expected completion model override, got %+v", comp)
 	}
-	if cfg.CompletionProvider != "copilot" {
-		t.Fatalf("expected completion provider override, got %q", cfg.CompletionProvider)
+	if comp.Temperature == nil || *comp.Temperature != 0.44 {
+		t.Fatalf("expected completion temperature override, got %+v", comp)
 	}
-	if cfg.CLIModel != "gpt-cli" {
-		t.Fatalf("expected cli model override, got %q", cfg.CLIModel)
+	if comp.Provider != "copilot" {
+		t.Fatalf("expected completion provider override, got %+v", comp)
 	}
-	if cfg.CLITemperature == nil || *cfg.CLITemperature != 0.22 {
-		t.Fatalf("expected cli temperature override, got %v", cfg.CLITemperature)
+	if len(cfg.CLIConfigs) != 1 {
+		t.Fatalf("expected single CLI entry, got %+v", cfg.CLIConfigs)
 	}
-	if cfg.CLIProvider != "ollama" {
-		t.Fatalf("expected cli provider override, got %q", cfg.CLIProvider)
+	cli := cfg.CLIConfigs[0]
+	if cli.Model != "gpt-cli" {
+		t.Fatalf("expected cli model override, got %+v", cli)
+	}
+	if cli.Temperature == nil || *cli.Temperature != 0.22 {
+		t.Fatalf("expected cli temperature override, got %+v", cli)
+	}
+	if cli.Provider != "ollama" {
+		t.Fatalf("expected cli provider override, got %+v", cli)
 	}
 }

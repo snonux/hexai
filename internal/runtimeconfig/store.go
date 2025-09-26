@@ -129,6 +129,14 @@ func flattenAppConfig(cfg appconfig.App) map[string]string {
 			switch field.Name {
 			case "StatsWindowMinutes":
 				key = "stats_window_minutes"
+			case "CompletionConfigs":
+				key = "completion_configs"
+			case "CodeActionConfigs":
+				key = "code_action_configs"
+			case "ChatConfigs":
+				key = "chat_configs"
+			case "CLIConfigs":
+				key = "cli_configs"
 			default:
 				continue
 			}
@@ -169,6 +177,22 @@ func stringifyValue(v reflect.Value) string {
 				parts[i] = v.Index(i).String()
 			}
 			return strings.Join(parts, ",")
+		}
+		if v.Type().Elem() == reflect.TypeOf(appconfig.SurfaceConfig{}) {
+			parts := make([]string, 0, v.Len())
+			for i := 0; i < v.Len(); i++ {
+				entry := v.Index(i).Interface().(appconfig.SurfaceConfig)
+				segment := strings.TrimSpace(entry.Provider)
+				if segment != "" {
+					segment += ":"
+				}
+				segment += strings.TrimSpace(entry.Model)
+				if entry.Temperature != nil {
+					segment += fmt.Sprintf("@%.3f", *entry.Temperature)
+				}
+				parts = append(parts, segment)
+			}
+			return strings.Join(parts, "|")
 		}
 		return fmt.Sprint(v.Interface())
 	case reflect.Ptr:

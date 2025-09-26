@@ -88,20 +88,20 @@ completion_throttle_ms = 300
 [triggers]
 trigger_characters = [".", ":"]
 
-[models.completion]
+[[models.completion]]
 model = "gpt-file-complete"
 provider = "openai"
 
-[models.code_action]
+[[models.code_action]]
 model = "gpt-file-action"
 temperature = 0.45
 provider = "copilot"
 
-[models.chat]
+[[models.chat]]
 model = "gpt-file-chat"
 provider = "openai"
 
-[models.cli]
+[[models.cli]]
 model = "gpt-file-cli"
 temperature = 0.15
 provider = "ollama"
@@ -192,29 +192,41 @@ temperature = 0.0
 	if cfg.CopilotBaseURL != "http://copilot-override" || cfg.CopilotModel != "ghost-override" || cfg.CopilotTemperature == nil || *cfg.CopilotTemperature != 0.3 {
 		t.Fatalf("copilot overrides not applied: %+v", cfg)
 	}
-	if cfg.CompletionModel != "env-completion" || cfg.CompletionTemperature == nil || *cfg.CompletionTemperature != 0.33 {
-		t.Fatalf("completion overrides not applied: model=%q temp=%v", cfg.CompletionModel, cfg.CompletionTemperature)
+	if len(cfg.CompletionConfigs) != 1 || cfg.CompletionConfigs[0].Model != "env-completion" {
+		t.Fatalf("completion overrides not applied: %+v", cfg.CompletionConfigs)
 	}
-	if cfg.CompletionProvider != "copilot" {
-		t.Fatalf("completion provider override not applied: %q", cfg.CompletionProvider)
+	if cfg.CompletionConfigs[0].Temperature == nil || *cfg.CompletionConfigs[0].Temperature != 0.33 {
+		t.Fatalf("completion temperature override missing: %+v", cfg.CompletionConfigs[0])
 	}
-	if cfg.CodeActionModel != "env-action" || cfg.CodeActionTemperature == nil || *cfg.CodeActionTemperature != 0.55 {
-		t.Fatalf("code action overrides not applied: model=%q temp=%v", cfg.CodeActionModel, cfg.CodeActionTemperature)
+	if cfg.CompletionConfigs[0].Provider != "copilot" {
+		t.Fatalf("completion provider override not applied: %+v", cfg.CompletionConfigs[0])
 	}
-	if cfg.CodeActionProvider != "openai" {
-		t.Fatalf("code action provider override not applied: %q", cfg.CodeActionProvider)
+	if len(cfg.CodeActionConfigs) != 1 || cfg.CodeActionConfigs[0].Model != "env-action" {
+		t.Fatalf("code action overrides not applied: %+v", cfg.CodeActionConfigs)
 	}
-	if cfg.ChatModel != "env-chat" || cfg.ChatTemperature == nil || *cfg.ChatTemperature != 0.66 {
-		t.Fatalf("chat overrides not applied: model=%q temp=%v", cfg.ChatModel, cfg.ChatTemperature)
+	if cfg.CodeActionConfigs[0].Temperature == nil || *cfg.CodeActionConfigs[0].Temperature != 0.55 {
+		t.Fatalf("code action temp override missing: %+v", cfg.CodeActionConfigs[0])
 	}
-	if cfg.ChatProvider != "copilot" {
-		t.Fatalf("chat provider override not applied: %q", cfg.ChatProvider)
+	if cfg.CodeActionConfigs[0].Provider != "openai" {
+		t.Fatalf("code action provider override not applied: %+v", cfg.CodeActionConfigs[0])
 	}
-	if cfg.CLIModel != "env-cli" || cfg.CLITemperature == nil || *cfg.CLITemperature != 0.77 {
-		t.Fatalf("cli overrides not applied: model=%q temp=%v", cfg.CLIModel, cfg.CLITemperature)
+	if len(cfg.ChatConfigs) != 1 || cfg.ChatConfigs[0].Model != "env-chat" {
+		t.Fatalf("chat overrides not applied: %+v", cfg.ChatConfigs)
 	}
-	if cfg.CLIProvider != "ollama" {
-		t.Fatalf("cli provider override not applied: %q", cfg.CLIProvider)
+	if cfg.ChatConfigs[0].Temperature == nil || *cfg.ChatConfigs[0].Temperature != 0.66 {
+		t.Fatalf("chat temp override missing: %+v", cfg.ChatConfigs[0])
+	}
+	if cfg.ChatConfigs[0].Provider != "copilot" {
+		t.Fatalf("chat provider override not applied: %+v", cfg.ChatConfigs[0])
+	}
+	if len(cfg.CLIConfigs) != 1 || cfg.CLIConfigs[0].Model != "env-cli" {
+		t.Fatalf("cli overrides not applied: %+v", cfg.CLIConfigs)
+	}
+	if cfg.CLIConfigs[0].Temperature == nil || *cfg.CLIConfigs[0].Temperature != 0.77 {
+		t.Fatalf("cli temp override missing: %+v", cfg.CLIConfigs[0])
+	}
+	if cfg.CLIConfigs[0].Provider != "ollama" {
+		t.Fatalf("cli provider override not applied: %+v", cfg.CLIConfigs[0])
 	}
 
 	// Ensure file values would have applied absent env
@@ -234,29 +246,41 @@ temperature = 0.0
 	if cfg2.OpenAIBaseURL != "https://api.example" || cfg2.OpenAIModel != "gpt-x" || cfg2.OpenAITemperature == nil || *cfg2.OpenAITemperature != 0.0 {
 		t.Fatalf("file merge (openai) not applied: %+v", cfg2)
 	}
-	if cfg2.CompletionModel != "gpt-file-complete" || cfg2.CompletionTemperature != nil {
-		t.Fatalf("file merge (completion) not applied: %+v", cfg2)
+	if len(cfg2.CompletionConfigs) != 1 || cfg2.CompletionConfigs[0].Model != "gpt-file-complete" {
+		t.Fatalf("file merge (completion) not applied: %+v", cfg2.CompletionConfigs)
 	}
-	if cfg2.CompletionProvider != "openai" {
-		t.Fatalf("file merge (completion provider) not applied: %q", cfg2.CompletionProvider)
+	if cfg2.CompletionConfigs[0].Temperature != nil {
+		t.Fatalf("expected nil completion temperature, got %+v", cfg2.CompletionConfigs[0])
 	}
-	if cfg2.CodeActionModel != "gpt-file-action" || cfg2.CodeActionTemperature == nil || *cfg2.CodeActionTemperature != 0.45 {
-		t.Fatalf("file merge (code action) not applied: %+v", cfg2)
+	if cfg2.CompletionConfigs[0].Provider != "openai" {
+		t.Fatalf("file merge (completion provider) not applied: %+v", cfg2.CompletionConfigs[0])
 	}
-	if cfg2.CodeActionProvider != "copilot" {
-		t.Fatalf("file merge (code action provider) not applied: %q", cfg2.CodeActionProvider)
+	if len(cfg2.CodeActionConfigs) != 1 || cfg2.CodeActionConfigs[0].Model != "gpt-file-action" {
+		t.Fatalf("file merge (code action) not applied: %+v", cfg2.CodeActionConfigs)
 	}
-	if cfg2.ChatModel != "gpt-file-chat" || cfg2.ChatTemperature != nil {
-		t.Fatalf("file merge (chat) not applied: %+v", cfg2)
+	if cfg2.CodeActionConfigs[0].Temperature == nil || *cfg2.CodeActionConfigs[0].Temperature != 0.45 {
+		t.Fatalf("expected code action temp 0.45, got %+v", cfg2.CodeActionConfigs[0])
 	}
-	if cfg2.ChatProvider != "openai" {
-		t.Fatalf("file merge (chat provider) not applied: %q", cfg2.ChatProvider)
+	if cfg2.CodeActionConfigs[0].Provider != "copilot" {
+		t.Fatalf("file merge (code action provider) not applied: %+v", cfg2.CodeActionConfigs[0])
 	}
-	if cfg2.CLIModel != "gpt-file-cli" || cfg2.CLITemperature == nil || *cfg2.CLITemperature != 0.15 {
-		t.Fatalf("file merge (cli) not applied: %+v", cfg2)
+	if len(cfg2.ChatConfigs) != 1 || cfg2.ChatConfigs[0].Model != "gpt-file-chat" {
+		t.Fatalf("file merge (chat) not applied: %+v", cfg2.ChatConfigs)
 	}
-	if cfg2.CLIProvider != "ollama" {
-		t.Fatalf("file merge (cli provider) not applied: %q", cfg2.CLIProvider)
+	if cfg2.ChatConfigs[0].Temperature != nil {
+		t.Fatalf("expected nil chat temp, got %+v", cfg2.ChatConfigs[0])
+	}
+	if cfg2.ChatConfigs[0].Provider != "openai" {
+		t.Fatalf("file merge (chat provider) not applied: %+v", cfg2.ChatConfigs[0])
+	}
+	if len(cfg2.CLIConfigs) != 1 || cfg2.CLIConfigs[0].Model != "gpt-file-cli" {
+		t.Fatalf("file merge (cli) not applied: %+v", cfg2.CLIConfigs)
+	}
+	if cfg2.CLIConfigs[0].Temperature == nil || *cfg2.CLIConfigs[0].Temperature != 0.15 {
+		t.Fatalf("expected CLI temp 0.15, got %+v", cfg2.CLIConfigs[0])
+	}
+	if cfg2.CLIConfigs[0].Provider != "ollama" {
+		t.Fatalf("file merge (cli provider) not applied: %+v", cfg2.CLIConfigs[0])
 	}
 }
 

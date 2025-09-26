@@ -96,16 +96,22 @@ func TestStoreReloadLogsSummary(t *testing.T) {
 }
 
 func TestDiff_SurfaceModel(t *testing.T) {
-	oldCfg := appconfig.App{CompletionModel: "gpt-4o", CompletionProvider: "openai"}
-	newCfg := appconfig.App{CompletionModel: "gpt-4.1", CompletionProvider: "copilot"}
+	oldCfg := appconfig.App{CompletionConfigs: []appconfig.SurfaceConfig{{Provider: "openai", Model: "gpt-4o"}}}
+	newCfg := appconfig.App{CompletionConfigs: []appconfig.SurfaceConfig{{Provider: "copilot", Model: "gpt-4.1"}}}
 	changes := Diff(oldCfg, newCfg)
-	if len(changes) != 2 {
-		t.Fatalf("expected single change, got %+v", changes)
+	if len(changes) == 0 {
+		t.Fatalf("expected diff entries, got none")
 	}
-	if changes[0].Key != "completion_model" || changes[0].Old != "gpt-4o" || changes[0].New != "gpt-4.1" {
-		t.Fatalf("unexpected diff entry: %+v", changes[0])
+	found := false
+	for _, ch := range changes {
+		if ch.Key == "completion_configs" {
+			if !strings.Contains(ch.Old, "gpt-4o") || !strings.Contains(ch.New, "gpt-4.1") {
+				t.Fatalf("unexpected diff contents: %+v", ch)
+			}
+			found = true
+		}
 	}
-	if changes[1].Key != "completion_provider" || changes[1].Old != "openai" || changes[1].New != "copilot" {
-		t.Fatalf("unexpected provider diff: %+v", changes[1])
+	if !found {
+		t.Fatalf("expected completion configs diff, got %+v", changes)
 	}
 }

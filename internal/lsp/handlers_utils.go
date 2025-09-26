@@ -81,43 +81,41 @@ func resolveDefaultModel(cfg appconfig.App, provider string) string {
 	}
 }
 
-func surfaceModelFromConfig(cfg appconfig.App, surface surfaceKind) string {
+func surfaceConfigsFor(cfg appconfig.App, surface surfaceKind) []appconfig.SurfaceConfig {
 	switch surface {
 	case surfaceCompletion:
-		return cfg.CompletionModel
+		return cfg.CompletionConfigs
 	case surfaceCodeAction:
-		return cfg.CodeActionModel
+		return cfg.CodeActionConfigs
 	case surfaceChat:
-		return cfg.ChatModel
-	default:
-		return ""
-	}
-}
-
-func surfaceProviderFromConfig(cfg appconfig.App, surface surfaceKind) string {
-	switch surface {
-	case surfaceCompletion:
-		return cfg.CompletionProvider
-	case surfaceCodeAction:
-		return cfg.CodeActionProvider
-	case surfaceChat:
-		return cfg.ChatProvider
-	default:
-		return ""
-	}
-}
-
-func surfaceTemperatureFromConfig(cfg appconfig.App, surface surfaceKind) *float64 {
-	switch surface {
-	case surfaceCompletion:
-		return cfg.CompletionTemperature
-	case surfaceCodeAction:
-		return cfg.CodeActionTemperature
-	case surfaceChat:
-		return cfg.ChatTemperature
+		return cfg.ChatConfigs
 	default:
 		return nil
 	}
+}
+
+func surfaceModelFromConfig(cfg appconfig.App, surface surfaceKind) string {
+	configs := surfaceConfigsFor(cfg, surface)
+	if len(configs) == 0 {
+		return ""
+	}
+	return configs[0].Model
+}
+
+func surfaceProviderFromConfig(cfg appconfig.App, surface surfaceKind) string {
+	configs := surfaceConfigsFor(cfg, surface)
+	if len(configs) == 0 {
+		return ""
+	}
+	return configs[0].Provider
+}
+
+func surfaceTemperatureFromConfig(cfg appconfig.App, surface surfaceKind) *float64 {
+	configs := surfaceConfigsFor(cfg, surface)
+	if len(configs) == 0 {
+		return nil
+	}
+	return configs[0].Temperature
 }
 
 func chooseSurfaceTemperature(surface surfaceKind, cfg appconfig.App, provider string, overrideModel, fallbackModel string) (float64, bool) {
