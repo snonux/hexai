@@ -37,7 +37,7 @@ func TestCompletionDebounce_WaitsUntilQuiet(t *testing.T) {
 	p.Context = json.RawMessage([]byte(`{"triggerKind":1}`))
 
 	start := time.Now()
-	_, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+	_, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
 	if !ok {
 		t.Fatalf("expected ok=true")
 	}
@@ -65,7 +65,7 @@ func TestCompletionThrottle_SerializesCalls(t *testing.T) {
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://throttle.go"}}
 	p.Context = json.RawMessage([]byte(`{"triggerKind":1}`))
 	start := time.Now()
-	if _, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, ""); !ok {
+	if _, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, ""); !ok {
 		t.Fatalf("first call expected ok=true")
 	}
 	if f1.t.IsZero() {
@@ -77,7 +77,7 @@ func TestCompletionThrottle_SerializesCalls(t *testing.T) {
 	s.compCache = make(map[string]string)
 	f2 := &timeLLM{}
 	s.llmClient = f2
-	if _, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, ""); !ok {
+	if _, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, ""); !ok {
 		t.Fatalf("second call expected ok=true")
 	}
 	if f2.t.IsZero() {

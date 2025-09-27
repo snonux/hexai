@@ -13,7 +13,7 @@ func TestCompletionSuppressedOnChatTriggerEOL(t *testing.T) {
 	tests := []string{"What now?>", "Explain!>", "Refactor:>", "note ;>"}
 	for i, line := range tests {
 		p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://chat-suppr.go"}}
-		items, ok := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+		items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
 		if !ok {
 			t.Fatalf("case %d: expected ok=true", i)
 		}

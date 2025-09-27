@@ -231,7 +231,7 @@ func (s *Server) runInlinePrompt(uri string, pos Position) {
 	docStr := s.buildDocString(p, above, current, below, funcCtx)
 	newFunc := s.isDefiningNewFunction(uri, p.Position)
 	extra, hasExtra := s.buildAdditionalContext(newFunc, uri, p.Position)
-	items, ok := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, hasExtra, extra)
+	items, ok, _ := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, hasExtra, extra)
 	if !ok || len(items) == 0 {
 		return
 	}

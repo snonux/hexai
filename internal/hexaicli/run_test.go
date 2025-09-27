@@ -225,6 +225,23 @@ func TestBuildCLIJobs_MultiEntries(t *testing.T) {
 	}
 }
 
+func TestFilterJobsBySelection(t *testing.T) {
+	jobs := []cliJob{{index: 0, provider: "openai"}, {index: 1, provider: "ollama"}, {index: 2, provider: "copilot"}}
+	filtered, err := filterJobsBySelection(jobs, []int{2, 0})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(filtered) != 2 || filtered[0].provider != "copilot" || filtered[1].provider != "openai" {
+		t.Fatalf("unexpected filtered order: %+v", filtered)
+	}
+	if filtered[0].index != 0 || filtered[1].index != 1 {
+		t.Fatalf("expected reindexed jobs, got %+v", filtered)
+	}
+	if _, err := filterJobsBySelection(jobs, []int{5}); err == nil {
+		t.Fatalf("expected out-of-range error")
+	}
+}
+
 func TestNewClientFromConfig_Ollama(t *testing.T) {
 	cfg := appconfig.App{Provider: "ollama", OllamaBaseURL: "http://x", OllamaModel: "m"}
 	c, err := newClientFromConfig(cfg)

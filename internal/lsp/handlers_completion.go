@@ -45,9 +45,9 @@ func (s *Server) handleCompletion(req Request) {
 		if s.llmClient != nil {
 			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
 			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
-			items, ok := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
+			items, ok, incomplete := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
 			if ok {
-				s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
+				s.reply(req.ID, CompletionList{IsIncomplete: incomplete, Items: items}, nil)
 				return
 			}
 		}
@@ -87,28 +87,33 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 		p.TextDocument.URI, p.Position.Line, p.Position.Character, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
 }
 
-func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool) {
+func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-	defer cancel()
+	var cancelOnce sync.Once
+	end := func() { cancelOnce.Do(cancel) }
 
 	plan, items, handled := s.prepareCompletionPlan(p, above, current, below, funcCtx, docStr, hasExtra, extraText)
 	if handled {
-		return items, true
+		end()
+		return items, true, false
 	}
 	specs := s.buildRequestSpecs(surfaceCompletion)
 	if len(specs) == 0 {
-		return nil, false
+		end()
+		return nil, false, false
 	}
 	type jobResult struct {
 		items []CompletionItem
 		ok    bool
 	}
-	results := make([]jobResult, len(specs))
+	results := make(chan jobResult, len(specs))
 	var wg sync.WaitGroup
-	var mu sync.Mutex
+	started := 0
 	s.waitForDebounce(ctx)
 	if !s.waitForThrottle(ctx) {
-		return nil, false
+		end()
+		close(results)
+		return nil, false, false
 	}
 	for _, spec := range specs {
 		spec := spec
@@ -116,27 +121,67 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		if client == nil {
 			continue
 		}
+		started++
 		wg.Add(1)
 		go func(idx int, spec requestSpec, client llm.Client) {
 			defer wg.Done()
 			items, ok := s.runCompletionForSpec(ctx, plan, spec, client)
-			mu.Lock()
-			results[idx] = jobResult{items: items, ok: ok}
-			mu.Unlock()
+			results <- jobResult{items: items, ok: ok}
 		}(spec.index, spec, client)
 	}
-	wg.Wait()
-	accumulated := make([]CompletionItem, 0)
-	for _, res := range results {
-		if !res.ok {
-			continue
+
+	if started == 0 {
+		end()
+		close(results)
+		return nil, false, false
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	if started == 1 {
+		res := <-results
+		if !res.ok || len(res.items) == 0 {
+			end()
+			return nil, false, false
 		}
-		accumulated = append(accumulated, res.items...)
+		end()
+		return res.items, true, false
 	}
-	if len(accumulated) == 0 {
-		return nil, false
+
+	firstCh := make(chan []CompletionItem, 1)
+	go func(planKey string) {
+		defer end()
+		combined := make([]CompletionItem, 0)
+		firstSent := false
+		for res := range results {
+			if !res.ok || len(res.items) == 0 {
+				continue
+			}
+			combined = append(combined, res.items...)
+			if !firstSent {
+				first := make([]CompletionItem, len(res.items))
+				copy(first, res.items)
+				firstCh <- first
+				firstSent = true
+			}
+		}
+		if !firstSent {
+			close(firstCh)
+			return
+		}
+		s.storePendingCompletion(planKey, combined)
+		close(firstCh)
+	}(plan.cacheKey)
+
+	firstItems, ok := <-firstCh
+	if !ok || len(firstItems) == 0 {
+		end()
+		return nil, false, false
 	}
-	return accumulated, true
+	return firstItems, true, true
 }
 
 func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) {
@@ -162,6 +207,9 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 	plan.inParams = inParamList(current, p.Position.Character)
 	plan.manualInvoke = parseManualInvoke(p.Context)
 	plan.cacheKey = s.completionCacheKey(p, above, current, below, funcCtx, plan.inParams, hasExtra, extraText)
+	if pending := s.takePendingCompletion(plan.cacheKey); len(pending) > 0 {
+		return plan, pending, true
+	}
 	if isBareDoubleOpen(current, openChar, closeChar) || isBareDoubleOpen(below, openChar, closeChar) {
 		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return plan, []CompletionItem{}, true

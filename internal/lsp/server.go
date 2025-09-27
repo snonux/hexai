@@ -40,8 +40,9 @@ type Server struct {
 	llmRespBytesTotal int64
 	startTime         time.Time
 	// Small LRU cache for recent code completion outputs (keyed by context)
-	compCache      map[string]string
-	compCacheOrder []string // most-recent at end; cap ~10
+	compCache          map[string]string
+	compCacheOrder     []string // most-recent at end; cap ~10
+	pendingCompletions map[string][]CompletionItem
 	// Outgoing JSON-RPC id counter for server-initiated requests
 	nextID      int64
 	lastLLMCall time.Time
@@ -112,6 +113,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 	s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: opts.LogContext, configStore: opts.ConfigStore}
 	s.startTime = time.Now()
 	s.compCache = make(map[string]string)
+	s.pendingCompletions = make(map[string][]CompletionItem)
 	s.applyOptions(opts)
 	// Initialize dispatch table
 	s.handlers = map[string]func(Request){
@@ -313,6 +315,36 @@ func (s *Server) currentConfig() appconfig.App {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.cfg
+}
+
+func (s *Server) storePendingCompletion(key string, items []CompletionItem) {
+	if len(items) == 0 {
+		return
+	}
+	cpy := make([]CompletionItem, len(items))
+	copy(cpy, items)
+	s.mu.Lock()
+	if s.pendingCompletions == nil {
+		s.pendingCompletions = make(map[string][]CompletionItem)
+	}
+	s.pendingCompletions[key] = cpy
+	s.mu.Unlock()
+}
+
+func (s *Server) takePendingCompletion(key string) []CompletionItem {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.pendingCompletions) == 0 {
+		return nil
+	}
+	items, ok := s.pendingCompletions[key]
+	if !ok {
+		return nil
+	}
+	delete(s.pendingCompletions, key)
+	cpy := make([]CompletionItem, len(items))
+	copy(cpy, items)
+	return cpy
 }
 
 func (s *Server) maxTokens() int {
