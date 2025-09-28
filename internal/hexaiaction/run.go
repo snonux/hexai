@@ -23,13 +23,15 @@ var (
 	newClientFromApp = llmutils.NewClientFromApp
 )
 
+type configPathKey struct{}
+
 // selectedCustom carries the chosen custom action (if any) from the TUI submenu
 // to the executor. Cleared after use.
 var selectedCustom *appconfig.CustomAction
 
 func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	logger := log.New(stderr, "hexai-tmux-action ", log.LstdFlags|log.Lmsgprefix)
-	cfg := appconfig.Load(logger)
+	cfg := appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
 	if cfg.StatsWindowMinutes > 0 {
 		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
 	}
@@ -75,6 +77,24 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 	io.WriteString(stdout, out)
 	return nil
+}
+
+// WithConfigPath attaches a config path override to the context for Run/RunCommand.
+func WithConfigPath(ctx context.Context, path string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, configPathKey{}, strings.TrimSpace(path))
+}
+
+func configPathFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if v, ok := ctx.Value(configPathKey{}).(string); ok {
+		return strings.TrimSpace(v)
+	}
+	return ""
 }
 
 func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {

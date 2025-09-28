@@ -43,6 +43,7 @@ type Server struct {
 	compCache          map[string]string
 	compCacheOrder     []string // most-recent at end; cap ~10
 	pendingCompletions map[string][]CompletionItem
+	configLoadOpts     appconfig.LoadOptions
 	// Outgoing JSON-RPC id counter for server-initiated requests
 	nextID      int64
 	lastLLMCall time.Time
@@ -53,13 +54,14 @@ type Server struct {
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
 type ServerOptions struct {
-	LogContext       bool
-	ConfigStore      *runtimeconfig.Store
-	Config           *appconfig.App
-	MaxTokens        int
-	ContextMode      string
-	WindowLines      int
-	MaxContextTokens int
+	LogContext        bool
+	ConfigStore       *runtimeconfig.Store
+	Config            *appconfig.App
+	MaxTokens         int
+	ContextMode       string
+	WindowLines       int
+	MaxContextTokens  int
+	ConfigLoadOptions appconfig.LoadOptions
 
 	Client                llm.Client
 	TriggerCharacters     []string
@@ -136,6 +138,7 @@ func (s *Server) applyOptions(opts ServerOptions) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.logContext = opts.LogContext
+	s.configLoadOpts = opts.ConfigLoadOptions
 	if opts.ConfigStore != nil {
 		s.configStore = opts.ConfigStore
 	}

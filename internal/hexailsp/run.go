@@ -25,7 +25,12 @@ type ServerFactory func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.S
 
 // Run configures logging, loads config, builds the LLM client and runs the LSP server.
 // It is thin and delegates to RunWithFactory for testability.
+
 func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	return RunWithConfig(logPath, "", stdin, stdout, stderr)
+}
+
+func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	logger := log.New(stderr, "hexai-lsp ", log.LstdFlags|log.Lmsgprefix)
 	if strings.TrimSpace(logPath) != "" {
 		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
@@ -36,19 +41,20 @@ func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) er
 		logger.SetOutput(f)
 	}
 	logging.Bind(logger)
-	cfg := appconfig.Load(logger)
+	loadOpts := appconfig.LoadOptions{ConfigPath: configPath}
+	cfg := appconfig.LoadWithOptions(logger, loadOpts)
 	if err := cfg.Validate(); err != nil {
 		logger.Fatalf("invalid config: %v", err)
 	}
 	if cfg.StatsWindowMinutes > 0 {
 		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
 	}
-	return RunWithFactory(logPath, stdin, stdout, logger, cfg, nil, nil)
+	return RunWithFactory(logPath, configPath, stdin, stdout, logger, cfg, nil, nil)
 }
 
 // RunWithFactory is the testable entrypoint. When client is nil, it is built from cfg+env.
 // When factory is nil, lsp.NewServer is used.
-func RunWithFactory(logPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory) error {
+func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory) error {
 	normalizeLoggingConfig(&cfg)
 	if err := cfg.Validate(); err != nil {
 		logger.Fatalf("invalid config: %v", err)
@@ -58,7 +64,9 @@ func RunWithFactory(logPath string, stdin io.Reader, stdout io.Writer, logger *l
 
 	store := runtimeconfig.New(cfg)
 	logContext := strings.TrimSpace(logPath) != ""
+	loadOpts := appconfig.LoadOptions{ConfigPath: strings.TrimSpace(configPath)}
 	opts := makeServerOptions(cfg, logContext, client)
+	opts.ConfigLoadOptions = loadOpts
 	opts.ConfigStore = store
 	server := factory(stdin, stdout, logger, opts)
 	if configurable, ok := server.(interface{ ApplyOptions(lsp.ServerOptions) }); ok {
@@ -72,6 +80,7 @@ func RunWithFactory(logPath string, stdin io.Reader, stdout io.Writer, logger *l
 				client = newClient
 			}
 			opts := makeServerOptions(updated, logContext, client)
+			opts.ConfigLoadOptions = loadOpts
 			opts.ConfigStore = store
 			configurable.ApplyOptions(opts)
 		})

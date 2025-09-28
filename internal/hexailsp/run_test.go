@@ -36,7 +36,7 @@ func TestRunWithFactory_UsesDefaultsAndCallsServer(t *testing.T) {
 		gotOpts = opts
 		return &fakeServer{opts: opts}
 	}
-	if err := RunWithFactory("", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if gotOpts.MaxTokens != cfg.MaxTokens {
@@ -71,7 +71,7 @@ func TestRunWithFactory_BuildsClientWhenKeysPresent(t *testing.T) {
 		got = opts.Client
 		return &fakeServer{opts: opts}
 	}
-	if err := RunWithFactory("", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if got == nil {
@@ -104,7 +104,7 @@ func TestRunWithFactory_NormalizesContextMode_AndSetsPreviewLimit(t *testing.T) 
 		gotOpts = opts
 		return &fakeServer{opts: opts}
 	}
-	if err := RunWithFactory("", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if gotOpts.ContextMode != "file-on-new-func" {
@@ -130,13 +130,13 @@ func TestRunWithFactory_LogContextFlag(t *testing.T) {
 		}
 		return &fakeServer{opts: opts}
 	}
-	if err := RunWithFactory("/tmp/some.log", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory("/tmp/some.log", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if !got1.LogContext {
 		t.Fatalf("expected LogContext true when logPath is non-empty")
 	}
-	if err := RunWithFactory("", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if got2.LogContext {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/runtimeconfig"
 )
 
@@ -40,7 +39,9 @@ func (s *Server) handleReloadCommand() chatCommandResult {
 	if s.configStore == nil {
 		return chatCommandResult{message: "Reload unavailable: no config store"}
 	}
-	changes, err := s.configStore.Reload(s.logger, appconfig.LoadOptions{IgnoreEnv: true})
+	loadOpts := s.configLoadOpts
+	loadOpts.IgnoreEnv = true
+	changes, err := s.configStore.Reload(s.logger, loadOpts)
 	if err != nil {
 		s.logger.Printf("config reload failed: %v", err)
 		return chatCommandResult{message: fmt.Sprintf("Reload failed: %v", err)}

@@ -52,7 +52,10 @@ type columnWriter struct {
 	index   int
 }
 
-type selectionContextKey struct{}
+type (
+	selectionContextKey  struct{}
+	configPathContextKey struct{}
+)
 
 func buildCLIJobs(cfg appconfig.App) ([]cliJob, error) {
 	entries := cfg.CLIConfigs
@@ -160,7 +163,8 @@ func defaultModelForProvider(cfg appconfig.App, provider string) string {
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	// Load configuration with a logger so file-based config is respected.
 	logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
-	cfg := appconfig.Load(logger)
+	configPath := configPathFromContext(ctx)
+	cfg := appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPath})
 	if cfg.StatsWindowMinutes > 0 {
 		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
 	}
@@ -492,6 +496,24 @@ func WithCLISelection(ctx context.Context, indices []int) context.Context {
 	cpy := make([]int, len(indices))
 	copy(cpy, indices)
 	return context.WithValue(ctx, selectionContextKey{}, cpy)
+}
+
+// WithCLIConfigPath returns a context that carries the config file path override.
+func WithCLIConfigPath(ctx context.Context, path string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, configPathContextKey{}, strings.TrimSpace(path))
+}
+
+func configPathFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if v, ok := ctx.Value(configPathContextKey{}).(string); ok {
+		return strings.TrimSpace(v)
+	}
+	return ""
 }
 
 func selectionFromContext(ctx context.Context) []int {

@@ -180,7 +180,8 @@ func Load(logger *log.Logger) App { return LoadWithOptions(logger, LoadOptions{}
 // LoadOptions tune how configuration is loaded at runtime.
 type LoadOptions struct {
 	// IgnoreEnv skips applying environment overrides when true.
-	IgnoreEnv bool
+	IgnoreEnv  bool
+	ConfigPath string
 }
 
 // LoadWithOptions reads configuration and applies the requested loading options.
@@ -190,16 +191,20 @@ func LoadWithOptions(logger *log.Logger, opts LoadOptions) App {
 		return cfg // Return defaults if no logger is provided (e.g. in tests)
 	}
 
-	configPath, err := getConfigPath()
-	if err != nil {
-		logger.Printf("%v", err)
-		// Even if config path cannot be resolved, keep defaults and optionally apply env overrides below.
-	} else {
+	configPath := strings.TrimSpace(opts.ConfigPath)
+	if configPath != "" {
 		if fileCfg, err := loadFromFile(configPath, logger); err == nil && fileCfg != nil {
 			cfg.mergeWith(fileCfg)
+		} else if err != nil {
+			logger.Printf("cannot open config file %s: %v", configPath, err)
 		}
-		// When the config file is missing or invalid, we keep defaults and still
-		// apply any environment overrides below (unless disabled).
+	} else {
+		path, err := getConfigPath()
+		if err != nil {
+			logger.Printf("%v", err)
+		} else if fileCfg, err := loadFromFile(path, logger); err == nil && fileCfg != nil {
+			cfg.mergeWith(fileCfg)
+		}
 	}
 
 	if !opts.IgnoreEnv {

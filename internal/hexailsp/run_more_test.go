@@ -44,7 +44,7 @@ func TestRunWithFactory_BuildsOptionsAndClient(t *testing.T) {
 	cfg.MaxTokens = 123
 	cfg.PromptCodeActionRewriteSystem = "RSYS"
 	cfg.PromptCodeActionRewriteUser = "RUSER"
-	if err := RunWithFactory("", &in, &out, logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory("", "", &in, &out, logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if captured.MaxTokens != 123 {
@@ -71,7 +71,7 @@ func TestRunWithFactory_SubscriptionAppliesUpdates(t *testing.T) {
 	cfg := appconfig.Load(nil)
 	cfg.StatsWindowMinutes = 0
 	cfg.ContextMode = " WINDOW "
-	if err := RunWithFactory("", &in, &out, logger, cfg, stubClient{}, factory); err != nil {
+	if err := RunWithFactory("", "", &in, &out, logger, cfg, stubClient{}, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if capturedStore == nil {

@@ -17,13 +17,15 @@ import (
 )
 
 func main() {
+	configPath, remaining := splitConfigPath(os.Args[1:])
 	logger := log.New(io.Discard, "", 0)
-	cfg := appconfig.Load(logger)
+	cfg := appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPath})
 	cliEntries := cfg.CLIConfigs
 	if len(cliEntries) == 0 {
 		cliEntries = []appconfig.SurfaceConfig{{Provider: cfg.Provider}}
 	}
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	configFlag := fs.String("config", configPath, "path to config file")
 	showVersion := fs.Bool("version", false, "print version and exit")
 	selectedFlags := make([]bool, len(cliEntries))
 	for i, entry := range cliEntries {
@@ -39,7 +41,7 @@ func main() {
 		desc := fmt.Sprintf("use only provider #%d (%s:%s)", i, provider, model)
 		fs.BoolVar(&selectedFlags[i], name, false, desc)
 	}
-	_ = fs.Parse(os.Args[1:])
+	_ = fs.Parse(remaining)
 	if *showVersion {
 		fmt.Fprintln(os.Stdout, internal.Version)
 		return
@@ -54,9 +56,39 @@ func main() {
 	if len(selection) > 0 {
 		ctx = hexaicli.WithCLISelection(ctx, selection)
 	}
+	if path := strings.TrimSpace(*configFlag); path != "" {
+		ctx = hexaicli.WithCLIConfigPath(ctx, path)
+	}
 	if err := hexaicli.Run(ctx, fs.Args(), os.Stdin, os.Stdout, os.Stderr); err != nil {
 		os.Exit(1)
 	}
+}
+
+func splitConfigPath(args []string) (string, []string) {
+	var path string
+	rest := make([]string, 0, len(args))
+	skip := false
+	for i := 0; i < len(args); i++ {
+		if skip {
+			skip = false
+			continue
+		}
+		arg := args[i]
+		switch {
+		case arg == "--config" || arg == "-config":
+			if i+1 < len(args) {
+				path = args[i+1]
+				skip = true
+			}
+		case strings.HasPrefix(arg, "--config="):
+			path = arg[len("--config="):]
+		case strings.HasPrefix(arg, "-config="):
+			path = arg[len("-config="):]
+		default:
+			rest = append(rest, arg)
+		}
+	}
+	return strings.TrimSpace(path), rest
 }
 
 func pickDefaultModel(cfg appconfig.App, provider string) string {

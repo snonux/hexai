@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/hexailsp"
@@ -12,6 +13,7 @@ import (
 
 func main() {
 	logPath := flag.String("log", "/tmp/hexai-lsp.log", "path to log file (optional)")
+	configPath := flag.String("config", "", "path to config file")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 	if *showVersion {
@@ -19,7 +21,8 @@ func main() {
 		return
 	}
 
-	if err := hexailsp.Run(*logPath, os.Stdin, os.Stdout, os.Stderr); err != nil {
+	path := strings.TrimSpace(*configPath)
+	if err := hexailsp.RunWithConfig(*logPath, path, os.Stdin, os.Stdout, os.Stderr); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }
