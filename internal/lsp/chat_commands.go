@@ -22,6 +22,10 @@ func (s *Server) chatCommandResponse(uri string, lineIdx int, prompt string) (ch
 		return s.handleReloadCommand(), true
 	case strings.HasPrefix(trimmed, "/help"):
 		return s.handleHelpCommand(), true
+	case strings.HasPrefix(trimmed, "/disable"):
+		return s.handleDisableCompletionCommand(), true
+	case strings.HasPrefix(trimmed, "/enable"):
+		return s.handleEnableCompletionCommand(), true
 	default:
 		return chatCommandResult{message: fmt.Sprintf("Unknown command %q. Try /help?>", trimmed)}, true
 	}
@@ -31,6 +35,8 @@ func (s *Server) handleHelpCommand() chatCommandResult {
 	lines := []string{
 		"Available slash commands:",
 		"- /reload?> reload configuration from file (ignores env overrides)",
+		"- /disable?> disable auto-completions for this session",
+		"- /enable?> re-enable auto-completions",
 	}
 	return chatCommandResult{message: strings.Join(lines, "\n")}
 }
@@ -49,4 +55,20 @@ func (s *Server) handleReloadCommand() chatCommandResult {
 	summary := runtimeconfig.FormatSummary("Reloaded config", changes)
 	s.logger.Print(summary)
 	return chatCommandResult{message: summary}
+}
+
+func (s *Server) handleDisableCompletionCommand() chatCommandResult {
+	prev := s.setCompletionsDisabled(true)
+	if prev {
+		return chatCommandResult{message: "Auto-completions were already disabled."}
+	}
+	return chatCommandResult{message: "Auto-completions disabled. Use /enable?> to restore."}
+}
+
+func (s *Server) handleEnableCompletionCommand() chatCommandResult {
+	prev := s.setCompletionsDisabled(false)
+	if !prev {
+		return chatCommandResult{message: "Auto-completions are already enabled."}
+	}
+	return chatCommandResult{message: "Auto-completions enabled."}
 }

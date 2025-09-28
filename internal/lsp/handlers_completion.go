@@ -30,6 +30,10 @@ type completionPlan struct {
 }
 
 func (s *Server) handleCompletion(req Request) {
+	if s.completionDisabled() {
+		s.reply(req.ID, CompletionList{IsIncomplete: false, Items: nil}, nil)
+		return
+	}
 	var p CompletionParams
 	var docStr string
 	if err := json.Unmarshal(req.Params, &p); err == nil {

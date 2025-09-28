@@ -48,6 +48,8 @@ type Server struct {
 	nextID      int64
 	lastLLMCall time.Time
 
+	completionsDisabled bool
+
 	// Dispatch table for JSON-RPC methods → handler functions
 	handlers map[string]func(Request)
 }
@@ -332,6 +334,20 @@ func (s *Server) storePendingCompletion(key string, items []CompletionItem) {
 	}
 	s.pendingCompletions[key] = cpy
 	s.mu.Unlock()
+}
+
+func (s *Server) setCompletionsDisabled(disabled bool) bool {
+	s.mu.Lock()
+	prev := s.completionsDisabled
+	s.completionsDisabled = disabled
+	s.mu.Unlock()
+	return prev
+}
+
+func (s *Server) completionDisabled() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.completionsDisabled
 }
 
 func (s *Server) takePendingCompletion(key string) []CompletionItem {

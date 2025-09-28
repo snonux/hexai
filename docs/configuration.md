@@ -53,6 +53,7 @@ Runtime reloads
 
 - The Hexai LSP can reload `config.toml` without restarting the editor session.
 - Type `/reload>` in an inline chat prompt to reapply file changes; environment overrides are ignored during this reload so the file becomes authoritative.
+- Type `/disable>` to temporarily pause auto-completions (chat prompts and actions keep working) and `/enable>` to resume them without restarting the session.
 - The client echoes a summary of the detected differences and logs the same details.
 
 API keys:

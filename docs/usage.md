@@ -150,3 +150,10 @@ Bind a key to pipe the current selection through the action runner and replace i
 Tips:
 - Ensure Helix runs inside tmux to see the status updates.
 - You can also set a language-specific binding in `languages.toml` if preferred.
+
+### Slash commands
+
+Type a slash command at the end of a chat line (for example `/? reload>`). Available commands:
+- `/reload>` — reload configuration from disk (ignores environment overrides during the reload).
+- `/disable>` — temporarily disable Hexai auto-completions; code actions and chat prompts continue to work.
+- `/enable>` — re-enable Hexai auto-completions after a `/disable>`.
