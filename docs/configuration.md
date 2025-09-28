@@ -27,6 +27,7 @@ Environment overrides
 Per-surface models
 
 - Use the `[models]` table in `config.toml` to tailor individual entry points (completion, code actions, chat, CLI) without changing the global provider default.
+- All entry points accept `--config /path/to/config.toml` to point at an alternate file. Helix `/reload>` reuses the same path when active.
 - Each key accepts either a string (shortcut) or one or more tables with `model` / `temperature` fields, e.g.:
 
   ```toml

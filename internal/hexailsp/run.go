@@ -65,7 +65,7 @@ func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout i
 	store := runtimeconfig.New(cfg)
 	logContext := strings.TrimSpace(logPath) != ""
 	loadOpts := appconfig.LoadOptions{ConfigPath: strings.TrimSpace(configPath)}
-	opts := makeServerOptions(cfg, logContext, client)
+	opts := makeServerOptions(cfg, logContext, client, loadOpts)
 	opts.ConfigLoadOptions = loadOpts
 	opts.ConfigStore = store
 	server := factory(stdin, stdout, logger, opts)
@@ -79,8 +79,7 @@ func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout i
 			if newClient := buildClientIfNil(updated, nil); newClient != nil {
 				client = newClient
 			}
-			opts := makeServerOptions(updated, logContext, client)
-			opts.ConfigLoadOptions = loadOpts
+			opts := makeServerOptions(updated, logContext, client, loadOpts)
 			opts.ConfigStore = store
 			configurable.ApplyOptions(opts)
 		})
@@ -144,7 +143,7 @@ func ensureFactory(factory ServerFactory) ServerFactory {
 	}
 }
 
-func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) lsp.ServerOptions {
+func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, loadOpts appconfig.LoadOptions) lsp.ServerOptions {
 	// Map custom actions from appconfig to lsp type
 	var customs []lsp.CustomAction
 	if len(cfg.CustomActions) > 0 {
@@ -162,6 +161,7 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client) ls
 		}
 	}
 	return lsp.ServerOptions{
+		ConfigLoadOptions:     loadOpts,
 		LogContext:            logContext,
 		ConfigStore:           nil,
 		Config:                &cfg,

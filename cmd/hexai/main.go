@@ -52,12 +52,16 @@ func main() {
 			selection = append(selection, i)
 		}
 	}
+	finalPath := strings.TrimSpace(*configFlag)
+	if finalPath == "" {
+		finalPath = configPath
+	}
 	ctx := context.Background()
+	if finalPath != "" {
+		ctx = hexaicli.WithCLIConfigPath(ctx, finalPath)
+	}
 	if len(selection) > 0 {
 		ctx = hexaicli.WithCLISelection(ctx, selection)
-	}
-	if path := strings.TrimSpace(*configFlag); path != "" {
-		ctx = hexaicli.WithCLIConfigPath(ctx, path)
 	}
 	if err := hexaicli.Run(ctx, fs.Args(), os.Stdin, os.Stdout, os.Stderr); err != nil {
 		os.Exit(1)
