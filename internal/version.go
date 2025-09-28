@@ -1,4 +1,4 @@
 // Summary: Hexai semantic version identifier used by CLI and LSP binaries.
 package internal
 
-const Version = "0.12.1"
+const Version = "0.13.0"
