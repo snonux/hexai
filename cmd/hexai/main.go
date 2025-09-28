@@ -25,7 +25,8 @@ func main() {
 		cliEntries = []appconfig.SurfaceConfig{{Provider: cfg.Provider}}
 	}
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	configFlag := fs.String("config", configPath, "path to config file")
+	defaultPath := defaultConfigPath()
+	configFlag := fs.String("config", configPath, fmt.Sprintf("path to config file (default: %s)", defaultPath))
 	showVersion := fs.Bool("version", false, "print version and exit")
 	selectedFlags := make([]bool, len(cliEntries))
 	for i, entry := range cliEntries {
@@ -104,4 +105,12 @@ func pickDefaultModel(cfg appconfig.App, provider string) string {
 	default:
 		return strings.TrimSpace(cfg.OpenAIModel)
 	}
+}
+
+func defaultConfigPath() string {
+	cfgPath, err := appconfig.ConfigPath()
+	if err != nil {
+		return "$XDG_CONFIG_HOME/hexai/config.toml"
+	}
+	return cfgPath
 }

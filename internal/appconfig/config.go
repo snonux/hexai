@@ -1046,6 +1046,11 @@ func (a *App) mergeProviderFields(other *App) {
 }
 
 func getConfigPath() (string, error) {
+	return ConfigPath()
+}
+
+// ConfigPath returns the default config file path ($XDG_CONFIG_HOME/hexai/config.toml or ~/.config/hexai/config.toml).
+func ConfigPath() (string, error) {
 	var configPath string
 	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
 		configPath = filepath.Join(xdgConfigHome, "hexai", "config.toml")
