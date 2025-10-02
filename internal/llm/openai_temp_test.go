@@ -5,7 +5,7 @@ import "testing"
 func TestNewFromConfig_DefaultTemp_ByModel(t *testing.T) {
 	// OpenAI, gpt-5.* → default temp 1.0 when not provided
 	cfg := Config{Provider: "openai", OpenAIModel: "gpt-5.0-preview"}
-	c, err := NewFromConfig(cfg, "key", "")
+	c, err := NewFromConfig(cfg, "key", "", "")
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
@@ -18,7 +18,7 @@ func TestNewFromConfig_DefaultTemp_ByModel(t *testing.T) {
 	}
 	// OpenAI, gpt-4.* → default temp 0.2 when not provided
 	cfg2 := Config{Provider: "openai", OpenAIModel: "gpt-4.1"}
-	c2, err := NewFromConfig(cfg2, "key", "")
+	c2, err := NewFromConfig(cfg2, "key", "", "")
 	if err != nil {
 		t.Fatalf("new2: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestNewFromConfig_DefaultTemp_UpgradeWhenGpt5AndDefault02(t *testing.T) {
 	// Simulate app-default of 0.2 while selecting a gpt-5 model: should upgrade to 1.0
 	v := 0.2
 	cfg := Config{Provider: "openai", OpenAIModel: "gpt-5.0", OpenAITemperature: &v}
-	c, err := NewFromConfig(cfg, "key", "")
+	c, err := NewFromConfig(cfg, "key", "", "")
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}

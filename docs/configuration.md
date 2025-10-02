@@ -19,6 +19,7 @@ Environment overrides
   - `HEXAI_INLINE_OPEN`, `HEXAI_INLINE_CLOSE`
   - `HEXAI_CHAT_SUFFIX`, `HEXAI_CHAT_PREFIXES` (comma-separated)
   - `HEXAI_OPENAI_MODEL`, `HEXAI_OPENAI_BASE_URL`, `HEXAI_OPENAI_TEMPERATURE`
+  - `HEXAI_OPENROUTER_MODEL`, `HEXAI_OPENROUTER_BASE_URL`, `HEXAI_OPENROUTER_TEMPERATURE`
   - `HEXAI_COPILOT_MODEL`, `HEXAI_COPILOT_BASE_URL`, `HEXAI_COPILOT_TEMPERATURE`
   - `HEXAI_OLLAMA_MODEL`, `HEXAI_OLLAMA_BASE_URL`, `HEXAI_OLLAMA_TEMPERATURE`
   - Per-surface overrides: `HEXAI_MODEL_COMPLETION`, `HEXAI_MODEL_CODE_ACTION`, `HEXAI_MODEL_CHAT`, `HEXAI_MODEL_CLI`
@@ -46,7 +47,7 @@ Per-surface models
 
 - Repeating the table (`[[models.<surface>]]`) configures multiple provider/model pairs. Completion requests and the Hexai CLI fan out to every configured entry concurrently and label the responses with `provider:model`. Code actions continue to use the first entry only; any extra [[models.code_action]] tables are ignored at runtime and the loader logs a warning so you know an additional entry was skipped.
 
-- When a per-surface value is omitted, Hexai falls back to the provider’s configured default. Temperatures inherit from `coding_temperature` unless explicitly set, and OpenAI `gpt-5*` models automatically raise an unspecified coding temperature to `1.0` for exploratory behavior. Provider overrides support `"openai"`, `"copilot"`, or `"ollama"` and read the matching credential variables.
+- When a per-surface value is omitted, Hexai falls back to the provider’s configured default. Temperatures inherit from `coding_temperature` unless explicitly set, and OpenAI `gpt-5*` models automatically raise an unspecified coding temperature to `1.0` for exploratory behavior. Provider overrides support `"openai"`, `"openrouter"`, `"copilot"`, or `"ollama"` and read the matching credential variables.
 
 Runtime reloads
 
@@ -59,12 +60,14 @@ Runtime reloads
 API keys:
 
 - OpenAI: prefer `HEXAI_OPENAI_API_KEY`, falling back to `OPENAI_API_KEY`.
+- OpenRouter: prefer `HEXAI_OPENROUTER_API_KEY`, falling back to `OPENROUTER_API_KEY`.
 - Copilot: prefer `HEXAI_COPILOT_API_KEY`, falling back to `COPILOT_API_KEY`.
 
 Selecting a provider
 
-- Sectioned: set `[provider] name = "openai" | "copilot" | "ollama"`.
+- Sectioned: set `[provider] name = "openai" | "openrouter" | "copilot" | "ollama"`.
 - If omitted, Hexai defaults to `openai`.
+- Selecting `openrouter` uses https://openrouter.ai/api/v1 by default and automatically sends the required `HTTP-Referer` (`https://github.com/snonux/hexai`) and `X-Title` (`Hexai`) headers. Override the base URL via `[openrouter]` or environment variables when needed.
 
 Notes on Ollama:
 

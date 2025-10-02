@@ -69,6 +69,10 @@ type Config struct {
 	OpenAIBaseURL     string
 	OpenAIModel       string
 	OpenAITemperature *float64
+	// OpenRouter options
+	OpenRouterBaseURL     string
+	OpenRouterModel       string
+	OpenRouterTemperature *float64
 	// Ollama options
 	OllamaBaseURL     string
 	OllamaModel       string
@@ -82,7 +86,7 @@ type Config struct {
 // NewFromConfig creates an LLM client using only the supplied configuration.
 // The OpenAI API key is supplied separately and may be read from the environment
 // by the caller; other environment-based configuration is not used.
-func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, error) {
+func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey string) (Client, error) {
 	p := strings.ToLower(strings.TrimSpace(cfg.Provider))
 	if p == "" {
 		p = "openai"
@@ -112,6 +116,15 @@ func NewFromConfig(cfg Config, openAIAPIKey, copilotAPIKey string) (Client, erro
 			cfg.OpenAITemperature = &v
 		}
 		return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature), nil
+	case "openrouter":
+		if strings.TrimSpace(openRouterAPIKey) == "" {
+			return nil, errors.New("missing OPENROUTER_API_KEY for provider openrouter")
+		}
+		if cfg.OpenRouterTemperature == nil {
+			t := 0.2
+			cfg.OpenRouterTemperature = &t
+		}
+		return newOpenRouter(cfg.OpenRouterBaseURL, cfg.OpenRouterModel, openRouterAPIKey, cfg.OpenRouterTemperature), nil
 	case "ollama":
 		if cfg.OllamaTemperature == nil {
 			t := 0.2

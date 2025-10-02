@@ -217,26 +217,33 @@ func (s *Server) currentLLMClient() llm.Client {
 
 func newClientForProvider(cfg appconfig.App, provider string) (llm.Client, error) {
 	llmCfg := llm.Config{
-		Provider:           provider,
-		OpenAIBaseURL:      cfg.OpenAIBaseURL,
-		OpenAIModel:        cfg.OpenAIModel,
-		OpenAITemperature:  cfg.OpenAITemperature,
-		OllamaBaseURL:      cfg.OllamaBaseURL,
-		OllamaModel:        cfg.OllamaModel,
-		OllamaTemperature:  cfg.OllamaTemperature,
-		CopilotBaseURL:     cfg.CopilotBaseURL,
-		CopilotModel:       cfg.CopilotModel,
-		CopilotTemperature: cfg.CopilotTemperature,
+		Provider:              provider,
+		OpenAIBaseURL:         cfg.OpenAIBaseURL,
+		OpenAIModel:           cfg.OpenAIModel,
+		OpenAITemperature:     cfg.OpenAITemperature,
+		OpenRouterBaseURL:     cfg.OpenRouterBaseURL,
+		OpenRouterModel:       cfg.OpenRouterModel,
+		OpenRouterTemperature: cfg.OpenRouterTemperature,
+		OllamaBaseURL:         cfg.OllamaBaseURL,
+		OllamaModel:           cfg.OllamaModel,
+		OllamaTemperature:     cfg.OllamaTemperature,
+		CopilotBaseURL:        cfg.CopilotBaseURL,
+		CopilotModel:          cfg.CopilotModel,
+		CopilotTemperature:    cfg.CopilotTemperature,
 	}
 	oaKey := strings.TrimSpace(os.Getenv("HEXAI_OPENAI_API_KEY"))
 	if oaKey == "" {
 		oaKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
 	}
+	orKey := strings.TrimSpace(os.Getenv("HEXAI_OPENROUTER_API_KEY"))
+	if orKey == "" {
+		orKey = strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
+	}
 	cpKey := strings.TrimSpace(os.Getenv("HEXAI_COPILOT_API_KEY"))
 	if cpKey == "" {
 		cpKey = strings.TrimSpace(os.Getenv("COPILOT_API_KEY"))
 	}
-	return llm.NewFromConfig(llmCfg, oaKey, cpKey)
+	return llm.NewFromConfig(llmCfg, oaKey, orKey, cpKey)
 }
 
 func (s *Server) clientFor(spec requestSpec) llm.Client {
@@ -272,6 +279,12 @@ func (s *Server) clientFor(spec requestSpec) llm.Client {
 			cfg.OpenAIModel = modelOverride
 		} else if spec.fallbackModel != "" {
 			cfg.OpenAIModel = spec.fallbackModel
+		}
+	case "openrouter":
+		if modelOverride != "" {
+			cfg.OpenRouterModel = modelOverride
+		} else if spec.fallbackModel != "" {
+			cfg.OpenRouterModel = spec.fallbackModel
 		}
 	case "copilot":
 		if modelOverride != "" {

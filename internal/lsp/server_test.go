@@ -85,3 +85,20 @@ func TestServerApplyOptions(t *testing.T) {
 		t.Fatalf("expected config to update, got %d", got)
 	}
 }
+
+func TestServerStoreAndTakePendingCompletion(t *testing.T) {
+	s := newTestServer()
+	items := []CompletionItem{{Label: "foo"}}
+	s.storePendingCompletion("key", items)
+	if len(s.pendingCompletions) != 1 {
+		t.Fatalf("expected pending map to be populated")
+	}
+	items[0].Label = "bar" // ensure copy stored
+	got := s.takePendingCompletion("key")
+	if len(got) != 1 || got[0].Label != "foo" {
+		t.Fatalf("expected preserved copy of completion, got %+v", got)
+	}
+	if len(s.pendingCompletions) != 0 {
+		t.Fatalf("expected pending map to be cleared after take")
+	}
+}

@@ -104,28 +104,36 @@ func buildClientIfNil(cfg appconfig.App, client llm.Client) llm.Client {
 		return client
 	}
 	llmCfg := llm.Config{
-		Provider:           cfg.Provider,
-		OpenAIBaseURL:      cfg.OpenAIBaseURL,
-		OpenAIModel:        cfg.OpenAIModel,
-		OpenAITemperature:  cfg.OpenAITemperature,
-		OllamaBaseURL:      cfg.OllamaBaseURL,
-		OllamaModel:        cfg.OllamaModel,
-		OllamaTemperature:  cfg.OllamaTemperature,
-		CopilotBaseURL:     cfg.CopilotBaseURL,
-		CopilotModel:       cfg.CopilotModel,
-		CopilotTemperature: cfg.CopilotTemperature,
+		Provider:              cfg.Provider,
+		OpenAIBaseURL:         cfg.OpenAIBaseURL,
+		OpenAIModel:           cfg.OpenAIModel,
+		OpenAITemperature:     cfg.OpenAITemperature,
+		OpenRouterBaseURL:     cfg.OpenRouterBaseURL,
+		OpenRouterModel:       cfg.OpenRouterModel,
+		OpenRouterTemperature: cfg.OpenRouterTemperature,
+		OllamaBaseURL:         cfg.OllamaBaseURL,
+		OllamaModel:           cfg.OllamaModel,
+		OllamaTemperature:     cfg.OllamaTemperature,
+		CopilotBaseURL:        cfg.CopilotBaseURL,
+		CopilotModel:          cfg.CopilotModel,
+		CopilotTemperature:    cfg.CopilotTemperature,
 	}
 	// Prefer HEXAI_OPENAI_API_KEY; fall back to OPENAI_API_KEY
 	oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
 	if strings.TrimSpace(oaKey) == "" {
 		oaKey = os.Getenv("OPENAI_API_KEY")
 	}
+	// Prefer HEXAI_OPENROUTER_API_KEY; fall back to OPENROUTER_API_KEY
+	orKey := os.Getenv("HEXAI_OPENROUTER_API_KEY")
+	if strings.TrimSpace(orKey) == "" {
+		orKey = os.Getenv("OPENROUTER_API_KEY")
+	}
 	// Prefer HEXAI_COPILOT_API_KEY; fall back to COPILOT_API_KEY
 	cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
 	if strings.TrimSpace(cpKey) == "" {
 		cpKey = os.Getenv("COPILOT_API_KEY")
 	}
-	if c, err := llm.NewFromConfig(llmCfg, oaKey, cpKey); err != nil {
+	if c, err := llm.NewFromConfig(llmCfg, oaKey, orKey, cpKey); err != nil {
 		logging.Logf("lsp ", "llm disabled: %v", err)
 		return nil
 	} else {

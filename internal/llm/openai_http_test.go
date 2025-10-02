@@ -60,7 +60,7 @@ func TestOpenAI_ChatStream_SSE(t *testing.T) {
 
 func TestHandleOpenAINon2xx_NoErrorBody(t *testing.T) {
 	resp := &http.Response{StatusCode: 500, Body: io.NopCloser(strings.NewReader("{}"))}
-	if err := handleOpenAINon2xx(resp, time.Now()); err == nil {
+	if err := handleOpenAINon2xx(resp, time.Now(), "llm/openai ", "openai"); err == nil {
 		t.Fatalf("expected http error")
 	}
 }

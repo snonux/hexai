@@ -56,8 +56,12 @@ type App struct {
 	OpenAIModel   string `json:"openai_model" toml:"openai_model"`
 	// Default temperature for OpenAI requests (nil means use provider default)
 	OpenAITemperature *float64 `json:"openai_temperature" toml:"openai_temperature"`
-	OllamaBaseURL     string   `json:"ollama_base_url" toml:"ollama_base_url"`
-	OllamaModel       string   `json:"ollama_model" toml:"ollama_model"`
+	OpenRouterBaseURL string   `json:"openrouter_base_url" toml:"openrouter_base_url"`
+	OpenRouterModel   string   `json:"openrouter_model" toml:"openrouter_model"`
+	// Default temperature for OpenRouter requests (nil means use provider default)
+	OpenRouterTemperature *float64 `json:"openrouter_temperature" toml:"openrouter_temperature"`
+	OllamaBaseURL         string   `json:"ollama_base_url" toml:"ollama_base_url"`
+	OllamaModel           string   `json:"ollama_model" toml:"ollama_model"`
 	// Default temperature for Ollama requests (nil means use provider default)
 	OllamaTemperature *float64 `json:"ollama_temperature" toml:"ollama_temperature"`
 	CopilotBaseURL    string   `json:"copilot_base_url" toml:"copilot_base_url"`
@@ -228,6 +232,7 @@ type fileConfig struct {
 	Chat       sectionChat       `toml:"chat"`
 	Provider   sectionProvider   `toml:"provider"`
 	OpenAI     sectionOpenAI     `toml:"openai"`
+	OpenRouter sectionOpenRouter `toml:"openrouter"`
 	Copilot    sectionCopilot    `toml:"copilot"`
 	Ollama     sectionOllama     `toml:"ollama"`
 	Prompts    sectionPrompts    `toml:"prompts"`
@@ -306,6 +311,12 @@ func (s sectionOpenAI) resolvedModel() string {
 		}
 	}
 	return model
+}
+
+type sectionOpenRouter struct {
+	Model       string   `toml:"model"`
+	BaseURL     string   `toml:"base_url"`
+	Temperature *float64 `toml:"temperature"`
 }
 
 type sectionCopilot struct {
@@ -441,6 +452,16 @@ func (fc *fileConfig) toApp() App {
 			OpenAIBaseURL:     fc.OpenAI.BaseURL,
 			OpenAIModel:       fc.OpenAI.resolvedModel(),
 			OpenAITemperature: fc.OpenAI.Temperature,
+		}
+		out.mergeProviderFields(&tmp)
+	}
+
+	// openrouter
+	if (fc.OpenRouter != sectionOpenRouter{}) || fc.OpenRouter.Temperature != nil {
+		tmp := App{
+			OpenRouterBaseURL:     fc.OpenRouter.BaseURL,
+			OpenRouterModel:       fc.OpenRouter.Model,
+			OpenRouterTemperature: fc.OpenRouter.Temperature,
 		}
 		out.mergeProviderFields(&tmp)
 	}
@@ -1025,6 +1046,15 @@ func (a *App) mergeProviderFields(other *App) {
 	if other.OpenAITemperature != nil { // allow explicit 0.0
 		a.OpenAITemperature = other.OpenAITemperature
 	}
+	if s := strings.TrimSpace(other.OpenRouterBaseURL); s != "" {
+		a.OpenRouterBaseURL = s
+	}
+	if s := strings.TrimSpace(other.OpenRouterModel); s != "" {
+		a.OpenRouterModel = s
+	}
+	if other.OpenRouterTemperature != nil { // allow explicit 0.0
+		a.OpenRouterTemperature = other.OpenRouterTemperature
+	}
 	if s := strings.TrimSpace(other.OllamaBaseURL); s != "" {
 		a.OllamaBaseURL = s
 	}
@@ -1220,6 +1250,19 @@ func loadFromEnv(logger *log.Logger) *App {
 	}
 	if f, ok := parseFloatPtr("HEXAI_OPENAI_TEMPERATURE"); ok {
 		out.OpenAITemperature = f
+		any = true
+	}
+
+	if s := getenv("HEXAI_OPENROUTER_BASE_URL"); s != "" {
+		out.OpenRouterBaseURL = s
+		any = true
+	}
+	if model, ok := pickModel("openrouter", getenv("HEXAI_OPENROUTER_MODEL")); ok {
+		out.OpenRouterModel = model
+		any = true
+	}
+	if f, ok := parseFloatPtr("HEXAI_OPENROUTER_TEMPERATURE"); ok {
+		out.OpenRouterTemperature = f
 		any = true
 	}
 

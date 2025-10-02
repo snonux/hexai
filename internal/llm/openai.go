@@ -106,7 +106,7 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 	}
 	start := time.Now()
 	c.logStart(false, o, messages)
-	req := buildOAChatRequest(o, messages, c.defaultTemperature, false)
+	req := buildOAChatRequest(o, messages, c.defaultTemperature, false, "llm/openai ")
 	body, err := json.Marshal(req)
 	if err != nil {
 		c.logf("marshal error: %v", err)
@@ -122,10 +122,10 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 		return "", err
 	}
 	defer resp.Body.Close()
-	if err := handleOpenAINon2xx(resp, start); err != nil {
+	if err := handleOpenAINon2xx(resp, start, "llm/openai ", "openai"); err != nil {
 		return "", err
 	}
-	out, err := decodeOpenAIChat(resp, start)
+	out, err := decodeOpenAIChat(resp, start, "llm/openai ")
 	if err != nil {
 		return "", err
 	}
@@ -157,7 +157,7 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 	}
 	start := time.Now()
 	c.logStart(true, o, messages)
-	req := buildOAChatRequest(o, messages, c.defaultTemperature, true)
+	req := buildOAChatRequest(o, messages, c.defaultTemperature, true, "llm/openai ")
 	body, err := json.Marshal(req)
 	if err != nil {
 		c.logf("marshal error: %v", err)
@@ -173,11 +173,11 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 		return err
 	}
 	defer resp.Body.Close()
-	if err := handleOpenAINon2xx(resp, start); err != nil {
+	if err := handleOpenAINon2xx(resp, start, "llm/openai ", "openai"); err != nil {
 		return err
 	}
 
-	if err := parseOpenAIStream(resp, start, onDelta); err != nil {
+	if err := parseOpenAIStream(resp, start, onDelta, "llm/openai ", "openai"); err != nil {
 		return err
 	}
 	logging.Logf("llm/openai ", "stream end duration=%s", time.Since(start))
@@ -196,7 +196,7 @@ func (c openAIClient) logStart(stream bool, o Options, messages []Message) {
 	c.chatLogger.LogStart(stream, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)
 }
 
-func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, stream bool) oaChatRequest {
+func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, stream bool, logPrefix string) oaChatRequest {
 	req := oaChatRequest{Model: o.Model, Stream: stream}
 	req.Messages = make([]oaMessage, len(messages))
 	for i, m := range messages {
@@ -223,7 +223,7 @@ func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, str
 		if req.Temperature == nil || *req.Temperature != 1.0 {
 			t := 1.0
 			req.Temperature = &t
-			logging.Logf("llm/openai ", "forcing temperature=1.0 for model=%s (gpt-5 constraint)", o.Model)
+			logging.Logf(logPrefix, "forcing temperature=1.0 for model=%s (gpt-5 constraint)", o.Model)
 		}
 	}
 	return req
@@ -262,30 +262,30 @@ func (c openAIClient) doJSONWithAccept(ctx context.Context, url string, body []b
 	return c.httpClient.Do(req)
 }
 
-func handleOpenAINon2xx(resp *http.Response, start time.Time) error {
+func handleOpenAINon2xx(resp *http.Response, start time.Time, logPrefix, provider string) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
 	}
 	var apiErr oaChatResponse
 	_ = json.NewDecoder(resp.Body).Decode(&apiErr)
 	if apiErr.Error != nil && apiErr.Error.Message != "" {
-		logging.Logf("llm/openai ", "%sapi error status=%d type=%s msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), logging.AnsiBase)
-		return fmt.Errorf("openai error: %s (status %d)", apiErr.Error.Message, resp.StatusCode)
+		logging.Logf(logPrefix, "%sapi error status=%d type=%s msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), logging.AnsiBase)
+		return fmt.Errorf("%s error: %s (status %d)", provider, apiErr.Error.Message, resp.StatusCode)
 	}
-	logging.Logf("llm/openai ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
-	return fmt.Errorf("openai http error: status %d", resp.StatusCode)
+	logging.Logf(logPrefix, "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
+	return fmt.Errorf("%s http error: status %d", provider, resp.StatusCode)
 }
 
-func decodeOpenAIChat(resp *http.Response, start time.Time) (oaChatResponse, error) {
+func decodeOpenAIChat(resp *http.Response, start time.Time, logPrefix string) (oaChatResponse, error) {
 	var out oaChatResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		logging.Logf("llm/openai ", "%sdecode error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
+		logging.Logf(logPrefix, "%sdecode error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return oaChatResponse{}, err
 	}
 	return out, nil
 }
 
-func parseOpenAIStream(resp *http.Response, start time.Time, onDelta func(string)) error {
+func parseOpenAIStream(resp *http.Response, start time.Time, onDelta func(string), logPrefix, provider string) error {
 	// Parse SSE: lines starting with "data: " containing JSON or [DONE]
 	scanner := bufio.NewScanner(resp.Body)
 	const maxBuf = 1024 * 1024
@@ -305,8 +305,8 @@ func parseOpenAIStream(resp *http.Response, start time.Time, onDelta func(string
 			continue
 		}
 		if chunk.Error != nil && chunk.Error.Message != "" {
-			logging.Logf("llm/openai ", "%sstream error: %s%s", logging.AnsiRed, chunk.Error.Message, logging.AnsiBase)
-			return fmt.Errorf("openai stream error: %s", chunk.Error.Message)
+			logging.Logf(logPrefix, "%sstream error: %s%s", logging.AnsiRed, chunk.Error.Message, logging.AnsiBase)
+			return fmt.Errorf("%s stream error: %s", provider, chunk.Error.Message)
 		}
 		for _, ch := range chunk.Choices {
 			if ch.Delta.Content != "" {
@@ -315,7 +315,7 @@ func parseOpenAIStream(resp *http.Response, start time.Time, onDelta func(string
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		logging.Logf("llm/openai ", "%sstream read error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
+		logging.Logf(logPrefix, "%sstream read error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return err
 	}
 	return nil
