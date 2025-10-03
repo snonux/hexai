@@ -20,7 +20,7 @@ manual_invoke_min_prefix = 0         # required identifier chars for manual invo
 trigger_characters = [".", ":", "/", "_", " "]
 
 [inline]
-inline_open  = ">"                  # single-character
+inline_open  = ">!"                 # marker prefix for inline prompts
 inline_close = ">"                  # single-character
 
 [chat]

@@ -365,7 +365,7 @@ manual_invoke_min_prefix = 3
 trigger_characters = [".", ":"]
 
 [inline]
-inline_open = ">"
+inline_open = ">!"
 inline_close = ">"
 
 [chat]

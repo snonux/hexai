@@ -72,8 +72,8 @@ func TestIsTriggerEvent_Variants(t *testing.T) {
 		t.Fatalf("fallback char should trigger")
 	}
 	// 4) Bare double-open disables trigger
-	p4 := CompletionParams{Position: Position{Line: 0, Character: 2}}
-	if s.isTriggerEvent(p4, ">>") {
+	p4 := CompletionParams{Position: Position{Line: 0, Character: 3}}
+	if s.isTriggerEvent(p4, ">>!") {
 		t.Fatalf("bare double-open should not trigger")
 	}
 }

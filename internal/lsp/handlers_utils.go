@@ -312,11 +312,36 @@ func (s *Server) chatWithStats(ctx context.Context, surface surfaceKind, spec re
 
 // Inline prompt utilities
 
-func lineHasInlinePrompt(line string, open, close byte) bool {
-	if _, _, _, ok := findStrictInlineTag(line, open, close); ok {
+func lineHasInlinePrompt(line string, openStr string, open, close byte) bool {
+	if openStr == "" {
+		openStr = string(open)
+	}
+	if _, _, _, ok := findStrictInlineTag(line, openStr, open, close); ok {
 		return true
 	}
-	return hasDoubleOpenTrigger(line, open, close)
+	return hasDoubleOpenTrigger(line, openStr, open, close)
+}
+
+func doubleOpenSequences(openStr string, open, close byte) []string {
+	seen := make(map[string]struct{}, 2)
+	var seqs []string
+	if openStr != "" && close != 0 {
+		seq := openStr + string(close)
+		if _, ok := seen[seq]; !ok {
+			seen[seq] = struct{}{}
+			seqs = append(seqs, seq)
+		}
+	}
+	if openStr != "" && open != 0 {
+		seq := string(open) + openStr
+		if len(seq) > len(openStr) {
+			if _, ok := seen[seq]; !ok {
+				seen[seq] = struct{}{}
+				seqs = append(seqs, seq)
+			}
+		}
+	}
+	return seqs
 }
 
 func leadingIndent(line string) string {
@@ -353,34 +378,66 @@ func applyIndent(indent, suggestion string) string {
 
 // --- Inline marker parsing and general string utilities ---
 
-// findStrictInlineTag finds >text> (configurable), with no space after the first
+// findStrictInlineTag finds >!text> (configurable), with no space after the first
 // opening marker and no space immediately before the closing marker. Returns the
 // text between markers, the start index, the end index just after closing, and ok.
-func findStrictInlineTag(line string, open, close byte) (string, int, int, bool) {
+func findStrictInlineTag(line string, openStr string, open, close byte) (string, int, int, bool) {
+	if openStr == "" {
+		openStr = string(open)
+	}
+	if openStr == "" {
+		return "", 0, 0, false
+	}
+	openChar := open
+	if openChar == 0 {
+		openChar = openStr[0]
+	}
+	doubleSeqs := doubleOpenSequences(openStr, openChar, close)
 	pos := 0
 	for pos < len(line) {
-		// find opening marker
-		j := strings.IndexByte(line[pos:], open)
+		j := strings.IndexByte(line[pos:], openChar)
 		if j < 0 {
 			return "", 0, 0, false
 		}
 		j += pos
-		// ensure single open (not double) and non-space after
-		if j+1 >= len(line) || line[j+1] == open || line[j+1] == ' ' {
+		if !strings.HasPrefix(line[j:], openStr) {
 			pos = j + 1
 			continue
 		}
-		// find closing marker
-		k := strings.IndexByte(line[j+1:], close)
+		contentStart := j + len(openStr)
+		if contentStart >= len(line) {
+			return "", 0, 0, false
+		}
+		doubleHit := false
+		for _, seq := range doubleSeqs {
+			if strings.HasPrefix(line[j:], seq) {
+				doubleHit = true
+				contentStart += len(seq) - len(openStr)
+				if contentStart >= len(line) {
+					return "", 0, 0, false
+				}
+				break
+			}
+		}
+		next := line[contentStart]
+		if next == ' ' {
+			pos = contentStart + 1
+			continue
+		}
+		if !doubleHit && next == close {
+			pos = contentStart + 1
+			continue
+		}
+		k := strings.IndexByte(line[contentStart:], close)
 		if k < 0 {
 			return "", 0, 0, false
 		}
-		closeIdx := j + 1 + k
-		if closeIdx-1 < 0 || line[closeIdx-1] == ' ' {
+		closeIdx := contentStart + k
+		if closeIdx-1 >= contentStart && line[closeIdx-1] == ' ' {
 			pos = closeIdx + 1
 			continue
 		}
-		inner := strings.TrimSpace(line[j+1 : closeIdx])
+		inner := strings.TrimSpace(line[contentStart:closeIdx])
 		if inner == "" {
 			pos = closeIdx + 1
 			continue
@@ -394,20 +451,20 @@ func findStrictInlineTag(line string, open, close byte) (string, int, int, bool)
 // isBareDoubleSemicolon reports whether the line contains a standalone
 // double-semicolon marker with no inline content (";;" possibly with only
 // whitespace after it). It explicitly excludes the valid form ";;text;".
-func isBareDoubleOpen(line string, open, close byte) bool {
+func isBareDoubleOpen(line string, openStr string, open, close byte) bool {
 	t := strings.TrimSpace(line)
-	// check for double-open pattern
-	dbl := string([]byte{open, open})
-	if !strings.Contains(t, dbl) {
+	if openStr == "" {
+		openStr = string(open)
+	}
+	if openStr == "" {
 		return false
 	}
-	if hasDoubleOpenTrigger(t, open, close) {
-		return false
-	}
-	if strings.HasPrefix(t, dbl) {
-		rest := strings.TrimSpace(t[len(dbl):])
-		if rest == "" || rest == ";" {
-			return true
+	for _, seq := range doubleOpenSequences(openStr, open, close) {
+		if strings.HasPrefix(t, seq) {
+			rest := strings.TrimSpace(t[len(seq):])
+			if rest == "" || rest == string(close) {
+				return true
+			}
 		}
 	}
 	return false
@@ -562,40 +619,62 @@ func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit {
 		return nil
 	}
 	var edits []TextEdit
-	_, _, openChar, closeChar := s.inlineMarkers()
+	openStr, _, openChar, closeChar := s.inlineMarkers()
 	for i, line := range d.lines {
-		edits = append(edits, promptRemovalEditsForLine(line, i, openChar, closeChar)...)
+		edits = append(edits, promptRemovalEditsForLine(line, i, openStr, openChar, closeChar)...)
 	}
 	return edits
 }
 
-func promptRemovalEditsForLine(line string, lineNum int, open, close byte) []TextEdit {
-	if hasDoubleOpenTrigger(line, open, close) {
+func promptRemovalEditsForLine(line string, lineNum int, openStr string, open, close byte) []TextEdit {
+	if hasDoubleOpenTrigger(line, openStr, open, close) {
 		return []TextEdit{{Range: Range{Start: Position{Line: lineNum, Character: 0}, End: Position{Line: lineNum, Character: len(line)}}, NewText: ""}}
 	}
-	return collectSemicolonMarkers(line, lineNum, open, close)
+	return collectSemicolonMarkers(line, lineNum, openStr, open, close)
 }
 
-func hasDoubleOpenTrigger(line string, open, close byte) bool {
+func hasDoubleOpenTrigger(line string, openStr string, open, close byte) bool {
+	if openStr == "" {
+		openStr = string(open)
+	}
+	if openStr == "" {
+		return false
+	}
+	seqs := doubleOpenSequences(openStr, open, close)
+	if len(seqs) == 0 {
+		return false
+	}
 	pos := 0
 	for pos < len(line) {
-		// look for double-open sequence
-		dbl := string([]byte{open, open})
-		j := strings.Index(line[pos:], dbl)
-		if j < 0 {
+		found := -1
+		var seq string
+		for _, cand := range seqs {
+			if cand == "" {
+				continue
+			}
+			if idx := strings.Index(line[pos:], cand); idx >= 0 {
+				abs := pos + idx
+				if found < 0 || abs < found {
+					found = abs
+					seq = cand
+				}
+			}
+		}
+		if found < 0 {
 			return false
 		}
-		j += pos
-		contentStart := j + len(dbl)
+		contentStart := found + len(seq)
 		if contentStart >= len(line) {
 			return false
 		}
 		first := line[contentStart]
-		if first == ' ' || first == open {
+		if first == ' ' || first == close || first == open {
 			pos = contentStart + 1
 			continue
 		}
-		// find closing
+		if contentStart+1 >= len(line) {
+			return false
+		}
 		k := strings.IndexByte(line[contentStart+1:], close)
 		if k < 0 {
 			return false
@@ -610,34 +689,53 @@ func hasDoubleOpenTrigger(line string, open, close byte) bool {
 	return false
 }
 
-func collectSemicolonMarkers(line string, lineNum int, open, close byte) []TextEdit {
+func collectSemicolonMarkers(line string, lineNum int, openStr string, open, close byte) []TextEdit {
+	if openStr == "" {
+		openStr = string(open)
+	}
+	if openStr == "" {
+		return nil
+	}
 	var edits []TextEdit
-	startSemi := 0
-	for startSemi < len(line) {
-		j := strings.IndexByte(line[startSemi:], open)
+	start := 0
+	doubleSeqs := doubleOpenSequences(openStr, open, close)
+	for start < len(line) {
+		j := strings.Index(line[start:], openStr)
 		if j < 0 {
 			break
 		}
-		j += startSemi
-		k := strings.IndexByte(line[j+1:], close)
+		j += start
+		contentStart := j + len(openStr)
+		if contentStart >= len(line) {
+			break
+		}
+		next := line[contentStart]
+		if next == ' ' {
+			start = j + 1
+			continue
+		}
+		skipDouble := false
+		for _, seq := range doubleSeqs {
+			if strings.HasPrefix(line[j:], seq) {
+				skipDouble = true
+				break
+			}
+		}
+		if skipDouble {
+			start = j + 1
+			continue
+		}
+		k := strings.IndexByte(line[contentStart:], close)
 		if k < 0 {
 			break
 		}
-		if j+1 >= len(line) || line[j+1] == ' ' {
-			startSemi = j + 1
+		closeIdx := contentStart + k
+		if closeIdx-1 < contentStart || line[closeIdx-1] == ' ' {
+			start = closeIdx + 1
 			continue
 		}
-		if line[j+1] == open { // skip double-open start
-			startSemi = j + 2
-			continue
-		}
-		closeIdx := j + 1 + k
-		if closeIdx-1 < 0 || line[closeIdx-1] == ' ' {
-			startSemi = closeIdx + 1
-			continue
-		}
-		if closeIdx-(j+1) < 1 {
-			startSemi = closeIdx + 1
+		if closeIdx == contentStart {
+			start = closeIdx + 1
 			continue
 		}
 		endChar := closeIdx + 1
@@ -645,7 +743,7 @@ func collectSemicolonMarkers(line string, lineNum int, open, close byte) []TextE
 			endChar++
 		}
 		edits = append(edits, TextEdit{Range: Range{Start: Position{Line: lineNum, Character: j}, End: Position{Line: lineNum, Character: endChar}}, NewText: ""})
-		startSemi = endChar
+		start = endChar
 	}
 	return edits
 }

@@ -8,7 +8,7 @@ func TestFindFirstInstructionInLine_Table(t *testing.T) {
 		line  string
 		instr string
 	}{
-		{"strict_inline_marker", ">do> trailing", "do"},
+		{"strict_inline_marker", ">!do> trailing", "do"},
 		{"c_block", "x /* add docs */ y", "add docs"},
 		{"html_comment", "<!-- fix --> code", "fix"},
 		{"slash_slash", "code // please refactor", "please refactor"},

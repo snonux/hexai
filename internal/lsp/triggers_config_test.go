@@ -31,7 +31,7 @@ func TestNewServer_AssignsTriggerGlobals_AndParsingUsesThem(t *testing.T) {
 	s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{
 		InlineOpen: "<", InlineClose: ">", ChatSuffix: ")", ChatPrefixes: []string{":"},
 	})
-	_, _, openChar, closeChar := s.inlineMarkers()
+	openStr, _, openChar, closeChar := s.inlineMarkers()
 	if openChar != '<' || closeChar != '>' {
 		t.Fatalf("inline markers not applied: %q %q", string(openChar), string(closeChar))
 	}
@@ -39,7 +39,7 @@ func TestNewServer_AssignsTriggerGlobals_AndParsingUsesThem(t *testing.T) {
 	if suffixChar != ')' || len(prefixes) == 0 || prefixes[0] != ":" {
 		t.Fatalf("chat markers not applied: suffix=%q prefixes=%v", string(suffixChar), prefixes)
 	}
-	if txt, l, r, ok := findStrictInlineTag("x<do>y", openChar, closeChar); !ok || txt != "do" || l != 1 || r != 5 {
+	if txt, l, r, ok := findStrictInlineTag("x<do>y", openStr, openChar, closeChar); !ok || txt != "do" || l != 1 || r != 5 {
 		t.Fatalf("findStrictInlineTag failed: ok=%v txt=%q l=%d r=%d", ok, txt, l, r)
 	}
 	if got := s.stripTrailingTrigger("note:)"); got != "note:" {

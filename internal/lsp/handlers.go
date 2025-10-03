@@ -51,8 +51,8 @@ func (s *Server) findFirstInstructionInLine(line string) (instr string, cleaned 
 		text       string
 	}
 	cands := []cand{}
-	_, _, openChar, closeChar := s.inlineMarkers()
-	if t, l, r, ok := findStrictInlineTag(line, openChar, closeChar); ok {
+	openStr, _, openChar, closeChar := s.inlineMarkers()
+	if t, l, r, ok := findStrictInlineTag(line, openStr, openChar, closeChar); ok {
 		cands = append(cands, cand{start: l, end: r, text: t})
 	}
 	if i := strings.Index(line, "/*"); i >= 0 {
@@ -288,6 +288,7 @@ func (s *Server) compCacheTouchLocked(key string) {
 // immediately to the left of the cursor.
 func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 	open, _, openChar, closeChar := s.inlineMarkers()
+	doubleSeqs := doubleOpenSequences(open, openChar, closeChar)
 	triggerChars := s.triggerCharacters()
 	// 1) Inspect LSP completion context if present
 	if p.Context != nil {
@@ -301,9 +302,9 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 			b, _ := json.Marshal(p.Context)
 			_ = json.Unmarshal(b, &ctx)
 		}
-		// If configured and the line contains a bare double-open marker (e.g., '>>' with no '>>text>'),
+		// If configured and the line contains a bare double-open marker (e.g., '>>!' with no '>>!text>'),
 		// do not treat as a trigger source.
-		if open != "" && strings.Contains(current, open+open) && !hasDoubleOpenTrigger(current, openChar, closeChar) {
+		if containsAny(current, doubleSeqs) && !hasDoubleOpenTrigger(current, open, openChar, closeChar) {
 			return false
 		}
 		// TriggerKind 1 = Invoked (manual). Always allow manual invoke.
@@ -331,7 +332,7 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 		return false
 	}
 	// Bare double-open should not trigger via fallback char either (only when configured)
-	if open != "" && strings.Contains(current, open+open) && !hasDoubleOpenTrigger(current, openChar, closeChar) {
+	if containsAny(current, doubleSeqs) && !hasDoubleOpenTrigger(current, open, openChar, closeChar) {
 		return false
 	}
 	ch := string(current[idx-1])
@@ -364,6 +365,18 @@ func (s *Server) makeCompletionItems(cleaned string, inParams bool, current stri
 		SortText:            sortPrefix,
 		Documentation:       docStr,
 	}}
+}
+
+func containsAny(haystack string, seqs []string) bool {
+	for _, seq := range seqs {
+		if seq == "" {
+			continue
+		}
+		if strings.Contains(haystack, seq) {
+			return true
+		}
+	}
+	return false
 }
 
 // small helpers to keep tryLLMCompletion short

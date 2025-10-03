@@ -30,7 +30,7 @@ func capResp(t *testing.T, buf *bytes.Buffer) Response {
 func TestHandleCodeAction_ListsCustomActions(t *testing.T) {
 	var out bytes.Buffer
 	cfg := appconfig.App{
-		InlineOpen:   ">",
+		InlineOpen:   ">!",
 		InlineClose:  ">",
 		ChatSuffix:   ">",
 		ChatPrefixes: []string{"?", "!", ":", ";"},

@@ -44,7 +44,7 @@ type App struct {
 	TriggerCharacters []string `json:"trigger_characters" toml:"trigger_characters"`
 	Provider          string   `json:"provider" toml:"provider"`
 
-	// Inline prompt trigger characters (default: >text> and >>text>)
+	// Inline prompt trigger characters (default: >!text> and >>!text>)
 	InlineOpen  string `json:"inline_open" toml:"inline_open"`
 	InlineClose string `json:"inline_close" toml:"inline_close"`
 	// In-editor chat triggers (default: suffix ">" after one of [?, !, :, ;])
@@ -141,7 +141,7 @@ func newDefaultConfig() App {
 		CompletionDebounceMs:  800,
 		CompletionThrottleMs:  0,
 		// Inline/chat trigger defaults
-		InlineOpen:   ">",
+		InlineOpen:   ">!",
 		InlineClose:  ">",
 		ChatSuffix:   ">",
 		ChatPrefixes: []string{"?", "!", ":", ";"},

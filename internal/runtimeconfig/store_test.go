@@ -26,6 +26,7 @@ func TestStoreReloadSkipsEnvOverrides(t *testing.T) {
 
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("HEXAI_MAX_TOKENS", "321")
+	t.Setenv("HEXAI_PROVIDER", "")
 
 	initial := appconfig.Load(logger)
 	if initial.MaxTokens != 321 {
@@ -75,6 +76,7 @@ func TestStoreReloadLogsSummary(t *testing.T) {
 
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("HEXAI_MAX_TOKENS", "321")
+	t.Setenv("HEXAI_PROVIDER", "")
 
 	initial := appconfig.Load(logger)
 	store := New(initial)

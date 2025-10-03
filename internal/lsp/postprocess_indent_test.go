@@ -4,7 +4,7 @@ import "testing"
 
 func TestPostProcessCompletion_IndentWithDoubleOpen(t *testing.T) {
 	s := newTestServer()
-	cleaned := s.postProcessCompletion("a\nb", "", "  >>gen>")
+	cleaned := s.postProcessCompletion("a\nb", "", "  >>!gen>")
 	// Expect each non-empty line to be indented by two spaces
 	want := "  a\n  b"
 	if cleaned != want {

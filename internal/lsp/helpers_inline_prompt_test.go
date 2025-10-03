@@ -7,12 +7,12 @@ import (
 
 func TestLineHasInlinePrompt_BasicAndDoubleOpen(t *testing.T) {
 	// Basic inline
-	if !lineHasInlinePrompt("do >task> now", '>', '>') {
-		t.Fatalf("expected inline prompt detection for >text>")
+	if !lineHasInlinePrompt("do >!task> now", ">!", '>', '>') {
+		t.Fatalf("expected inline prompt detection for >!text>")
 	}
 	// Double-open variant should be recognized as inline prompt too
-	if !lineHasInlinePrompt(">>replace>", '>', '>') {
-		t.Fatalf("expected inline prompt detection for >>text>")
+	if !lineHasInlinePrompt(">>!replace>", ">!", '>', '>') {
+		t.Fatalf("expected inline prompt detection for >>!text>")
 	}
 }
 

@@ -56,7 +56,7 @@ func TestFindGoFunctionAtLine_NoBody(t *testing.T) {
 }
 
 func TestLineHasInlinePrompt(t *testing.T) {
-	if !lineHasInlinePrompt(">do>", '>', '>') {
+	if !lineHasInlinePrompt(">!do>", ">!", '>', '>') {
 		t.Fatalf("expected inline prompt")
 	}
 }
@@ -89,12 +89,12 @@ func TestIndentHelpersAndPromptRemoval(t *testing.T) {
 		t.Fatalf("applyIndent: %q", out)
 	}
 	// double-open trigger removes whole line
-	edits := promptRemovalEditsForLine(">>ask>", 3, '>', '>')
+	edits := promptRemovalEditsForLine(">>!ask>", 3, ">!", '>', '>')
 	if len(edits) != 1 || edits[0].Range.Start.Line != 3 {
 		t.Fatalf("unexpected edits: %#v", edits)
 	}
 	// semicolon tags collect correctly when provided explicitly
-	edits2 := collectSemicolonMarkers("pre;do;post", 1, ';', ';')
+	edits2 := collectSemicolonMarkers("pre;do;post", 1, ";", ';', ';')
 	if len(edits2) != 1 {
 		t.Fatalf("expected one semicolon edit, got %#v", edits2)
 	}

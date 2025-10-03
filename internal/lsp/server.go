@@ -448,7 +448,7 @@ func (s *Server) inlineMarkers() (open string, close string, openChar byte, clos
 	cfg := s.currentConfig()
 	open = strings.TrimSpace(cfg.InlineOpen)
 	if open == "" {
-		open = ">"
+		open = ">!"
 	}
 	close = strings.TrimSpace(cfg.InlineClose)
 	if close == "" {

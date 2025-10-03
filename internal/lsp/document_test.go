@@ -13,7 +13,7 @@ import (
 
 func newTestServer() *Server {
 	cfg := appconfig.App{
-		InlineOpen:   ">",
+		InlineOpen:   ">!",
 		InlineClose:  ">",
 		ChatSuffix:   ">",
 		ChatPrefixes: []string{"?", "!", ":", ";"},
@@ -47,7 +47,7 @@ func newTestServer() *Server {
 func initServerDefaults(s *Server) {
 	cfg := s.cfg
 	if strings.TrimSpace(cfg.InlineOpen) == "" {
-		cfg.InlineOpen = ">"
+		cfg.InlineOpen = ">!"
 	}
 	if strings.TrimSpace(cfg.InlineClose) == "" {
 		cfg.InlineClose = ">"

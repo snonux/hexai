@@ -50,6 +50,7 @@ func TestHandleReloadCommandReloadsStore(t *testing.T) {
 
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("HEXAI_MAX_TOKENS", "321")
+	t.Setenv("HEXAI_PROVIDER", "")
 
 	var logBuf bytes.Buffer
 	logger := log.New(&logBuf, "", 0)
@@ -96,6 +97,7 @@ func TestDetectAndHandleChatExecutesSlashCommand(t *testing.T) {
 	}
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("HEXAI_MAX_TOKENS", "")
+	t.Setenv("HEXAI_PROVIDER", "")
 
 	var logBuf bytes.Buffer
 	logger := log.New(&logBuf, "", 0)

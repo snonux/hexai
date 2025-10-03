@@ -91,9 +91,9 @@ func (s *Server) detectAndHandleChat(uri string) {
 		return
 	}
 	suffix, prefixes, _ := s.chatConfig()
-	_, _, openChar, closeChar := s.inlineMarkers()
+	openStr, _, openChar, closeChar := s.inlineMarkers()
 	for i, raw := range d.lines {
-		if lineHasInlinePrompt(raw, openChar, closeChar) {
+		if lineHasInlinePrompt(raw, openStr, openChar, closeChar) {
 			if s.currentLLMClient() != nil {
 				pos := Position{Line: i, Character: len(raw)}
 				go s.runInlinePrompt(uri, pos)
@@ -221,8 +221,8 @@ func (s *Server) runInlinePrompt(uri string, pos Position) {
 		return
 	}
 	line := d.lines[pos.Line]
-	_, _, openChar, closeChar := s.inlineMarkers()
-	if !lineHasInlinePrompt(line, openChar, closeChar) {
+	openStr, _, openChar, closeChar := s.inlineMarkers()
+	if !lineHasInlinePrompt(line, openStr, openChar, closeChar) {
 		return
 	}
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: pos.Line, Character: len(line)}}

@@ -199,8 +199,8 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 		hasExtra:  hasExtra,
 		extraText: extraText,
 	}
-	_, _, openChar, closeChar := s.inlineMarkers()
-	plan.inlinePrompt = lineHasInlinePrompt(current, openChar, closeChar)
+	openStr, _, openChar, closeChar := s.inlineMarkers()
+	plan.inlinePrompt = lineHasInlinePrompt(current, openStr, openChar, closeChar)
 	if !plan.inlinePrompt && !s.isTriggerEvent(p, current) {
 		logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return plan, []CompletionItem{}, true
@@ -214,7 +214,7 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 	if pending := s.takePendingCompletion(plan.cacheKey); len(pending) > 0 {
 		return plan, pending, true
 	}
-	if isBareDoubleOpen(current, openChar, closeChar) || isBareDoubleOpen(below, openChar, closeChar) {
+	if isBareDoubleOpen(current, openStr, openChar, closeChar) || isBareDoubleOpen(below, openStr, openChar, closeChar) {
 		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return plan, []CompletionItem{}, true
 	}
@@ -368,7 +368,7 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 	before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
 	path := strings.TrimPrefix(p.TextDocument.URI, "file://")
 	cfg := s.currentConfig()
-	_, _, openChar, closeChar := s.inlineMarkers()
+	openStr, _, openChar, closeChar := s.inlineMarkers()
 	prompt := renderTemplate(cfg.PromptNativeCompletion, map[string]string{
 		"path":   path,
 		"before": before,
@@ -409,7 +409,7 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 	if cleaned == "" {
 		return nil, false
 	}
-	if strings.TrimSpace(cleaned) != "" && hasDoubleOpenTrigger(current, openChar, closeChar) {
+	if strings.TrimSpace(cleaned) != "" && hasDoubleOpenTrigger(current, openStr, openChar, closeChar) {
 		indent := leadingIndent(current)
 		if indent != "" {
 			cleaned = applyIndent(indent, cleaned)
@@ -537,8 +537,8 @@ func (s *Server) postProcessCompletion(text string, leftOfCursor string, current
 	if cleaned != "" {
 		cleaned = stripDuplicateGeneralPrefix(leftOfCursor, cleaned)
 	}
-	_, _, openChar, closeChar := s.inlineMarkers()
-	if cleaned != "" && hasDoubleOpenTrigger(currentLine, openChar, closeChar) {
+	openStr, _, openChar, closeChar := s.inlineMarkers()
+	if cleaned != "" && hasDoubleOpenTrigger(currentLine, openStr, openChar, closeChar) {
 		if indent := leadingIndent(currentLine); indent != "" {
 			cleaned = applyIndent(indent, cleaned)
 		}

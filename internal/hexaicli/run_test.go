@@ -125,12 +125,20 @@ func TestRunWithClient_ErrorPrint(t *testing.T) {
 
 func TestRun_OpenAI_NoKey_ShowsError(t *testing.T) {
 	dir := testingTempDir(t)
-	// write config with provider=openai
-	writeTOML(t, filepath.Join(dir, "hexai", "config.toml"), map[string]string{"provider": "openai", "openai_model": "gpt-x"})
+	// write config with provider=openai using sectioned tables
+	configPath := filepath.Join(dir, "hexai", "config.toml")
+	writeConfigString(t, configPath, `
+[provider]
+name = "openai"
+
+[openai]
+model = "gpt-x"
+`)
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	// Ensure no OpenAI API key is present in environment
 	t.Setenv("HEXAI_OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("HEXAI_PROVIDER", "")
 	var out, errb bytes.Buffer
 	// Run expects parsed flags; here args irrelevant
 	err := Run(context.Background(), []string{"hello"}, strings.NewReader(""), &out, &errb)

@@ -27,7 +27,7 @@ func TestHandleCompletionInlinePromptDoubleArrow(t *testing.T) {
 	initServerDefaults(s)
 	s.llmClient = fakeLLMInline{}
 	uri := "file:///inline.go"
-	line := "hello world >>translate this into bulgarian>"
+	line := "hello world >>!translate this into bulgarian>"
 	s.setDocument(uri, line)
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: 0, Character: len(line)}}
 	ctx := struct {
