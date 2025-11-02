@@ -146,7 +146,7 @@ model = "gpt-x"
 		t.Fatalf("expected error due to missing API key")
 	}
 	// Accept either explicit "LLM disabled" or a generic provider error emitted by Run.
-	if !(strings.Contains(errb.String(), "LLM disabled") || strings.Contains(errb.String(), "openai error") || strings.Contains(errb.String(), "hexai: error:")) {
+	if !strings.Contains(errb.String(), "LLM disabled") && !strings.Contains(errb.String(), "openai error") && !strings.Contains(errb.String(), "hexai: error:") {
 		t.Fatalf("expected disabled-or-error message, got %q", errb.String())
 	}
 }

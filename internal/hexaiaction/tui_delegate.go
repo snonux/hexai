@@ -31,5 +31,5 @@ func (oneLineDelegate) Render(w io.Writer, m list.Model, index int, listItem lis
 	if index == m.Index() {
 		cursor = cursorStyle.Render("> ")
 	}
-	fmt.Fprintf(w, "%s%s%s", cursor, title, hot)
+	_, _ = fmt.Fprintf(w, "%s%s%s", cursor, title, hot)
 }

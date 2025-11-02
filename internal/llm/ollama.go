@@ -81,7 +81,11 @@ func (c ollamaClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 		logging.Logf("llm/ollama ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/ollama", "failed to close response body: %v", err)
+		}
+	}()
 	if err := handleOllamaNon2xx(resp, start); err != nil {
 		return "", err
 	}
@@ -129,7 +133,11 @@ func (c ollamaClient) ChatStream(ctx context.Context, messages []Message, onDelt
 		logging.Logf("llm/ollama ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/ollama", "failed to close response body: %v", err)
+		}
+	}()
 	if err := handleOllamaNon2xx(resp, start); err != nil {
 		return err
 	}
@@ -172,7 +180,7 @@ func buildOllamaRequest(o Options, messages []Message, defaultTemp *float64, str
 	req := ollamaChatRequest{Model: o.Model, Stream: stream}
 	req.Messages = make([]oaMessage, len(messages))
 	for i, m := range messages {
-		req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
+		req.Messages[i] = oaMessage(m)
 	}
 	optsMap := map[string]any{}
 	if o.Temperature != 0 {

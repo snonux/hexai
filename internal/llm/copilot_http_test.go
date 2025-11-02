@@ -73,8 +73,8 @@ func TestCopilot_CodeCompletion_Success(t *testing.T) {
 		if r.URL.Host == "copilot-proxy.githubusercontent.com" && strings.HasSuffix(r.URL.Path, "/v1/engines/copilot-codex/completions") {
 			rw := httptest.NewRecorder()
 			// two choices for index 0 and 1
-			rw.WriteString("data: {\"choices\":[{\"index\":0,\"text\":\"A\"}]}\n")
-			rw.WriteString("data: {\"choices\":[{\"index\":1,\"text\":\"B\"}]}\n")
+			_, _ = rw.WriteString("data: {\"choices\":[{\"index\":0,\"text\":\"A\"}]}\n")
+			_, _ = rw.WriteString("data: {\"choices\":[{\"index\":1,\"text\":\"B\"}]}\n")
 			res := rw.Result()
 			res.StatusCode = 200
 			return res, nil
@@ -164,7 +164,7 @@ func TestCopilot_Chat_DecodeError_StatusOK(t *testing.T) {
 	}
 	// Chat returns 200 but invalid JSON; expect decode error
 	srv := newIPv4Server(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "{invalid")
+		_, _ = io.WriteString(w, "{invalid")
 	}))
 	defer srv.Close()
 	c := newCopilot(srv.URL, "gpt-4o-mini", "KEY", f64p(0.1)).(copilotClient)
@@ -197,9 +197,9 @@ func TestCopilot_CodeCompletion_MalformedAndEmpty(t *testing.T) {
 		if r.URL.Host == "copilot-proxy.githubusercontent.com" && strings.HasSuffix(r.URL.Path, "/v1/engines/copilot-codex/completions") {
 			rw := httptest.NewRecorder()
 			// malformed line
-			rw.WriteString("data: {bad}\n")
+			_, _ = rw.WriteString("data: {bad}\n")
 			// done; should produce empty suggestions
-			rw.WriteString("data: [DONE]\n")
+			_, _ = rw.WriteString("data: [DONE]\n")
 			res := rw.Result()
 			res.StatusCode = 200
 			return res, nil
@@ -226,9 +226,9 @@ func TestCopilot_CodeCompletion_MalformedAndEmpty(t *testing.T) {
 		}
 		if r.URL.Host == "copilot-proxy.githubusercontent.com" && strings.HasSuffix(r.URL.Path, "/v1/engines/copilot-codex/completions") {
 			rw := httptest.NewRecorder()
-			rw.WriteString("data: {bad}\n")
-			rw.WriteString("data: {\"choices\":[{\"index\":0,\"text\":\"OK\"}]}\n")
-			rw.WriteString("data: [DONE]\n")
+			_, _ = rw.WriteString("data: {bad}\n")
+			_, _ = rw.WriteString("data: {\"choices\":[{\"index\":0,\"text\":\"OK\"}]}\n")
+			_, _ = rw.WriteString("data: [DONE]\n")
 			res := rw.Result()
 			res.StatusCode = 200
 			return res, nil

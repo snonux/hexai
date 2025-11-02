@@ -75,8 +75,8 @@ func TestOpenRouter_ChatStream_SendsHeaders(t *testing.T) {
 		acceptHeader = r.Header.Get("Accept")
 		referer = r.Header.Get("HTTP-Referer")
 		w.Header().Set("Content-Type", "text/event-stream")
-		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\n")
-		io.WriteString(w, "data: [DONE]\n")
+		_, _ = io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\n")
+		_, _ = io.WriteString(w, "data: [DONE]\n")
 	}))
 	defer srv.Close()
 

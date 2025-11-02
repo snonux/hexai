@@ -65,7 +65,11 @@ func (c openRouterClient) Chat(ctx context.Context, messages []Message, opts ...
 		logging.Logf("llm/openrouter ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/openrouter", "failed to close response body: %v", err)
+		}
+	}()
 	if err := handleOpenAINon2xx(resp, start, "llm/openrouter ", "openrouter"); err != nil {
 		return "", err
 	}
@@ -111,7 +115,11 @@ func (c openRouterClient) ChatStream(ctx context.Context, messages []Message, on
 		logging.Logf("llm/openrouter ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/openrouter", "failed to close response body: %v", err)
+		}
+	}()
 	if err := handleOpenAINon2xx(resp, start, "llm/openrouter ", "openrouter"); err != nil {
 		return err
 	}

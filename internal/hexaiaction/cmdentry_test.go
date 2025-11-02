@@ -24,7 +24,11 @@ func TestPersistStdin_WritesFile(t *testing.T) {
 		t.Fatalf("write src: %v", err)
 	}
 	f, _ := os.Open(src)
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			t.Errorf("failed to close temp file: %v", err)
+		}
+	}()
 	if err := persistStdin(path, f); err != nil {
 		t.Fatalf("persistStdin: %v", err)
 	}

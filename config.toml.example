@@ -3,7 +3,12 @@
 [general]
 max_tokens = 4000
 max_context_tokens = 4000
-context_mode = "always-full"        # minimal | window | file-on-new-func | always-full
+# context_mode controls how much of the current document is sent as extra context:
+# - minimal: no additional context beyond the request payload.
+# - window: include a sliding window of ~context_window_lines around the cursor.
+# - file-on-new-func: include the full file only when starting a new function.
+# - always-full: always include the entire open file.
+context_mode = "always-full"
 context_window_lines = 120
 coding_temperature = 0.2             # single knob for LSP calls (optional)
 

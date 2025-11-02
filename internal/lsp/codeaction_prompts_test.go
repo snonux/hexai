@@ -59,7 +59,7 @@ func TestResolveCodeAction_UsesDiagnosticsPrompts(t *testing.T) {
 	if cap.msgs[0].Content != "DSYS" || cap.msgs[1].Role != "user" {
 		t.Fatalf("unexpected diagnostics prompts: %#v", cap.msgs)
 	}
-	if got := cap.msgs[1].Content; !(contains(got, "oops1") && contains(got, "oops2") && contains(got, "var a")) {
+	if got := cap.msgs[1].Content; !contains(got, "oops1") || !contains(got, "oops2") || !contains(got, "var a") {
 		t.Fatalf("diagnostics/user content mismatch: %q", got)
 	}
 }

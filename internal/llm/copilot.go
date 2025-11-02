@@ -118,7 +118,11 @@ func (c copilotClient) Chat(ctx context.Context, messages []Message, opts ...Req
 		logging.Logf("llm/copilot ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/copilot", "failed to close response body: %v", err)
+		}
+	}()
 	if err := handleCopilotNon2xx(resp, start); err != nil {
 		return "", err
 	}
@@ -144,7 +148,7 @@ func buildCopilotChatRequest(o Options, messages []Message, defaultTemp *float64
 	req := copilotChatRequest{Model: o.Model}
 	req.Messages = make([]copilotMessage, len(messages))
 	for i, m := range messages {
-		req.Messages[i] = copilotMessage{Role: m.Role, Content: m.Content}
+		req.Messages[i] = copilotMessage(m)
 	}
 	if o.Temperature != 0 {
 		req.Temperature = &o.Temperature
@@ -220,7 +224,11 @@ func (c *copilotClient) ensureSession(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/copilot", "failed to close response body: %v", err)
+		}
+	}()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("copilot token http error: %d", resp.StatusCode)
 	}
@@ -354,7 +362,11 @@ func (c copilotClient) CodeCompletion(ctx context.Context, prompt string, suffix
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/copilot", "failed to close response body: %v", err)
+		}
+	}()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("copilot codex http error: %d", resp.StatusCode)
 	}

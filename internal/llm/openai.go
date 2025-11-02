@@ -121,7 +121,11 @@ func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...Requ
 		logging.Logf("llm/openai ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/openai", "failed to close response body: %v", err)
+		}
+	}()
 	if err := handleOpenAINon2xx(resp, start, "llm/openai ", "openai"); err != nil {
 		return "", err
 	}
@@ -172,7 +176,11 @@ func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelt
 		logging.Logf("llm/openai ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/openai", "failed to close response body: %v", err)
+		}
+	}()
 	if err := handleOpenAINon2xx(resp, start, "llm/openai ", "openai"); err != nil {
 		return err
 	}
@@ -200,7 +208,7 @@ func buildOAChatRequest(o Options, messages []Message, defaultTemp *float64, str
 	req := oaChatRequest{Model: o.Model, Stream: stream}
 	req.Messages = make([]oaMessage, len(messages))
 	for i, m := range messages {
-		req.Messages[i] = oaMessage{Role: m.Role, Content: m.Content}
+		req.Messages[i] = oaMessage(m)
 	}
 	if o.Temperature != 0 {
 		req.Temperature = &o.Temperature

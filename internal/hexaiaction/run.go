@@ -36,7 +36,7 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
 	}
 	if err := cfg.Validate(); err != nil {
-		fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: %v"+logging.AnsiReset+"\n", err)
+		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
 	// Enable custom action submenu with configurable hotkey
@@ -50,7 +50,7 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	}
 	cli, err := newClientFromApp(cfg)
 	if err != nil {
-		fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
 	primaryModel := strings.TrimSpace(reqOptsFrom(cfg).model)
@@ -61,7 +61,7 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	var client chatDoer = cli
 	parts, err := ParseInput(stdin)
 	if err != nil {
-		fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: failed to read input"+logging.AnsiReset)
+		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: failed to read input"+logging.AnsiReset)
 		return err
 	}
 	if strings.TrimSpace(parts.Selection) == "" {
@@ -75,7 +75,7 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	io.WriteString(stdout, out)
+	_, _ = io.WriteString(stdout, out)
 	return nil
 }
 
@@ -123,7 +123,7 @@ func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg a
 func handleRewriteAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
 	instr, cleaned := ExtractInstruction(parts.Selection)
 	if strings.TrimSpace(instr) == "" {
-		fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
+		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
 		return parts.Selection, nil
 	}
 	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
@@ -169,7 +169,7 @@ func handleCustomAction(ctx context.Context, parts InputParts, cfg appconfig.App
 func handleCustomPromptAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
 	prompt, err := editor.OpenTempAndEdit(nil)
 	if err != nil || strings.TrimSpace(prompt) == "" {
-		fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
+		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
 		return parts.Selection, nil
 	}
 	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {

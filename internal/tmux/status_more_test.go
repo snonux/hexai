@@ -22,16 +22,16 @@ func TestFormatLLMStatsStatusColored_Basic(t *testing.T) {
 
 func TestFormatGlobalStatusColored_NarrowAndMaxLen(t *testing.T) {
 	// Narrow mode should elide the tail
-	os.Setenv("HEXAI_TMUX_STATUS_NARROW", "1")
-	defer os.Unsetenv("HEXAI_TMUX_STATUS_NARROW")
+	_ = os.Setenv("HEXAI_TMUX_STATUS_NARROW", "1")
+	defer func() { _ = os.Unsetenv("HEXAI_TMUX_STATUS_NARROW") }()
 	s := FormatGlobalStatusColored(10, 3.3, 1000, 2000, "prov", "model", 1.1, 4, 30*time.Minute)
 	if containsAll(s, []string{"|", "prov:model"}) {
 		t.Fatalf("narrow mode should not include tail: %q", s)
 	}
 	// Max length should also drop the tail when it would overflow
-	os.Unsetenv("HEXAI_TMUX_STATUS_NARROW")
-	os.Setenv("HEXAI_TMUX_STATUS_MAXLEN", "10")
-	defer os.Unsetenv("HEXAI_TMUX_STATUS_MAXLEN")
+	_ = os.Unsetenv("HEXAI_TMUX_STATUS_NARROW")
+	_ = os.Setenv("HEXAI_TMUX_STATUS_MAXLEN", "10")
+	defer func() { _ = os.Unsetenv("HEXAI_TMUX_STATUS_MAXLEN") }()
 	s2 := FormatGlobalStatusColored(10, 3.3, 1000, 2000, "prov", "model", 1.1, 4, 30*time.Minute)
 	if containsAll(s2, []string{"|", "prov:model"}) {
 		t.Fatalf("maxlen should drop tail when overflowing: %q", s2)

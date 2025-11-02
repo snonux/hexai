@@ -37,7 +37,11 @@ func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io
 		if err != nil {
 			logger.Fatalf("failed to open log file: %v", err)
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				logger.Printf("failed to close log file: %v", err)
+			}
+		}()
 		logger.SetOutput(f)
 	}
 	logging.Bind(logger)

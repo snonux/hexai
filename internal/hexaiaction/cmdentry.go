@@ -160,8 +160,8 @@ func catFileTo(w io.Writer, path string) error {
 
 // echoThrough no longer used in tmux-only flow, but kept for potential reuse.
 func echoThrough(infile, outfile string, stdin io.Reader, stdout io.Writer) error {
-	var in io.Reader = stdin
-	var out io.Writer = stdout
+	in := stdin
+	out := stdout
 	if infile != "" {
 		f, err := os.Open(infile)
 		if err != nil {

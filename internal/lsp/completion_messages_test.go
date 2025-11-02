@@ -89,7 +89,7 @@ func contains(s, sub string) bool {
 }
 
 func stringIndex(s, sub string) int {
-	return len([]rune(s[:])) - len([]rune(s[:])) + (func() int { return intIndex(s, sub) })()
+	return intIndex(s, sub)
 }
 func intIndex(s, sub string) int { return Index(s, sub) }
 

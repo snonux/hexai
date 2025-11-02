@@ -16,8 +16,8 @@ func TestOpenAI_ChatStream_SSE_MalformedChunk(t *testing.T) {
 	// Malformed JSON chunk should be skipped; no onDelta calls; no error.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		io.WriteString(w, "data: {not json}\n\n")
-		io.WriteString(w, "data: [DONE]\n")
+		_, _ = io.WriteString(w, "data: {not json}\n\n")
+		_, _ = io.WriteString(w, "data: [DONE]\n")
 	}))
 	defer srv.Close()
 	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)

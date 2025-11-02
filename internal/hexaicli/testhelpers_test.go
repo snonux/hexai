@@ -25,7 +25,9 @@ func setStdin(t *testing.T, content string) (func(), *os.File) {
 	old := os.Stdin
 	os.Stdin = f
 	restore := func() {
-		f.Close()
+		if err := f.Close(); err != nil {
+			t.Errorf("failed to close temp stdin file: %v", err)
+		}
 		os.Stdin = old
 	}
 	return restore, f
@@ -71,7 +73,11 @@ func writeTOML(t *testing.T, path string, m map[string]string) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			t.Errorf("failed to close temp TOML file: %v", err)
+		}
+	}()
 	for k, v := range m {
 		if _, err := f.WriteString(k + " = \"" + v + "\"\n"); err != nil {
 			t.Fatalf("write: %v", err)

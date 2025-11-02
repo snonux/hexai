@@ -45,8 +45,8 @@ func TestOpenAI_ChatStream_SSE(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Return SSE-like stream
 		w.Header().Set("Content-Type", "text/event-stream")
-		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\n\n")
-		io.WriteString(w, "data: [DONE]\n")
+		_, _ = io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\n\n")
+		_, _ = io.WriteString(w, "data: [DONE]\n")
 	}))
 	defer srv.Close()
 	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
@@ -71,8 +71,8 @@ func TestOpenAI_ChatStream_SSE_ErrorChunk(t *testing.T) {
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		io.WriteString(w, "data: {\"error\":{\"message\":\"oops\"}}\n\n")
-		io.WriteString(w, "data: [DONE]\n")
+		_, _ = io.WriteString(w, "data: {\"error\":{\"message\":\"oops\"}}\n\n")
+		_, _ = io.WriteString(w, "data: [DONE]\n")
 	}))
 	defer srv.Close()
 	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
@@ -104,8 +104,8 @@ func TestOpenAI_ChatStream_SSE_EmptyDelta_NoError(t *testing.T) {
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		io.WriteString(w, "data: {\\\"choices\\\":[{\\\"delta\\\":{\\\"content\\\":\\\"\\\"}}]}\\n\\n")
-		io.WriteString(w, "data: [DONE]\\n")
+		_, _ = io.WriteString(w, "data: {\\\"choices\\\":[{\\\"delta\\\":{\\\"content\\\":\\\"\\\"}}]}\\n\\n")
+		_, _ = io.WriteString(w, "data: [DONE]\\n")
 	}))
 	defer srv.Close()
 	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
@@ -126,7 +126,7 @@ func TestOpenAI_Chat_DecodeError_StatusOK(t *testing.T) {
 	// Return status 200 but invalid JSON body; Chat should return an error
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		io.WriteString(w, "{invalid")
+		_, _ = io.WriteString(w, "{invalid")
 	}))
 	defer srv.Close()
 	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)

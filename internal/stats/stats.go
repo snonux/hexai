@@ -88,7 +88,7 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	unlock, err := acquireFileLock(ctx, f)
 	if err != nil {
 		return err
@@ -131,21 +131,21 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
 	enc := json.NewEncoder(tmp)
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(&sf); err != nil {
-		tmp.Close()
-		os.Remove(tmp.Name())
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
 		return err
 	}
 	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		os.Remove(tmp.Name())
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
 		return err
 	}
 	if err := tmp.Close(); err != nil {
-		os.Remove(tmp.Name())
+		_ = os.Remove(tmp.Name())
 		return err
 	}
 	if err := os.Rename(tmp.Name(), path); err != nil {
-		os.Remove(tmp.Name())
+		_ = os.Remove(tmp.Name())
 		return err
 	}
 	return nil

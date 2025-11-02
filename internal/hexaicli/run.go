@@ -170,13 +170,13 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	}
 	jobs, err := buildCLIJobs(cfg)
 	if err != nil {
-		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai: LLM disabled: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
 	if selected := selectionFromContext(ctx); len(selected) > 0 {
 		jobs, err = filterJobsBySelection(jobs, selected)
 		if err != nil {
-			fmt.Fprintf(stderr, logging.AnsiBase+"hexai: %v"+logging.AnsiReset+"\n", err)
+			_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai: %v"+logging.AnsiReset+"\n", err)
 			return err
 		}
 	}
@@ -193,12 +193,12 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 	}
 	if rerr != nil {
-		fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
+		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+rerr.Error()+logging.AnsiReset)
 		return rerr
 	}
 	msgs := buildMessagesFromConfig(cfg, input)
 	if err := runCLIJobs(ctx, jobs, msgs, input, stdout, stderr); err != nil {
-		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
+		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
 	return nil
@@ -209,14 +209,14 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 func RunWithClient(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer, client llm.Client) error {
 	input, err := readInput(stdin, args)
 	if err != nil {
-		fmt.Fprintln(stderr, logging.AnsiBase+err.Error()+logging.AnsiReset)
+		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+err.Error()+logging.AnsiReset)
 		return err
 	}
 	req := requestArgs{model: strings.TrimSpace(client.DefaultModel())}
 	printProviderInfo(stderr, client, req.model)
 	msgs := buildMessages(input)
 	if err := runChat(ctx, client, req, msgs, input, stdout, stderr); err != nil {
-		fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
+		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai: error: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
 	return nil
@@ -620,11 +620,20 @@ func runChat(ctx context.Context, client llm.Client, req requestArgs, msgs []llm
 	var output string
 	if s, ok := client.(llm.Streamer); ok {
 		var b strings.Builder
+		var streamErr error
 		if err := s.ChatStream(ctx, msgs, func(chunk string) {
+			if streamErr != nil {
+				return
+			}
 			b.WriteString(chunk)
-			fmt.Fprint(out, chunk)
+			if _, err := fmt.Fprint(out, chunk); err != nil {
+				streamErr = err
+			}
 		}, req.options...); err != nil {
 			return err
+		}
+		if streamErr != nil {
+			return streamErr
 		}
 		output = b.String()
 	} else {
@@ -633,7 +642,9 @@ func runChat(ctx context.Context, client llm.Client, req requestArgs, msgs []llm
 			return err
 		}
 		output = txt
-		fmt.Fprint(out, output)
+		if _, err := fmt.Fprint(out, output); err != nil {
+			return err
+		}
 	}
 	dur := time.Since(start)
 	// Contribute to global stats and update tmux status
@@ -655,8 +666,10 @@ func runChat(ctx context.Context, client llm.Client, req requestArgs, msgs []llm
 		}
 	}
 	scopeRPM := float64(scopeReqs) / minsWin
-	fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d | global Σ reqs=%d rpm=%.2f"+logging.AnsiReset+"\n",
-		client.Name(), model, dur.Round(time.Millisecond), sent, recv, snap.Global.Reqs, snap.RPM)
+	if _, err := fmt.Fprintf(errw, "\n"+logging.AnsiBase+"done provider=%s model=%s time=%s in_bytes=%d out_bytes=%d | global Σ reqs=%d rpm=%.2f"+logging.AnsiReset+"\n",
+		client.Name(), model, dur.Round(time.Millisecond), sent, recv, snap.Global.Reqs, snap.RPM); err != nil {
+		return err
+	}
 	_ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, client.Name(), model, scopeRPM, scopeReqs, snap.Window))
 	return nil
 }
@@ -666,7 +679,7 @@ func printProviderInfo(errw io.Writer, client llm.Client, model string) {
 	if strings.TrimSpace(model) == "" {
 		model = client.DefaultModel()
 	}
-	fmt.Fprintf(errw, logging.AnsiBase+"provider=%s model=%s"+logging.AnsiReset+"\n", client.Name(), model)
+	_, _ = fmt.Fprintf(errw, logging.AnsiBase+"provider=%s model=%s"+logging.AnsiReset+"\n", client.Name(), model)
 }
 
 // newClientFromConfig is kept for tests; delegates to llmutils.

@@ -44,7 +44,7 @@ func main() {
 	}
 	_ = fs.Parse(remaining)
 	if *showVersion {
-		fmt.Fprintln(os.Stdout, internal.Version)
+		_, _ = fmt.Fprintln(os.Stdout, internal.Version)
 		return
 	}
 	var selection []int
