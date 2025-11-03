@@ -1,7 +1,6 @@
 package llm
 
 import (
-	"context"
 	"testing"
 )
 
@@ -20,10 +19,3 @@ func TestNewFromConfig_DefaultsAndErrors(t *testing.T) {
 	}
 }
 
-type fakeClientMin struct{}
-
-func (fakeClientMin) Chat(context.Context, []Message, ...RequestOption) (string, error) {
-	return "", nil
-}
-func (fakeClientMin) Name() string         { return "x" }
-func (fakeClientMin) DefaultModel() string { return "m" }

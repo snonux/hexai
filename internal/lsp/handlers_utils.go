@@ -31,7 +31,6 @@ type requestSpec struct {
 	index         int
 }
 
-func (r requestSpec) modelOverride() string { return strings.TrimSpace(r.entry.Model) }
 
 func (r requestSpec) effectiveModel(defaultModel string) string {
 	if m := strings.TrimSpace(r.entry.Model); m != "" {
@@ -490,7 +489,7 @@ func stripDuplicateAssignmentPrefix(prefixBeforeCursor, suggestion string) strin
 	}
 	// Fallback to plain '=' if present
 	if idx := strings.LastIndex(prefixBeforeCursor, "="); idx >= 0 {
-		if !(idx > 0 && prefixBeforeCursor[idx-1] == ':') { // not :=
+		if idx <= 0 || prefixBeforeCursor[idx-1] != ':' { // not :=
 			tail := prefixBeforeCursor[idx+1:]
 			if strings.TrimSpace(tail) == "" {
 				start := idx - 1
@@ -534,7 +533,7 @@ func stripDuplicateGeneralPrefix(prefixBeforeCursor, suggestion string) string {
 }
 
 func isIdentBoundary(ch byte) bool {
-	return !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_')
+	return !isIdentChar(ch)
 }
 
 // stripCodeFences removes surrounding Markdown code fences from a model response.

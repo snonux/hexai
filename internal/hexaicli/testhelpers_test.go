@@ -63,27 +63,6 @@ func (s *fakeStreamer) ChatStream(ctx context.Context, messages []llm.Message, o
 	return nil
 }
 
-// small TOML writer for tests (string values only)
-func writeTOML(t *testing.T, path string, m map[string]string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			t.Errorf("failed to close temp TOML file: %v", err)
-		}
-	}()
-	for k, v := range m {
-		if _, err := f.WriteString(k + " = \"" + v + "\"\n"); err != nil {
-			t.Fatalf("write: %v", err)
-		}
-	}
-}
 
 func writeConfigString(t *testing.T, path string, contents string) {
 	t.Helper()
