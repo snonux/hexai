@@ -26,12 +26,12 @@ type anthropicClient struct {
 }
 
 type anthropicChatRequest struct {
-	Model       string               `json:"model"`
-	Messages    []anthropicMessage   `json:"messages"`
-	Temperature *float64             `json:"temperature,omitempty"`
-	MaxTokens   int                  `json:"max_tokens"`
-	Stream      bool                 `json:"stream,omitempty"`
-	System      string               `json:"system,omitempty"`
+	Model       string             `json:"model"`
+	Messages    []anthropicMessage `json:"messages"`
+	Temperature *float64           `json:"temperature,omitempty"`
+	MaxTokens   int                `json:"max_tokens"`
+	Stream      bool               `json:"stream,omitempty"`
+	System      string             `json:"system,omitempty"`
 }
 
 type anthropicMessage struct {
@@ -80,6 +80,12 @@ type anthropicStreamError struct {
 	} `json:"error"`
 }
 
+// Ensure anthropicClient implements Client and Streamer.
+var (
+	_ Client   = (*anthropicClient)(nil)
+	_ Streamer = (*anthropicClient)(nil)
+)
+
 // Constructor
 // newAnthropic constructs an Anthropic client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
@@ -100,33 +106,17 @@ func newAnthropic(baseURL, model, apiKey string, defaultTemp *float64) Client {
 	}
 }
 
+// Chat sends a request to Anthropic and returns the response.
 func (c anthropicClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	if c.apiKey == "" {
 		return nilStringErr("missing Anthropic API key")
 	}
-	o := Options{Model: c.defaultModel}
-	for _, opt := range opts {
-		opt(&o)
-	}
-	if o.Model == "" {
-		o.Model = c.defaultModel
-	}
+	o := c.resolveOptions(opts)
 	start := time.Now()
 	c.logStart(false, o, messages)
-	req := buildAnthropicChatRequest(o, messages, c.defaultModel, c.defaultTemperature, false)
-	body, err := json.Marshal(req)
+
+	resp, err := c.sendRequest(ctx, o, messages, false, start)
 	if err != nil {
-		c.logf("marshal error: %v", err)
-		return "", err
-	}
-	endpoint := c.baseURL + "/messages"
-	logging.Logf("llm/anthropic ", "POST %s", endpoint)
-	resp, err := c.doJSON(ctx, endpoint, body, map[string]string{
-		"x-api-key":       c.apiKey,
-		"anthropic-version": "2023-06-01",
-	})
-	if err != nil {
-		logging.Logf("llm/anthropic ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
 		return "", err
 	}
 	defer func() {
@@ -134,6 +124,7 @@ func (c anthropicClient) Chat(ctx context.Context, messages []Message, opts ...R
 			logging.Logf("llm/anthropic", "failed to close response body: %v", err)
 		}
 	}()
+
 	if err := handleAnthropicNon2xx(resp, start); err != nil {
 		return "", err
 	}
@@ -141,6 +132,77 @@ func (c anthropicClient) Chat(ctx context.Context, messages []Message, opts ...R
 	if err != nil {
 		return "", err
 	}
+	return c.extractContent(out, start)
+}
+
+// Name returns the provider's short name.
+func (c anthropicClient) Name() string { return "anthropic" }
+
+// DefaultModel returns the configured default model name.
+func (c anthropicClient) DefaultModel() string { return c.defaultModel }
+
+// ChatStream sends a streaming request and invokes onDelta for each text chunk.
+func (c anthropicClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
+	if c.apiKey == "" {
+		return errors.New("missing Anthropic API key")
+	}
+	o := c.resolveOptions(opts)
+	start := time.Now()
+	c.logStart(true, o, messages)
+
+	resp, err := c.sendRequest(ctx, o, messages, true, start)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logging.Logf("llm/anthropic", "failed to close response body: %v", err)
+		}
+	}()
+
+	if err := handleAnthropicNon2xx(resp, start); err != nil {
+		return err
+	}
+	if err := parseAnthropicStream(resp, start, onDelta); err != nil {
+		return err
+	}
+	logging.Logf("llm/anthropic ", "stream end duration=%s", time.Since(start))
+	return nil
+}
+
+// Private helpers
+
+func (c anthropicClient) resolveOptions(opts []RequestOption) Options {
+	o := Options{Model: c.defaultModel}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	if o.Model == "" {
+		o.Model = c.defaultModel
+	}
+	return o
+}
+
+func (c anthropicClient) sendRequest(ctx context.Context, o Options, messages []Message, stream bool, start time.Time) (*http.Response, error) {
+	req := buildAnthropicChatRequest(o, messages, c.defaultModel, c.defaultTemperature, stream)
+	body, err := json.Marshal(req)
+	if err != nil {
+		c.logf("marshal error: %v", err)
+		return nil, err
+	}
+	endpoint := c.baseURL + "/messages"
+	mode := "POST"
+	if stream {
+		mode = "POST (stream)"
+	}
+	logging.Logf("llm/anthropic ", "%s %s", mode, endpoint)
+	return c.doJSON(ctx, endpoint, body, map[string]string{
+		"x-api-key":         c.apiKey,
+		"anthropic-version": "2023-06-01",
+	})
+}
+
+func (c anthropicClient) extractContent(out anthropicChatResponse, start time.Time) (string, error) {
 	if len(out.Content) == 0 {
 		logging.Logf("llm/anthropic ", "%sno content returned duration=%s%s", logging.AnsiRed, time.Since(start), logging.AnsiBase)
 		return "", errors.New("anthropic: no content returned")
@@ -150,57 +212,6 @@ func (c anthropicClient) Chat(ctx context.Context, messages []Message, opts ...R
 	return content, nil
 }
 
-// Provider metadata
-func (c anthropicClient) Name() string         { return "anthropic" }
-func (c anthropicClient) DefaultModel() string { return c.defaultModel }
-
-// Streaming support (optional)
-func (c anthropicClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
-	if c.apiKey == "" {
-		return errors.New("missing Anthropic API key")
-	}
-	o := Options{Model: c.defaultModel}
-	for _, opt := range opts {
-		opt(&o)
-	}
-	if o.Model == "" {
-		o.Model = c.defaultModel
-	}
-	start := time.Now()
-	c.logStart(true, o, messages)
-	req := buildAnthropicChatRequest(o, messages, c.defaultModel, c.defaultTemperature, true)
-	body, err := json.Marshal(req)
-	if err != nil {
-		c.logf("marshal error: %v", err)
-		return err
-	}
-	endpoint := c.baseURL + "/messages"
-	logging.Logf("llm/anthropic ", "POST %s (stream)", endpoint)
-	resp, err := c.doJSON(ctx, endpoint, body, map[string]string{
-		"x-api-key":       c.apiKey,
-		"anthropic-version": "2023-06-01",
-	})
-	if err != nil {
-		logging.Logf("llm/anthropic ", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
-		return err
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			logging.Logf("llm/anthropic", "failed to close response body: %v", err)
-		}
-	}()
-	if err := handleAnthropicNon2xx(resp, start); err != nil {
-		return err
-	}
-
-	if err := parseAnthropicStream(resp, start, onDelta); err != nil {
-		return err
-	}
-	logging.Logf("llm/anthropic ", "stream end duration=%s", time.Since(start))
-	return nil
-}
-
-// Private helpers
 func (c anthropicClient) logf(format string, args ...any) {
 	logging.Logf("llm/anthropic ", format, args...)
 }

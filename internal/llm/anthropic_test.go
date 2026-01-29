@@ -118,7 +118,7 @@ func TestAnthropicChat_EmptyResponse(t *testing.T) {
 			ID:         "msg-123",
 			Type:       "message",
 			StopReason: "end_turn",
-			Content:    []struct {
+			Content: []struct {
 				Type string `json:"type"`
 				Text string `json:"text"`
 			}{},

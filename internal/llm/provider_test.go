@@ -18,4 +18,3 @@ func TestNewFromConfig_DefaultsAndErrors(t *testing.T) {
 		t.Fatalf("expected key error")
 	}
 }
-
