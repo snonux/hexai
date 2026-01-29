@@ -60,7 +60,7 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 # temperature = 0.6
 
 [provider]
-name = "openai"                      # openai | openrouter | copilot | ollama
+name = "openai"                      # openai | openrouter | copilot | ollama | anthropic
 
 [openai]
 model       = "gpt-4.1"
@@ -80,6 +80,11 @@ temperature = 0.2
 [ollama]
 model       = "qwen3-coder:30b-a3b-q4_K_M"
 base_url    = "http://localhost:11434"
+temperature = 0.2
+
+[anthropic]
+model       = "claude-3-5-sonnet-20241022"
+base_url    = "https://api.anthropic.com/v1"
 temperature = 0.2
 
 # Prompt templates (optional). Leave commented to use defaults.

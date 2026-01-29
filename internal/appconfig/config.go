@@ -68,6 +68,10 @@ type App struct {
 	CopilotModel      string   `json:"copilot_model" toml:"copilot_model"`
 	// Default temperature for Copilot requests (nil means use provider default)
 	CopilotTemperature *float64 `json:"copilot_temperature" toml:"copilot_temperature"`
+	AnthropicBaseURL   string   `json:"anthropic_base_url" toml:"anthropic_base_url"`
+	AnthropicModel     string   `json:"anthropic_model" toml:"anthropic_model"`
+	// Default temperature for Anthropic requests (nil means use provider default)
+	AnthropicTemperature *float64 `json:"anthropic_temperature" toml:"anthropic_temperature"`
 
 	// Per-surface provider/model configurations (ordered; first entry is primary)
 	CompletionConfigs []SurfaceConfig `json:"-" toml:"-"`
@@ -137,6 +141,7 @@ func newDefaultConfig() App {
 		OpenAITemperature:     &t,
 		OllamaTemperature:     &t,
 		CopilotTemperature:    &t,
+		AnthropicTemperature:  &t,
 		ManualInvokeMinPrefix: 0,
 		CompletionDebounceMs:  800,
 		CompletionThrottleMs:  0,
@@ -235,6 +240,7 @@ type fileConfig struct {
 	OpenRouter sectionOpenRouter `toml:"openrouter"`
 	Copilot    sectionCopilot    `toml:"copilot"`
 	Ollama     sectionOllama     `toml:"ollama"`
+	Anthropic  sectionAnthropic  `toml:"anthropic"`
 	Prompts    sectionPrompts    `toml:"prompts"`
 	Tmux       sectionTmux       `toml:"tmux"`
 	Stats      sectionStats      `toml:"stats"`
@@ -326,6 +332,12 @@ type sectionCopilot struct {
 }
 
 type sectionOllama struct {
+	Model       string   `toml:"model"`
+	BaseURL     string   `toml:"base_url"`
+	Temperature *float64 `toml:"temperature"`
+}
+
+type sectionAnthropic struct {
 	Model       string   `toml:"model"`
 	BaseURL     string   `toml:"base_url"`
 	Temperature *float64 `toml:"temperature"`
@@ -482,6 +494,16 @@ func (fc *fileConfig) toApp() App {
 			OllamaBaseURL:     fc.Ollama.BaseURL,
 			OllamaModel:       fc.Ollama.Model,
 			OllamaTemperature: fc.Ollama.Temperature,
+		}
+		out.mergeProviderFields(&tmp)
+	}
+
+	// anthropic
+	if (fc.Anthropic != sectionAnthropic{}) || fc.Anthropic.Temperature != nil {
+		tmp := App{
+			AnthropicBaseURL:     fc.Anthropic.BaseURL,
+			AnthropicModel:       fc.Anthropic.Model,
+			AnthropicTemperature: fc.Anthropic.Temperature,
 		}
 		out.mergeProviderFields(&tmp)
 	}
@@ -1289,6 +1311,19 @@ func loadFromEnv(logger *log.Logger) *App {
 	}
 	if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok {
 		out.CopilotTemperature = f
+		any = true
+	}
+
+	if s := getenv("HEXAI_ANTHROPIC_BASE_URL"); s != "" {
+		out.AnthropicBaseURL = s
+		any = true
+	}
+	if model, ok := pickModel("anthropic", getenv("HEXAI_ANTHROPIC_MODEL")); ok {
+		out.AnthropicModel = model
+		any = true
+	}
+	if f, ok := parseFloatPtr("HEXAI_ANTHROPIC_TEMPERATURE"); ok {
+		out.AnthropicTemperature = f
 		any = true
 	}
 

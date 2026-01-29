@@ -19,7 +19,6 @@
 - Code (when added): follow language idioms
 - Any type with more than 3 methods should be in it's own source code file, whereas the filename contains the name of the type.
 
-
 ## Incrementing version
 
 - Never draft a changelog entry

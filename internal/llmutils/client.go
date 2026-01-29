@@ -24,6 +24,9 @@ func NewClientFromApp(cfg appconfig.App) (llm.Client, error) {
 		CopilotBaseURL:        cfg.CopilotBaseURL,
 		CopilotModel:          cfg.CopilotModel,
 		CopilotTemperature:    cfg.CopilotTemperature,
+		AnthropicBaseURL:      cfg.AnthropicBaseURL,
+		AnthropicModel:        cfg.AnthropicModel,
+		AnthropicTemperature:  cfg.AnthropicTemperature,
 	}
 	oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
 	if strings.TrimSpace(oaKey) == "" {
@@ -37,5 +40,9 @@ func NewClientFromApp(cfg appconfig.App) (llm.Client, error) {
 	if strings.TrimSpace(cpKey) == "" {
 		cpKey = os.Getenv("COPILOT_API_KEY")
 	}
-	return llm.NewFromConfig(llmCfg, oaKey, orKey, cpKey)
+	anKey := os.Getenv("HEXAI_ANTHROPIC_API_KEY")
+	if strings.TrimSpace(anKey) == "" {
+		anKey = os.Getenv("ANTHROPIC_API_KEY")
+	}
+	return llm.NewFromConfig(llmCfg, oaKey, orKey, cpKey, anKey)
 }

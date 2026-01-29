@@ -1,4 +1,4 @@
-# Project scratch pad
+# Project scratch pad and ideas
 
 This document shows future items and items in progress. Already completed ones are deleted from this document as updates occur.
 * [ ] hexai cli to keep context for the follow-up question/prompt?

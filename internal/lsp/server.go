@@ -230,6 +230,9 @@ func newClientForProvider(cfg appconfig.App, provider string) (llm.Client, error
 		CopilotBaseURL:        cfg.CopilotBaseURL,
 		CopilotModel:          cfg.CopilotModel,
 		CopilotTemperature:    cfg.CopilotTemperature,
+		AnthropicBaseURL:      cfg.AnthropicBaseURL,
+		AnthropicModel:        cfg.AnthropicModel,
+		AnthropicTemperature:  cfg.AnthropicTemperature,
 	}
 	oaKey := strings.TrimSpace(os.Getenv("HEXAI_OPENAI_API_KEY"))
 	if oaKey == "" {
@@ -243,7 +246,11 @@ func newClientForProvider(cfg appconfig.App, provider string) (llm.Client, error
 	if cpKey == "" {
 		cpKey = strings.TrimSpace(os.Getenv("COPILOT_API_KEY"))
 	}
-	return llm.NewFromConfig(llmCfg, oaKey, orKey, cpKey)
+	anKey := strings.TrimSpace(os.Getenv("HEXAI_ANTHROPIC_API_KEY"))
+	if anKey == "" {
+		anKey = strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY"))
+	}
+	return llm.NewFromConfig(llmCfg, oaKey, orKey, cpKey, anKey)
 }
 
 func (s *Server) clientFor(spec requestSpec) llm.Client {

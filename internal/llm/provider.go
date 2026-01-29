@@ -81,12 +81,16 @@ type Config struct {
 	CopilotBaseURL     string
 	CopilotModel       string
 	CopilotTemperature *float64
+	// Anthropic options
+	AnthropicBaseURL     string
+	AnthropicModel       string
+	AnthropicTemperature *float64
 }
 
 // NewFromConfig creates an LLM client using only the supplied configuration.
 // The OpenAI API key is supplied separately and may be read from the environment
 // by the caller; other environment-based configuration is not used.
-func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey string) (Client, error) {
+func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey, anthropicAPIKey string) (Client, error) {
 	p := strings.ToLower(strings.TrimSpace(cfg.Provider))
 	if p == "" {
 		p = "openai"
@@ -140,6 +144,15 @@ func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey str
 			cfg.CopilotTemperature = &t
 		}
 		return newCopilot(cfg.CopilotBaseURL, cfg.CopilotModel, copilotAPIKey, cfg.CopilotTemperature), nil
+	case "anthropic":
+		if strings.TrimSpace(anthropicAPIKey) == "" {
+			return nil, errors.New("missing ANTHROPIC_API_KEY for provider anthropic")
+		}
+		if cfg.AnthropicTemperature == nil {
+			t := 0.2
+			cfg.AnthropicTemperature = &t
+		}
+		return newAnthropic(cfg.AnthropicBaseURL, cfg.AnthropicModel, anthropicAPIKey, cfg.AnthropicTemperature), nil
 	default:
 		return nil, errors.New("unknown LLM provider: " + p)
 	}
