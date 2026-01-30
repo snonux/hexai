@@ -155,6 +155,24 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		return res.items, true, false
 	}
 
+	waitAll := s.completionWaitAll()
+	if waitAll {
+		// Wait for all backends, return combined results
+		defer end()
+		combined := make([]CompletionItem, 0)
+		for res := range results {
+			if !res.ok || len(res.items) == 0 {
+				continue
+			}
+			combined = append(combined, res.items...)
+		}
+		if len(combined) == 0 {
+			return nil, false, false
+		}
+		return combined, true, false
+	}
+
+	// Return first result immediately, store combined for later
 	firstCh := make(chan []CompletionItem, 1)
 	go func(planKey string) {
 		defer end()

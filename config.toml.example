@@ -20,6 +20,7 @@ log_preview_limit = 100              # chars shown in log previews
 completion_debounce_ms = 800         # idle ms before sending a request
 completion_throttle_ms = 0           # min ms between requests (0 disables)
 manual_invoke_min_prefix = 0         # required identifier chars for manual invoke
+completion_wait_all = true           # wait for all backends (true) or return first (false)
 
 [triggers]
 trigger_characters = [".", ":", "/", "_", " "]
@@ -37,7 +38,7 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 # completion = "gpt-4o-mini"
 # chat = "gpt-4.1"
 
-# Full array form for multiple entries
+# Full array form for multiple entries (completions fan out to all; labels show provider:model).
 # [[models.completion]]
 # provider = "openai"
 # model = "gpt-4o-mini"

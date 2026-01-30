@@ -195,6 +195,7 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, lo
 		ManualInvokeMinPrefix: cfg.ManualInvokeMinPrefix,
 		CompletionDebounceMs:  cfg.CompletionDebounceMs,
 		CompletionThrottleMs:  cfg.CompletionThrottleMs,
+		CompletionWaitAll:     cfg.CompletionWaitAll,
 		InlineOpen:            cfg.InlineOpen,
 		InlineClose:           cfg.InlineClose,
 		ChatSuffix:            cfg.ChatSuffix,
