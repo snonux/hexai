@@ -71,6 +71,7 @@ type ServerOptions struct {
 	ManualInvokeMinPrefix int
 	CompletionDebounceMs  int
 	CompletionThrottleMs  int
+	CompletionWaitAll     *bool
 
 	// Inline/chat triggers
 	InlineOpen   string
@@ -160,6 +161,7 @@ func (s *Server) applyOptions(opts ServerOptions) {
 		s.cfg.ManualInvokeMinPrefix = opts.ManualInvokeMinPrefix
 		s.cfg.CompletionDebounceMs = opts.CompletionDebounceMs
 		s.cfg.CompletionThrottleMs = opts.CompletionThrottleMs
+		s.cfg.CompletionWaitAll = opts.CompletionWaitAll
 		s.cfg.InlineOpen = opts.InlineOpen
 		s.cfg.InlineClose = opts.InlineClose
 		s.cfg.ChatSuffix = opts.ChatSuffix
@@ -305,6 +307,12 @@ func (s *Server) clientFor(spec requestSpec) llm.Client {
 		} else if spec.fallbackModel != "" {
 			cfg.OllamaModel = spec.fallbackModel
 		}
+	case "anthropic":
+		if modelOverride != "" {
+			cfg.AnthropicModel = modelOverride
+		} else if spec.fallbackModel != "" {
+			cfg.AnthropicModel = spec.fallbackModel
+		}
 	}
 	client, err := newClientForProvider(cfg, provider)
 	if err != nil {
@@ -449,6 +457,14 @@ func (s *Server) completionThrottle() time.Duration {
 		return 0
 	}
 	return time.Duration(cfg.CompletionThrottleMs) * time.Millisecond
+}
+
+func (s *Server) completionWaitAll() bool {
+	cfg := s.currentConfig()
+	if cfg.CompletionWaitAll == nil {
+		return true // default: wait for all backends
+	}
+	return *cfg.CompletionWaitAll
 }
 
 func (s *Server) inlineMarkers() (open string, close string, openChar byte, closeChar byte) {

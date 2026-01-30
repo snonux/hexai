@@ -230,8 +230,21 @@ func buildAnthropicChatRequest(o Options, messages []Message, defaultModel strin
 		Stream:    stream,
 		MaxTokens: 4096, // Anthropic requires max_tokens
 	}
-	req.Messages = make([]anthropicMessage, len(messages))
-	for i, m := range messages {
+	// Anthropic requires system messages in a top-level "system" field, not in messages array
+	var systemParts []string
+	var nonSystemMessages []Message
+	for _, m := range messages {
+		if m.Role == "system" {
+			systemParts = append(systemParts, m.Content)
+		} else {
+			nonSystemMessages = append(nonSystemMessages, m)
+		}
+	}
+	if len(systemParts) > 0 {
+		req.System = strings.Join(systemParts, "\n\n")
+	}
+	req.Messages = make([]anthropicMessage, len(nonSystemMessages))
+	for i, m := range nonSystemMessages {
 		req.Messages[i] = anthropicMessage{
 			Role:    m.Role,
 			Content: m.Content,
@@ -246,8 +259,6 @@ func buildAnthropicChatRequest(o Options, messages []Message, defaultModel strin
 	if o.MaxTokens > 0 {
 		req.MaxTokens = o.MaxTokens
 	}
-	// Note: Anthropic's API doesn't support stop sequences in the same way as OpenAI,
-	// but we keep them in the request for future compatibility.
 	return req
 }
 

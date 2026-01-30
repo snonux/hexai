@@ -40,6 +40,10 @@ type App struct {
 	// Completion throttle in milliseconds. When > 0, caps the minimum spacing
 	// between LLM requests (both chat and code-completer paths).
 	CompletionThrottleMs int `json:"completion_throttle_ms" toml:"completion_throttle_ms"`
+	// CompletionWaitAll controls whether to wait for all configured completion
+	// backends before returning results. When true (default), waits for all
+	// backends. When false, returns the first result immediately.
+	CompletionWaitAll *bool `json:"completion_wait_all" toml:"completion_wait_all"`
 
 	TriggerCharacters []string `json:"trigger_characters" toml:"trigger_characters"`
 	Provider          string   `json:"provider" toml:"provider"`
@@ -259,9 +263,10 @@ type sectionLogging struct {
 }
 
 type sectionCompletion struct {
-	CompletionDebounceMs  int `toml:"completion_debounce_ms"`
-	CompletionThrottleMs  int `toml:"completion_throttle_ms"`
-	ManualInvokeMinPrefix int `toml:"manual_invoke_min_prefix"`
+	CompletionDebounceMs  int   `toml:"completion_debounce_ms"`
+	CompletionThrottleMs  int   `toml:"completion_throttle_ms"`
+	ManualInvokeMinPrefix int   `toml:"manual_invoke_min_prefix"`
+	CompletionWaitAll     *bool `toml:"completion_wait_all"`
 }
 
 type sectionTriggers struct {
@@ -425,11 +430,13 @@ func (fc *fileConfig) toApp() App {
 	}
 
 	// completion
-	if (fc.Completion != sectionCompletion{}) {
+	if fc.Completion.CompletionDebounceMs != 0 || fc.Completion.CompletionThrottleMs != 0 ||
+		fc.Completion.ManualInvokeMinPrefix != 0 || fc.Completion.CompletionWaitAll != nil {
 		tmp := App{
 			CompletionDebounceMs:  fc.Completion.CompletionDebounceMs,
 			CompletionThrottleMs:  fc.Completion.CompletionThrottleMs,
 			ManualInvokeMinPrefix: fc.Completion.ManualInvokeMinPrefix,
+			CompletionWaitAll:     fc.Completion.CompletionWaitAll,
 		}
 		out.mergeBasics(&tmp)
 	}
@@ -887,6 +894,9 @@ func (a *App) mergeBasics(other *App) {
 	}
 	if other.CompletionThrottleMs > 0 {
 		a.CompletionThrottleMs = other.CompletionThrottleMs
+	}
+	if other.CompletionWaitAll != nil {
+		a.CompletionWaitAll = other.CompletionWaitAll
 	}
 	if len(other.TriggerCharacters) > 0 {
 		a.TriggerCharacters = slices.Clone(other.TriggerCharacters)
