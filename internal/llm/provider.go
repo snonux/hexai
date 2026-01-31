@@ -64,7 +64,8 @@ func WithStop(stop ...string) RequestOption {
 
 // Config defines provider configuration read from the Hexai config file.
 type Config struct {
-	Provider string
+	Provider       string
+	RequestTimeout int // seconds; 0 means use default (30s)
 	// OpenAI options
 	OpenAIBaseURL     string
 	OpenAIModel       string
@@ -119,7 +120,7 @@ func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey, an
 			v := 0.2
 			cfg.OpenAITemperature = &v
 		}
-		return newOpenAI(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature), nil
+		return newOpenAIWithTimeout(cfg.OpenAIBaseURL, cfg.OpenAIModel, openAIAPIKey, cfg.OpenAITemperature, cfg.RequestTimeout), nil
 	case "openrouter":
 		if strings.TrimSpace(openRouterAPIKey) == "" {
 			return nil, errors.New("missing OPENROUTER_API_KEY for provider openrouter")
@@ -128,13 +129,13 @@ func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey, an
 			t := 0.2
 			cfg.OpenRouterTemperature = &t
 		}
-		return newOpenRouter(cfg.OpenRouterBaseURL, cfg.OpenRouterModel, openRouterAPIKey, cfg.OpenRouterTemperature), nil
+		return newOpenRouterWithTimeout(cfg.OpenRouterBaseURL, cfg.OpenRouterModel, openRouterAPIKey, cfg.OpenRouterTemperature, cfg.RequestTimeout), nil
 	case "ollama":
 		if cfg.OllamaTemperature == nil {
 			t := 0.2
 			cfg.OllamaTemperature = &t
 		}
-		return newOllama(cfg.OllamaBaseURL, cfg.OllamaModel, cfg.OllamaTemperature), nil
+		return newOllamaWithTimeout(cfg.OllamaBaseURL, cfg.OllamaModel, cfg.OllamaTemperature, cfg.RequestTimeout), nil
 	case "copilot":
 		if strings.TrimSpace(copilotAPIKey) == "" {
 			return nil, errors.New("missing COPILOT_API_KEY for provider copilot")
@@ -143,7 +144,7 @@ func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey, an
 			t := 0.2
 			cfg.CopilotTemperature = &t
 		}
-		return newCopilot(cfg.CopilotBaseURL, cfg.CopilotModel, copilotAPIKey, cfg.CopilotTemperature), nil
+		return newCopilotWithTimeout(cfg.CopilotBaseURL, cfg.CopilotModel, copilotAPIKey, cfg.CopilotTemperature, cfg.RequestTimeout), nil
 	case "anthropic":
 		if strings.TrimSpace(anthropicAPIKey) == "" {
 			return nil, errors.New("missing ANTHROPIC_API_KEY for provider anthropic")
@@ -152,7 +153,7 @@ func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey, an
 			t := 0.2
 			cfg.AnthropicTemperature = &t
 		}
-		return newAnthropic(cfg.AnthropicBaseURL, cfg.AnthropicModel, anthropicAPIKey, cfg.AnthropicTemperature), nil
+		return newAnthropicWithTimeout(cfg.AnthropicBaseURL, cfg.AnthropicModel, anthropicAPIKey, cfg.AnthropicTemperature, cfg.RequestTimeout), nil
 	default:
 		return nil, errors.New("unknown LLM provider: " + p)
 	}
