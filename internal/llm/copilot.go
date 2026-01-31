@@ -64,6 +64,10 @@ type copilotChatResponse struct {
 
 // Constructor (kept among the first functions by convention)
 func newCopilot(baseURL, model, apiKey string, defaultTemp *float64) Client {
+	return newCopilotWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
+}
+
+func newCopilotWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "https://api.githubcopilot.com"
 	}
@@ -72,8 +76,11 @@ func newCopilot(baseURL, model, apiKey string, defaultTemp *float64) Client {
 		// Default to a broadly available, cost-effective option.
 		model = "gpt-4o-mini"
 	}
+	if timeoutSec <= 0 {
+		timeoutSec = 30
+	}
 	return copilotClient{
-		httpClient:         &http.Client{Timeout: 30 * time.Second},
+		httpClient:         &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 		apiKey:             apiKey,
 		baseURL:            strings.TrimRight(baseURL, "/"),
 		defaultModel:       model,

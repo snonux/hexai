@@ -90,14 +90,21 @@ var (
 // newAnthropic constructs an Anthropic client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
 func newAnthropic(baseURL, model, apiKey string, defaultTemp *float64) Client {
+	return newAnthropicWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
+}
+
+func newAnthropicWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "https://api.anthropic.com/v1"
 	}
 	if strings.TrimSpace(model) == "" {
 		model = "claude-3-5-sonnet-20241022"
 	}
+	if timeoutSec <= 0 {
+		timeoutSec = 30
+	}
 	return anthropicClient{
-		httpClient:         &http.Client{Timeout: 30 * time.Second},
+		httpClient:         &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 		apiKey:             apiKey,
 		baseURL:            baseURL,
 		defaultModel:       model,
