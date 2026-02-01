@@ -12,6 +12,7 @@ import (
 func NewClientFromApp(cfg appconfig.App) (llm.Client, error) {
 	llmCfg := llm.Config{
 		Provider:              cfg.Provider,
+		RequestTimeout:        cfg.RequestTimeout,
 		OpenAIBaseURL:         cfg.OpenAIBaseURL,
 		OpenAIModel:           cfg.OpenAIModel,
 		OpenAITemperature:     cfg.OpenAITemperature,
