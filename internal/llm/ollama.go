@@ -42,14 +42,21 @@ type ollamaChatResponse struct {
 
 // Constructor (kept among the first functions by convention)
 func newOllama(baseURL, model string, defaultTemp *float64) Client {
+	return newOllamaWithTimeout(baseURL, model, defaultTemp, 0)
+}
+
+func newOllamaWithTimeout(baseURL, model string, defaultTemp *float64, timeoutSec int) Client {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "http://localhost:11434"
 	}
 	if strings.TrimSpace(model) == "" {
 		model = "qwen3-coder:30b-a3b-q4_K_M"
 	}
+	if timeoutSec <= 0 {
+		timeoutSec = 30
+	}
 	return ollamaClient{
-		httpClient:         &http.Client{Timeout: 30 * time.Second},
+		httpClient:         &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 		baseURL:            strings.TrimRight(baseURL, "/"),
 		defaultModel:       model,
 		chatLogger:         logging.NewChatLogger("ollama"),

@@ -27,6 +27,7 @@ type App struct {
 	ContextWindowLines int    `json:"context_window_lines" toml:"context_window_lines"`
 	MaxContextTokens   int    `json:"max_context_tokens" toml:"max_context_tokens"`
 	LogPreviewLimit    int    `json:"log_preview_limit" toml:"log_preview_limit"`
+	RequestTimeout     int    `json:"request_timeout" toml:"request_timeout"`
 	// Single knob for LSP requests; if set, overrides hardcoded temps in LSP.
 	CodingTemperature *float64 `json:"coding_temperature" toml:"coding_temperature"`
 	// Minimum identifier characters required for manual (TriggerKind=1) invoke
@@ -141,6 +142,7 @@ func newDefaultConfig() App {
 		ContextWindowLines:    120,
 		MaxContextTokens:      4000,
 		LogPreviewLimit:       100,
+		RequestTimeout:        30,
 		CodingTemperature:     &t,
 		OpenAITemperature:     &t,
 		OllamaTemperature:     &t,
@@ -256,6 +258,7 @@ type sectionGeneral struct {
 	ContextWindowLines int      `toml:"context_window_lines"`
 	MaxContextTokens   int      `toml:"max_context_tokens"`
 	CodingTemperature  *float64 `toml:"coding_temperature"`
+	RequestTimeout     int      `toml:"request_timeout"`
 }
 
 type sectionLogging struct {
@@ -419,6 +422,7 @@ func (fc *fileConfig) toApp() App {
 			ContextWindowLines: fc.General.ContextWindowLines,
 			MaxContextTokens:   fc.General.MaxContextTokens,
 			CodingTemperature:  fc.General.CodingTemperature,
+			RequestTimeout:     fc.General.RequestTimeout,
 		}
 		out.mergeBasics(&tmp)
 	}
@@ -883,6 +887,9 @@ func (a *App) mergeBasics(other *App) {
 	if other.LogPreviewLimit >= 0 {
 		a.LogPreviewLimit = other.LogPreviewLimit
 	}
+	if other.RequestTimeout > 0 {
+		a.RequestTimeout = other.RequestTimeout
+	}
 	if other.CodingTemperature != nil { // allow explicit 0.0
 		a.CodingTemperature = other.CodingTemperature
 	}
@@ -1183,6 +1190,10 @@ func loadFromEnv(logger *log.Logger) *App {
 	}
 	if n, ok := parseInt("HEXAI_LOG_PREVIEW_LIMIT"); ok {
 		out.LogPreviewLimit = n
+		any = true
+	}
+	if n, ok := parseInt("HEXAI_REQUEST_TIMEOUT"); ok {
+		out.RequestTimeout = n
 		any = true
 	}
 	if n, ok := parseInt("HEXAI_MANUAL_INVOKE_MIN_PREFIX"); ok {

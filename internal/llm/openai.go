@@ -77,14 +77,21 @@ type oaStreamChunk struct {
 // newOpenAI constructs an OpenAI client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
 func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) Client {
+	return newOpenAIWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
+}
+
+func newOpenAIWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
 	if strings.TrimSpace(model) == "" {
 		model = "gpt-4.1"
 	}
+	if timeoutSec <= 0 {
+		timeoutSec = 30
+	}
 	return openAIClient{
-		httpClient:         &http.Client{Timeout: 30 * time.Second},
+		httpClient:         &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 		apiKey:             apiKey,
 		baseURL:            baseURL,
 		defaultModel:       model,
