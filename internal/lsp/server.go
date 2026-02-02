@@ -220,6 +220,7 @@ func (s *Server) currentLLMClient() llm.Client {
 func newClientForProvider(cfg appconfig.App, provider string) (llm.Client, error) {
 	llmCfg := llm.Config{
 		Provider:              provider,
+		RequestTimeout:        cfg.RequestTimeout,
 		OpenAIBaseURL:         cfg.OpenAIBaseURL,
 		OpenAIModel:           cfg.OpenAIModel,
 		OpenAITemperature:     cfg.OpenAITemperature,

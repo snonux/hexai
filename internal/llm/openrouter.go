@@ -23,14 +23,21 @@ type openRouterClient struct {
 }
 
 func newOpenRouter(baseURL, model, apiKey string, defaultTemp *float64) Client {
+	return newOpenRouterWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
+}
+
+func newOpenRouterWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "https://openrouter.ai/api/v1"
 	}
 	if strings.TrimSpace(model) == "" {
 		model = "openrouter/auto"
 	}
+	if timeoutSec <= 0 {
+		timeoutSec = 30
+	}
 	return openRouterClient{
-		httpClient:         &http.Client{Timeout: 30 * time.Second},
+		httpClient:         &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 		apiKey:             apiKey,
 		baseURL:            baseURL,
 		defaultModel:       model,

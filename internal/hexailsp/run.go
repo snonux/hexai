@@ -109,6 +109,7 @@ func buildClientIfNil(cfg appconfig.App, client llm.Client) llm.Client {
 	}
 	llmCfg := llm.Config{
 		Provider:              cfg.Provider,
+		RequestTimeout:        cfg.RequestTimeout,
 		OpenAIBaseURL:         cfg.OpenAIBaseURL,
 		OpenAIModel:           cfg.OpenAIModel,
 		OpenAITemperature:     cfg.OpenAITemperature,

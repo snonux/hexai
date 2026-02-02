@@ -3,6 +3,7 @@
 [general]
 max_tokens = 4000
 max_context_tokens = 4000
+request_timeout = 30                  # LLM request timeout in seconds
 # context_mode controls how much of the current document is sent as extra context:
 # - minimal: no additional context beyond the request payload.
 # - window: include a sliding window of ~context_window_lines around the cursor.
