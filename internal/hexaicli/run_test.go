@@ -161,11 +161,11 @@ func TestPrintProviderInfo(t *testing.T) {
 
 func TestBuildCLIRequest_Override(t *testing.T) {
 	cfg := appconfig.App{
-		Provider:     "openai",
-		CopilotModel: "gpt-4o",
+		Provider:       "openai",
+		AnthropicModel: "claude-3-5-sonnet",
 	}
-	entry := appconfig.SurfaceConfig{Provider: "copilot", Model: "override", Temperature: floatPtr(0.7)}
-	req := buildCLIRequest(entry, "copilot", cfg, &fakeClient{name: "copilot", model: "default"})
+	entry := appconfig.SurfaceConfig{Provider: "anthropic", Model: "override", Temperature: floatPtr(0.7)}
+	req := buildCLIRequest(entry, "anthropic", cfg, &fakeClient{name: "anthropic", model: "default"})
 	if req.model != "override" {
 		t.Fatalf("expected model override, got %q", req.model)
 	}
@@ -199,8 +199,8 @@ func TestBuildCLIJobs_MultiEntries(t *testing.T) {
 	defer func() { newClientFromApp = old }()
 	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
 		model := cfg.OpenAIModel
-		if cfg.Provider == "copilot" {
-			model = cfg.CopilotModel
+		if cfg.Provider == "anthropic" {
+			model = cfg.AnthropicModel
 		}
 		if cfg.Provider == "ollama" {
 			model = cfg.OllamaModel
@@ -215,7 +215,7 @@ func TestBuildCLIJobs_MultiEntries(t *testing.T) {
 		OllamaModel: "llama3",
 		CLIConfigs: []appconfig.SurfaceConfig{
 			{Provider: "openai", Model: "gpt-4o"},
-			{Provider: "copilot", Model: "cpt"},
+			{Provider: "anthropic", Model: "claude"},
 		},
 	}
 	jobs, err := buildCLIJobs(cfg)
@@ -228,18 +228,18 @@ func TestBuildCLIJobs_MultiEntries(t *testing.T) {
 	if jobs[0].provider != "openai" || jobs[0].req.model != "gpt-4o" {
 		t.Fatalf("unexpected first job: %+v", jobs[0])
 	}
-	if jobs[1].provider != "copilot" || jobs[1].req.model != "cpt" {
+	if jobs[1].provider != "anthropic" || jobs[1].req.model != "claude" {
 		t.Fatalf("unexpected second job: %+v", jobs[1])
 	}
 }
 
 func TestFilterJobsBySelection(t *testing.T) {
-	jobs := []cliJob{{index: 0, provider: "openai"}, {index: 1, provider: "ollama"}, {index: 2, provider: "copilot"}}
+	jobs := []cliJob{{index: 0, provider: "openai"}, {index: 1, provider: "ollama"}, {index: 2, provider: "anthropic"}}
 	filtered, err := filterJobsBySelection(jobs, []int{2, 0})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(filtered) != 2 || filtered[0].provider != "copilot" || filtered[1].provider != "openai" {
+	if len(filtered) != 2 || filtered[0].provider != "anthropic" || filtered[1].provider != "openai" {
 		t.Fatalf("unexpected filtered order: %+v", filtered)
 	}
 	if filtered[0].index != 0 || filtered[1].index != 1 {

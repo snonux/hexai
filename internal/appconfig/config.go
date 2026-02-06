@@ -69,12 +69,8 @@ type App struct {
 	OllamaModel           string   `json:"ollama_model" toml:"ollama_model"`
 	// Default temperature for Ollama requests (nil means use provider default)
 	OllamaTemperature *float64 `json:"ollama_temperature" toml:"ollama_temperature"`
-	CopilotBaseURL    string   `json:"copilot_base_url" toml:"copilot_base_url"`
-	CopilotModel      string   `json:"copilot_model" toml:"copilot_model"`
-	// Default temperature for Copilot requests (nil means use provider default)
-	CopilotTemperature *float64 `json:"copilot_temperature" toml:"copilot_temperature"`
-	AnthropicBaseURL   string   `json:"anthropic_base_url" toml:"anthropic_base_url"`
-	AnthropicModel     string   `json:"anthropic_model" toml:"anthropic_model"`
+	AnthropicBaseURL  string   `json:"anthropic_base_url" toml:"anthropic_base_url"`
+	AnthropicModel    string   `json:"anthropic_model" toml:"anthropic_model"`
 	// Default temperature for Anthropic requests (nil means use provider default)
 	AnthropicTemperature *float64 `json:"anthropic_temperature" toml:"anthropic_temperature"`
 
@@ -146,7 +142,6 @@ func newDefaultConfig() App {
 		CodingTemperature:     &t,
 		OpenAITemperature:     &t,
 		OllamaTemperature:     &t,
-		CopilotTemperature:    &t,
 		AnthropicTemperature:  &t,
 		ManualInvokeMinPrefix: 0,
 		CompletionDebounceMs:  800,
@@ -244,7 +239,6 @@ type fileConfig struct {
 	Provider   sectionProvider   `toml:"provider"`
 	OpenAI     sectionOpenAI     `toml:"openai"`
 	OpenRouter sectionOpenRouter `toml:"openrouter"`
-	Copilot    sectionCopilot    `toml:"copilot"`
 	Ollama     sectionOllama     `toml:"ollama"`
 	Anthropic  sectionAnthropic  `toml:"anthropic"`
 	Prompts    sectionPrompts    `toml:"prompts"`
@@ -328,12 +322,6 @@ func (s sectionOpenAI) resolvedModel() string {
 }
 
 type sectionOpenRouter struct {
-	Model       string   `toml:"model"`
-	BaseURL     string   `toml:"base_url"`
-	Temperature *float64 `toml:"temperature"`
-}
-
-type sectionCopilot struct {
 	Model       string   `toml:"model"`
 	BaseURL     string   `toml:"base_url"`
 	Temperature *float64 `toml:"temperature"`
@@ -485,16 +473,6 @@ func (fc *fileConfig) toApp() App {
 			OpenRouterBaseURL:     fc.OpenRouter.BaseURL,
 			OpenRouterModel:       fc.OpenRouter.Model,
 			OpenRouterTemperature: fc.OpenRouter.Temperature,
-		}
-		out.mergeProviderFields(&tmp)
-	}
-
-	// copilot
-	if (fc.Copilot != sectionCopilot{}) || fc.Copilot.Temperature != nil {
-		tmp := App{
-			CopilotBaseURL:     fc.Copilot.BaseURL,
-			CopilotModel:       fc.Copilot.Model,
-			CopilotTemperature: fc.Copilot.Temperature,
 		}
 		out.mergeProviderFields(&tmp)
 	}
@@ -658,10 +636,9 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) {
 		"chat_suffix": {}, "chat_prefixes": {}, "coding_temperature": {}, "provider": {},
 		"openai_model": {}, "openai_base_url": {}, "openai_temperature": {},
 		"ollama_model": {}, "ollama_base_url": {}, "ollama_temperature": {},
-		"copilot_model": {}, "copilot_base_url": {}, "copilot_temperature": {},
 	}
 	for k := range raw {
-		if _, isTable := map[string]struct{}{"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {}, "chat": {}, "provider": {}, "models": {}, "openai": {}, "copilot": {}, "ollama": {}, "prompts": {}}[k]; isTable {
+		if _, isTable := map[string]struct{}{"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {}, "chat": {}, "provider": {}, "models": {}, "openai": {}, "ollama": {}, "prompts": {}}[k]; isTable {
 			continue
 		}
 		if _, isLegacy := legacy[k]; isLegacy {
@@ -1103,14 +1080,14 @@ func (a *App) mergeProviderFields(other *App) {
 	if other.OllamaTemperature != nil { // allow explicit 0.0
 		a.OllamaTemperature = other.OllamaTemperature
 	}
-	if s := strings.TrimSpace(other.CopilotBaseURL); s != "" {
-		a.CopilotBaseURL = s
+	if s := strings.TrimSpace(other.AnthropicBaseURL); s != "" {
+		a.AnthropicBaseURL = s
 	}
-	if s := strings.TrimSpace(other.CopilotModel); s != "" {
-		a.CopilotModel = s
+	if s := strings.TrimSpace(other.AnthropicModel); s != "" {
+		a.AnthropicModel = s
 	}
-	if other.CopilotTemperature != nil { // allow explicit 0.0
-		a.CopilotTemperature = other.CopilotTemperature
+	if other.AnthropicTemperature != nil { // allow explicit 0.0
+		a.AnthropicTemperature = other.AnthropicTemperature
 	}
 }
 
@@ -1319,19 +1296,6 @@ func loadFromEnv(logger *log.Logger) *App {
 	}
 	if f, ok := parseFloatPtr("HEXAI_OLLAMA_TEMPERATURE"); ok {
 		out.OllamaTemperature = f
-		any = true
-	}
-
-	if s := getenv("HEXAI_COPILOT_BASE_URL"); s != "" {
-		out.CopilotBaseURL = s
-		any = true
-	}
-	if model, ok := pickModel("copilot", getenv("HEXAI_COPILOT_MODEL")); ok {
-		out.CopilotModel = model
-		any = true
-	}
-	if f, ok := parseFloatPtr("HEXAI_COPILOT_TEMPERATURE"); ok {
-		out.CopilotTemperature = f
 		any = true
 	}
 

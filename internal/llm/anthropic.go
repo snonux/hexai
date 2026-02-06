@@ -98,7 +98,7 @@ func newAnthropicWithTimeout(baseURL, model, apiKey string, defaultTemp *float64
 		baseURL = "https://api.anthropic.com/v1"
 	}
 	if strings.TrimSpace(model) == "" {
-		model = "claude-3-5-sonnet-20241022"
+		model = "claude-3-5-sonnet-20240620"
 	}
 	if timeoutSec <= 0 {
 		timeoutSec = 30

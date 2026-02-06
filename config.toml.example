@@ -52,8 +52,8 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 
 # [[models.code_action]]
 # # Only the first entry is used; extras are ignored with a warning.
-# provider = "copilot"
-# model = "gpt-4o"
+# provider = "anthropic"
+# model = "claude-3-5-sonnet"
 # temperature = 0.4
 
 # [[models.cli]]
@@ -62,7 +62,7 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 # temperature = 0.6
 
 [provider]
-name = "openai"                      # openai | openrouter | copilot | ollama | anthropic
+name = "openai"                      # openai | openrouter | anthropic | ollama
 
 [openai]
 model       = "gpt-4.1"
@@ -72,11 +72,6 @@ temperature = 0.2
 [openrouter]
 model       = "openrouter/auto"
 base_url    = "https://openrouter.ai/api/v1"
-temperature = 0.2
-
-[copilot]
-model       = "gpt-4o-mini"
-base_url    = "https://api.githubcopilot.com"
 temperature = 0.2
 
 [ollama]

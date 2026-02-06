@@ -119,9 +119,6 @@ func buildClientIfNil(cfg appconfig.App, client llm.Client) llm.Client {
 		OllamaBaseURL:         cfg.OllamaBaseURL,
 		OllamaModel:           cfg.OllamaModel,
 		OllamaTemperature:     cfg.OllamaTemperature,
-		CopilotBaseURL:        cfg.CopilotBaseURL,
-		CopilotModel:          cfg.CopilotModel,
-		CopilotTemperature:    cfg.CopilotTemperature,
 		AnthropicBaseURL:      cfg.AnthropicBaseURL,
 		AnthropicModel:        cfg.AnthropicModel,
 		AnthropicTemperature:  cfg.AnthropicTemperature,
@@ -136,17 +133,12 @@ func buildClientIfNil(cfg appconfig.App, client llm.Client) llm.Client {
 	if strings.TrimSpace(orKey) == "" {
 		orKey = os.Getenv("OPENROUTER_API_KEY")
 	}
-	// Prefer HEXAI_COPILOT_API_KEY; fall back to COPILOT_API_KEY
-	cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
-	if strings.TrimSpace(cpKey) == "" {
-		cpKey = os.Getenv("COPILOT_API_KEY")
-	}
 	// Prefer HEXAI_ANTHROPIC_API_KEY; fall back to ANTHROPIC_API_KEY
 	anKey := os.Getenv("HEXAI_ANTHROPIC_API_KEY")
 	if strings.TrimSpace(anKey) == "" {
 		anKey = os.Getenv("ANTHROPIC_API_KEY")
 	}
-	if c, err := llm.NewFromConfig(llmCfg, oaKey, orKey, cpKey, anKey); err != nil {
+	if c, err := llm.NewFromConfig(llmCfg, oaKey, orKey, anKey); err != nil {
 		logging.Logf("lsp ", "llm disabled: %v", err)
 		return nil
 	} else {

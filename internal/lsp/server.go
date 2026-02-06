@@ -230,9 +230,6 @@ func newClientForProvider(cfg appconfig.App, provider string) (llm.Client, error
 		OllamaBaseURL:         cfg.OllamaBaseURL,
 		OllamaModel:           cfg.OllamaModel,
 		OllamaTemperature:     cfg.OllamaTemperature,
-		CopilotBaseURL:        cfg.CopilotBaseURL,
-		CopilotModel:          cfg.CopilotModel,
-		CopilotTemperature:    cfg.CopilotTemperature,
 		AnthropicBaseURL:      cfg.AnthropicBaseURL,
 		AnthropicModel:        cfg.AnthropicModel,
 		AnthropicTemperature:  cfg.AnthropicTemperature,
@@ -245,15 +242,11 @@ func newClientForProvider(cfg appconfig.App, provider string) (llm.Client, error
 	if orKey == "" {
 		orKey = strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
 	}
-	cpKey := strings.TrimSpace(os.Getenv("HEXAI_COPILOT_API_KEY"))
-	if cpKey == "" {
-		cpKey = strings.TrimSpace(os.Getenv("COPILOT_API_KEY"))
-	}
 	anKey := strings.TrimSpace(os.Getenv("HEXAI_ANTHROPIC_API_KEY"))
 	if anKey == "" {
 		anKey = strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY"))
 	}
-	return llm.NewFromConfig(llmCfg, oaKey, orKey, cpKey, anKey)
+	return llm.NewFromConfig(llmCfg, oaKey, orKey, anKey)
 }
 
 func (s *Server) clientFor(spec requestSpec) llm.Client {
@@ -295,12 +288,6 @@ func (s *Server) clientFor(spec requestSpec) llm.Client {
 			cfg.OpenRouterModel = modelOverride
 		} else if spec.fallbackModel != "" {
 			cfg.OpenRouterModel = spec.fallbackModel
-		}
-	case "copilot":
-		if modelOverride != "" {
-			cfg.CopilotModel = modelOverride
-		} else if spec.fallbackModel != "" {
-			cfg.CopilotModel = spec.fallbackModel
 		}
 	case "ollama":
 		if modelOverride != "" {

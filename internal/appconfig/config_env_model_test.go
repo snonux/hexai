@@ -37,9 +37,9 @@ func TestEnv_ModelForce_OverridesProviderSpecific(t *testing.T) {
 }
 
 func TestEnv_SurfaceModelOverrides(t *testing.T) {
-	t.Setenv("HEXAI_MODEL_COMPLETION", "gpt-c")
+	t.Setenv("HEXAI_MODEL_COMPLETION", "claude-c")
 	t.Setenv("HEXAI_TEMPERATURE_COMPLETION", "0.44")
-	t.Setenv("HEXAI_PROVIDER_COMPLETION", "copilot")
+	t.Setenv("HEXAI_PROVIDER_COMPLETION", "anthropic")
 	t.Setenv("HEXAI_MODEL_CLI", "gpt-cli")
 	t.Setenv("HEXAI_TEMPERATURE_CLI", "0.22")
 	t.Setenv("HEXAI_PROVIDER_CLI", "ollama")
@@ -48,13 +48,13 @@ func TestEnv_SurfaceModelOverrides(t *testing.T) {
 		t.Fatalf("expected single completion entry, got %+v", cfg.CompletionConfigs)
 	}
 	comp := cfg.CompletionConfigs[0]
-	if comp.Model != "gpt-c" {
+	if comp.Model != "claude-c" {
 		t.Fatalf("expected completion model override, got %+v", comp)
 	}
 	if comp.Temperature == nil || *comp.Temperature != 0.44 {
 		t.Fatalf("expected completion temperature override, got %+v", comp)
 	}
-	if comp.Provider != "copilot" {
+	if comp.Provider != "anthropic" {
 		t.Fatalf("expected completion provider override, got %+v", comp)
 	}
 	if len(cfg.CLIConfigs) != 1 {

@@ -75,8 +75,8 @@ func TestParseSurfaceModels_CodeActionWarns(t *testing.T) {
   model = "gpt-4o"
 
   [[models.code_action]]
-  provider = "copilot"
-  model = "cpt"
+  provider = "anthropic"
+  model = "claude"
 `)
 	var buf bytes.Buffer
 	logger := log.New(&buf, "", 0)
@@ -121,9 +121,9 @@ model = "gpt-file-complete"
 provider = "openai"
 
 [[models.code_action]]
-model = "gpt-file-action"
+model = "claude-file-action"
 temperature = 0.45
-provider = "copilot"
+provider = "anthropic"
 
 [[models.chat]]
 model = "gpt-file-chat"
@@ -145,11 +145,6 @@ temperature = 0.0
 [ollama]
 base_url = "http://ollama"
 model = "llama"
-temperature = 0.0
-
-[copilot]
-base_url = "http://copilot"
-model = "ghost"
 temperature = 0.0
 `)
 
@@ -175,18 +170,15 @@ temperature = 0.0
 	withEnv(t, "HEXAI_OLLAMA_BASE_URL", "http://ollama-override")
 	withEnv(t, "HEXAI_OLLAMA_MODEL", "mistral")
 	withEnv(t, "HEXAI_OLLAMA_TEMPERATURE", "0.6")
-	withEnv(t, "HEXAI_COPILOT_BASE_URL", "http://copilot-override")
-	withEnv(t, "HEXAI_COPILOT_MODEL", "ghost-override")
-	withEnv(t, "HEXAI_COPILOT_TEMPERATURE", "0.3")
 	withEnv(t, "HEXAI_MODEL_COMPLETION", "env-completion")
 	withEnv(t, "HEXAI_TEMPERATURE_COMPLETION", "0.33")
-	withEnv(t, "HEXAI_PROVIDER_COMPLETION", "copilot")
+	withEnv(t, "HEXAI_PROVIDER_COMPLETION", "ollama")
 	withEnv(t, "HEXAI_MODEL_CODE_ACTION", "env-action")
 	withEnv(t, "HEXAI_TEMPERATURE_CODE_ACTION", "0.55")
 	withEnv(t, "HEXAI_PROVIDER_CODE_ACTION", "openai")
 	withEnv(t, "HEXAI_MODEL_CHAT", "env-chat")
 	withEnv(t, "HEXAI_TEMPERATURE_CHAT", "0.66")
-	withEnv(t, "HEXAI_PROVIDER_CHAT", "copilot")
+	withEnv(t, "HEXAI_PROVIDER_CHAT", "anthropic")
 	withEnv(t, "HEXAI_MODEL_CLI", "env-cli")
 	withEnv(t, "HEXAI_TEMPERATURE_CLI", "0.77")
 	withEnv(t, "HEXAI_PROVIDER_CLI", "ollama")
@@ -217,16 +209,13 @@ temperature = 0.0
 	if cfg.OllamaBaseURL != "http://ollama-override" || cfg.OllamaModel != "mistral" || cfg.OllamaTemperature == nil || *cfg.OllamaTemperature != 0.6 {
 		t.Fatalf("ollama overrides not applied: %+v", cfg)
 	}
-	if cfg.CopilotBaseURL != "http://copilot-override" || cfg.CopilotModel != "ghost-override" || cfg.CopilotTemperature == nil || *cfg.CopilotTemperature != 0.3 {
-		t.Fatalf("copilot overrides not applied: %+v", cfg)
-	}
 	if len(cfg.CompletionConfigs) != 1 || cfg.CompletionConfigs[0].Model != "env-completion" {
 		t.Fatalf("completion overrides not applied: %+v", cfg.CompletionConfigs)
 	}
 	if cfg.CompletionConfigs[0].Temperature == nil || *cfg.CompletionConfigs[0].Temperature != 0.33 {
 		t.Fatalf("completion temperature override missing: %+v", cfg.CompletionConfigs[0])
 	}
-	if cfg.CompletionConfigs[0].Provider != "copilot" {
+	if cfg.CompletionConfigs[0].Provider != "ollama" {
 		t.Fatalf("completion provider override not applied: %+v", cfg.CompletionConfigs[0])
 	}
 	if len(cfg.CodeActionConfigs) != 1 || cfg.CodeActionConfigs[0].Model != "env-action" {
@@ -244,7 +233,7 @@ temperature = 0.0
 	if cfg.ChatConfigs[0].Temperature == nil || *cfg.ChatConfigs[0].Temperature != 0.66 {
 		t.Fatalf("chat temp override missing: %+v", cfg.ChatConfigs[0])
 	}
-	if cfg.ChatConfigs[0].Provider != "copilot" {
+	if cfg.ChatConfigs[0].Provider != "anthropic" {
 		t.Fatalf("chat provider override not applied: %+v", cfg.ChatConfigs[0])
 	}
 	if len(cfg.CLIConfigs) != 1 || cfg.CLIConfigs[0].Model != "env-cli" {
@@ -260,7 +249,7 @@ temperature = 0.0
 	// Ensure file values would have applied absent env
 	// Spot-check: reset env and reload
 	for _, k := range []string{
-		"HEXAI_MAX_TOKENS", "HEXAI_CONTEXT_MODE", "HEXAI_CONTEXT_WINDOW_LINES", "HEXAI_MAX_CONTEXT_TOKENS", "HEXAI_LOG_PREVIEW_LIMIT", "HEXAI_CODING_TEMPERATURE", "HEXAI_MANUAL_INVOKE_MIN_PREFIX", "HEXAI_COMPLETION_DEBOUNCE_MS", "HEXAI_COMPLETION_THROTTLE_MS", "HEXAI_TRIGGER_CHARACTERS", "HEXAI_PROVIDER", "HEXAI_OPENAI_BASE_URL", "HEXAI_OPENAI_MODEL", "HEXAI_OPENAI_TEMPERATURE", "HEXAI_OLLAMA_BASE_URL", "HEXAI_OLLAMA_MODEL", "HEXAI_OLLAMA_TEMPERATURE", "HEXAI_COPILOT_BASE_URL", "HEXAI_COPILOT_MODEL", "HEXAI_COPILOT_TEMPERATURE", "HEXAI_MODEL_COMPLETION", "HEXAI_TEMPERATURE_COMPLETION", "HEXAI_MODEL_CODE_ACTION", "HEXAI_TEMPERATURE_CODE_ACTION", "HEXAI_MODEL_CHAT", "HEXAI_TEMPERATURE_CHAT", "HEXAI_MODEL_CLI", "HEXAI_TEMPERATURE_CLI", "HEXAI_PROVIDER_COMPLETION", "HEXAI_PROVIDER_CODE_ACTION", "HEXAI_PROVIDER_CHAT", "HEXAI_PROVIDER_CLI",
+		"HEXAI_MAX_TOKENS", "HEXAI_CONTEXT_MODE", "HEXAI_CONTEXT_WINDOW_LINES", "HEXAI_MAX_CONTEXT_TOKENS", "HEXAI_LOG_PREVIEW_LIMIT", "HEXAI_CODING_TEMPERATURE", "HEXAI_MANUAL_INVOKE_MIN_PREFIX", "HEXAI_COMPLETION_DEBOUNCE_MS", "HEXAI_COMPLETION_THROTTLE_MS", "HEXAI_TRIGGER_CHARACTERS", "HEXAI_PROVIDER", "HEXAI_OPENAI_BASE_URL", "HEXAI_OPENAI_MODEL", "HEXAI_OPENAI_TEMPERATURE", "HEXAI_OLLAMA_BASE_URL", "HEXAI_OLLAMA_MODEL", "HEXAI_OLLAMA_TEMPERATURE", "HEXAI_MODEL_COMPLETION", "HEXAI_TEMPERATURE_COMPLETION", "HEXAI_MODEL_CODE_ACTION", "HEXAI_TEMPERATURE_CODE_ACTION", "HEXAI_MODEL_CHAT", "HEXAI_TEMPERATURE_CHAT", "HEXAI_MODEL_CLI", "HEXAI_TEMPERATURE_CLI", "HEXAI_PROVIDER_COMPLETION", "HEXAI_PROVIDER_CODE_ACTION", "HEXAI_PROVIDER_CHAT", "HEXAI_PROVIDER_CLI",
 	} {
 		t.Setenv(k, "")
 	}
@@ -283,13 +272,13 @@ temperature = 0.0
 	if cfg2.CompletionConfigs[0].Provider != "openai" {
 		t.Fatalf("file merge (completion provider) not applied: %+v", cfg2.CompletionConfigs[0])
 	}
-	if len(cfg2.CodeActionConfigs) != 1 || cfg2.CodeActionConfigs[0].Model != "gpt-file-action" {
+	if len(cfg2.CodeActionConfigs) != 1 || cfg2.CodeActionConfigs[0].Model != "claude-file-action" {
 		t.Fatalf("file merge (code action) not applied: %+v", cfg2.CodeActionConfigs)
 	}
 	if cfg2.CodeActionConfigs[0].Temperature == nil || *cfg2.CodeActionConfigs[0].Temperature != 0.45 {
 		t.Fatalf("expected code action temp 0.45, got %+v", cfg2.CodeActionConfigs[0])
 	}
-	if cfg2.CodeActionConfigs[0].Provider != "copilot" {
+	if cfg2.CodeActionConfigs[0].Provider != "anthropic" {
 		t.Fatalf("file merge (code action provider) not applied: %+v", cfg2.CodeActionConfigs[0])
 	}
 	if len(cfg2.ChatConfigs) != 1 || cfg2.ChatConfigs[0].Model != "gpt-file-chat" {
@@ -384,11 +373,6 @@ temperature = 0.0
 model = "mistral"
 base_url = "http://ollama"
 temperature = 0.0
-
-[copilot]
-model = "ghost"
-base_url = "http://copilot"
-temperature = 0.0
 `
 	writeFile(t, cfgPath, content)
 
@@ -417,9 +401,6 @@ temperature = 0.0
 	}
 	if cfg.OllamaModel != "mistral" || cfg.OllamaBaseURL != "http://ollama" || cfg.OllamaTemperature == nil || *cfg.OllamaTemperature != 0.0 {
 		t.Fatalf("sectioned ollama wrong: %+v", cfg)
-	}
-	if cfg.CopilotModel != "ghost" || cfg.CopilotBaseURL != "http://copilot" || cfg.CopilotTemperature == nil || *cfg.CopilotTemperature != 0.0 {
-		t.Fatalf("sectioned copilot wrong: %+v", cfg)
 	}
 }
 

@@ -253,7 +253,7 @@ func TestAnthropicClient_DefaultBaseURL(t *testing.T) {
 
 func TestAnthropicClient_DefaultModel_Empty(t *testing.T) {
 	c := newAnthropic("https://api.anthropic.com/v1", "", "test-key", nil).(anthropicClient)
-	if c.defaultModel != "claude-3-5-sonnet-20241022" {
+	if c.defaultModel != "claude-3-5-sonnet-20240620" {
 		t.Fatalf("expected default model, got '%s'", c.defaultModel)
 	}
 }
