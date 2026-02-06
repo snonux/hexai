@@ -1112,6 +1112,15 @@ func (a *App) mergeProviderFields(other *App) {
 	if other.CopilotTemperature != nil { // allow explicit 0.0
 		a.CopilotTemperature = other.CopilotTemperature
 	}
+	if s := strings.TrimSpace(other.AnthropicBaseURL); s != "" {
+		a.AnthropicBaseURL = s
+	}
+	if s := strings.TrimSpace(other.AnthropicModel); s != "" {
+		a.AnthropicModel = s
+	}
+	if other.AnthropicTemperature != nil { // allow explicit 0.0
+		a.AnthropicTemperature = other.AnthropicTemperature
+	}
 }
 
 func getConfigPath() (string, error) {
