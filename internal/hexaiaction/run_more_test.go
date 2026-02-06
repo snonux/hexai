@@ -14,7 +14,7 @@ import (
 // Covers the early error path in Run when no API key is available for the default provider.
 func TestRun_MissingAPIKey(t *testing.T) {
 	// Ensure no provider API keys in env
-	for _, k := range []string{"HEXAI_OPENAI_API_KEY", "OPENAI_API_KEY", "HEXAI_COPILOT_API_KEY", "COPILOT_API_KEY"} {
+	for _, k := range []string{"HEXAI_OPENAI_API_KEY", "OPENAI_API_KEY"} {
 		t.Setenv(k, "")
 	}
 	// Provide minimal stdin to get past empty input check (if reached)

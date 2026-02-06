@@ -99,7 +99,7 @@ func TestStoreReloadLogsSummary(t *testing.T) {
 
 func TestDiff_SurfaceModel(t *testing.T) {
 	oldCfg := appconfig.App{CompletionConfigs: []appconfig.SurfaceConfig{{Provider: "openai", Model: "gpt-4o"}}}
-	newCfg := appconfig.App{CompletionConfigs: []appconfig.SurfaceConfig{{Provider: "copilot", Model: "gpt-4.1"}}}
+	newCfg := appconfig.App{CompletionConfigs: []appconfig.SurfaceConfig{{Provider: "anthropic", Model: "claude-3-5-sonnet"}}}
 	changes := Diff(oldCfg, newCfg)
 	if len(changes) == 0 {
 		t.Fatalf("expected diff entries, got none")
@@ -107,7 +107,7 @@ func TestDiff_SurfaceModel(t *testing.T) {
 	found := false
 	for _, ch := range changes {
 		if ch.Key == "completion_configs" {
-			if !strings.Contains(ch.Old, "gpt-4o") || !strings.Contains(ch.New, "gpt-4.1") {
+			if !strings.Contains(ch.Old, "gpt-4o") || !strings.Contains(ch.New, "claude-3-5-sonnet") {
 				t.Fatalf("unexpected diff contents: %+v", ch)
 			}
 			found = true

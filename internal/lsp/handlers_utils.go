@@ -31,7 +31,6 @@ type requestSpec struct {
 	index         int
 }
 
-
 func (r requestSpec) effectiveModel(defaultModel string) string {
 	if m := strings.TrimSpace(r.entry.Model); m != "" {
 		return m
@@ -111,8 +110,10 @@ func resolveDefaultModel(cfg appconfig.App, provider string) string {
 	switch provider {
 	case "ollama":
 		return strings.TrimSpace(cfg.OllamaModel)
-	case "copilot":
-		return strings.TrimSpace(cfg.CopilotModel)
+	case "anthropic":
+		return strings.TrimSpace(cfg.AnthropicModel)
+	case "openrouter":
+		return strings.TrimSpace(cfg.OpenRouterModel)
 	default:
 		return strings.TrimSpace(cfg.OpenAIModel)
 	}

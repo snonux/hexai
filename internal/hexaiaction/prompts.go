@@ -49,8 +49,8 @@ func defaultModelForProvider(cfg appconfig.App, provider string) string {
 	switch provider {
 	case "ollama":
 		return cfg.OllamaModel
-	case "copilot":
-		return cfg.CopilotModel
+	case "anthropic":
+		return cfg.AnthropicModel
 	default:
 		return cfg.OpenAIModel
 	}

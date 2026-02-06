@@ -36,7 +36,6 @@ export HEXAI_REQUEST_TIMEOUT=120
 - `internal/llm/openai.go` - Added `newOpenAIWithTimeout`
 - `internal/llm/ollama.go` - Added `newOllamaWithTimeout`
 - `internal/llm/openrouter.go` - Added `newOpenRouterWithTimeout`
-- `internal/llm/copilot.go` - Added `newCopilotWithTimeout`
 - `internal/llm/anthropic.go` - Added `newAnthropicWithTimeout`
 - `internal/hexailsp/run.go` - Pass `RequestTimeout` to `llm.Config`
 - `internal/llmutils/client.go` - Pass `RequestTimeout` to `llm.Config`
