@@ -78,10 +78,6 @@ type Config struct {
 	OllamaBaseURL     string
 	OllamaModel       string
 	OllamaTemperature *float64
-	// Copilot options
-	CopilotBaseURL     string
-	CopilotModel       string
-	CopilotTemperature *float64
 	// Anthropic options
 	AnthropicBaseURL     string
 	AnthropicModel       string
@@ -91,7 +87,7 @@ type Config struct {
 // NewFromConfig creates an LLM client using only the supplied configuration.
 // The OpenAI API key is supplied separately and may be read from the environment
 // by the caller; other environment-based configuration is not used.
-func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey, anthropicAPIKey string) (Client, error) {
+func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, anthropicAPIKey string) (Client, error) {
 	p := strings.ToLower(strings.TrimSpace(cfg.Provider))
 	if p == "" {
 		p = "openai"
@@ -136,15 +132,6 @@ func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, copilotAPIKey, an
 			cfg.OllamaTemperature = &t
 		}
 		return newOllamaWithTimeout(cfg.OllamaBaseURL, cfg.OllamaModel, cfg.OllamaTemperature, cfg.RequestTimeout), nil
-	case "copilot":
-		if strings.TrimSpace(copilotAPIKey) == "" {
-			return nil, errors.New("missing COPILOT_API_KEY for provider copilot")
-		}
-		if cfg.CopilotTemperature == nil {
-			t := 0.2
-			cfg.CopilotTemperature = &t
-		}
-		return newCopilotWithTimeout(cfg.CopilotBaseURL, cfg.CopilotModel, copilotAPIKey, cfg.CopilotTemperature, cfg.RequestTimeout), nil
 	case "anthropic":
 		if strings.TrimSpace(anthropicAPIKey) == "" {
 			return nil, errors.New("missing ANTHROPIC_API_KEY for provider anthropic")

@@ -110,8 +110,6 @@ func resolveDefaultModel(cfg appconfig.App, provider string) string {
 	switch provider {
 	case "ollama":
 		return strings.TrimSpace(cfg.OllamaModel)
-	case "copilot":
-		return strings.TrimSpace(cfg.CopilotModel)
 	case "anthropic":
 		return strings.TrimSpace(cfg.AnthropicModel)
 	case "openrouter":

@@ -77,10 +77,6 @@ func buildCLIJobs(cfg appconfig.App) ([]cliJob, error) {
 			if entry.Model != "" {
 				derived.OpenAIModel = entry.Model
 			}
-		case "copilot":
-			if entry.Model != "" {
-				derived.CopilotModel = entry.Model
-			}
 		case "ollama":
 			if entry.Model != "" {
 				derived.OllamaModel = entry.Model
@@ -151,8 +147,8 @@ func defaultModelForProvider(cfg appconfig.App, provider string) string {
 	switch provider {
 	case "ollama":
 		return cfg.OllamaModel
-	case "copilot":
-		return cfg.CopilotModel
+	case "anthropic":
+		return cfg.AnthropicModel
 	default:
 		return cfg.OpenAIModel
 	}
