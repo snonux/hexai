@@ -44,10 +44,10 @@ func TestBuildRequestSpecs_MultiEntries(t *testing.T) {
 	s := newTestServer()
 	s.cfg.CompletionConfigs = []appconfig.SurfaceConfig{
 		{Provider: "openai", Model: "gpt-4o"},
-		{Provider: "copilot", Model: "cpt", Temperature: floatPtr(0.4)},
+		{Provider: "anthropic", Model: "claude", Temperature: floatPtr(0.4)},
 	}
 	s.cfg.OpenAIModel = "gpt-3.5"
-	s.cfg.CopilotModel = "cpt-base"
+	s.cfg.AnthropicModel = "claude-base"
 	s.cfg.MaxTokens = 256
 	specs := s.buildRequestSpecs(surfaceCompletion)
 	if len(specs) != 2 {
@@ -56,7 +56,7 @@ func TestBuildRequestSpecs_MultiEntries(t *testing.T) {
 	if specs[0].provider != "openai" || specs[0].index != 0 {
 		t.Fatalf("unexpected first spec: %+v", specs[0])
 	}
-	if specs[1].provider != "copilot" || specs[1].index != 1 {
+	if specs[1].provider != "anthropic" || specs[1].index != 1 {
 		t.Fatalf("unexpected second spec: %+v", specs[1])
 	}
 	var opts1, opts2 llm.Options
@@ -69,7 +69,7 @@ func TestBuildRequestSpecs_MultiEntries(t *testing.T) {
 	if opts1.Model != "gpt-4o" || opts1.MaxTokens != 256 {
 		t.Fatalf("unexpected opts1: %+v", opts1)
 	}
-	if opts2.Model != "cpt" || opts2.Temperature != 0.4 {
+	if opts2.Model != "claude" || opts2.Temperature != 0.4 {
 		t.Fatalf("unexpected opts2: %+v", opts2)
 	}
 }

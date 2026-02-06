@@ -22,9 +22,6 @@ func NewClientFromApp(cfg appconfig.App) (llm.Client, error) {
 		OllamaBaseURL:         cfg.OllamaBaseURL,
 		OllamaModel:           cfg.OllamaModel,
 		OllamaTemperature:     cfg.OllamaTemperature,
-		CopilotBaseURL:        cfg.CopilotBaseURL,
-		CopilotModel:          cfg.CopilotModel,
-		CopilotTemperature:    cfg.CopilotTemperature,
 		AnthropicBaseURL:      cfg.AnthropicBaseURL,
 		AnthropicModel:        cfg.AnthropicModel,
 		AnthropicTemperature:  cfg.AnthropicTemperature,
@@ -37,13 +34,9 @@ func NewClientFromApp(cfg appconfig.App) (llm.Client, error) {
 	if strings.TrimSpace(orKey) == "" {
 		orKey = os.Getenv("OPENROUTER_API_KEY")
 	}
-	cpKey := os.Getenv("HEXAI_COPILOT_API_KEY")
-	if strings.TrimSpace(cpKey) == "" {
-		cpKey = os.Getenv("COPILOT_API_KEY")
-	}
 	anKey := os.Getenv("HEXAI_ANTHROPIC_API_KEY")
 	if strings.TrimSpace(anKey) == "" {
 		anKey = os.Getenv("ANTHROPIC_API_KEY")
 	}
-	return llm.NewFromConfig(llmCfg, oaKey, orKey, cpKey, anKey)
+	return llm.NewFromConfig(llmCfg, oaKey, orKey, anKey)
 }

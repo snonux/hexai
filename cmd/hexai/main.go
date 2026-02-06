@@ -100,8 +100,8 @@ func pickDefaultModel(cfg appconfig.App, provider string) string {
 	switch strings.ToLower(strings.TrimSpace(provider)) {
 	case "ollama":
 		return strings.TrimSpace(cfg.OllamaModel)
-	case "copilot":
-		return strings.TrimSpace(cfg.CopilotModel)
+	case "anthropic":
+		return strings.TrimSpace(cfg.AnthropicModel)
 	default:
 		return strings.TrimSpace(cfg.OpenAIModel)
 	}

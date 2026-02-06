@@ -63,7 +63,6 @@ func (s *fakeStreamer) ChatStream(ctx context.Context, messages []llm.Message, o
 	return nil
 }
 
-
 func writeConfigString(t *testing.T, path string, contents string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

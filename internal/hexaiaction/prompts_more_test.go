@@ -35,8 +35,8 @@ func TestReqOptsFrom_Override(t *testing.T) {
 	cfg := appconfig.App{
 		MaxTokens:         123,
 		Provider:          "openai",
-		CopilotModel:      "gpt-4o",
-		CodeActionConfigs: []appconfig.SurfaceConfig{{Provider: "copilot", Model: "override", Temperature: ptrFloat(0.6)}},
+		AnthropicModel:    "claude-3-5-sonnet",
+		CodeActionConfigs: []appconfig.SurfaceConfig{{Provider: "anthropic", Model: "override", Temperature: ptrFloat(0.6)}},
 	}
 	req := reqOptsFrom(cfg)
 	if req.model != "override" {
