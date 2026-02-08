@@ -73,6 +73,14 @@ window_minutes = 60  # default 60; min 1, max 1440
 
 `hexai-tmux-edit` opens your `$EDITOR` in a tmux popup to compose longer prompts when working with AI CLI agents (Claude Code, Cursor, Amp, Aider, etc.).
 
+![Popup editor in action](tmux-edit-popup.png)
+
+The editor opens as a tmux popup overlay, pre-filled with any existing prompt text from the agent's input. After saving and closing, the text is sent back:
+
+![Text sent back to the agent](tmux-edit-result.png)
+
+*(Screenshots from the [original blog post](https://foo.zone/gemfeed/2026-02-02-tmux-popup-editor-for-cursor-agent-prompts.html) showing the concept with Cursor Agent.)*
+
 Add this keybinding to `~/.tmux.conf`:
 
 ```
