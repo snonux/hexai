@@ -165,7 +165,7 @@ Built-in agent detection (auto-detected from pane content, checked in order):
    - Clears with: `End BSpace*200` (backspace method)
    - Prompt pattern: Extracts from last `│...│` box
 2. **Claude Code** -- detects `❯` prompt symbol, "claude code", or "anthropic"
-   - Clears with: `Escape gg C-v G d i` (Vi/Vim style)
+   - Clears with: `C-a C-k` (Emacs/readline style)
    - Prompt pattern: Extracts from last section between `─────` rules
 3. **Amp** -- detects "amp" or "sourcegraph" in pane (TUI mode)
    - Clears with: `C-u` (Emacs/readline style)

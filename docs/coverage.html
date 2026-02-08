@@ -149,7 +149,7 @@
 				
 				<option value="file46">codeberg.org/snonux/hexai/internal/tmuxedit/agent.go (82.1%)</option>
 				
-				<option value="file47">codeberg.org/snonux/hexai/internal/tmuxedit/agentutil.go (94.2%)</option>
+				<option value="file47">codeberg.org/snonux/hexai/internal/tmuxedit/agentutil.go (47.1%)</option>
 				
 				<option value="file48">codeberg.org/snonux/hexai/internal/tmuxedit/capture.go (100.0%)</option>
 				
@@ -9534,9 +9534,9 @@ import (
         "golang.org/x/sys/unix"
 )
 
-func tryLockFile(fd uintptr) error <span class="cov10" title="582">{
-        if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil </span><span class="cov9" title="448">{
-                if errors.Is(err, unix.EWOULDBLOCK) </span><span class="cov9" title="448">{
+func tryLockFile(fd uintptr) error <span class="cov10" title="559">{
+        if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil </span><span class="cov9" title="425">{
+                if errors.Is(err, unix.EWOULDBLOCK) </span><span class="cov9" title="425">{
                         return errLockWouldBlock
                 }</span>
                 <span class="cov0" title="0">return err</span>
@@ -9651,7 +9651,7 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
         if b, rerr := os.ReadFile(path); rerr == nil </span><span class="cov5" title="125">{
                 _ = json.Unmarshal(b, &amp;sf)
         }</span>
-        <span class="cov5" title="134">if sf.Version != fileVersion </span><span class="cov3" title="9">{
+        <span class="cov5" title="134">if sf.Version != fileVersion </span><span class="cov2" title="9">{
                 sf = File{Version: fileVersion}
         }</span>
         <span class="cov5" title="134">now := time.Now()
@@ -9664,12 +9664,12 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
         if len(sf.Events) &gt; 0 </span><span class="cov5" title="134">{
                 // Find first &gt;= cutoff
                 i := 0
-                for ; i &lt; len(sf.Events); i++ </span><span class="cov6" title="267">{
+                for ; i &lt; len(sf.Events); i++ </span><span class="cov5" title="137">{
                         if !sf.Events[i].TS.Before(cutoff) </span><span class="cov5" title="134">{
                                 break</span>
                         }
                 }
-                <span class="cov5" title="134">if i &gt; 0 </span><span class="cov2" title="4">{
+                <span class="cov5" title="134">if i &gt; 0 </span><span class="cov1" title="3">{
                         sf.Events = append([]Event(nil), sf.Events[i:]...)
                 }</span>
         }
@@ -9704,30 +9704,30 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
 
 func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) <span class="cov5" title="134">{
         fd := f.Fd()
-        for </span><span class="cov6" title="582">{
+        for </span><span class="cov6" title="559">{
                 err := tryLockFile(fd)
                 if err == nil </span><span class="cov5" title="134">{
                         return func() error </span><span class="cov5" title="134">{ return unlockFile(fd) }</span>, nil
                 }
-                <span class="cov6" title="448">if errors.Is(err, errLockWouldBlock) </span><span class="cov6" title="448">{
+                <span class="cov6" title="425">if errors.Is(err, errLockWouldBlock) </span><span class="cov6" title="425">{
                         select </span>{
                         case &lt;-ctx.Done():<span class="cov0" title="0">
                                 return nil, ctx.Err()</span>
-                        case &lt;-time.After(5 * time.Millisecond):<span class="cov6" title="448"></span>
+                        case &lt;-time.After(5 * time.Millisecond):<span class="cov6" title="425"></span>
                         }
-                        <span class="cov6" title="448">continue</span>
+                        <span class="cov6" title="425">continue</span>
                 }
                 <span class="cov0" title="0">return nil, err</span>
         }
 }
 
 // Snapshot reads and aggregates events within the configured window.
-func TakeSnapshot() (Snapshot, error) <span class="cov5" title="76">{
+func TakeSnapshot() (Snapshot, error) <span class="cov4" title="76">{
         dir, err := CacheDir()
         if err != nil </span><span class="cov0" title="0">{
                 return Snapshot{}, err
         }</span>
-        <span class="cov5" title="76">path := filepath.Join(dir, fileName)
+        <span class="cov4" title="76">path := filepath.Join(dir, fileName)
         b, err := os.ReadFile(path)
         if err != nil </span><span class="cov0" title="0">{
                 if errors.Is(err, os.ErrNotExist) </span><span class="cov0" title="0">{
@@ -9735,30 +9735,30 @@ func TakeSnapshot() (Snapshot, error) <span class="cov5" title="76">{
                 }</span>
                 <span class="cov0" title="0">return Snapshot{}, err</span>
         }
-        <span class="cov5" title="76">var sf File
+        <span class="cov4" title="76">var sf File
         if err := json.Unmarshal(b, &amp;sf); err != nil </span><span class="cov0" title="0">{
                 return Snapshot{}, err
         }</span>
-        <span class="cov5" title="76">win := time.Duration(sf.WindowSeconds) * time.Second
+        <span class="cov4" title="76">win := time.Duration(sf.WindowSeconds) * time.Second
         if win &lt;= 0 </span><span class="cov0" title="0">{
                 win = Window()
-        }</span> else<span class="cov5" title="76"> {
+        }</span> else<span class="cov4" title="76"> {
                 SetWindow(win) // align process with file window if changed elsewhere
         }</span>
-        <span class="cov5" title="76">cutoff := time.Now().Add(-win)
+        <span class="cov4" title="76">cutoff := time.Now().Add(-win)
         snap := Snapshot{Providers: make(map[string]ProviderEntry), Window: win}
-        for _, ev := range sf.Events </span><span class="cov10" title="15367">{
+        for _, ev := range sf.Events </span><span class="cov10" title="19923">{
                 if ev.TS.Before(cutoff) </span><span class="cov0" title="0">{
                         continue</span>
                 }
-                <span class="cov10" title="15367">snap.Global.Reqs++
+                <span class="cov10" title="19923">snap.Global.Reqs++
                 snap.Global.Sent += ev.Sent
                 snap.Global.Recv += ev.Recv
                 pe := snap.Providers[ev.Provider]
                 if pe.Models == nil </span><span class="cov6" title="478">{
                         pe.Models = make(map[string]Counters)
                 }</span>
-                <span class="cov10" title="15367">pe.Totals.Reqs++
+                <span class="cov10" title="19923">pe.Totals.Reqs++
                 pe.Totals.Sent += ev.Sent
                 pe.Totals.Recv += ev.Recv
                 mc := pe.Models[ev.Model]
@@ -9768,17 +9768,17 @@ func TakeSnapshot() (Snapshot, error) <span class="cov5" title="76">{
                 pe.Models[ev.Model] = mc
                 snap.Providers[ev.Provider] = pe</span>
         }
-        <span class="cov5" title="76">mins := win.Minutes()
+        <span class="cov4" title="76">mins := win.Minutes()
         if mins &lt;= 0 </span><span class="cov0" title="0">{
                 mins = 0.001
         }</span>
-        <span class="cov5" title="76">snap.RPM = float64(snap.Global.Reqs) / mins
+        <span class="cov4" title="76">snap.RPM = float64(snap.Global.Reqs) / mins
         return snap, nil</span>
 }
 
 // CacheDir resolves the cache directory for stats.
-func CacheDir() (string, error) <span class="cov6" title="213">{
-        if x := os.Getenv("XDG_CACHE_HOME"); stringsTrim(x) != "" </span><span class="cov5" title="81">{
+func CacheDir() (string, error) <span class="cov5" title="213">{
+        if x := os.Getenv("XDG_CACHE_HOME"); stringsTrim(x) != "" </span><span class="cov4" title="81">{
                 return filepath.Join(x, "hexai"), nil
         }</span>
         <span class="cov5" title="132">home, err := os.UserHomeDir()
@@ -9789,23 +9789,23 @@ func CacheDir() (string, error) <span class="cov6" title="213">{
 }
 
 // stringsTrim is a tiny helper to avoid importing strings everywhere here.
-func stringsTrim(s string) string <span class="cov6" title="213">{
+func stringsTrim(s string) string <span class="cov5" title="213">{
         i := 0
         j := len(s)
         for i &lt; j &amp;&amp; (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') </span><span class="cov0" title="0">{
                 i++
         }</span>
-        <span class="cov6" title="213">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
+        <span class="cov5" title="213">for j &gt; i &amp;&amp; (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') </span><span class="cov0" title="0">{
                 j--
         }</span>
-        <span class="cov6" title="213">if i == 0 &amp;&amp; j == len(s) </span><span class="cov6" title="213">{
+        <span class="cov5" title="213">if i == 0 &amp;&amp; j == len(s) </span><span class="cov5" title="213">{
                 return s
         }</span>
         <span class="cov0" title="0">return s[i:j]</span>
 }
 
 // DebugString returns a compact single-line view of a snapshot (useful for logs).
-func (s Snapshot) DebugString() string <span class="cov2" title="3">{
+func (s Snapshot) DebugString() string <span class="cov1" title="3">{
         return "Σ reqs=" + strconv.FormatInt(s.Global.Reqs, 10) + " rpm=" + fmt.Sprintf("%.2f", s.RPM)
 }</span>
 </pre>
@@ -10471,6 +10471,7 @@ import (
         "regexp"
         "strconv"
         "strings"
+        "time"
 )
 
 // promptMatch holds a regex match result with its line number in the pane.
@@ -10481,117 +10482,121 @@ type promptMatch struct {
 
 // matchPromptLines runs the prompt regex against each pane line, returning
 // matches with their line numbers for contiguity analysis.
-func matchPromptLines(re *regexp.Regexp, paneContent string) []promptMatch <span class="cov6" title="14">{
+func matchPromptLines(re *regexp.Regexp, paneContent string) []promptMatch {
         paneLines := strings.Split(paneContent, "\n")
         var matches []promptMatch
-        for i, line := range paneLines </span><span class="cov9" title="42">{
-                m := re.FindStringSubmatch(line)
-                if len(m) &gt;= 2 </span><span class="cov7" title="22">{
-                        matches = append(matches, promptMatch{lineNum: i, text: m[1]})
+</span>        for i, line := range paneLines </span>{
+                m := re.FindStr</span>ingSubmatch(line)
+                if len(m) &gt;= 2 </span>{
+                        </span>matches = append(matches, promptMatch{lineNum: i, text: m[1]})
                 }</span>
-        }
-        <span class="cov6" title="14">return matches</span>
+        <span class="cov0" title="0">}
+</span>        <span class="cov6" title="14">return matches</span>
 }
 
 // joinAllMatches strips noise from all matches and joins the non-empty results
-// with newlines. Used when SectionPattern has already scoped to the prompt area.
-func joinAllMatches(matches []promptMatch, strips []string) string <span class="cov1" title="1">{
+// with newlines. Used when SectionPattern has already scoped to th<span class="cov0" title="0">e prompt area.
+func joinAllMatches(matches []promptMatch, strips []string) string {
         var lines []string
-        for _, m := range matches </span><span class="cov3" title="3">{
-                line := stripNoise(m.text, strips)
-                if line != "" </span><span class="cov2" title="2">{
-                        lines = append(lines, line)
+</span>        for _, m := range matches </span>{
+                line := stripN</span>oise(m.text, strips)
+                if line != "" </span>{
+                        </span>lines = append(lines, line)
                 }</span>
-        }
-        <span class="cov1" title="1">return strings.Join(lines, "\n")</span>
+        <span class="cov0" title="0">}
+</span>        <span class="cov1" title="1">return strings.Join(lines, "\n")</span>
 }
 
 // joinLastContiguousBlock takes the last group of matches on consecutive line
 // numbers, strips noise from each, and joins the non-empty results with
 // newlines. This ensures that only the bottom-most box (the input prompt)
 // is captured when multiple box-drawing sections exist in the pane.
-func joinLastContiguousBlock(matches []promptMatch, strips []string) string <span class="cov6" title="12">{
+func joinLastContiguousBlock(matches []promptMatch, strips []string) string {
         last := len(matches) - 1
         start := last
-        for start &gt; 0 &amp;&amp; matches[start].lineNum-matches[start-1].lineNum == 1 </span><span class="cov5" title="7">{
-                start--
+</span>        for start &gt; 0 &amp;&amp; matches[start].lineNum-matches[start-1].lineNum == 1 </span>{
+                </span>start--
         }</span>
-        <span class="cov6" title="12">var lines []string
-        for i := start; i &lt;= last; i++ </span><span class="cov7" title="19">{
-                line := stripNoise(matches[i].text, strips)
-                if line != "" </span><span class="cov7" title="18">{
-                        lines = append(lines, line)
+        var lines []string
+</span>        for i := start; i &lt;= last; i++ </span>{
+                line := stripN</span>oise(matches[i].text, strips)
+                if line != "" </span>{
+                        </span>lines = append(lines, line)
                 }</span>
-        }
-        <span class="cov6" title="12">return strings.Join(lines, "\n")</span>
+        <span class="cov0" title="0">}
+</span>        <span class="cov6" title="12">return strings.Join(lines, "\n")</span>
 }
 
 // scopeToLastSection extracts the content between the last two lines matching
 // the section delimiter pattern. This isolates the prompt area (e.g. Claude's
 // ─── rules) from previous conversation content. Returns the full content if
 // no pattern is set or fewer than two delimiters are found.
-func scopeToLastSection(paneContent, sectionPattern string) string <span class="cov7" title="16">{
-        if sectionPattern == "" </span><span class="cov3" title="3">{
-                return paneContent
+func scopeToLastSection(p</span><span class="cov0" title="0">aneContent, sectionPattern string) string {
+        if sectionPattern == "" {
+                </span></span>return paneContent
         }</span>
-        <span class="cov6" title="13">re, err := regexp.Compile(sectionPattern)
-        if err != nil </span><span class="cov1" title="1">{
-                return paneContent
+        re, err := reg</span>exp.Compile(sectionPattern)
+        if err != nil </span>{
+                </span>return paneContent
         }</span>
-        <span class="cov6" title="12">lines := strings.Split(paneContent, "\n")
+        lines := strings.Split(paneContent, "\n")
         var delimLines []int
-        for i, line := range lines </span><span class="cov10" title="58">{
-                if re.MatchString(line) </span><span class="cov8" title="24">{
-                        delimLines = append(delimLines, i)
+</span>        for i, line := range lines </span>{
+</span>                if re.MatchString(line) {
+                        </span></span>delimLines = append(delimLines, i)
                 }</span>
-        }
-        <span class="cov6" title="12">if len(delimLines) &lt; 2 </span><span class="cov4" title="4">{
-                return paneContent
+        <span class="cov0" title="0">}
+</span>        if len(delimLines) &lt; 2 {
+                </span></span>return paneContent
         }</span>
-        <span class="cov5" title="8">start := delimLines[len(delimLines)-2] + 1
-        end := delimLines[len(delimLines)-1]
-        if start &gt;= end </span><span class="cov0" title="0">{
-                return paneContent
+        start := delimLines[len(delimLines)-2] + 1
+        end := delimLine</span>s[len(delimLines)-1]
+        if start &gt;= end </span>{
+                </span>return paneContent
         }</span>
-        <span class="cov5" title="8">return strings.Join(lines[start:end], "\n")</span>
+</span>        <span class="cov5" title="8">return strings.Join(lines[start:end], "\n")</span>
 }
 
 // stripNoise removes each of the agent's StripPatterns from text and trims
 // whitespace.
-func stripNoise(text string, patterns []string) string <span class="cov8" title="35">{
-        for _, p := range patterns </span><span class="cov9" title="44">{
-                text = strings.ReplaceAll(text, p, "")
+func stripNoise(text string,</span><span class="cov0" title="0"> patterns []string) string {
+        for _, p := range patterns {
+                </span></span>text = strings.ReplaceAll(text, p, "")
         }</span>
-        <span class="cov8" title="35">return strings.TrimSpace(text)</span>
+</span>        <span class="cov8" title="35">return strings.TrimSpace(text)</span>
 }
 
 // sendClearSequence parses a space-separated key sequence and sends each
 // token individually. Tokens with a "*N" suffix (e.g. "BSpace*200") are
-// sent N times using tmux send-keys -N for efficient bulk repeats.
-func sendClearSequence(paneID, clearKeys string) error <span class="cov4" title="4">{
-        for _, token := range strings.Fields(clearKeys) </span><span class="cov7" title="16">{
-                key, count := parseKeyRepeat(token)
-                if count &gt; 1 </span><span class="cov2" title="2">{
-                        if err := sendRepeatedKey(paneID, key, count); err != nil </span><span class="cov0" title="0">{
-                                return fmt.Errorf("clear key %q*%d failed: %w", key, count, err)
+// sent N times using tmux send-keys -N for efficient b<span class="cov0" title="0">ulk repeats.
+func sendClearSequence(paneID, clearKeys string) </span><span class="cov0" title="0">error {
+        for _, token := range strings.Fields(clearKeys) {
+                key, count :=</span></span> parseKeyRepeat(token)
+                if count &gt; 1 </span>{
+</span>                        if err := sendRepeatedKey(paneID, key, count); err != nil </span>{
+                                </span>return fmt.Errorf("clear key %q*%d failed: %w", key, count, err)
                         }</span>
-                } else<span class="cov6" title="14"> {
-                        if err := sendKeys(paneID, key); err != nil </span><span class="cov0" title="0">{
-                                return fmt.Errorf("clear key %q failed: %w", key, err)
+                } else {
+</span>                        if err := sendKeys(paneID, key); err != nil </span>{
+                                </span>return fmt.Errorf("clear key %q failed: %w", key, err)
                         }</span>
                 }
+        <span class="cov0" title="0">        // Add de</span>lay after Escape to let Vim/Claude exit INSERT mode
+                <span class="cov5" title="8">if key == "Escape" </span><span class="cov0" title="0">{
+                        time.Sleep(150 * time.Millisecond)
+                }</span>
         }
         <span class="cov4" title="4">return nil</span>
 }
 
-// parseKeyRepeat splits "Key*N" into (Key, N). Returns (token, 1) if no
-// repeat suffix is present or the suffix is invalid.
-func parseKeyRepeat(token string) (string, int) <span class="cov8" title="24">{
-        idx := strings.LastIndex(token, "*")
-        if idx &lt; 1 || idx &gt;= len(token)-1 </span><span class="cov7" title="17">{
-                return token, 1
+</span>// parseKeyRepeat splits "Key*N" into (Key, N). Returns (token, 1) if no
+//</span> repeat suffix is present or the suffix is invalid.
+f<span class="cov0" title="0">unc parseKeyRepeat(token string) (string, int) {
+        idx := strings.LastInde</span>x(token, "*")
+        if idx &lt; 1 || idx &gt;= len(token)-1 </span>{
+                </span>return token, 1
         }</span>
-        <span class="cov5" title="7">n, err := strconv.Atoi(token[idx+1:])
+</span>        <span class="cov5" title="7">n, err := strconv.Atoi(token[idx+1:])
         if err != nil || n &lt; 1 </span><span class="cov2" title="2">{
                 return token, 1
         }</span>
@@ -10599,22 +10604,22 @@ func parseKeyRepeat(token string) (string, int) <span class="cov8" title="24">{
 }
 
 // sendLines sends text line-by-line to a tmux pane, inserting the specified
-// newline key between lines. If newlineKeys is empty, "Enter" is used as
-// fallback. This is the shared text-sending logic used by agent SendText
+// newline key between lines</span><span class="cov0" title="0">. If newlineKeys is empty, "Enter" is used as
+// fallback. This is the shared text-sending lo</span><span class="cov0" title="0">gic used by agent SendText
 // implementations.
-func sendLines(paneID, text, newlineKeys string) error <span class="cov5" title="7">{
+fun</span>c sendLines(paneID, text, newlineKeys string) error <span class="cov5" title="7">{
         lines := strings.Split(text, "\n")
-        for i, line := range lines </span><span class="cov6" title="11">{
-                if err := sendKeys(paneID, line); err != nil </span><span class="cov1" title="1">{
-                        return fmt.Errorf("send line %d failed: %w", i, err)
+        for i, line := range lines </span>{
+</span>                if err := sendKeys(paneID, line); err != nil {
+                        return fmt.Erro</span></span>rf("send line %d failed: %w", i, err)
                 }</span>
-                // Insert inter-line newline (except after the last line)
-                <span class="cov6" title="10">if i &lt; len(lines)-1 </span><span class="cov4" title="4">{
-                        nlKey := newlineKeys
-                        if nlKey == "" </span><span class="cov1" title="1">{
-                                nlKey = "Enter"
+                //</span> Insert inter-line newline (except after the last line)
+                <span class="cov6" title="10">if i &lt; len(lines)-1 </span>{
+</span>                        nlKey := newlineKeys
+                        if nlKey == "" </span>{
+</span>                                nlKey = "Enter"
                         }</span>
-                        <span class="cov4" title="4">if err := sendKeys(paneID, nlKey); err != nil </span><span class="cov0" title="0">{
+        <span class="cov0" title="0">                if err :</span>= sendKeys(paneID, nlKey); err != nil </span><span class="cov0" title="0">{
                                 return fmt.Errorf("newline after line %d failed: %w", i, err)
                         }</span>
                 }
@@ -10665,7 +10670,7 @@ func newClaudeAgent() *claudeAgent <span class="cov10" title="18">{
                 sectionPat:    `^─{5,}`,
                 promptPat:     `(?m)❯\s*(.+)$`,
                 clearFirst:    true,
-                clearKeys:     "Escape gg C-v G d i",
+                clearKeys:     "C-a C-k",
                 newlineKeys:   "S-Enter",
                 submitKeys:    "Enter",
         }}
@@ -10750,16 +10755,16 @@ func builtinAgents() []Agent <span class="cov10" title="15">{
         return []Agent{
                 newCursorAgent(),
                 newClaudeAgent(),
-        &amp;configAgent{baseAgent{
-                name:          "amp",
-                displayName:   "Amp",
-                detectPattern: `(?i)(amp|sourcegraph)`,
-                promptPat:     `(?m)│\s*(.+?)\s*│\s*$`,
-                clearFirst:    true,
-                clearKeys:     "C-u",
-                newlineKeys:   "S-Enter",
-                submitKeys:    "Enter",
-        }},
+                &amp;configAgent{baseAgent{
+                        name:          "amp",
+                        displayName:   "Amp",
+                        detectPattern: `(?i)(amp|sourcegraph)`,
+                        promptPat:     `(?m)│\s*(.+?)\s*│\s*$`,
+                        clearFirst:    true,
+                        clearKeys:     "C-u",
+                        newlineKeys:   "S-Enter",
+                        submitKeys:    "Enter",
+                }},
                 &amp;configAgent{baseAgent{
                         name:          "aider",
                         displayName:   "Aider",

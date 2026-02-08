@@ -88,14 +88,10 @@ func TestClaudeAgent_ClearInput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// "Escape gg C-v G d i" should send each as separate send-keys call
+	// "C-a C-k" (Emacs/readline style) should send each as separate send-keys call
 	want := []string{
-		"send:%3:Escape",
-		"send:%3:gg",
-		"send:%3:C-v",
-		"send:%3:G",
-		"send:%3:d",
-		"send:%3:i",
+		"send:%3:C-a",
+		"send:%3:C-k",
 	}
 	if len(calls) != len(want) {
 		t.Fatalf("got %d calls, want %d: %v", len(calls), len(want), calls)
