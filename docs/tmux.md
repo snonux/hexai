@@ -68,3 +68,17 @@ window_minutes = 60  # default 60; min 1, max 1440
 ```
 
 - The tmux status shows the window as `Σ@1h` or `Σ@45m`.
+
+## Popup editor for AI agent prompts
+
+`hexai-tmux-edit` opens your `$EDITOR` in a tmux popup to compose longer prompts when working with AI CLI agents (Claude Code, Cursor, Amp, Aider, etc.).
+
+Add this keybinding to `~/.tmux.conf`:
+
+```
+bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"
+```
+
+Then press `prefix + e` in any pane running an AI agent. Hexai auto-detects the agent, extracts any existing prompt text, and pre-fills the editor. After saving and closing, the edited text is sent back to the agent's pane.
+
+See the [configuration guide](configuration.md) for customizing popup dimensions and agent patterns, or the [usage guide](usage.md) for the full workflow description.

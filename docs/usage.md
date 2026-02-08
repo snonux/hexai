@@ -151,6 +151,52 @@ Tips:
 - Ensure Helix runs inside tmux to see the status updates.
 - You can also set a language-specific binding in `languages.toml` if preferred.
 
+## Hexai Tmux Edit (Popup Editor)
+
+`hexai-tmux-edit` opens your `$EDITOR` in a tmux popup for composing longer AI agent prompts. It captures existing prompt text from the target pane, pre-fills the editor, and sends the edited text back via `tmux send-keys`.
+
+This is useful when working with AI CLI agents (Claude Code, Cursor, Amp, Aider, etc.) and you need to compose a longer, multi-line prompt with the comfort of your regular editor (spellcheck, search/replace, etc.).
+
+### Supported agents
+
+Built-in agent detection (auto-detected from pane content):
+- **Claude Code** -- detects "claude" or "anthropic" in pane
+- **Cursor** -- detects "cursor" in pane, strips "INSERT"/"Add a follow-up"
+- **Amp** -- detects "amp" or "sourcegraph" in pane
+- **Aider** -- detects "aider" in pane
+
+Additional agents can be added via `[tmux_edit.agents]` in config.toml without code changes.
+
+### Tmux keybinding
+
+Add to `~/.tmux.conf`:
+
+```
+bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"
+```
+
+The `#{pane_id}` is expanded by tmux to the active pane at keypress time, so the popup editor always knows which pane to send text back to.
+
+### Flags
+
+- `--config` path to config file (default: `$XDG_CONFIG_HOME/hexai/config.toml`)
+- `--agent` explicit agent name (auto-detected if omitted)
+- `--pane` tmux target pane ID (e.g. `%5`)
+
+### Workflow
+
+1. Press your tmux keybinding (e.g. `prefix + e`)
+2. A tmux popup opens with your `$EDITOR`, pre-filled with any existing prompt text
+3. Edit or compose your prompt
+4. Save and close the editor
+5. The edited text is sent to the agent's pane via `tmux send-keys`
+
+If you keep the original text unchanged and append new text, only the appended text is sent. If you rewrite the prompt entirely, the full new text is sent. If you save an empty file or don't change anything, nothing is sent.
+
+### Configuration
+
+See `[tmux_edit]` in [config.toml.example](../config.toml.example) for all options, including custom popup dimensions and agent overrides.
+
 ### Slash commands
 
 Type a slash command at the end of a chat line (for example `/? reload>`). Available commands:

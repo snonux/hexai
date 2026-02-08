@@ -110,6 +110,35 @@ See the [tmux integration guide](docs/tmux.md) for details on configuring the st
 
 Code action prompts
 
-- All prompts can be customized under `[prompts.code_action]` in `config.toml`. In addition to `rewrite_*`, `diagnostics_*`, `document_*`, and `go_test_*`, the following templates control the “Simplify and improve” action:
+- All prompts can be customized under `[prompts.code_action]` in `config.toml`. In addition to `rewrite_*`, `diagnostics_*`, `document_*`, and `go_test_*`, the following templates control the \u201cSimplify and improve\u201d action:
   - `simplify_system`
   - `simplify_user` (uses `{{selection}}`)
+
+Hexai Tmux Edit (popup editor)
+
+- `hexai-tmux-edit` opens `$EDITOR` in a tmux popup for composing longer AI agent prompts.
+- Configure popup dimensions and agent detection patterns in the `[tmux_edit]` section:
+
+  ```toml
+  [tmux_edit]
+  popup_width = "80%"
+  popup_height = "80%"
+  # default_agent = "claude"   # force agent; skip auto-detect
+  ```
+
+- Override or add agent definitions with `[[tmux_edit.agents]]` (merged with built-in defaults by name):
+
+  ```toml
+  [[tmux_edit.agents]]
+  name = "claude"
+  display_name = "Claude Code"
+  detect_pattern = "(?i)(claude|anthropic)"
+  prompt_pattern = '(?m)>\s*(.+)$'
+  clear_first = true
+  clear_keys = "C-u"
+  newline_keys = "S-Enter"
+  submit_keys = "Enter"
+  ```
+
+- Built-in agents: `claude`, `cursor`, `amp`, `aider`. See [config.toml.example](../config.toml.example) for all fields.
+- Tmux keybinding: `bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"`
