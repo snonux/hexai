@@ -24,26 +24,36 @@ type AgentConfig struct {
 	SubmitKeys    string   // tmux key to submit the prompt (e.g. "Enter")
 }
 
-// builtinAgents returns the default set of agent configurations. These are
-// overridden/extended by user config in [tmux_edit.agents].
+// builtinAgents returns the default set of agent configurations. Order
+// matters: agents with distinctive UI elements (box-drawing, etc.) are
+// checked first to avoid false positives from model names like "Claude
+// 4.5 Sonnet" appearing in other agents' panes. Overridden/extended by
+// user config in [tmux_edit.agents].
 func builtinAgents() []AgentConfig {
 	return []AgentConfig{
 		{
-			Name:          "claude",
-			DisplayName:   "Claude Code",
-			DetectPattern: `(?i)(claude|anthropic)`,
-			PromptPattern: `(?m)>\s*(.+)$`,
+			// Cursor Agent uses a distinctive box-drawing │ → prompt │ UI.
+			// Detect by the box structure or "/ commands" footer. Checked
+			// first because cursor panes show model names like "Claude 4.5".
+			// Clear uses End + bulk backspace to delete all existing text.
+			// The *200 suffix sends 200 backspaces via tmux send-keys -N.
+			Name:          "cursor",
+			DisplayName:   "Cursor",
+			DetectPattern: `(│\s*→|/ commands · @ files)`,
+			PromptPattern: `(?m)│\s*→?\s*(.+?)\s*│\s*$`,
+			StripPatterns: []string{"INSERT", "Add a follow-up", "ctrl+c to stop"},
 			ClearFirst:    true,
-			ClearKeys:     "C-u",
+			ClearKeys:     "End BSpace*200",
 			NewlineKeys:   "S-Enter",
 			SubmitKeys:    "Enter",
 		},
 		{
-			Name:          "cursor",
-			DisplayName:   "Cursor",
-			DetectPattern: `(?i)cursor`,
-			PromptPattern: `(?m)│\s*(.+)$`,
-			StripPatterns: []string{"INSERT", "Add a follow-up"},
+			// Claude Code uses ❯ prompt between ──── horizontal rules.
+			// Detect by the ❯ prompt or explicit "claude code" banner.
+			Name:          "claude",
+			DisplayName:   "Claude Code",
+			DetectPattern: `(❯|claude code|anthropic)`,
+			PromptPattern: `(?m)❯\s*(.+)$`,
 			ClearFirst:    true,
 			ClearKeys:     "C-u",
 			NewlineKeys:   "S-Enter",
@@ -185,7 +195,10 @@ func findAgentByName(name string, agents []AgentConfig) AgentConfig {
 }
 
 // extractPrompt uses the agent's PromptPattern to extract the current prompt
-// text from pane content. Returns empty string if no pattern or no match.
+// text from pane content. For multi-line prompts (e.g. cursor's box-drawing
+// │...│ UI) it takes only the last contiguous group of matched lines, which
+// avoids picking up command-review or dialog boxes that use the same border
+// characters. Returns empty string if no pattern or no match.
 func extractPrompt(paneContent string, agent AgentConfig) string {
 	if agent.PromptPattern == "" {
 		return ""
@@ -194,12 +207,51 @@ func extractPrompt(paneContent string, agent AgentConfig) string {
 	if err != nil {
 		return ""
 	}
-	m := re.FindStringSubmatch(paneContent)
-	if len(m) < 2 {
+	allMatches := matchPromptLines(re, paneContent)
+	if len(allMatches) == 0 {
 		return ""
 	}
-	text := m[1]
-	return stripNoise(text, agent.StripPatterns)
+	return joinLastContiguousBlock(allMatches, agent.StripPatterns)
+}
+
+// promptMatch holds a regex match result with its line number in the pane.
+type promptMatch struct {
+	lineNum int
+	text    string // capture group 1
+}
+
+// matchPromptLines runs the prompt regex against each pane line, returning
+// matches with their line numbers for contiguity analysis.
+func matchPromptLines(re *regexp.Regexp, paneContent string) []promptMatch {
+	paneLines := strings.Split(paneContent, "\n")
+	var matches []promptMatch
+	for i, line := range paneLines {
+		m := re.FindStringSubmatch(line)
+		if len(m) >= 2 {
+			matches = append(matches, promptMatch{lineNum: i, text: m[1]})
+		}
+	}
+	return matches
+}
+
+// joinLastContiguousBlock takes the last group of matches on consecutive line
+// numbers, strips noise from each, and joins the non-empty results with
+// newlines. This ensures that only the bottom-most box (the input prompt)
+// is captured when multiple box-drawing sections exist in the pane.
+func joinLastContiguousBlock(matches []promptMatch, strips []string) string {
+	last := len(matches) - 1
+	start := last
+	for start > 0 && matches[start].lineNum-matches[start-1].lineNum == 1 {
+		start--
+	}
+	var lines []string
+	for i := start; i <= last; i++ {
+		line := stripNoise(matches[i].text, strips)
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // stripNoise removes each of the agent's StripPatterns from text and trims

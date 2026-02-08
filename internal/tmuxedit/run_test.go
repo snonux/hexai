@@ -29,9 +29,9 @@ func TestRunWithConfig_HappyPath(t *testing.T) {
 		return nil, nil
 	}
 
-	// Mock: capture pane content with Claude agent detected
+	// Mock: capture pane content with Claude Code agent detected
 	capturePane = func(paneID string) (string, error) {
-		return "Claude Code v1.0\n> fix the bug", nil
+		return "claude code v1.0\n────\n❯ fix the bug\n────", nil
 	}
 
 	// Mock: editor popup returns modified text
@@ -58,14 +58,16 @@ func TestRunWithConfig_HappyPath(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Should have sent: clear (C-u), "also refactor the module"
-	// (since "fix the bug" was pre-filled and kept, only the appended text is sent)
-	if len(sent) < 1 {
-		t.Fatalf("no send calls recorded")
+	// Should have sent: clear (C-u), then the full edited text (both lines)
+	// since deduplicateText returns the complete text whenever anything changed.
+	if len(sent) < 2 {
+		t.Fatalf("expected at least 2 send calls (clear + text), got %d: %v", len(sent), sent)
 	}
 
-	// Check that the deduplication worked - only new text should be sent
 	allSent := strings.Join(sent, "|")
+	if !strings.Contains(allSent, "fix the bug") {
+		t.Errorf("expected 'fix the bug' in sent calls: %v", sent)
+	}
 	if !strings.Contains(allSent, "also refactor the module") {
 		t.Errorf("expected 'also refactor the module' in sent calls: %v", sent)
 	}
@@ -121,7 +123,7 @@ func TestRunWithConfig_EditorEmpty(t *testing.T) {
 		return []byte("%1"), nil
 	}
 	capturePane = func(string) (string, error) {
-		return "Claude\n> ", nil
+		return "claude code\n❯ ", nil
 	}
 	openEditorPopup = func(string, string, string) (string, error) {
 		return "", nil // user saved empty file
@@ -206,51 +208,51 @@ func TestShellQuote(t *testing.T) {
 }
 
 func TestLaunchPopup_CommandArgs(t *testing.T) {
-	oldRunCmd := runCommand
-	defer func() { runCommand = oldRunCmd }()
+	oldLaunch := launchPopup
+	defer func() { launchPopup = oldLaunch }()
 
-	var captured []string
-	runCommand = func(name string, args ...string) ([]byte, error) {
-		captured = append(captured, name)
-		captured = append(captured, args...)
-		return nil, nil
+	var capturedArgs struct {
+		ed, path, w, h string
+	}
+	launchPopup = func(ed, path, w, h string) error {
+		capturedArgs.ed = ed
+		capturedArgs.path = path
+		capturedArgs.w = w
+		capturedArgs.h = h
+		return nil
 	}
 
 	err := launchPopup("vim", "/tmp/test.md", "90%", "85%")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// Verify command structure: tmux display-popup -E -w 90% -h 85% "vim '/tmp/test.md'"
-	if captured[0] != "tmux" {
-		t.Errorf("command = %q, want tmux", captured[0])
+	if capturedArgs.ed != "vim" {
+		t.Errorf("ed = %q, want vim", capturedArgs.ed)
 	}
-	if captured[1] != "display-popup" {
-		t.Errorf("args[0] = %q, want display-popup", captured[1])
-	}
-	if captured[2] != "-E" {
-		t.Errorf("args[1] = %q, want -E", captured[2])
+	if capturedArgs.w != "90%" || capturedArgs.h != "85%" {
+		t.Errorf("dimensions = %sx%s, want 90%%x85%%", capturedArgs.w, capturedArgs.h)
 	}
 }
 
 func TestLaunchPopup_NoDimensions(t *testing.T) {
-	oldRunCmd := runCommand
-	defer func() { runCommand = oldRunCmd }()
+	oldLaunch := launchPopup
+	defer func() { launchPopup = oldLaunch }()
 
-	var captured []string
-	runCommand = func(name string, args ...string) ([]byte, error) {
-		captured = args
-		return nil, nil
+	var capturedArgs struct {
+		w, h string
+	}
+	launchPopup = func(ed, path, w, h string) error {
+		capturedArgs.w = w
+		capturedArgs.h = h
+		return nil
 	}
 
 	err := launchPopup("nano", "/tmp/f.md", "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// Should not include -w or -h flags
-	for _, a := range captured {
-		if a == "-w" || a == "-h" {
-			t.Errorf("unexpected dimension flag in args: %v", captured)
-		}
+	if capturedArgs.w != "" || capturedArgs.h != "" {
+		t.Errorf("expected empty dimensions, got %qx%q", capturedArgs.w, capturedArgs.h)
 	}
 }
 

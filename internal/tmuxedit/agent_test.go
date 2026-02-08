@@ -15,9 +15,11 @@ func TestDetectAgent(t *testing.T) {
 		content string
 		want    string
 	}{
-		{"claude from banner", "Welcome to Claude Code v1.2\n> ", "claude"},
-		{"claude from anthropic", "Powered by Anthropic\n> ", "claude"},
-		{"cursor from prompt", "cursor agent ready\n│ type here", "cursor"},
+		{"claude code prompt", "────\n❯ hello world\n────", "claude"},
+		{"claude code banner", "claude code v1.2\n❯ ", "claude"},
+		{"claude from anthropic", "Powered by Anthropic\n❯ ", "claude"},
+		{"cursor box ui", "│ → type here │\n/ commands · @ files", "cursor"},
+		{"cursor not false claude", "Claude 4.5 Sonnet\n│ → test │\n/ commands · @ files", "cursor"},
 		{"amp from banner", "Amp by Sourcegraph\n> ", "amp"},
 		{"aider from banner", "aider v0.50\n> /help", "aider"},
 		{"no match", "some random terminal output\n$ ", "generic"},
@@ -64,21 +66,68 @@ func TestExtractPrompt(t *testing.T) {
 	}{
 		{
 			name:    "claude prompt",
-			content: "Claude Code v1\n> hello world",
-			agent:   builtinAgents()[0], // claude
+			content: "────\n❯ hello world\n────",
+			agent:   builtinAgents()[1], // claude
 			want:    "hello world",
 		},
 		{
-			name:    "cursor prompt with strip",
-			content: "Cursor Agent\n│ fix the bug INSERT",
-			agent:   builtinAgents()[1], // cursor
+			name:    "cursor prompt with box and arrow",
+			content: "Cursor Agent\n │ → fix the bug                    INSERT │",
+			agent:   builtinAgents()[0], // cursor
+			want:    "fix the bug",
+		},
+		{
+			name:    "cursor prompt without arrow",
+			content: "Cursor Agent\n │ fix the bug              │",
+			agent:   builtinAgents()[0], // cursor
 			want:    "fix the bug",
 		},
 		{
 			name:    "cursor prompt strips follow-up",
-			content: "Cursor\n│ Add a follow-up",
-			agent:   builtinAgents()[1], // cursor
+			content: "Cursor\n │ → Add a follow-up            │",
+			agent:   builtinAgents()[0], // cursor
 			want:    "",
+		},
+		{
+			name:    "cursor multi-line prompt",
+			content: " │ → first line of prompt                    │\n │   second line here                        │\n │   third line end                          │",
+			agent:   builtinAgents()[0], // cursor
+			want:    "first line of prompt\nsecond line here\nthird line end",
+		},
+		{
+			name:    "cursor multi-line with noise",
+			content: " │ → fix the bug INSERT                     │\n │   also refactor tests                     │",
+			agent:   builtinAgents()[0], // cursor
+			want:    "fix the bug\nalso refactor tests",
+		},
+		{
+			name: "cursor multi-box takes last box only",
+			content: " ┌──────────────┐\n" +
+				" │ $ git push    │\n" +
+				" └──────────────┘\n" +
+				" ┌──────────────┐\n" +
+				" │ Run command?  │\n" +
+				" │ → Yes (enter) │\n" +
+				" │   No (esc)    │\n" +
+				" └──────────────┘\n" +
+				" ┌──────────────┐\n" +
+				" │ → hello world │\n" +
+				" └──────────────┘\n",
+			agent: builtinAgents()[0], // cursor
+			want:  "hello world",
+		},
+		{
+			name: "cursor multi-box multi-line prompt",
+			content: " ┌──────────────┐\n" +
+				" │ $ git push    │\n" +
+				" └──────────────┘\n" +
+				" ┌──────────────┐\n" +
+				" │ → first line  │\n" +
+				" │   second line │\n" +
+				" │   third line  │\n" +
+				" └──────────────┘\n",
+			agent: builtinAgents()[0], // cursor
+			want:  "first line\nsecond line\nthird line",
 		},
 		{
 			name:    "no pattern",
@@ -89,7 +138,7 @@ func TestExtractPrompt(t *testing.T) {
 		{
 			name:    "no match",
 			content: "no prompt here",
-			agent:   builtinAgents()[0], // claude
+			agent:   builtinAgents()[1], // claude
 			want:    "",
 		},
 		{
