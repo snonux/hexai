@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
@@ -56,9 +57,10 @@ var openEditorPopup = func(initial, popupW, popupH string) (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
-// launchPopup runs `tmux display-popup` with the editor command.
-// The -E flag makes the popup close when the editor exits.
-func launchPopup(ed, path, width, height string) error {
+// launchPopup is the seam for running `tmux display-popup` with the editor.
+// The -E flag makes the popup close when the editor exits. Uses .Run()
+// (not .Output()) so the popup blocks until the user closes the editor.
+var launchPopup = func(ed, path, width, height string) error {
 	args := []string{"display-popup", "-E"}
 	if width != "" {
 		args = append(args, "-w", width)
@@ -67,8 +69,7 @@ func launchPopup(ed, path, width, height string) error {
 		args = append(args, "-h", height)
 	}
 	args = append(args, ed+" "+shellQuote(path))
-	_, err := runCommand("tmux", args...)
-	return err
+	return exec.Command("tmux", args...).Run()
 }
 
 // shellQuote wraps a path in single quotes for safe shell use.
@@ -99,23 +100,58 @@ func loadConfig(configPath string) appconfig.App {
 	return appconfig.LoadWithOptions(logger, lopts)
 }
 
+// debugLog is the debug logger. Set to a real logger via initDebugLog().
+var debugLog *log.Logger
+
+// initDebugLog creates a debug log file at /tmp/hexai-tmux-edit.log.
+func initDebugLog() {
+	f, err := os.OpenFile("/tmp/hexai-tmux-edit.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return
+	}
+	debugLog = log.New(f, "", log.LstdFlags|log.Lmicroseconds)
+}
+
+func dbg(format string, args ...any) {
+	if debugLog != nil {
+		debugLog.Printf(format, args...)
+	}
+}
+
 // runWithConfig executes the edit workflow using the provided config.
 func runWithConfig(opts Options, cfg appconfig.App) error {
+	initDebugLog()
+	dbg("=== hexai-tmux-edit start ===")
+	dbg("opts: pane=%q agent=%q config=%q", opts.Pane, opts.Agent, opts.ConfigPath)
+
 	paneID, err := resolveTargetPane(opts.Pane)
 	if err != nil {
+		dbg("resolveTargetPane error: %v", err)
 		return err
 	}
+	dbg("resolved pane: %q", paneID)
+
 	content, err := capturePane(paneID)
 	if err != nil {
+		dbg("capturePane error: %v", err)
 		return err
 	}
+	dbg("captured %d bytes from pane", len(content))
+	// Log a few lines around the prompt
+	for i, line := range strings.Split(content, "\n") {
+		if strings.Contains(line, "│") || strings.Contains(line, "→") {
+			dbg("  pane line %d: %q", i, line)
+		}
+	}
+
 	agents := resolveAgents(cfg.TmuxEditAgents)
 	agent := pickAgent(opts.Agent, content, agents)
+	dbg("agent: name=%q detect=%q prompt=%q strip=%v clear=%v clearKeys=%q",
+		agent.Name, agent.DetectPattern, agent.PromptPattern, agent.StripPatterns, agent.ClearFirst, agent.ClearKeys)
 
-	// Extract current prompt text from pane content
 	original := extractPrompt(content, agent)
+	dbg("extractPrompt result: %q", original)
 
-	// Determine popup dimensions from config (with defaults)
 	popupW := cfg.TmuxEditPopupWidth
 	if popupW == "" {
 		popupW = "80%"
@@ -124,19 +160,29 @@ func runWithConfig(opts Options, cfg appconfig.App) error {
 	if popupH == "" {
 		popupH = "80%"
 	}
+	dbg("opening editor popup: w=%s h=%s initial=%q", popupW, popupH, original)
 
 	edited, err := openEditorPopup(original, popupW, popupH)
 	if err != nil {
+		dbg("openEditorPopup error: %v", err)
 		return err
 	}
+	dbg("editor returned: %q", edited)
 
-	// Deduplicate: remove the pre-filled text if the user didn't change it
 	text := deduplicateText(original, edited)
+	dbg("deduplicateText result: %q", text)
 	if text == "" {
-		return nil // nothing to send
+		dbg("nothing to send, exiting")
+		return nil
 	}
 
-	return sendTextToPane(paneID, text, agent)
+	dbg("sending to pane %q: %q", paneID, text)
+	err = sendTextToPane(paneID, text, agent)
+	if err != nil {
+		dbg("sendTextToPane error: %v", err)
+	}
+	dbg("=== done ===")
+	return err
 }
 
 // pickAgent selects an agent by explicit name or auto-detection.

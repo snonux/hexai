@@ -17,10 +17,10 @@ func TestDeduplicateText(t *testing.T) {
 		{"empty original", "", "new text", "new text"},
 		{"empty edited", "original", "", ""},
 		{"unchanged", "hello world", "hello world", ""},
-		{"appended", "hello", "hello world", "world"},
+		{"appended", "hello", "hello world", "hello world"},
 		{"rewritten", "hello world", "goodbye world", "goodbye world"},
-		{"whitespace handling", "  hello  ", "  hello  world  ", "world"},
-		{"prefix match with newlines", "line1\nline2", "line1\nline2\nline3", "line3"},
+		{"whitespace handling", "  hello  ", "  hello  world  ", "hello  world"},
+		{"appended with newlines", "line1\nline2", "line1\nline2\nline3", "line1\nline2\nline3"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -33,7 +33,16 @@ func TestDeduplicateText(t *testing.T) {
 	}
 }
 
+// noSleep disables the post-clear sleep in tests and restores it on cleanup.
+func noSleep(t *testing.T) {
+	t.Helper()
+	old := sleepAfterClear
+	sleepAfterClear = func() {}
+	t.Cleanup(func() { sleepAfterClear = old })
+}
+
 func TestSendTextToPane_SingleLine(t *testing.T) {
+	noSleep(t)
 	var calls []string
 	oldSend := sendKeys
 	defer func() { sendKeys = oldSend }()
@@ -116,6 +125,7 @@ func TestSendTextToPane_Empty(t *testing.T) {
 }
 
 func TestSendTextToPane_ClearError(t *testing.T) {
+	noSleep(t)
 	oldSend := sendKeys
 	defer func() { sendKeys = oldSend }()
 	sendKeys = func(paneID string, keys ...string) error {
@@ -129,6 +139,7 @@ func TestSendTextToPane_ClearError(t *testing.T) {
 }
 
 func TestSendTextToPane_SendError(t *testing.T) {
+	noSleep(t)
 	callCount := 0
 	oldSend := sendKeys
 	defer func() { sendKeys = oldSend }()
@@ -143,6 +154,70 @@ func TestSendTextToPane_SendError(t *testing.T) {
 	err := sendTextToPane("%1", "hello", agent)
 	if err == nil {
 		t.Fatal("expected error on send failure")
+	}
+}
+
+func TestSendTextToPane_BulkClear(t *testing.T) {
+	noSleep(t)
+	var calls []string
+	oldSend := sendKeys
+	oldRepeat := sendRepeatedKey
+	defer func() {
+		sendKeys = oldSend
+		sendRepeatedKey = oldRepeat
+	}()
+	sendKeys = func(paneID string, keys ...string) error {
+		calls = append(calls, fmt.Sprintf("send:%s:%s", paneID, strings.Join(keys, ",")))
+		return nil
+	}
+	sendRepeatedKey = func(paneID, key string, count int) error {
+		calls = append(calls, fmt.Sprintf("repeat:%s:%s*%d", paneID, key, count))
+		return nil
+	}
+	// "End BSpace*200" should send End normally, then BSpace 200 times via -N
+	agent := AgentConfig{ClearFirst: true, ClearKeys: "End BSpace*200", NewlineKeys: "S-Enter"}
+	err := sendTextToPane("%5", "new text", agent)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{
+		"send:%5:End",
+		"repeat:%5:BSpace*200",
+		"send:%5:new text",
+	}
+	if len(calls) != len(want) {
+		t.Fatalf("got %d calls, want %d: %v", len(calls), len(want), calls)
+	}
+	for i, w := range want {
+		if calls[i] != w {
+			t.Errorf("call[%d] = %q, want %q", i, calls[i], w)
+		}
+	}
+}
+
+func TestParseKeyRepeat(t *testing.T) {
+	tests := []struct {
+		token     string
+		wantKey   string
+		wantCount int
+	}{
+		{"BSpace*200", "BSpace", 200},
+		{"End", "End", 1},
+		{"C-u", "C-u", 1},
+		{"BSpace*1", "BSpace", 1},
+		{"BSpace*0", "BSpace*0", 1},     // invalid count
+		{"BSpace*abc", "BSpace*abc", 1}, // non-numeric
+		{"*200", "*200", 1},             // no key name
+		{"x*3", "x", 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.token, func(t *testing.T) {
+			key, count := parseKeyRepeat(tt.token)
+			if key != tt.wantKey || count != tt.wantCount {
+				t.Errorf("parseKeyRepeat(%q) = (%q, %d), want (%q, %d)",
+					tt.token, key, count, tt.wantKey, tt.wantCount)
+			}
+		})
 	}
 }
 
