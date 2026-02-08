@@ -148,3 +148,8 @@ temperature = 0.2
 
 [stats]
 # window_minutes = 60                  # sliding window for global stats (Σ@window); min 1, max 1440
+
+[ignore]
+# gitignore = true                     # respect .gitignore patterns (default: true)
+# extra_patterns = ["*.min.js", "vendor/**", "*.generated.go"]
+# lsp_notify_ignored = true            # show "file ignored" in LSP completions (default: true)

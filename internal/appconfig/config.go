@@ -113,6 +113,11 @@ type App struct {
 	TmuxCustomMenuHotkey string         `json:"-" toml:"-"`
 	// Stats
 	StatsWindowMinutes int `json:"-" toml:"-"`
+
+	// Ignore: gitignore-aware file filtering for LSP
+	IgnoreGitignore     *bool    `json:"-" toml:"-"`
+	IgnoreExtraPatterns []string `json:"-" toml:"-"`
+	IgnoreLSPNotify     *bool    `json:"-" toml:"-"`
 }
 
 // CustomAction describes a user-defined code action.
@@ -180,8 +185,14 @@ func newDefaultConfig() App {
 
 		// Stats
 		StatsWindowMinutes: 60,
+
+		// Ignore: respect .gitignore by default, notify in LSP by default
+		IgnoreGitignore: boolPtr(true),
+		IgnoreLSPNotify: boolPtr(true),
 	}
 }
+
+func boolPtr(b bool) *bool { return &b }
 
 // Load reads configuration from a file and merges with defaults.
 // It respects the XDG Base Directory Specification.
@@ -236,11 +247,11 @@ func LoadWithOptions(logger *log.Logger, opts LoadOptions) App {
 }
 
 // loadProjectConfig attempts to load .hexaiconfig.toml from the project root and
-// merges it into cfg. Uses opts.ProjectRoot if set, otherwise auto-detects via findGitRoot().
+// merges it into cfg. Uses opts.ProjectRoot if set, otherwise auto-detects via FindGitRoot().
 func loadProjectConfig(logger *log.Logger, opts LoadOptions, cfg *App) {
 	projectRoot := strings.TrimSpace(opts.ProjectRoot)
 	if projectRoot == "" {
-		projectRoot = findGitRoot()
+		projectRoot = FindGitRoot()
 	}
 	if projectRoot == "" {
 		return
@@ -269,6 +280,7 @@ type fileConfig struct {
 	Prompts    sectionPrompts    `toml:"prompts"`
 	Tmux       sectionTmux       `toml:"tmux"`
 	Stats      sectionStats      `toml:"stats"`
+	Ignore     sectionIgnore     `toml:"ignore"`
 }
 
 type sectionGeneral struct {
@@ -311,6 +323,14 @@ type sectionProvider struct {
 
 type sectionStats struct {
 	WindowMinutes int `toml:"window_minutes"`
+}
+
+// sectionIgnore controls gitignore-aware file filtering. Files matching
+// these patterns are skipped for completions and code actions.
+type sectionIgnore struct {
+	Gitignore        *bool    `toml:"gitignore"`
+	ExtraPatterns    []string `toml:"extra_patterns"`
+	LSPNotifyIgnored *bool    `toml:"lsp_notify_ignored"`
 }
 
 type sectionOpenAI struct {
@@ -629,6 +649,16 @@ func (fc *fileConfig) toApp() App {
 		out.StatsWindowMinutes = fc.Stats.WindowMinutes
 	}
 
+	// ignore
+	if fc.Ignore.Gitignore != nil || len(fc.Ignore.ExtraPatterns) > 0 || fc.Ignore.LSPNotifyIgnored != nil {
+		tmp := App{
+			IgnoreGitignore:     fc.Ignore.Gitignore,
+			IgnoreExtraPatterns: fc.Ignore.ExtraPatterns,
+			IgnoreLSPNotify:     fc.Ignore.LSPNotifyIgnored,
+		}
+		out.mergeBasics(&tmp)
+	}
+
 	return out
 }
 
@@ -925,6 +955,16 @@ func (a *App) mergeBasics(other *App) {
 	if s := strings.TrimSpace(other.Provider); s != "" {
 		a.Provider = s
 	}
+	// Ignore settings
+	if other.IgnoreGitignore != nil {
+		a.IgnoreGitignore = other.IgnoreGitignore
+	}
+	if len(other.IgnoreExtraPatterns) > 0 {
+		a.IgnoreExtraPatterns = slices.Clone(other.IgnoreExtraPatterns)
+	}
+	if other.IgnoreLSPNotify != nil {
+		a.IgnoreLSPNotify = other.IgnoreLSPNotify
+	}
 }
 
 // mergeSurfaceModels copies per-surface model and temperature overrides.
@@ -1141,17 +1181,17 @@ const ProjectConfigFilename = ".hexaiconfig.toml"
 // ProjectConfigPath returns the path to the per-project config file if a git repository
 // root is detected from the current working directory. Returns empty string otherwise.
 func ProjectConfigPath() string {
-	root := findGitRoot()
+	root := FindGitRoot()
 	if root == "" {
 		return ""
 	}
 	return filepath.Join(root, ProjectConfigFilename)
 }
 
-// findGitRoot walks up from the current working directory looking for a .git
-// directory or file (worktrees use a .git file). Returns the directory
-// containing .git, or empty string if none is found.
-func findGitRoot() string {
+// FindGitRoot walks up from the current working directory to find the nearest
+// .git directory or file (worktrees use a .git file), returning its parent
+// path or "" if none is found.
+func FindGitRoot() string {
 	dir, err := os.Getwd()
 	if err != nil {
 		return ""
@@ -1399,6 +1439,28 @@ func loadFromEnv(logger *log.Logger) *App {
 	}
 	if entries, ok := buildEntry("HEXAI_MODEL_CLI", "HEXAI_TEMPERATURE_CLI", "HEXAI_PROVIDER_CLI"); ok {
 		out.CLIConfigs = entries
+		any = true
+	}
+
+	// Ignore settings (bool: "true"/"1" or "false"/"0")
+	if s := getenv("HEXAI_IGNORE_GITIGNORE"); s != "" {
+		b := s == "true" || s == "1"
+		out.IgnoreGitignore = &b
+		any = true
+	}
+	if s := getenv("HEXAI_IGNORE_EXTRA_PATTERNS"); s != "" {
+		parts := strings.Split(s, ",")
+		out.IgnoreExtraPatterns = nil
+		for _, p := range parts {
+			if t := strings.TrimSpace(p); t != "" {
+				out.IgnoreExtraPatterns = append(out.IgnoreExtraPatterns, t)
+			}
+		}
+		any = true
+	}
+	if s := getenv("HEXAI_IGNORE_LSP_NOTIFY"); s != "" {
+		b := s == "true" || s == "1"
+		out.IgnoreLSPNotify = &b
 		any = true
 	}
 

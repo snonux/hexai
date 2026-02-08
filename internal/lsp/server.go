@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/ignore"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/runtimeconfig"
@@ -49,6 +50,9 @@ type Server struct {
 	lastLLMCall time.Time
 
 	completionsDisabled bool
+
+	// Gitignore-aware file checker (nil when disabled)
+	ignoreChecker *ignore.Checker
 
 	// Dispatch table for JSON-RPC methods → handler functions
 	handlers map[string]func(Request)
@@ -101,6 +105,9 @@ type ServerOptions struct {
 
 	// Custom actions
 	CustomActions []CustomAction
+
+	// Gitignore-aware file checker (optional)
+	IgnoreChecker *ignore.Checker
 }
 
 // CustomAction mirrors user-defined code actions passed from config.
@@ -204,6 +211,9 @@ func (s *Server) applyOptions(opts ServerOptions) {
 		s.llmProvider = canonicalProvider(s.cfg.Provider)
 	}
 	s.altClients = make(map[string]llm.Client)
+	if opts.IgnoreChecker != nil {
+		s.ignoreChecker = opts.IgnoreChecker
+	}
 }
 
 // ApplyOptions updates the server's configuration at runtime.
