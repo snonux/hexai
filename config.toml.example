@@ -153,3 +153,35 @@ temperature = 0.2
 # gitignore = true                     # respect .gitignore patterns (default: true)
 # extra_patterns = ["*.min.js", "vendor/**", "*.generated.go"]
 # lsp_notify_ignored = true            # show "file ignored" in LSP completions (default: true)
+
+[tmux_edit]
+# popup_width = "80%"                  # tmux popup width (default: 80%)
+# popup_height = "80%"                 # tmux popup height (default: 80%)
+# default_agent = ""                   # force agent name; skip auto-detect
+
+# Override or add agent definitions (merged with built-in defaults by name).
+# Built-in agents: claude, cursor, amp, aider.
+# Tmux keybinding (add to ~/.tmux.conf):
+#   bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"
+
+# [[tmux_edit.agents]]
+# name = "claude"
+# display_name = "Claude Code"
+# detect_pattern = "(?i)(claude|anthropic)"
+# prompt_pattern = '(?m)>\s*(.+)$'
+# strip_patterns = []
+# clear_first = true
+# clear_keys = "C-u"
+# newline_keys = "S-Enter"
+# submit_keys = "Enter"
+
+# [[tmux_edit.agents]]
+# name = "cursor"
+# display_name = "Cursor"
+# detect_pattern = "(?i)cursor"
+# prompt_pattern = '(?m)│\s*(.+)$'
+# strip_patterns = ["INSERT", "Add a follow-up"]
+# clear_first = true
+# clear_keys = "C-u"
+# newline_keys = "S-Enter"
+# submit_keys = "Enter"

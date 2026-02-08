@@ -24,7 +24,7 @@ var (
 
 // Build builds binaries.
 func Build() error {
-	mg.Deps(BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction)
+	mg.Deps(BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit)
 	printCoverage()
 	return nil
 }
@@ -47,6 +47,12 @@ func BuildHexaiTmuxAction() error {
 	return sh.RunV("go", "build", "-o", "hexai-tmux-action", "cmd/hexai-tmux-action/main.go")
 }
 
+// BuildHexaiTmuxEdit builds the hexai-tmux-edit popup editor binary.
+func BuildHexaiTmuxEdit() error {
+	printCoverage()
+	return sh.RunV("go", "build", "-o", "hexai-tmux-edit", "cmd/hexai-tmux-edit/main.go")
+}
+
 // Dev runs tests, vet, lint, then builds with race for both binaries.
 func Dev() error {
 	printCoverage()
@@ -57,7 +63,10 @@ func Dev() error {
 	if err := sh.RunV("go", "build", "-race", "-o", "hexai", "cmd/hexai/main.go"); err != nil {
 		return err
 	}
-	return sh.RunV("go", "build", "-race", "-o", "hexai-tmux-action", "cmd/hexai-tmux-action/main.go")
+	if err := sh.RunV("go", "build", "-race", "-o", "hexai-tmux-action", "cmd/hexai-tmux-action/main.go"); err != nil {
+		return err
+	}
+	return sh.RunV("go", "build", "-race", "-o", "hexai-tmux-edit", "cmd/hexai-tmux-edit/main.go")
 }
 
 // Run launches the LSP server via go run (useful during development).
@@ -97,7 +106,10 @@ func Install() error {
 	if err := sh.RunV("cp", "-v", "./hexai", bin+"/"); err != nil {
 		return err
 	}
-	return sh.RunV("cp", "-v", "./hexai-tmux-action", bin+"/")
+	if err := sh.RunV("cp", "-v", "./hexai-tmux-action", bin+"/"); err != nil {
+		return err
+	}
+	return sh.RunV("cp", "-v", "./hexai-tmux-edit", bin+"/")
 }
 
 // RunTmuxAction runs the hexai-tmux-action TUI via go run (reads stdin).
@@ -109,8 +121,8 @@ func RunTmuxAction() error {
 
 // printCoverage prints a warning if an existing coverage profile shows total < coverateThreshold.
 func printCoverage() {
-    // Ensure the top-level coverage profile is refreshed at least once per day.
-    ensureDailyCoverage(24 * time.Hour)
+	// Ensure the top-level coverage profile is refreshed at least once per day.
+	ensureDailyCoverage(24 * time.Hour)
 	select {
 	case coveragePrinted <- struct{}{}:
 	default:
@@ -126,20 +138,20 @@ func printCoverage() {
 		fmt.Println("[coverage] No coverage profile found (run 'mage cover' or 'mage coverall').")
 		return
 	}
-    pct, ok := totalCoveragePercent(profile)
-    if !ok {
-        // Attempt a one-time regen if the profile is malformed
-        if err := Coverage(); err == nil {
-            if p2, ok2 := totalCoveragePercent(profile); ok2 {
-                pct = p2
-                ok = true
-            }
-        }
-    }
-    if !ok {
-        fmt.Println("[coverage] Could not parse total coverage from", profile)
-        return
-    }
+	pct, ok := totalCoveragePercent(profile)
+	if !ok {
+		// Attempt a one-time regen if the profile is malformed
+		if err := Coverage(); err == nil {
+			if p2, ok2 := totalCoveragePercent(profile); ok2 {
+				pct = p2
+				ok = true
+			}
+		}
+	}
+	if !ok {
+		fmt.Println("[coverage] Could not parse total coverage from", profile)
+		return
+	}
 	if pct < coverageThreshold {
 		fmt.Printf("[coverage] WARNING: total test coverage is %.1f%% (< %.1f%%)\n", pct, coverageThreshold)
 	} else {
