@@ -90,3 +90,7 @@ bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"
 Then press `prefix + e` in any pane running an AI agent. Hexai auto-detects the agent, extracts any existing prompt text, and pre-fills the editor. After saving and closing, the edited text is sent back to the agent's pane.
 
 See the [configuration guide](configuration.md) for customizing popup dimensions and agent patterns, or the [usage guide](usage.md) for the full workflow description.
+
+**Vim mode recommended**: For best results, run both Cursor Agent and Claude Code in vim mode. Claude Code's `C-u` clear relies on readline/vim insert-mode behavior, and Cursor's prompt clearing works most reliably in its default input mode. The popup editor uses `$EDITOR` (or `$HEXAI_EDITOR`), so your normal vim/neovim setup is used for composing prompts.
+
+**Note**: Agent detection and prompt extraction rely on regex patterns matched against each agent's terminal UI (box-drawing characters, prompt symbols, status text). When agents update their TUI layout, these patterns may need adjustment. You can override patterns per-agent in `[[tmux_edit.agents]]` config without code changes -- see the [configuration guide](configuration.md).

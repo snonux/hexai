@@ -119,6 +119,8 @@ func dbg(format string, args ...any) {
 }
 
 // runWithConfig executes the edit workflow using the provided config.
+// It resolves the agent (by name or auto-detect), extracts the current
+// prompt, opens the editor popup, then clears and sends the result.
 func runWithConfig(opts Options, cfg appconfig.App) error {
 	initDebugLog()
 	dbg("=== hexai-tmux-edit start ===")
@@ -137,29 +139,16 @@ func runWithConfig(opts Options, cfg appconfig.App) error {
 		return err
 	}
 	dbg("captured %d bytes from pane", len(content))
-	// Log a few lines around the prompt
-	for i, line := range strings.Split(content, "\n") {
-		if strings.Contains(line, "│") || strings.Contains(line, "→") {
-			dbg("  pane line %d: %q", i, line)
-		}
-	}
+	logPaneLines(content)
 
 	agents := resolveAgents(cfg.TmuxEditAgents)
 	agent := pickAgent(opts.Agent, content, agents)
-	dbg("agent: name=%q detect=%q prompt=%q strip=%v clear=%v clearKeys=%q",
-		agent.Name, agent.DetectPattern, agent.PromptPattern, agent.StripPatterns, agent.ClearFirst, agent.ClearKeys)
+	dbg("agent: name=%q", agent.Name())
 
-	original := extractPrompt(content, agent)
+	original := agent.ExtractPrompt(content)
 	dbg("extractPrompt result: %q", original)
 
-	popupW := cfg.TmuxEditPopupWidth
-	if popupW == "" {
-		popupW = "80%"
-	}
-	popupH := cfg.TmuxEditPopupHeight
-	if popupH == "" {
-		popupH = "80%"
-	}
+	popupW, popupH := popupDimensions(cfg)
 	dbg("opening editor popup: w=%s h=%s initial=%q", popupW, popupH, original)
 
 	edited, err := openEditorPopup(original, popupW, popupH)
@@ -176,17 +165,45 @@ func runWithConfig(opts Options, cfg appconfig.App) error {
 		return nil
 	}
 
-	dbg("sending to pane %q: %q", paneID, text)
-	err = sendTextToPane(paneID, text, agent)
-	if err != nil {
-		dbg("sendTextToPane error: %v", err)
+	dbg("clearing and sending to pane %q: %q", paneID, text)
+	if err := agent.ClearInput(paneID); err != nil {
+		dbg("ClearInput error: %v", err)
+		return err
+	}
+	if err := agent.SendText(paneID, text); err != nil {
+		dbg("SendText error: %v", err)
+		return err
 	}
 	dbg("=== done ===")
-	return err
+	return nil
+}
+
+// logPaneLines logs lines containing box-drawing or arrow characters for
+// debugging prompt detection.
+func logPaneLines(content string) {
+	for i, line := range strings.Split(content, "\n") {
+		if strings.Contains(line, "│") || strings.Contains(line, "→") {
+			dbg("  pane line %d: %q", i, line)
+		}
+	}
+}
+
+// popupDimensions returns the popup width and height from config, defaulting
+// to "80%" for both if not set.
+func popupDimensions(cfg appconfig.App) (string, string) {
+	w := cfg.TmuxEditPopupWidth
+	if w == "" {
+		w = "80%"
+	}
+	h := cfg.TmuxEditPopupHeight
+	if h == "" {
+		h = "80%"
+	}
+	return w, h
 }
 
 // pickAgent selects an agent by explicit name or auto-detection.
-func pickAgent(name, content string, agents []AgentConfig) AgentConfig {
+func pickAgent(name, content string, agents []Agent) Agent {
 	if name != "" {
 		return findAgentByName(name, agents)
 	}
