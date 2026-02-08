@@ -9,6 +9,7 @@ import (
 )
 
 func TestRunWithConfig_HappyPath(t *testing.T) {
+	noSleep(t)
 	// Save and restore all seams
 	oldCapture := capturePane
 	oldSendKeys := sendKeys
@@ -31,7 +32,7 @@ func TestRunWithConfig_HappyPath(t *testing.T) {
 
 	// Mock: capture pane content with Claude Code agent detected
 	capturePane = func(paneID string) (string, error) {
-		return "claude code v1.0\n────\n❯ fix the bug\n────", nil
+		return "claude code v1.0\n──────\n❯ fix the bug\n──────", nil
 	}
 
 	// Mock: editor popup returns modified text
@@ -58,8 +59,7 @@ func TestRunWithConfig_HappyPath(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Should have sent: clear (C-u), then the full edited text (both lines)
-	// since deduplicateText returns the complete text whenever anything changed.
+	// Should have sent: clear keys, then the full edited text (both lines)
 	if len(sent) < 2 {
 		t.Fatalf("expected at least 2 send calls (clear + text), got %d: %v", len(sent), sent)
 	}
@@ -74,6 +74,7 @@ func TestRunWithConfig_HappyPath(t *testing.T) {
 }
 
 func TestRunWithConfig_ExplicitAgent(t *testing.T) {
+	noSleep(t)
 	oldCapture := capturePane
 	oldSendKeys := sendKeys
 	oldEditorPopup := openEditorPopup
@@ -177,16 +178,16 @@ func TestRunWithConfig_CustomDimensions(t *testing.T) {
 func TestPickAgent_ExplicitName(t *testing.T) {
 	agents := builtinAgents()
 	got := pickAgent("cursor", "Claude Code detected", agents)
-	if got.Name != "cursor" {
-		t.Errorf("pickAgent(cursor) = %q, want cursor (explicit name should win)", got.Name)
+	if got.Name() != "cursor" {
+		t.Errorf("pickAgent(cursor) = %q, want cursor (explicit name should win)", got.Name())
 	}
 }
 
 func TestPickAgent_AutoDetect(t *testing.T) {
 	agents := builtinAgents()
 	got := pickAgent("", "Amp by Sourcegraph", agents)
-	if got.Name != "amp" {
-		t.Errorf("pickAgent('', amp content) = %q, want amp", got.Name)
+	if got.Name() != "amp" {
+		t.Errorf("pickAgent('', amp content) = %q, want amp", got.Name())
 	}
 }
 

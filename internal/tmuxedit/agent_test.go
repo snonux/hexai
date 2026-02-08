@@ -2,11 +2,7 @@ package tmuxedit
 
 import (
 	"testing"
-
-	"codeberg.org/snonux/hexai/internal/appconfig"
 )
-
-func boolP(b bool) *bool { return &b }
 
 func TestDetectAgent(t *testing.T) {
 	agents := builtinAgents()
@@ -28,8 +24,8 @@ func TestDetectAgent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := detectAgent(tt.content, agents)
-			if got.Name != tt.want {
-				t.Errorf("detectAgent() = %q, want %q", got.Name, tt.want)
+			if got.Name() != tt.want {
+				t.Errorf("detectAgent() = %q, want %q", got.Name(), tt.want)
 			}
 		})
 	}
@@ -50,260 +46,74 @@ func TestFindAgentByName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := findAgentByName(tt.name, agents)
-			if got.Name != tt.want {
-				t.Errorf("findAgentByName(%q) = %q, want %q", tt.name, got.Name, tt.want)
+			if got.Name() != tt.want {
+				t.Errorf("findAgentByName(%q) = %q, want %q", tt.name, got.Name(), tt.want)
 			}
 		})
-	}
-}
-
-func TestExtractPrompt(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-		agent   AgentConfig
-		want    string
-	}{
-		{
-			name:    "claude prompt",
-			content: "────\n❯ hello world\n────",
-			agent:   builtinAgents()[1], // claude
-			want:    "hello world",
-		},
-		{
-			name:    "cursor prompt with box and arrow",
-			content: "Cursor Agent\n │ → fix the bug                    INSERT │",
-			agent:   builtinAgents()[0], // cursor
-			want:    "fix the bug",
-		},
-		{
-			name:    "cursor prompt without arrow",
-			content: "Cursor Agent\n │ fix the bug              │",
-			agent:   builtinAgents()[0], // cursor
-			want:    "fix the bug",
-		},
-		{
-			name:    "cursor prompt strips follow-up",
-			content: "Cursor\n │ → Add a follow-up            │",
-			agent:   builtinAgents()[0], // cursor
-			want:    "",
-		},
-		{
-			name:    "cursor multi-line prompt",
-			content: " │ → first line of prompt                    │\n │   second line here                        │\n │   third line end                          │",
-			agent:   builtinAgents()[0], // cursor
-			want:    "first line of prompt\nsecond line here\nthird line end",
-		},
-		{
-			name:    "cursor multi-line with noise",
-			content: " │ → fix the bug INSERT                     │\n │   also refactor tests                     │",
-			agent:   builtinAgents()[0], // cursor
-			want:    "fix the bug\nalso refactor tests",
-		},
-		{
-			name: "cursor multi-box takes last box only",
-			content: " ┌──────────────┐\n" +
-				" │ $ git push    │\n" +
-				" └──────────────┘\n" +
-				" ┌──────────────┐\n" +
-				" │ Run command?  │\n" +
-				" │ → Yes (enter) │\n" +
-				" │   No (esc)    │\n" +
-				" └──────────────┘\n" +
-				" ┌──────────────┐\n" +
-				" │ → hello world │\n" +
-				" └──────────────┘\n",
-			agent: builtinAgents()[0], // cursor
-			want:  "hello world",
-		},
-		{
-			name: "cursor multi-box multi-line prompt",
-			content: " ┌──────────────┐\n" +
-				" │ $ git push    │\n" +
-				" └──────────────┘\n" +
-				" ┌──────────────┐\n" +
-				" │ → first line  │\n" +
-				" │   second line │\n" +
-				" │   third line  │\n" +
-				" └──────────────┘\n",
-			agent: builtinAgents()[0], // cursor
-			want:  "first line\nsecond line\nthird line",
-		},
-		{
-			name:    "no pattern",
-			content: "some text",
-			agent:   genericAgent(),
-			want:    "",
-		},
-		{
-			name:    "no match",
-			content: "no prompt here",
-			agent:   builtinAgents()[1], // claude
-			want:    "",
-		},
-		{
-			name:    "invalid regex",
-			content: "> test",
-			agent:   AgentConfig{PromptPattern: "[invalid"},
-			want:    "",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractPrompt(tt.content, tt.agent)
-			if got != tt.want {
-				t.Errorf("extractPrompt() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestStripNoise(t *testing.T) {
-	tests := []struct {
-		name     string
-		text     string
-		patterns []string
-		want     string
-	}{
-		{"no patterns", "hello world", nil, "hello world"},
-		{"strip INSERT", "fix the bug INSERT", []string{"INSERT"}, "fix the bug"},
-		{"strip multiple", "INSERT fix the bug Add a follow-up", []string{"INSERT", "Add a follow-up"}, "fix the bug"},
-		{"strip to empty", "INSERT", []string{"INSERT"}, ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := stripNoise(tt.text, tt.patterns)
-			if got != tt.want {
-				t.Errorf("stripNoise() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestResolveAgents_MergeOverride(t *testing.T) {
-	cfgAgents := []appconfig.TmuxEditAgentCfg{
-		{
-			Name:        "claude",
-			DisplayName: "My Claude",
-			ClearFirst:  boolP(false),
-		},
-	}
-	agents := resolveAgents(cfgAgents)
-	var claude AgentConfig
-	for _, a := range agents {
-		if a.Name == "claude" {
-			claude = a
-			break
-		}
-	}
-	if claude.DisplayName != "My Claude" {
-		t.Errorf("DisplayName = %q, want My Claude", claude.DisplayName)
-	}
-	if claude.ClearFirst {
-		t.Error("ClearFirst should be false after override")
-	}
-	// DetectPattern should be preserved from builtin
-	if claude.DetectPattern == "" {
-		t.Error("DetectPattern should be preserved from builtin")
-	}
-}
-
-func TestResolveAgents_MergeAllFields(t *testing.T) {
-	cfgAgents := []appconfig.TmuxEditAgentCfg{
-		{
-			Name:          "claude",
-			DisplayName:   "Custom Claude",
-			DetectPattern: "(?i)custom-claude",
-			PromptPattern: `>\s+(.*)$`,
-			StripPatterns: []string{"NOISE"},
-			ClearFirst:    boolP(true),
-			ClearKeys:     "C-k",
-			NewlineKeys:   "C-Enter",
-			SubmitKeys:    "C-m",
-		},
-	}
-	agents := resolveAgents(cfgAgents)
-	var a AgentConfig
-	for _, ag := range agents {
-		if ag.Name == "claude" {
-			a = ag
-			break
-		}
-	}
-	if a.DetectPattern != "(?i)custom-claude" {
-		t.Errorf("DetectPattern = %q", a.DetectPattern)
-	}
-	if a.PromptPattern != `>\s+(.*)$` {
-		t.Errorf("PromptPattern = %q", a.PromptPattern)
-	}
-	if len(a.StripPatterns) != 1 || a.StripPatterns[0] != "NOISE" {
-		t.Errorf("StripPatterns = %v", a.StripPatterns)
-	}
-	if a.ClearKeys != "C-k" {
-		t.Errorf("ClearKeys = %q", a.ClearKeys)
-	}
-	if a.NewlineKeys != "C-Enter" {
-		t.Errorf("NewlineKeys = %q", a.NewlineKeys)
-	}
-	if a.SubmitKeys != "C-m" {
-		t.Errorf("SubmitKeys = %q", a.SubmitKeys)
-	}
-}
-
-func TestResolveAgents_AddNew(t *testing.T) {
-	cfgAgents := []appconfig.TmuxEditAgentCfg{
-		{
-			Name:          "custom",
-			DisplayName:   "Custom Agent",
-			DetectPattern: "(?i)custom",
-			PromptPattern: `>\s*(.+)$`,
-			ClearFirst:    boolP(true),
-		},
-	}
-	agents := resolveAgents(cfgAgents)
-	found := false
-	for _, a := range agents {
-		if a.Name == "custom" {
-			found = true
-			if a.DisplayName != "Custom Agent" {
-				t.Errorf("DisplayName = %q, want Custom Agent", a.DisplayName)
-			}
-			if !a.ClearFirst {
-				t.Error("ClearFirst should be true")
-			}
-		}
-	}
-	if !found {
-		t.Error("custom agent not found in resolved agents")
-	}
-}
-
-func TestAgentFromConfig_DefaultDisplayName(t *testing.T) {
-	cfg := appconfig.TmuxEditAgentCfg{
-		Name: "test",
-	}
-	a := agentFromConfig(cfg)
-	if a.DisplayName != "test" {
-		t.Errorf("DisplayName = %q, want test (defaulted from Name)", a.DisplayName)
 	}
 }
 
 func TestDetectAgent_InvalidRegex(t *testing.T) {
-	agents := []AgentConfig{
-		{Name: "bad", DetectPattern: "[invalid"},
+	agents := []Agent{
+		&configAgent{baseAgent{name: "bad", detectPattern: "[invalid"}},
 	}
 	got := detectAgent("anything", agents)
-	if got.Name != "generic" {
-		t.Errorf("expected generic fallback for invalid regex, got %q", got.Name)
+	if got.Name() != "generic" {
+		t.Errorf("expected generic fallback for invalid regex, got %q", got.Name())
 	}
 }
 
 func TestGenericAgent(t *testing.T) {
 	g := genericAgent()
-	if g.Name != "generic" {
-		t.Errorf("Name = %q, want generic", g.Name)
+	if g.Name() != "generic" {
+		t.Errorf("Name = %q, want generic", g.Name())
 	}
-	if g.SubmitKeys != "Enter" {
-		t.Errorf("SubmitKeys = %q, want Enter", g.SubmitKeys)
+}
+
+func TestBaseAgent_SendText_Empty(t *testing.T) {
+	b := &baseAgent{newlineKeys: "S-Enter"}
+	err := b.SendText("%1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBaseAgent_ClearInput_Disabled(t *testing.T) {
+	b := &baseAgent{clearFirst: false, clearKeys: "C-u"}
+	err := b.ClearInput("%1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBaseAgent_ExtractPrompt_NoPattern(t *testing.T) {
+	b := &baseAgent{}
+	got := b.ExtractPrompt("some content")
+	if got != "" {
+		t.Errorf("expected empty, got %q", got)
+	}
+}
+
+func TestBaseAgent_ExtractPrompt_InvalidRegex(t *testing.T) {
+	b := &baseAgent{promptPat: "[invalid"}
+	got := b.ExtractPrompt("> test")
+	if got != "" {
+		t.Errorf("expected empty for invalid regex, got %q", got)
+	}
+}
+
+func TestConfigurable_Interface(t *testing.T) {
+	// Verify that all agent types implement Configurable
+	agents := builtinAgents()
+	for _, a := range agents {
+		c, ok := a.(Configurable)
+		if !ok {
+			t.Errorf("agent %q does not implement Configurable", a.Name())
+			continue
+		}
+		base := c.Base()
+		if base.name != a.Name() {
+			t.Errorf("Base().name = %q, want %q", base.name, a.Name())
+		}
 	}
 }

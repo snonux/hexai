@@ -141,15 +141,16 @@ type CustomAction struct {
 // TmuxEditAgentCfg describes an AI agent's detection and interaction patterns
 // for the tmux popup editor (hexai-tmux-edit).
 type TmuxEditAgentCfg struct {
-	Name          string
-	DisplayName   string
-	DetectPattern string
-	PromptPattern string
-	StripPatterns []string
-	ClearFirst    *bool
-	ClearKeys     string
-	NewlineKeys   string
-	SubmitKeys    string
+	Name           string
+	DisplayName    string
+	DetectPattern  string
+	SectionPattern string
+	PromptPattern  string
+	StripPatterns  []string
+	ClearFirst     *bool
+	ClearKeys      string
+	NewlineKeys    string
+	SubmitKeys     string
 }
 
 // Constructor: defaults for App (kept first among functions)
@@ -364,15 +365,16 @@ type sectionTmuxEdit struct {
 
 // sectionTmuxEditAgent defines detection and interaction patterns for one AI agent.
 type sectionTmuxEditAgent struct {
-	Name          string   `toml:"name"`
-	DisplayName   string   `toml:"display_name"`
-	DetectPattern string   `toml:"detect_pattern"`
-	PromptPattern string   `toml:"prompt_pattern"`
-	StripPatterns []string `toml:"strip_patterns"`
-	ClearFirst    *bool    `toml:"clear_first"`
-	ClearKeys     string   `toml:"clear_keys"`
-	NewlineKeys   string   `toml:"newline_keys"`
-	SubmitKeys    string   `toml:"submit_keys"`
+	Name           string   `toml:"name"`
+	DisplayName    string   `toml:"display_name"`
+	DetectPattern  string   `toml:"detect_pattern"`
+	SectionPattern string   `toml:"section_pattern"`
+	PromptPattern  string   `toml:"prompt_pattern"`
+	StripPatterns  []string `toml:"strip_patterns"`
+	ClearFirst     *bool    `toml:"clear_first"`
+	ClearKeys      string   `toml:"clear_keys"`
+	NewlineKeys    string   `toml:"newline_keys"`
+	SubmitKeys     string   `toml:"submit_keys"`
 }
 
 type sectionOpenAI struct {
@@ -724,15 +726,16 @@ func (fc *fileConfig) applyTmuxEdit(out *App) {
 			continue
 		}
 		out.TmuxEditAgents = append(out.TmuxEditAgents, TmuxEditAgentCfg{
-			Name:          strings.TrimSpace(a.Name),
-			DisplayName:   strings.TrimSpace(a.DisplayName),
-			DetectPattern: strings.TrimSpace(a.DetectPattern),
-			PromptPattern: strings.TrimSpace(a.PromptPattern),
-			StripPatterns: a.StripPatterns,
-			ClearFirst:    a.ClearFirst,
-			ClearKeys:     strings.TrimSpace(a.ClearKeys),
-			NewlineKeys:   strings.TrimSpace(a.NewlineKeys),
-			SubmitKeys:    strings.TrimSpace(a.SubmitKeys),
+			Name:           strings.TrimSpace(a.Name),
+			DisplayName:    strings.TrimSpace(a.DisplayName),
+			DetectPattern:  strings.TrimSpace(a.DetectPattern),
+			SectionPattern: strings.TrimSpace(a.SectionPattern),
+			PromptPattern:  strings.TrimSpace(a.PromptPattern),
+			StripPatterns:  a.StripPatterns,
+			ClearFirst:     a.ClearFirst,
+			ClearKeys:      strings.TrimSpace(a.ClearKeys),
+			NewlineKeys:    strings.TrimSpace(a.NewlineKeys),
+			SubmitKeys:     strings.TrimSpace(a.SubmitKeys),
 		})
 	}
 }
