@@ -92,9 +92,9 @@ Then press `prefix + e` in any pane running an AI agent. Hexai auto-detects the 
 See the [configuration guide](configuration.md) for customizing popup dimensions and agent patterns, or the [usage guide](usage.md) for the full workflow description.
 
 **Input mode notes**: Each agent uses different clearing methods based on their input handling:
-- **Claude Code**: Uses Vi/Vim keybindings (`Escape gg C-v G d i`), so vim mode is recommended
-- **Cursor**: Uses simple backspace clearing (`End BSpace*200`), works in default mode
-- **Amp**: Uses Emacs/readline keybindings (`C-u`), works in TUI mode
+- **Claude Code**: Uses Emacs/readline keybindings (`C-a C-k`)
+- **Cursor**: Uses simple backspace clearing (`End BSpace*200`)
+- **Amp**: Uses Emacs/readline keybindings (`C-u`)
 - **Aider**: Uses Emacs/readline keybindings (`C-u`)
 
 The popup editor uses `$EDITOR` (or `$HEXAI_EDITOR`), so your normal vim/neovim setup is used for composing prompts.

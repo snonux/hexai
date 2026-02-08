@@ -162,7 +162,7 @@ temperature = 0.2
 # Override or add agent definitions (merged with built-in defaults by name).
 # Built-in agents (checked in order): cursor, claude, amp, aider.
 # - cursor: Box UI │...│, clears with End+BSpace*200
-# - claude: Prompt symbol ❯, clears with Escape gg C-v G d i (Vi/Vim)
+# - claude: Prompt symbol ❯, clears with C-a C-k (Emacs/readline)
 # - amp: Box UI │...│ (TUI mode), clears with C-u (Emacs/readline)
 # - aider: Shell-style > prompt, clears with C-u (Emacs/readline)
 # Tmux keybinding (add to ~/.tmux.conf):

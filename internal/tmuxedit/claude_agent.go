@@ -21,7 +21,7 @@ func newClaudeAgent() *claudeAgent {
 		sectionPat:    `^─{5,}`,
 		promptPat:     `(?m)❯\s*(.+)$`,
 		clearFirst:    true,
-		clearKeys:     "Escape gg C-v G d i",
+		clearKeys:     "C-a C-k",
 		newlineKeys:   "S-Enter",
 		submitKeys:    "Enter",
 	}}

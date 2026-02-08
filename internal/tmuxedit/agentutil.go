@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // promptMatch holds a regex match result with its line number in the pane.
@@ -116,6 +117,10 @@ func sendClearSequence(paneID, clearKeys string) error {
 			if err := sendKeys(paneID, key); err != nil {
 				return fmt.Errorf("clear key %q failed: %w", key, err)
 			}
+		}
+		// Add delay after Escape to let Vim/Claude exit INSERT mode
+		if key == "Escape" {
+			time.Sleep(150 * time.Millisecond)
 		}
 	}
 	return nil
