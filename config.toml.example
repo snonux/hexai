@@ -160,7 +160,11 @@ temperature = 0.2
 # default_agent = ""                   # force agent name; skip auto-detect
 
 # Override or add agent definitions (merged with built-in defaults by name).
-# Built-in agents: claude, cursor, amp, aider.
+# Built-in agents (checked in order): cursor, claude, amp, aider.
+# - cursor: Box UI │...│, clears with End+BSpace*200
+# - claude: Prompt symbol ❯, clears with Escape gg C-v G d i (Vi/Vim)
+# - amp: Box UI │...│ (TUI mode), clears with C-u (Emacs/readline)
+# - aider: Shell-style > prompt, clears with C-u (Emacs/readline)
 # Tmux keybinding (add to ~/.tmux.conf):
 #   bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"
 

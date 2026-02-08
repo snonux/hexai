@@ -159,11 +159,22 @@ This is useful when working with AI CLI agents (Claude Code, Cursor, Amp, Aider,
 
 ### Supported agents
 
-Built-in agent detection (auto-detected from pane content):
-- **Claude Code** -- detects "claude" or "anthropic" in pane
-- **Cursor** -- detects "cursor" in pane, strips "INSERT"/"Add a follow-up"
-- **Amp** -- detects "amp" or "sourcegraph" in pane
-- **Aider** -- detects "aider" in pane
+Built-in agent detection (auto-detected from pane content, checked in order):
+
+1. **Cursor** -- detects box-drawing UI `│ →` or footer `/ commands · @ files`
+   - Clears with: `End BSpace*200` (backspace method)
+   - Prompt pattern: Extracts from last `│...│` box
+2. **Claude Code** -- detects `❯` prompt symbol, "claude code", or "anthropic"
+   - Clears with: `Escape gg C-v G d i` (Vi/Vim style)
+   - Prompt pattern: Extracts from last section between `─────` rules
+3. **Amp** -- detects "amp" or "sourcegraph" in pane (TUI mode)
+   - Clears with: `C-u` (Emacs/readline style)
+   - Prompt pattern: Extracts from `│...│` box UI (similar to Cursor)
+4. **Aider** -- detects "aider" in pane
+   - Clears with: `C-u` (Emacs/readline style)
+   - Prompt pattern: Shell-style `> prompt`
+
+**Detection order matters**: Cursor and Claude are checked first to avoid false positives. For example, Cursor may display "Claude 4.5 Sonnet" as its model name, but Cursor's distinctive `│ →` box UI is matched first.
 
 Additional agents can be added via `[tmux_edit.agents]` in config.toml without code changes.
 

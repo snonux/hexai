@@ -154,7 +154,8 @@ func TestConfigAgent_Amp(t *testing.T) {
 	if !amp.Detect("Amp by Sourcegraph") {
 		t.Error("amp should detect 'Amp by Sourcegraph'")
 	}
-	got := amp.ExtractPrompt("> fix the bug")
+	// Amp uses box-drawing TUI format (like cursor), not shell-style > prompt
+	got := amp.ExtractPrompt("│ fix the bug                                                       │")
 	if got != "fix the bug" {
 		t.Errorf("ExtractPrompt() = %q, want %q", got, "fix the bug")
 	}
