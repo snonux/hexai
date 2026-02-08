@@ -118,6 +118,12 @@ type App struct {
 	IgnoreGitignore     *bool    `json:"-" toml:"-"`
 	IgnoreExtraPatterns []string `json:"-" toml:"-"`
 	IgnoreLSPNotify     *bool    `json:"-" toml:"-"`
+
+	// TmuxEdit: popup editor settings for hexai-tmux-edit
+	TmuxEditPopupWidth   string             `json:"-" toml:"-"`
+	TmuxEditPopupHeight  string             `json:"-" toml:"-"`
+	TmuxEditDefaultAgent string             `json:"-" toml:"-"`
+	TmuxEditAgents       []TmuxEditAgentCfg `json:"-" toml:"-"`
 }
 
 // CustomAction describes a user-defined code action.
@@ -130,6 +136,20 @@ type CustomAction struct {
 	Instruction string // optional; if set and User is empty, use global rewrite templates
 	System      string // optional; used only when User is set
 	User        string // optional; if set, render with available vars
+}
+
+// TmuxEditAgentCfg describes an AI agent's detection and interaction patterns
+// for the tmux popup editor (hexai-tmux-edit).
+type TmuxEditAgentCfg struct {
+	Name          string
+	DisplayName   string
+	DetectPattern string
+	PromptPattern string
+	StripPatterns []string
+	ClearFirst    *bool
+	ClearKeys     string
+	NewlineKeys   string
+	SubmitKeys    string
 }
 
 // Constructor: defaults for App (kept first among functions)
@@ -281,6 +301,7 @@ type fileConfig struct {
 	Tmux       sectionTmux       `toml:"tmux"`
 	Stats      sectionStats      `toml:"stats"`
 	Ignore     sectionIgnore     `toml:"ignore"`
+	TmuxEdit   sectionTmuxEdit   `toml:"tmux_edit"`
 }
 
 type sectionGeneral struct {
@@ -331,6 +352,27 @@ type sectionIgnore struct {
 	Gitignore        *bool    `toml:"gitignore"`
 	ExtraPatterns    []string `toml:"extra_patterns"`
 	LSPNotifyIgnored *bool    `toml:"lsp_notify_ignored"`
+}
+
+// sectionTmuxEdit configures the tmux popup editor feature (hexai-tmux-edit).
+type sectionTmuxEdit struct {
+	PopupWidth   string                 `toml:"popup_width"`
+	PopupHeight  string                 `toml:"popup_height"`
+	DefaultAgent string                 `toml:"default_agent"`
+	Agents       []sectionTmuxEditAgent `toml:"agents"`
+}
+
+// sectionTmuxEditAgent defines detection and interaction patterns for one AI agent.
+type sectionTmuxEditAgent struct {
+	Name          string   `toml:"name"`
+	DisplayName   string   `toml:"display_name"`
+	DetectPattern string   `toml:"detect_pattern"`
+	PromptPattern string   `toml:"prompt_pattern"`
+	StripPatterns []string `toml:"strip_patterns"`
+	ClearFirst    *bool    `toml:"clear_first"`
+	ClearKeys     string   `toml:"clear_keys"`
+	NewlineKeys   string   `toml:"newline_keys"`
+	SubmitKeys    string   `toml:"submit_keys"`
 }
 
 type sectionOpenAI struct {
@@ -659,7 +701,40 @@ func (fc *fileConfig) toApp() App {
 		out.mergeBasics(&tmp)
 	}
 
+	// tmux_edit
+	fc.applyTmuxEdit(&out)
+
 	return out
+}
+
+// applyTmuxEdit converts the [tmux_edit] section into App fields.
+func (fc *fileConfig) applyTmuxEdit(out *App) {
+	te := fc.TmuxEdit
+	if strings.TrimSpace(te.PopupWidth) != "" {
+		out.TmuxEditPopupWidth = strings.TrimSpace(te.PopupWidth)
+	}
+	if strings.TrimSpace(te.PopupHeight) != "" {
+		out.TmuxEditPopupHeight = strings.TrimSpace(te.PopupHeight)
+	}
+	if strings.TrimSpace(te.DefaultAgent) != "" {
+		out.TmuxEditDefaultAgent = strings.TrimSpace(te.DefaultAgent)
+	}
+	for _, a := range te.Agents {
+		if strings.TrimSpace(a.Name) == "" {
+			continue
+		}
+		out.TmuxEditAgents = append(out.TmuxEditAgents, TmuxEditAgentCfg{
+			Name:          strings.TrimSpace(a.Name),
+			DisplayName:   strings.TrimSpace(a.DisplayName),
+			DetectPattern: strings.TrimSpace(a.DetectPattern),
+			PromptPattern: strings.TrimSpace(a.PromptPattern),
+			StripPatterns: a.StripPatterns,
+			ClearFirst:    a.ClearFirst,
+			ClearKeys:     strings.TrimSpace(a.ClearKeys),
+			NewlineKeys:   strings.TrimSpace(a.NewlineKeys),
+			SubmitKeys:    strings.TrimSpace(a.SubmitKeys),
+		})
+	}
 }
 
 func loadFromFile(path string, logger *log.Logger) (*App, error) {
@@ -900,6 +975,7 @@ func (a *App) mergeWith(other *App) {
 	a.mergeProviderFields(other)
 	a.mergeSurfaceModels(other)
 	a.mergePrompts(other)
+	a.mergeTmuxEdit(other)
 }
 
 // mergeBasics merges general (non-provider) fields.
@@ -1060,6 +1136,22 @@ func (a *App) mergePrompts(other *App) {
 }
 
 // Validate checks custom actions and tmux settings for duplicates and consistency.
+// mergeTmuxEdit copies non-empty tmux edit settings from other.
+func (a *App) mergeTmuxEdit(other *App) {
+	if s := strings.TrimSpace(other.TmuxEditPopupWidth); s != "" {
+		a.TmuxEditPopupWidth = s
+	}
+	if s := strings.TrimSpace(other.TmuxEditPopupHeight); s != "" {
+		a.TmuxEditPopupHeight = s
+	}
+	if s := strings.TrimSpace(other.TmuxEditDefaultAgent); s != "" {
+		a.TmuxEditDefaultAgent = s
+	}
+	if len(other.TmuxEditAgents) > 0 {
+		a.TmuxEditAgents = append([]TmuxEditAgentCfg{}, other.TmuxEditAgents...)
+	}
+}
+
 func (a App) Validate() error {
 	// Normalize and check duplicates for IDs and hotkeys
 	seenID := make(map[string]struct{})
