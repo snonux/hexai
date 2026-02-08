@@ -600,3 +600,187 @@ custom_menu_hotkey = "r"
 		t.Fatalf("expected clash error, got %v", err)
 	}
 }
+
+func TestFindGitRoot(t *testing.T) {
+	// Create a temp dir with a .git subdirectory to simulate a git repo
+	dir := t.TempDir()
+	gitDir := filepath.Join(dir, ".git")
+	if err := os.Mkdir(gitDir, 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+	// Create a nested subdir to test walking up
+	nested := filepath.Join(dir, "a", "b", "c")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+
+	// Save and restore cwd
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	// Test from nested subdir — should find the git root
+	if err := os.Chdir(nested); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	root := findGitRoot()
+	if root != dir {
+		t.Fatalf("findGitRoot() = %q, want %q", root, dir)
+	}
+
+	// Test from a dir with no .git ancestor
+	noGit := t.TempDir()
+	if err := os.Chdir(noGit); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	root = findGitRoot()
+	if root != "" {
+		t.Fatalf("findGitRoot() = %q, want empty", root)
+	}
+}
+
+func TestLoadWithOptions_ProjectConfig(t *testing.T) {
+	clearHexaiEnv(t)
+
+	// Set up global config
+	globalDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", globalDir)
+	globalCfgPath := filepath.Join(globalDir, "hexai", "config.toml")
+	writeFile(t, globalCfgPath, `
+[general]
+max_tokens = 2000
+context_mode = "always-full"
+
+[provider]
+name = "openai"
+`)
+
+	// Set up project root with .git and .hexaiconfig.toml
+	projectDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(projectDir, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+	writeFile(t, filepath.Join(projectDir, ProjectConfigFilename), `
+[general]
+max_tokens = 8000
+
+[provider]
+name = "anthropic"
+`)
+
+	// Load using explicit ProjectRoot (avoids needing to chdir)
+	logger := newLogger()
+	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: projectDir})
+
+	// Project config should override global values
+	if cfg.MaxTokens != 8000 {
+		t.Fatalf("expected project max_tokens=8000, got %d", cfg.MaxTokens)
+	}
+	if cfg.Provider != "anthropic" {
+		t.Fatalf("expected project provider=anthropic, got %q", cfg.Provider)
+	}
+	// Values not overridden by project config should come from global config
+	if cfg.ContextMode != "always-full" {
+		t.Fatalf("expected global context_mode=always-full, got %q", cfg.ContextMode)
+	}
+}
+
+func TestLoadWithOptions_ProjectConfig_EnvOverridesProject(t *testing.T) {
+	clearHexaiEnv(t)
+
+	// Set up global config
+	globalDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", globalDir)
+	globalCfgPath := filepath.Join(globalDir, "hexai", "config.toml")
+	writeFile(t, globalCfgPath, `
+[general]
+max_tokens = 2000
+`)
+
+	// Set up project config
+	projectDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(projectDir, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+	writeFile(t, filepath.Join(projectDir, ProjectConfigFilename), `
+[general]
+max_tokens = 8000
+`)
+
+	// Env var should override project config
+	withEnv(t, "HEXAI_MAX_TOKENS", "9999")
+
+	logger := newLogger()
+	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: projectDir})
+
+	if cfg.MaxTokens != 9999 {
+		t.Fatalf("expected env max_tokens=9999 to override project, got %d", cfg.MaxTokens)
+	}
+}
+
+func TestLoadWithOptions_ProjectConfig_NoGitRoot(t *testing.T) {
+	clearHexaiEnv(t)
+
+	// Set up global config
+	globalDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", globalDir)
+	globalCfgPath := filepath.Join(globalDir, "hexai", "config.toml")
+	writeFile(t, globalCfgPath, `
+[general]
+max_tokens = 2000
+`)
+
+	// No ProjectRoot, no .git — should work as before
+	noGit := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+	if err := os.Chdir(noGit); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	logger := newLogger()
+	cfg := LoadWithOptions(logger, LoadOptions{})
+
+	// Should get global config values, not defaults
+	if cfg.MaxTokens != 2000 {
+		t.Fatalf("expected global max_tokens=2000 without project config, got %d", cfg.MaxTokens)
+	}
+}
+
+func TestProjectConfigPath(t *testing.T) {
+	// Set up a fake git repo
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	path := ProjectConfigPath()
+	want := filepath.Join(dir, ProjectConfigFilename)
+	if path != want {
+		t.Fatalf("ProjectConfigPath() = %q, want %q", path, want)
+	}
+
+	// No git root
+	noGit := t.TempDir()
+	if err := os.Chdir(noGit); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	path = ProjectConfigPath()
+	if path != "" {
+		t.Fatalf("ProjectConfigPath() = %q, want empty", path)
+	}
+}

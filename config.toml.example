@@ -1,4 +1,10 @@
 # Hexai sectioned config example
+#
+# Global location: $XDG_CONFIG_HOME/hexai/config.toml (usually ~/.config/hexai/config.toml)
+#
+# Per-project overrides: place a .hexaiconfig.toml at the root of a git
+# repository. It uses the same format and selectively overrides the global
+# config. Environment variables (HEXAI_*) always take precedence over both.
 
 [general]
 max_tokens = 4000

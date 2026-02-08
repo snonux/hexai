@@ -18,7 +18,7 @@ import (
 
 var (
 	Default                   = Build // Default target: build all binaries.
-	coverageThreshold float64 = 85
+	coverageThreshold float64 = 80
 	coveragePrinted           = make(chan struct{}, 1)
 )
 

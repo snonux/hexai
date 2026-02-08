@@ -2,15 +2,22 @@
 
 This page explains where the config lives and how to choose a style; the authoritative list of options and comments lives in the example file.
 
-Config file
+Global config file
 
 - Location: `$XDG_CONFIG_HOME/hexai/config.toml` (usually `~/.config/hexai/config.toml`).
 - Style: sectioned tables only — see [config.toml.example](../config.toml.example) for a complete, commented reference.
 
+Per-project config file
+
+- Place a `.hexaiconfig.toml` at the root of a git repository to selectively override the global config for that project.
+- Uses the same TOML format as the global config file — only specify the settings you want to override.
+- Hexai auto-detects the git repository root by walking up from the current working directory.
+- Precedence (lowest to highest): built-in defaults → global config → per-project config → environment variables.
+
 Environment overrides
 
 - All options can be overridden by environment variables prefixed with `HEXAI_`.
-- Env values take precedence over the config file.
+- Env values always take precedence over both the global and per-project config files.
 - Examples:
   - `HEXAI_PROVIDER`, `HEXAI_MAX_TOKENS`, `HEXAI_CONTEXT_MODE`, `HEXAI_CONTEXT_WINDOW_LINES`, `HEXAI_MAX_CONTEXT_TOKENS`, `HEXAI_LOG_PREVIEW_LIMIT`, `HEXAI_REQUEST_TIMEOUT`
   - `HEXAI_CODING_TEMPERATURE`
