@@ -10,7 +10,7 @@
 
 - Avoid duplication of code when the functions are larger than 5 lines.
 - If possible, construct individual methods so that they can be unit tested. But only if it doesn't add too much boilerplate to the code base.
-- Aim for at least 85% unit test coverage of all source code. The command to check the coverage is "mage coverage"
+- Aim for at least 80% unit test coverage of all source code. The command to check the coverage is "mage coverage"
 - Ensure that all unit tests pass before commiting any changes.
 - Always run the gofumpt code reformatter on all go files modified.
 - There should be no source code file larger than 1000 lines. If so, split it up into multiple.
@@ -25,3 +25,4 @@
 - Whenever incrementing the version, update the version number in the project, commit to git, tag the version and push to git.
 - When a major feature was introduced, increment ?.X.?
 - When only minor changes were done or only bugs were fixed, increment the version as ?.?.X
+

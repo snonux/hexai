@@ -190,8 +190,12 @@ func Load(logger *log.Logger) App { return LoadWithOptions(logger, LoadOptions{}
 // LoadOptions tune how configuration is loaded at runtime.
 type LoadOptions struct {
 	// IgnoreEnv skips applying environment overrides when true.
-	IgnoreEnv  bool
+	IgnoreEnv bool
+	// ConfigPath overrides the global config file path (e.g. via --config flag).
 	ConfigPath string
+	// ProjectRoot overrides the project root directory for locating .hexaiconfig.toml.
+	// When empty, findGitRoot() is used to auto-detect from the current working directory.
+	ProjectRoot string
 }
 
 // LoadWithOptions reads configuration and applies the requested loading options.
@@ -201,6 +205,7 @@ func LoadWithOptions(logger *log.Logger, opts LoadOptions) App {
 		return cfg // Return defaults if no logger is provided (e.g. in tests)
 	}
 
+	// Step 1: Load global config file
 	configPath := strings.TrimSpace(opts.ConfigPath)
 	if configPath != "" {
 		if fileCfg, err := loadFromFile(configPath, logger); err == nil && fileCfg != nil {
@@ -217,13 +222,33 @@ func LoadWithOptions(logger *log.Logger, opts LoadOptions) App {
 		}
 	}
 
+	// Step 2: Load per-project config (.hexaiconfig.toml at git repo root).
+	// Project config overrides global config but is itself overridden by env vars.
+	loadProjectConfig(logger, opts, &cfg)
+
+	// Step 3: Environment overrides (always take precedence over all config files)
 	if !opts.IgnoreEnv {
-		// Environment overrides (take precedence over file)
 		if envCfg := loadFromEnv(logger); envCfg != nil {
 			cfg.mergeWith(envCfg)
 		}
 	}
 	return cfg
+}
+
+// loadProjectConfig attempts to load .hexaiconfig.toml from the project root and
+// merges it into cfg. Uses opts.ProjectRoot if set, otherwise auto-detects via findGitRoot().
+func loadProjectConfig(logger *log.Logger, opts LoadOptions, cfg *App) {
+	projectRoot := strings.TrimSpace(opts.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = findGitRoot()
+	}
+	if projectRoot == "" {
+		return
+	}
+	projectCfgPath := filepath.Join(projectRoot, ProjectConfigFilename)
+	if projCfg, err := loadFromFile(projectCfgPath, logger); err == nil && projCfg != nil {
+		cfg.mergeWith(projCfg)
+	}
 }
 
 // Private helpers
@@ -1108,6 +1133,40 @@ func ConfigPath() (string, error) {
 		configPath = filepath.Join(home, ".config", "hexai", "config.toml")
 	}
 	return configPath, nil
+}
+
+// ProjectConfigFilename is the name of the per-project config file placed at a git repo root.
+const ProjectConfigFilename = ".hexaiconfig.toml"
+
+// ProjectConfigPath returns the path to the per-project config file if a git repository
+// root is detected from the current working directory. Returns empty string otherwise.
+func ProjectConfigPath() string {
+	root := findGitRoot()
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, ProjectConfigFilename)
+}
+
+// findGitRoot walks up from the current working directory looking for a .git
+// directory or file (worktrees use a .git file). Returns the directory
+// containing .git, or empty string if none is found.
+func findGitRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		if info, err := os.Stat(filepath.Join(dir, ".git")); err == nil &&
+			(info.IsDir() || info.Mode().IsRegular()) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "" // reached filesystem root
+		}
+		dir = parent
+	}
 }
 
 // --- Environment overrides ---
