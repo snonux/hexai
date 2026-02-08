@@ -14,7 +14,7 @@ It has got improved capabilities for Go code understanding (for example, create 
 * Stand-alone command line tool for LLM interaction
 * Parallel completions and CLI responses from multiple providers/models for side-by-side comparison
 * TUI AI code-action runner (`hexai-tmux-action`) with Bubble Tea
-  - Includes a \u201cCustom prompt\u201d action (hotkey `p`) that opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary Markdown file.
+  - Includes a "Custom prompt" action (hotkey `p`) that opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary Markdown file.
 * Tmux popup editor (`hexai-tmux-edit`) for composing longer AI agent prompts
   - Opens `$EDITOR` in a tmux popup, pre-filled with the current prompt text
   - Auto-detects Claude Code, Cursor, Amp, Aider, and other agents
