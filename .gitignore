@@ -1,7 +1,16 @@
 /hexai
 /hexai-lsp
 /hexai-tmux-action
+/hexai-tmux-edit
 /bin/
+
+# Coverage artifacts (mage coverage, mage covercheck)
+docs/coverage.out
+docs/coverage.html
+docs/coverage/
+
+# Temp/scratch files
+.tmux-edit-send.*.md
 /.gocache/
 /.gocache*
 /.gomodcache/
