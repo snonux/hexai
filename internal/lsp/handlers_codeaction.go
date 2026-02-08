@@ -22,6 +22,14 @@ func (s *Server) handleCodeAction(req Request) {
 		}
 		return
 	}
+	// Skip code actions for gitignored / extra-pattern-ignored files
+	if ignored, reason := s.isFileIgnored(p.TextDocument.URI); ignored {
+		logging.Logf("lsp ", "code action skipped: file ignored (%s) uri=%s", reason, p.TextDocument.URI)
+		if len(req.ID) != 0 {
+			s.reply(req.ID, []CodeAction{}, nil)
+		}
+		return
+	}
 	d := s.getDocument(p.TextDocument.URI)
 	if d == nil || len(d.lines) == 0 || s.currentLLMClient() == nil {
 		if len(req.ID) != 0 {

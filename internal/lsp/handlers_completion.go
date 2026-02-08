@@ -37,6 +37,18 @@ func (s *Server) handleCompletion(req Request) {
 	var p CompletionParams
 	var docStr string
 	if err := json.Unmarshal(req.Params, &p); err == nil {
+		// Skip completion for gitignored / extra-pattern-ignored files
+		if ignored, reason := s.isFileIgnored(p.TextDocument.URI); ignored {
+			logging.Logf("lsp ", "completion skipped: file ignored (%s) uri=%s", reason, p.TextDocument.URI)
+			if s.ignoreLSPNotifyEnabled() {
+				s.reply(req.ID, CompletionList{IsIncomplete: false, Items: []CompletionItem{
+					{Label: "[hexai] file ignored", Detail: reason},
+				}}, nil)
+			} else {
+				s.reply(req.ID, CompletionList{IsIncomplete: false, Items: nil}, nil)
+			}
+			return
+		}
 		// Log trigger information for every completion request from client
 		tk, tch := extractTriggerInfo(p)
 		logging.Logf("lsp ", "completion trigger kind=%d char=%q uri=%s line=%d char=%d",

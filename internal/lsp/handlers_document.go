@@ -16,6 +16,10 @@ func (s *Server) handleDidOpen(req Request) {
 	if err := json.Unmarshal(req.Params, &p); err == nil {
 		s.setDocument(p.TextDocument.URI, p.TextDocument.Text)
 		s.markActivity()
+		// Log when an ignored file is opened (document still stored for editor sync)
+		if ignored, reason := s.isFileIgnored(p.TextDocument.URI); ignored {
+			logging.Logf("lsp ", "file opened (ignored): %s (%s)", p.TextDocument.URI, reason)
+		}
 	}
 }
 

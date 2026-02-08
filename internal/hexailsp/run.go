@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/ignore"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/lsp"
@@ -66,10 +67,15 @@ func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout i
 	client = buildClientIfNil(cfg, client)
 	factory = ensureFactory(factory)
 
+	// Create gitignore-aware file checker for LSP filtering
+	gitRoot := appconfig.FindGitRoot()
+	useGI := cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore
+	ignoreChecker := ignore.New(gitRoot, useGI, cfg.IgnoreExtraPatterns)
+
 	store := runtimeconfig.New(cfg)
 	logContext := strings.TrimSpace(logPath) != ""
 	loadOpts := appconfig.LoadOptions{ConfigPath: strings.TrimSpace(configPath)}
-	opts := makeServerOptions(cfg, logContext, client, loadOpts)
+	opts := makeServerOptions(cfg, logContext, client, loadOpts, ignoreChecker)
 	opts.ConfigLoadOptions = loadOpts
 	opts.ConfigStore = store
 	server := factory(stdin, stdout, logger, opts)
@@ -83,7 +89,10 @@ func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout i
 			if newClient := buildClientIfNil(updated, nil); newClient != nil {
 				client = newClient
 			}
-			opts := makeServerOptions(updated, logContext, client, loadOpts)
+			// Update ignore checker patterns on config hot-reload
+			useGI := updated.IgnoreGitignore == nil || *updated.IgnoreGitignore
+			ignoreChecker.Update(useGI, updated.IgnoreExtraPatterns)
+			opts := makeServerOptions(updated, logContext, client, loadOpts, ignoreChecker)
 			opts.ConfigStore = store
 			configurable.ApplyOptions(opts)
 		})
@@ -156,7 +165,7 @@ func ensureFactory(factory ServerFactory) ServerFactory {
 	}
 }
 
-func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, loadOpts appconfig.LoadOptions) lsp.ServerOptions {
+func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, loadOpts appconfig.LoadOptions, ignoreChecker *ignore.Checker) lsp.ServerOptions {
 	// Map custom actions from appconfig to lsp type
 	var customs []lsp.CustomAction
 	if len(cfg.CustomActions) > 0 {
@@ -214,5 +223,6 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, lo
 		PromptSimplifySystem:    cfg.PromptCodeActionSimplifySystem,
 		PromptSimplifyUser:      cfg.PromptCodeActionSimplifyUser,
 		CustomActions:           customs,
+		IgnoreChecker:           ignoreChecker,
 	}
 }

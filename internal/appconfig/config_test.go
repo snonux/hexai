@@ -625,9 +625,9 @@ func TestFindGitRoot(t *testing.T) {
 	if err := os.Chdir(nested); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}
-	root := findGitRoot()
+	root := FindGitRoot()
 	if root != dir {
-		t.Fatalf("findGitRoot() = %q, want %q", root, dir)
+		t.Fatalf("FindGitRoot() = %q, want %q", root, dir)
 	}
 
 	// Test from a dir with no .git ancestor
@@ -635,9 +635,9 @@ func TestFindGitRoot(t *testing.T) {
 	if err := os.Chdir(noGit); err != nil {
 		t.Fatalf("chdir: %v", err)
 	}
-	root = findGitRoot()
+	root = FindGitRoot()
 	if root != "" {
-		t.Fatalf("findGitRoot() = %q, want empty", root)
+		t.Fatalf("FindGitRoot() = %q, want empty", root)
 	}
 }
 
@@ -782,5 +782,114 @@ func TestProjectConfigPath(t *testing.T) {
 	path = ProjectConfigPath()
 	if path != "" {
 		t.Fatalf("ProjectConfigPath() = %q, want empty", path)
+	}
+}
+
+func TestIgnoreConfig_Defaults(t *testing.T) {
+	clearHexaiEnv(t)
+	cfg := Load(nil)
+	if cfg.IgnoreGitignore == nil || !*cfg.IgnoreGitignore {
+		t.Error("expected IgnoreGitignore default true")
+	}
+	if cfg.IgnoreLSPNotify == nil || !*cfg.IgnoreLSPNotify {
+		t.Error("expected IgnoreLSPNotify default true")
+	}
+	if len(cfg.IgnoreExtraPatterns) != 0 {
+		t.Errorf("expected empty IgnoreExtraPatterns, got %v", cfg.IgnoreExtraPatterns)
+	}
+}
+
+func TestIgnoreConfig_FromFile(t *testing.T) {
+	clearHexaiEnv(t)
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	writeFile(t, cfgPath, `
+[ignore]
+gitignore = false
+extra_patterns = ["*.min.js", "dist/**"]
+lsp_notify_ignored = false
+`)
+	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath})
+	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
+		t.Error("expected IgnoreGitignore false from file")
+	}
+	if cfg.IgnoreLSPNotify == nil || *cfg.IgnoreLSPNotify {
+		t.Error("expected IgnoreLSPNotify false from file")
+	}
+	want := []string{"*.min.js", "dist/**"}
+	if !reflect.DeepEqual(cfg.IgnoreExtraPatterns, want) {
+		t.Errorf("IgnoreExtraPatterns = %v, want %v", cfg.IgnoreExtraPatterns, want)
+	}
+}
+
+func TestIgnoreConfig_EnvOverrides(t *testing.T) {
+	clearHexaiEnv(t)
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	writeFile(t, cfgPath, `
+[ignore]
+gitignore = true
+lsp_notify_ignored = true
+`)
+	withEnv(t, "HEXAI_IGNORE_GITIGNORE", "false")
+	withEnv(t, "HEXAI_IGNORE_LSP_NOTIFY", "0")
+	withEnv(t, "HEXAI_IGNORE_EXTRA_PATTERNS", "*.bak,*.tmp")
+	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath})
+	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
+		t.Error("expected IgnoreGitignore false from env override")
+	}
+	if cfg.IgnoreLSPNotify == nil || *cfg.IgnoreLSPNotify {
+		t.Error("expected IgnoreLSPNotify false from env override")
+	}
+	want := []string{"*.bak", "*.tmp"}
+	if !reflect.DeepEqual(cfg.IgnoreExtraPatterns, want) {
+		t.Errorf("IgnoreExtraPatterns = %v, want %v", cfg.IgnoreExtraPatterns, want)
+	}
+}
+
+func TestIgnoreConfig_ProjectOverride(t *testing.T) {
+	clearHexaiEnv(t)
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	writeFile(t, cfgPath, `
+[ignore]
+gitignore = true
+`)
+	// Set up a fake git repo with project override
+	projectDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(projectDir, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+	projectCfg := filepath.Join(projectDir, ProjectConfigFilename)
+	writeFile(t, projectCfg, `
+[ignore]
+gitignore = false
+extra_patterns = ["build/**"]
+`)
+	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: projectDir})
+	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
+		t.Error("expected project override to set IgnoreGitignore false")
+	}
+	want := []string{"build/**"}
+	if !reflect.DeepEqual(cfg.IgnoreExtraPatterns, want) {
+		t.Errorf("IgnoreExtraPatterns = %v, want %v", cfg.IgnoreExtraPatterns, want)
+	}
+}
+
+func TestIgnoreConfig_DisableGitignore(t *testing.T) {
+	clearHexaiEnv(t)
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	writeFile(t, cfgPath, `
+[ignore]
+gitignore = false
+`)
+	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath})
+	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
+		t.Error("expected IgnoreGitignore false")
+	}
+	// LSP notify should still be true (default, not overridden)
+	if cfg.IgnoreLSPNotify == nil || !*cfg.IgnoreLSPNotify {
+		t.Error("expected IgnoreLSPNotify to remain true (default)")
 	}
 }
