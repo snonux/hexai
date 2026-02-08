@@ -23,7 +23,7 @@ func builtinAgents() []Agent {
 			name:          "amp",
 			displayName:   "Amp",
 			detectPattern: `(?i)(amp|sourcegraph)`,
-			promptPat:     `(?m)>\s*(.+)$`,
+			promptPat:     `(?m)│\s*(.+?)\s*│\s*$`,
 			clearFirst:    true,
 			clearKeys:     "C-u",
 			newlineKeys:   "S-Enter",

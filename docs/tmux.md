@@ -91,6 +91,12 @@ Then press `prefix + e` in any pane running an AI agent. Hexai auto-detects the 
 
 See the [configuration guide](configuration.md) for customizing popup dimensions and agent patterns, or the [usage guide](usage.md) for the full workflow description.
 
-**Vim mode recommended**: For best results, run both Cursor Agent and Claude Code in vim mode. Claude Code's `C-u` clear relies on readline/vim insert-mode behavior, and Cursor's prompt clearing works most reliably in its default input mode. The popup editor uses `$EDITOR` (or `$HEXAI_EDITOR`), so your normal vim/neovim setup is used for composing prompts.
+**Input mode notes**: Each agent uses different clearing methods based on their input handling:
+- **Claude Code**: Uses Vi/Vim keybindings (`Escape gg C-v G d i`), so vim mode is recommended
+- **Cursor**: Uses simple backspace clearing (`End BSpace*200`), works in default mode
+- **Amp**: Uses Emacs/readline keybindings (`C-u`), works in TUI mode
+- **Aider**: Uses Emacs/readline keybindings (`C-u`)
+
+The popup editor uses `$EDITOR` (or `$HEXAI_EDITOR`), so your normal vim/neovim setup is used for composing prompts.
 
 **Note**: Agent detection and prompt extraction rely on regex patterns matched against each agent's terminal UI (box-drawing characters, prompt symbols, status text). When agents update their TUI layout, these patterns may need adjustment. You can override patterns per-agent in `[[tmux_edit.agents]]` config without code changes -- see the [configuration guide](configuration.md).
