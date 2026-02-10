@@ -8,7 +8,7 @@
 //
 // Tmux keybinding (add to ~/.tmux.conf):
 //
-//	bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"
+//	bind e run-shell -b "cd '#{pane_current_path}' && hexai-tmux-edit --pane '#{pane_id}'"
 package main
 
 import (
