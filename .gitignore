@@ -19,3 +19,4 @@ docs/coverage/
 llm.out
 /tmp/
 .serena
+ignoretest.md
