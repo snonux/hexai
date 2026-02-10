@@ -13,6 +13,12 @@ It has got improved capabilities for Go code understanding (for example, create 
 * LSP in-editor chat with the LLM
 * Stand-alone command line tool for LLM interaction
 * Parallel completions and CLI responses from multiple providers/models for side-by-side comparison
+* **MCP server for prompt/runbook management** (`hexai-mcp-server`)
+  - Create, update, delete, and retrieve prompts via MCP protocol
+  - Automatic backups on every change (keeps last 10)
+  - Compatible with Claude Code CLI, Cursor, and other MCP clients
+  - File-based storage with JSONL format (git-friendly)
+  - Built-in prompts for code review, testing, documentation, etc.
 * TUI AI code-action runner (`hexai-tmux-action`) with Bubble Tea
   - Includes a "Custom prompt" action (hotkey `p`) that opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary Markdown file.
 * Tmux popup editor (`hexai-tmux-edit`) for composing longer AI agent prompts
@@ -27,6 +33,8 @@ It has got improved capabilities for Go code understanding (for example, create 
 * [Configuration guide](docs/configuration.md)
 * [Usage examples](docs/usage.md)
 * [Helix + tmux quickstart](docs/tmux.md)
+* [MCP server setup guide](docs/mcp-setup.md)
+* [Creating custom prompts](docs/mcp-prompts.md)
 
 ## Tmux Status Line
 
@@ -46,5 +54,9 @@ hexai follows the XDG Base Directory Specification:
   - `tmux-edit-history.jsonl` - History of text submitted via tmux popup
   - `hexai-lsp.log` - LSP server debug logs
   - `hexai-tmux-edit.log` - Tmux edit debug logs
+  - `hexai-mcp-server.log` - MCP server debug logs
+- **Data:** `~/.local/share/hexai/` (or `$XDG_DATA_HOME/hexai/`)
+  - `prompts/default.jsonl` - Built-in prompts for MCP server
+  - `prompts/user.jsonl` - User-created custom prompts
 - **Temporary Files:** `/tmp/` (OS temp directory)
   - `hexai-*.md` - Temporary editor workspaces (auto-deleted)

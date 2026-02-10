@@ -124,6 +124,9 @@ type App struct {
 	TmuxEditPopupHeight  string             `json:"-" toml:"-"`
 	TmuxEditDefaultAgent string             `json:"-" toml:"-"`
 	TmuxEditAgents       []TmuxEditAgentCfg `json:"-" toml:"-"`
+
+	// MCP: Model Context Protocol server settings
+	MCPPromptsDir string `json:"-" toml:"-"` // Directory for prompt storage
 }
 
 // CustomAction describes a user-defined code action.
@@ -303,6 +306,7 @@ type fileConfig struct {
 	Stats      sectionStats      `toml:"stats"`
 	Ignore     sectionIgnore     `toml:"ignore"`
 	TmuxEdit   sectionTmuxEdit   `toml:"tmux_edit"`
+	MCP        sectionMCP        `toml:"mcp"`
 }
 
 type sectionGeneral struct {
@@ -375,6 +379,11 @@ type sectionTmuxEditAgent struct {
 	ClearKeys      string   `toml:"clear_keys"`
 	NewlineKeys    string   `toml:"newline_keys"`
 	SubmitKeys     string   `toml:"submit_keys"`
+}
+
+// sectionMCP configures the MCP server settings.
+type sectionMCP struct {
+	PromptsDir string `toml:"prompts_dir"`
 }
 
 type sectionOpenAI struct {
@@ -705,6 +714,11 @@ func (fc *fileConfig) toApp() App {
 
 	// tmux_edit
 	fc.applyTmuxEdit(&out)
+
+	// mcp
+	if strings.TrimSpace(fc.MCP.PromptsDir) != "" {
+		out.MCPPromptsDir = strings.TrimSpace(fc.MCP.PromptsDir)
+	}
 
 	return out
 }
@@ -1577,6 +1591,12 @@ func loadFromEnv(logger *log.Logger) *App {
 	if s := getenv("HEXAI_IGNORE_LSP_NOTIFY"); s != "" {
 		b := s == "true" || s == "1"
 		out.IgnoreLSPNotify = &b
+		any = true
+	}
+
+	// MCP settings
+	if s := getenv("HEXAI_MCP_PROMPTS_DIR"); s != "" {
+		out.MCPPromptsDir = s
 		any = true
 	}
 
