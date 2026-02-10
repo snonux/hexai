@@ -1,0 +1,9 @@
+# Hexai per-project configuration for hexai repository
+# This file configures hexai to respect .gitignore patterns
+
+[ignore]
+# Disable respecting .gitignore patterns
+gitignore = false
+
+# Show notification when files are ignored in LSP completions
+lsp_notify_ignored = true
