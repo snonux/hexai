@@ -166,7 +166,7 @@ temperature = 0.2
 # - amp: Box UI │...│ (TUI mode), clears with C-u (Emacs/readline)
 # - aider: Shell-style > prompt, clears with C-u (Emacs/readline)
 # Tmux keybinding (add to ~/.tmux.conf):
-#   bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"
+#   bind e run-shell -b "cd '#{pane_current_path}' && hexai-tmux-edit --pane '#{pane_id}'"
 
 # [[tmux_edit.agents]]
 # name = "claude"

@@ -183,7 +183,7 @@ Additional agents can be added via `[tmux_edit.agents]` in config.toml without c
 Add to `~/.tmux.conf`:
 
 ```
-bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"
+bind e run-shell -b "cd '#{pane_current_path}' && hexai-tmux-edit --pane '#{pane_id}'"
 ```
 
 The `#{pane_id}` is expanded by tmux to the active pane at keypress time, so the popup editor always knows which pane to send text back to.

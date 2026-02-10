@@ -141,4 +141,4 @@ Hexai Tmux Edit (popup editor)
   ```
 
 - Built-in agents: `claude`, `cursor`, `amp`, `aider`. See [config.toml.example](../config.toml.example) for all fields.
-- Tmux keybinding: `bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"`
+- Tmux keybinding: `bind e run-shell -b "cd '#{pane_current_path}' && hexai-tmux-edit --pane '#{pane_id}'"`

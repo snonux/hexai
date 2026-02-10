@@ -84,7 +84,7 @@ The editor opens as a tmux popup overlay, pre-filled with any existing prompt te
 Add this keybinding to `~/.tmux.conf`:
 
 ```
-bind e run-shell -b "hexai-tmux-edit --pane '#{pane_id}'"
+bind e run-shell -b "cd '#{pane_current_path}' && hexai-tmux-edit --pane '#{pane_id}'"
 ```
 
 Then press `prefix + e` in any pane running an AI agent. Hexai auto-detects the agent, extracts any existing prompt text, and pre-fills the editor. After saving and closing, the edited text is sent back to the agent's pane.

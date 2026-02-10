@@ -58,10 +58,17 @@ var openEditorPopup = func(initial, popupW, popupH string) (string, error) {
 }
 
 // launchPopup is the seam for running `tmux display-popup` with the editor.
-// The -E flag makes the popup close when the editor exits. Uses .Run()
-// (not .Output()) so the popup blocks until the user closes the editor.
+// The -E flag makes the popup close when the editor exits. The -d flag sets
+// the working directory for the popup. Uses .Run() (not .Output()) so the
+// popup blocks until the user closes the editor.
 var launchPopup = func(ed, path, width, height string) error {
 	args := []string{"display-popup", "-E"}
+
+	// Get current working directory to pass to the popup
+	if cwd, err := os.Getwd(); err == nil && cwd != "" {
+		args = append(args, "-d", cwd)
+	}
+
 	if width != "" {
 		args = append(args, "-w", width)
 	}
