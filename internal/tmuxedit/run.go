@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
@@ -111,8 +112,18 @@ func loadConfig(configPath string) appconfig.App {
 var debugLog *log.Logger
 
 // initDebugLog creates a debug log file at /tmp/hexai-tmux-edit.log.
+// initDebugLog creates a debug log file in the state directory (~/.local/state/hexai/hexai-tmux-edit.log).
+// Falls back to /tmp if state directory cannot be created.
+// initDebugLog creates a debug log file in the state directory (~/.local/state/hexai/hexai-tmux-edit.log).
+// Panics if the state directory cannot be created.
 func initDebugLog() {
-	f, err := os.OpenFile("/tmp/hexai-tmux-edit.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	stateDir, err := appconfig.StateDir()
+	if err != nil {
+		panic(fmt.Sprintf("cannot create state directory: %v", err))
+	}
+
+	logPath := filepath.Join(stateDir, "hexai-tmux-edit.log")
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return
 	}
@@ -181,6 +192,20 @@ func runWithConfig(opts Options, cfg appconfig.App) error {
 		dbg("SendText error: %v", err)
 		return err
 	}
+
+	// Append to history (log errors but don't fail the operation)
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = "unknown"
+		dbg("os.Getwd error (using 'unknown'): %v", err)
+	}
+	if err := AppendHistory(text, agent.Name(), cwd); err != nil {
+		dbg("AppendHistory error: %v", err)
+		// Non-fatal: log but continue
+	} else {
+		dbg("appended to history: agent=%q cwd=%q len=%d", agent.Name(), cwd, len(text))
+	}
+
 	dbg("=== done ===")
 	return nil
 }

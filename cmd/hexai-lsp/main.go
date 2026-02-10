@@ -14,7 +14,8 @@ import (
 )
 
 func main() {
-	logPath := flag.String("log", "/tmp/hexai-lsp.log", "path to log file (optional)")
+	defaultLog := defaultLogPath()
+	logPath := flag.String("log", defaultLog, "path to log file (optional)")
 	defaultCfg := defaultConfigPath()
 	configPath := flag.String("config", "", fmt.Sprintf("path to config file (default: %s)", defaultCfg))
 	showVersion := flag.Bool("version", false, "print version and exit")
@@ -36,4 +37,16 @@ func defaultConfigPath() string {
 		return "$XDG_CONFIG_HOME/hexai/config.toml"
 	}
 	return path
+}
+
+// defaultLogPath returns the default LSP log file path in the state directory.
+// Falls back to /tmp if state directory cannot be determined.
+// defaultLogPath returns the default LSP log file path in the state directory.
+// Panics if state directory cannot be created.
+func defaultLogPath() string {
+	stateDir, err := appconfig.StateDir()
+	if err != nil {
+		panic(fmt.Sprintf("cannot create state directory: %v", err))
+	}
+	return fmt.Sprintf("%s/hexai-lsp.log", stateDir)
 }
