@@ -1270,6 +1270,27 @@ func ConfigPath() (string, error) {
 	return configPath, nil
 }
 
+// StateDir returns the XDG state directory for hexai (~/.local/state/hexai by default).
+// Creates the directory if it doesn't exist. This is used for persistent state data
+// like logs and history that should survive reboots.
+func StateDir() (string, error) {
+	stateHome := os.Getenv("XDG_STATE_HOME")
+	if stateHome == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("cannot find user home directory: %v", err)
+		}
+		stateHome = filepath.Join(home, ".local", "state")
+	}
+
+	stateDir := filepath.Join(stateHome, "hexai")
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		return "", fmt.Errorf("cannot create state directory: %v", err)
+	}
+
+	return stateDir, nil
+}
+
 // ProjectConfigFilename is the name of the per-project config file placed at a git repo root.
 const ProjectConfigFilename = ".hexaiconfig.toml"
 

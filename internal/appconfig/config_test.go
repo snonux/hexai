@@ -56,9 +56,10 @@ func TestLoad_Defaults_NoLogger(t *testing.T) {
 
 func TestLoad_Defaults_WithLogger_NoFile_NoEnv(t *testing.T) {
 	clearHexaiEnv(t)
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
 	logger := newLogger()
-	cfg := Load(logger)
+	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: dir})
 	def := newDefaultConfig()
 	if cfg.MaxTokens != def.MaxTokens || cfg.ContextMode != def.ContextMode || cfg.ContextWindowLines != def.ContextWindowLines {
 		t.Fatalf("expected defaults; got %+v want %+v", cfg, def)
@@ -184,7 +185,7 @@ temperature = 0.0
 	withEnv(t, "HEXAI_PROVIDER_CLI", "ollama")
 
 	logger := newLogger()
-	cfg := Load(logger)
+	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: dir})
 
 	// Check overrides
 	if cfg.MaxTokens != 321 || cfg.ContextMode != "always-full" || cfg.ContextWindowLines != 77 || cfg.MaxContextTokens != 888 {
@@ -253,7 +254,7 @@ temperature = 0.0
 	} {
 		t.Setenv(k, "")
 	}
-	cfg2 := Load(logger)
+	cfg2 := LoadWithOptions(logger, LoadOptions{ProjectRoot: dir})
 	if cfg2.MaxTokens != 123 || cfg2.ContextMode != "file-on-new-func" || cfg2.ContextWindowLines != 50 || cfg2.MaxContextTokens != 999 || cfg2.LogPreviewLimit != 0 {
 		t.Fatalf("file merge not applied: %+v", cfg2)
 	}
@@ -310,6 +311,39 @@ func TestGetConfigPath_XDG(t *testing.T) {
 	}
 	if !strings.HasPrefix(path, filepath.Join(dir, "hexai")) || !strings.HasSuffix(path, "config.toml") {
 		t.Fatalf("unexpected path: %s", path)
+	}
+}
+
+func TestStateDir_XDG(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", dir)
+	stateDir, err := StateDir()
+	if err != nil {
+		t.Fatalf("StateDir: %v", err)
+	}
+	expected := filepath.Join(dir, "hexai")
+	if stateDir != expected {
+		t.Fatalf("expected %q, got %q", expected, stateDir)
+	}
+	// Verify directory was created
+	if _, err := os.Stat(stateDir); err != nil {
+		t.Fatalf("state directory not created: %v", err)
+	}
+}
+
+func TestStateDir_Default(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", "")
+	stateDir, err := StateDir()
+	if err != nil {
+		t.Fatalf("StateDir: %v", err)
+	}
+	// Should default to ~/.local/state/hexai
+	if !strings.Contains(stateDir, ".local/state/hexai") {
+		t.Fatalf("expected path to contain .local/state/hexai, got %q", stateDir)
+	}
+	// Verify directory was created
+	if _, err := os.Stat(stateDir); err != nil {
+		t.Fatalf("state directory not created: %v", err)
 	}
 }
 
@@ -379,7 +413,7 @@ temperature = 0.0
 	// Ensure no env override interferes with manual_invoke_min_prefix in this test
 	t.Setenv("HEXAI_MANUAL_INVOKE_MIN_PREFIX", "")
 	logger := newLogger()
-	cfg := Load(logger)
+	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: dir})
 
 	if cfg.MaxTokens != 111 || cfg.ContextMode != "window" || cfg.ContextWindowLines != 42 || cfg.MaxContextTokens != 777 {
 		t.Fatalf("sectioned basics wrong: %+v", cfg)
@@ -809,7 +843,7 @@ gitignore = false
 extra_patterns = ["*.min.js", "dist/**"]
 lsp_notify_ignored = false
 `)
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath})
+	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
 		t.Error("expected IgnoreGitignore false from file")
 	}
@@ -834,7 +868,7 @@ lsp_notify_ignored = true
 	withEnv(t, "HEXAI_IGNORE_GITIGNORE", "false")
 	withEnv(t, "HEXAI_IGNORE_LSP_NOTIFY", "0")
 	withEnv(t, "HEXAI_IGNORE_EXTRA_PATTERNS", "*.bak,*.tmp")
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath})
+	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
 		t.Error("expected IgnoreGitignore false from env override")
 	}
@@ -884,7 +918,7 @@ func TestIgnoreConfig_DisableGitignore(t *testing.T) {
 [ignore]
 gitignore = false
 `)
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath})
+	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
 		t.Error("expected IgnoreGitignore false")
 	}
@@ -925,7 +959,7 @@ clear_keys = "C-u"
 newline_keys = "S-Enter"
 submit_keys = "Enter"
 `)
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath})
+	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if cfg.TmuxEditPopupWidth != "90%" {
 		t.Errorf("PopupWidth = %q, want 90%%", cfg.TmuxEditPopupWidth)
 	}
@@ -986,7 +1020,7 @@ func TestTmuxEditConfig_SkipsEmptyName(t *testing.T) {
 name = ""
 display_name = "Empty"
 `)
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath})
+	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if len(cfg.TmuxEditAgents) != 0 {
 		t.Errorf("got %d agents, want 0 (empty name should be skipped)", len(cfg.TmuxEditAgents))
 	}
