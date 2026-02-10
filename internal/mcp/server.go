@@ -318,20 +318,45 @@ func (s *Server) handlePromptsCreate(req Request) {
 	}
 
 	// Validate required fields
-	if params.Name == "" {
-		s.sendError(req.ID, ErrCodeInvalidParams, "Prompt name is required")
-		return
-	}
-	if params.Title == "" {
-		s.sendError(req.ID, ErrCodeInvalidParams, "Prompt title is required")
-		return
-	}
-	if len(params.Messages) == 0 {
-		s.sendError(req.ID, ErrCodeInvalidParams, "At least one message is required")
+	if err := validateCreateParams(params); err != nil {
+		s.sendError(req.ID, ErrCodeInvalidParams, err.Error())
 		return
 	}
 
-	// Create prompt
+	// Build prompt from params
+	prompt := buildPromptFromCreateParams(params)
+
+	if err := s.store.Create(prompt); err != nil {
+		s.logger.Printf("create prompt error: %v", err)
+		s.sendError(req.ID, ErrCodeInternalError, fmt.Sprintf("Failed to create prompt: %v", err))
+		return
+	}
+
+	result := PromptOperationResult{
+		Success: true,
+		Message: fmt.Sprintf("Created prompt: %s", params.Name),
+	}
+
+	s.logger.Printf("created prompt: %s", params.Name)
+	s.sendResponse(req.ID, result)
+}
+
+// validateCreateParams validates required fields for prompt creation.
+func validateCreateParams(params CreatePromptRequest) error {
+	if params.Name == "" {
+		return fmt.Errorf("prompt name is required")
+	}
+	if params.Title == "" {
+		return fmt.Errorf("prompt title is required")
+	}
+	if len(params.Messages) == 0 {
+		return fmt.Errorf("at least one message is required")
+	}
+	return nil
+}
+
+// buildPromptFromCreateParams converts CreatePromptRequest to Prompt.
+func buildPromptFromCreateParams(params CreatePromptRequest) *promptstore.Prompt {
 	prompt := &promptstore.Prompt{
 		Name:        params.Name,
 		Title:       params.Title,
@@ -361,19 +386,7 @@ func (s *Server) handlePromptsCreate(req Request) {
 		})
 	}
 
-	if err := s.store.Create(prompt); err != nil {
-		s.logger.Printf("create prompt error: %v", err)
-		s.sendError(req.ID, ErrCodeInternalError, fmt.Sprintf("Failed to create prompt: %v", err))
-		return
-	}
-
-	result := PromptOperationResult{
-		Success: true,
-		Message: fmt.Sprintf("Created prompt: %s", params.Name),
-	}
-
-	s.logger.Printf("created prompt: %s", params.Name)
-	s.sendResponse(req.ID, result)
+	return prompt
 }
 
 // handlePromptsUpdate processes the prompts/update request.
@@ -406,6 +419,26 @@ func (s *Server) handlePromptsUpdate(req Request) {
 		return
 	}
 
+	// Apply updates to existing prompt
+	applyPromptUpdates(existing, params)
+
+	if err := s.store.Update(existing); err != nil {
+		s.logger.Printf("update prompt error: %v", err)
+		s.sendError(req.ID, ErrCodeInternalError, fmt.Sprintf("Failed to update prompt: %v", err))
+		return
+	}
+
+	result := PromptOperationResult{
+		Success: true,
+		Message: fmt.Sprintf("Updated prompt: %s", params.Name),
+	}
+
+	s.logger.Printf("updated prompt: %s", params.Name)
+	s.sendResponse(req.ID, result)
+}
+
+// applyPromptUpdates applies update parameters to an existing prompt.
+func applyPromptUpdates(existing *promptstore.Prompt, params UpdatePromptRequest) {
 	// Update fields (only if provided)
 	if params.Title != "" {
 		existing.Title = params.Title
@@ -440,20 +473,6 @@ func (s *Server) handlePromptsUpdate(req Request) {
 	}
 
 	existing.Updated = time.Now()
-
-	if err := s.store.Update(existing); err != nil {
-		s.logger.Printf("update prompt error: %v", err)
-		s.sendError(req.ID, ErrCodeInternalError, fmt.Sprintf("Failed to update prompt: %v", err))
-		return
-	}
-
-	result := PromptOperationResult{
-		Success: true,
-		Message: fmt.Sprintf("Updated prompt: %s", params.Name),
-	}
-
-	s.logger.Printf("updated prompt: %s", params.Name)
-	s.sendResponse(req.ID, result)
 }
 
 // handlePromptsDelete processes the prompts/delete request.

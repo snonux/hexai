@@ -2,60 +2,57 @@
 package promptstore
 
 import (
-	"os"
-	"path/filepath"
+	"fmt"
 	"testing"
 	"time"
 )
 
 func TestJSONLStore_Get(t *testing.T) {
-	tests := []struct {
-		name       string
-		promptName string
-		want       *Prompt
-		wantErr    bool
-	}{
-		{
-			name:       "get built-in prompt",
-			promptName: "code_review",
-			want: &Prompt{
-				Name:        "code_review",
-				Title:       "Request Code Review",
-				Description: "Analyzes code quality, style, and suggests improvements",
-			},
-			wantErr: false,
-		},
-		{
-			name:       "prompt not found",
-			promptName: "nonexistent",
-			want:       nil,
-			wantErr:    true,
-		},
-	}
+	t.Run("get existing prompt", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		store, err := NewJSONLStore(tmpDir)
+		if err != nil {
+			t.Fatalf("NewJSONLStore() error = %v", err)
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			store, err := NewJSONLStore(tmpDir)
-			if err != nil {
-				t.Fatalf("NewJSONLStore() error = %v", err)
-			}
+		// Create a test prompt first
+		testPrompt := &Prompt{
+			Name:        "test_prompt",
+			Title:       "Test Prompt",
+			Description: "A test prompt",
+			Messages:    []PromptMessage{{Role: "user", Content: MessageContent{Type: "text", Text: "Test"}}},
+			Created:     time.Now(),
+			Updated:     time.Now(),
+		}
+		if err := store.Create(testPrompt); err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
 
-			got, err := store.Get(tt.promptName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr {
-				if got.Name != tt.want.Name {
-					t.Errorf("Get() name = %v, want %v", got.Name, tt.want.Name)
-				}
-				if got.Title != tt.want.Title {
-					t.Errorf("Get() title = %v, want %v", got.Title, tt.want.Title)
-				}
-			}
-		})
-	}
+		// Now get it
+		got, err := store.Get("test_prompt")
+		if err != nil {
+			t.Fatalf("Get() error = %v", err)
+		}
+		if got.Name != "test_prompt" {
+			t.Errorf("Get() name = %v, want test_prompt", got.Name)
+		}
+		if got.Title != "Test Prompt" {
+			t.Errorf("Get() title = %v, want Test Prompt", got.Title)
+		}
+	})
+
+	t.Run("prompt not found", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		store, err := NewJSONLStore(tmpDir)
+		if err != nil {
+			t.Fatalf("NewJSONLStore() error = %v", err)
+		}
+
+		_, err = store.Get("nonexistent")
+		if err == nil {
+			t.Error("Get() expected error for nonexistent prompt, got nil")
+		}
+	})
 }
 
 func TestJSONLStore_List(t *testing.T) {
@@ -65,15 +62,29 @@ func TestJSONLStore_List(t *testing.T) {
 		t.Fatalf("NewJSONLStore() error = %v", err)
 	}
 
+	// Create test prompts
+	for i := 0; i < 7; i++ {
+		prompt := &Prompt{
+			Name:     fmt.Sprintf("test%d", i),
+			Title:    fmt.Sprintf("Test %d", i),
+			Messages: []PromptMessage{{Role: "user", Content: MessageContent{Type: "text", Text: "Test"}}},
+			Created:  time.Now(),
+			Updated:  time.Now(),
+		}
+		if err := store.Create(prompt); err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+	}
+
 	// List all prompts
 	prompts, cursor, err := store.List("", 100)
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
 
-	// Should have built-in prompts
-	if len(prompts) < 5 {
-		t.Errorf("List() got %d prompts, want at least 5", len(prompts))
+	// Should have all prompts
+	if len(prompts) != 7 {
+		t.Errorf("List() got %d prompts, want 7", len(prompts))
 	}
 
 	// No cursor for full list
@@ -98,10 +109,10 @@ func TestJSONLStore_List(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
-	if len(prompts2) == 0 {
-		t.Error("List() second page empty")
+	if len(prompts2) != 3 {
+		t.Errorf("List() got %d prompts on page 2, want 3", len(prompts2))
 	}
-	if cursor2 == "" && len(prompts) > 6 {
+	if cursor2 == "" {
 		t.Error("List() expected cursor2, got empty")
 	}
 }
@@ -236,14 +247,50 @@ func TestJSONLStore_SearchByTags(t *testing.T) {
 		t.Fatalf("NewJSONLStore() error = %v", err)
 	}
 
+	// Create test prompts with tags
+	prompt1 := &Prompt{
+		Name:     "test1",
+		Title:    "Test 1",
+		Tags:     []string{"development", "review"},
+		Messages: []PromptMessage{{Role: "user", Content: MessageContent{Type: "text", Text: "Test 1"}}},
+		Created:  time.Now(),
+		Updated:  time.Now(),
+	}
+	prompt2 := &Prompt{
+		Name:     "test2",
+		Title:    "Test 2",
+		Tags:     []string{"development"},
+		Messages: []PromptMessage{{Role: "user", Content: MessageContent{Type: "text", Text: "Test 2"}}},
+		Created:  time.Now(),
+		Updated:  time.Now(),
+	}
+	prompt3 := &Prompt{
+		Name:     "test3",
+		Title:    "Test 3",
+		Tags:     []string{"testing"},
+		Messages: []PromptMessage{{Role: "user", Content: MessageContent{Type: "text", Text: "Test 3"}}},
+		Created:  time.Now(),
+		Updated:  time.Now(),
+	}
+
+	if err := store.Create(prompt1); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if err := store.Create(prompt2); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if err := store.Create(prompt3); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
 	// Search for development tag
 	results, err := store.SearchByTags([]string{"development"})
 	if err != nil {
 		t.Fatalf("SearchByTags() error = %v", err)
 	}
 
-	if len(results) < 3 {
-		t.Errorf("SearchByTags() got %d results, want at least 3", len(results))
+	if len(results) != 2 {
+		t.Errorf("SearchByTags() got %d results, want 2", len(results))
 	}
 
 	// Search for multiple tags
@@ -252,60 +299,10 @@ func TestJSONLStore_SearchByTags(t *testing.T) {
 		t.Fatalf("SearchByTags() error = %v", err)
 	}
 
-	// Should find code_review prompt
-	found := false
-	for _, p := range results {
-		if p.Name == "code_review" {
-			found = true
-			break
-		}
+	if len(results) != 1 {
+		t.Errorf("SearchByTags() got %d results, want 1", len(results))
 	}
-	if !found {
-		t.Error("SearchByTags() should find code_review prompt")
-	}
-}
-
-func TestBuiltinPrompts(t *testing.T) {
-	prompts := GetBuiltinPrompts()
-
-	if len(prompts) < 5 {
-		t.Errorf("GetBuiltinPrompts() got %d prompts, want at least 5", len(prompts))
-	}
-
-	// Verify each prompt has required fields
-	for _, p := range prompts {
-		if p.Name == "" {
-			t.Error("Prompt missing name")
-		}
-		if p.Title == "" {
-			t.Errorf("Prompt %s missing title", p.Name)
-		}
-		if len(p.Messages) == 0 {
-			t.Errorf("Prompt %s has no messages", p.Name)
-		}
-	}
-}
-
-func TestJSONLStore_DefaultFileCreation(t *testing.T) {
-	tmpDir := t.TempDir()
-	_, err := NewJSONLStore(tmpDir)
-	if err != nil {
-		t.Fatalf("NewJSONLStore() error = %v", err)
-	}
-
-	// Verify default.jsonl was created
-	defaultPath := filepath.Join(tmpDir, "default.jsonl")
-	if _, err := os.Stat(defaultPath); os.IsNotExist(err) {
-		t.Error("default.jsonl was not created")
-	}
-
-	// Verify it contains prompts
-	data, err := os.ReadFile(defaultPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error = %v", err)
-	}
-
-	if len(data) == 0 {
-		t.Error("default.jsonl is empty")
+	if results[0].Name != "test1" {
+		t.Errorf("SearchByTags() got prompt %s, want test1", results[0].Name)
 	}
 }

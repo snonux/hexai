@@ -72,37 +72,7 @@ func NewJSONLStore(dataDir string) (PromptStore, error) {
 		maxBackups:  10, // Keep last 10 backups
 	}
 
-	// Initialize default.jsonl with built-in prompts if it doesn't exist
-	defaultPath := filepath.Join(dataDir, "default.jsonl")
-	if _, err := os.Stat(defaultPath); os.IsNotExist(err) {
-		if err := store.writeBuiltinPrompts(); err != nil {
-			return nil, fmt.Errorf("cannot write built-in prompts: %w", err)
-		}
-	}
-
 	return store, nil
-}
-
-// writeBuiltinPrompts writes the built-in prompts to default.jsonl.
-func (s *JSONLStore) writeBuiltinPrompts() error {
-	prompts := GetBuiltinPrompts()
-	defaultPath := filepath.Join(s.dataDir, "default.jsonl")
-
-	var lines []byte
-	for _, p := range prompts {
-		data, err := json.Marshal(p)
-		if err != nil {
-			return fmt.Errorf("marshal built-in prompt: %w", err)
-		}
-		lines = append(lines, data...)
-		lines = append(lines, '\n')
-	}
-
-	if err := s.writeFileFn(defaultPath, lines, 0o644); err != nil {
-		return fmt.Errorf("write default.jsonl: %w", err)
-	}
-
-	return nil
 }
 
 // List returns prompts with pagination.
@@ -321,33 +291,14 @@ func (s *JSONLStore) hasAllTags(promptTags, searchTags []string) bool {
 	return true
 }
 
-// loadAllPrompts loads prompts from both default.jsonl and user.jsonl.
+// loadAllPrompts loads prompts from user.jsonl.
 func (s *JSONLStore) loadAllPrompts() ([]Prompt, error) {
-	defaultPrompts, err := s.loadPromptsFromFile("default.jsonl")
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
 	userPrompts, err := s.loadPromptsFromFile("user.jsonl")
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	// Merge (user prompts override built-ins by name)
-	promptMap := make(map[string]Prompt)
-	for _, p := range defaultPrompts {
-		promptMap[p.Name] = p
-	}
-	for _, p := range userPrompts {
-		promptMap[p.Name] = p
-	}
-
-	var all []Prompt
-	for _, p := range promptMap {
-		all = append(all, p)
-	}
-
-	return all, nil
+	return userPrompts, nil
 }
 
 // loadPromptsFromFile reads prompts from a JSONL file.
