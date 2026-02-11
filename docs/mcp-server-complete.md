@@ -16,7 +16,7 @@ The hexai-mcp-server is a **fully self-contained MCP server** that manages promp
 - ✅ **Every write operation** creates a timestamped backup
 - ✅ Backups created **before** changes (can always rollback)
 - ✅ Keeps last **10 backups** automatically
-- ✅ Stored in `~/.local/share/hexai/prompts/backups/`
+- ✅ Stored in `~/.local/hexai/data/prompts/backups/`
 - ✅ **Zero configuration** - works out of the box
 
 ### 3. No External Tools Required
@@ -151,7 +151,7 @@ Every operation automatically:
 ### Backup Files
 
 ```
-~/.local/share/hexai/prompts/backups/
+~/.local/hexai/data/prompts/backups/
 ├── user.jsonl.20260210-193422  ← Most recent
 ├── user.jsonl.20260210-192145
 ├── user.jsonl.20260210-190358
@@ -162,11 +162,11 @@ Every operation automatically:
 
 ```bash
 # List backups
-ls -lht ~/.local/share/hexai/prompts/backups/
+ls -lht ~/.local/hexai/data/prompts/backups/
 
 # Restore from backup
-cp ~/.local/share/hexai/prompts/backups/user.jsonl.20260210-193422 \
-   ~/.local/share/hexai/prompts/user.jsonl
+cp ~/.local/hexai/data/prompts/backups/user.jsonl.20260210-193422 \
+   ~/.local/hexai/data/prompts/user.jsonl
 
 # Restart MCP client
 ```
@@ -174,7 +174,7 @@ cp ~/.local/share/hexai/prompts/backups/user.jsonl.20260210-193422 \
 ## 📁 File Structure
 
 ```
-~/.local/share/hexai/prompts/
+~/.local/hexai/data/prompts/
 ├── default.jsonl           # Built-in prompts (7 prompts)
 ├── user.jsonl              # Your custom prompts
 └── backups/                # Automatic backups (10 most recent)
@@ -234,7 +234,7 @@ cp ~/.local/share/hexai/prompts/backups/user.jsonl.20260210-193422 \
 
 ### Prompts Directory
 
-**Default**: `~/.local/share/hexai/prompts/`
+**Default**: `~/.local/hexai/data/prompts/`
 
 **Override** (priority order):
 1. CLI flag: `--prompts-dir /path/to/prompts`

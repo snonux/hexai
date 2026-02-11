@@ -150,14 +150,14 @@ Prompts are stored in two files:
 - `default.jsonl`: Built-in prompts (automatically created)
 - `user.jsonl`: Your custom prompts
 
-Both files are in: `~/.local/share/hexai/prompts/` (or your configured directory)
+Both files are in: `~/.local/hexai/data/prompts/` (or your configured directory)
 
 ### Method 1: Manual Editing
 
 Edit `user.jsonl` directly:
 
 ```bash
-cd ~/.local/share/hexai/prompts/
+cd ~/.local/hexai/data/prompts/
 nano user.jsonl
 ```
 
@@ -211,7 +211,7 @@ prompt = {
 }
 
 # Append to user.jsonl
-with open("~/.local/share/hexai/prompts/user.jsonl", "a") as f:
+with open("~/.local/hexai/data/prompts/user.jsonl", "a") as f:
     f.write(json.dumps(prompt) + "\n")
 ```
 
@@ -228,7 +228,7 @@ import (
 )
 
 func main() {
-    store, _ := promptstore.NewJSONLStore("~/.local/share/hexai/prompts/")
+    store, _ := promptstore.NewJSONLStore("~/.local/hexai/data/prompts/")
 
     prompt := &promptstore.Prompt{
         Name:        "security_audit",
@@ -407,7 +407,7 @@ Example tags:
 Store prompts in git for team collaboration:
 
 ```bash
-cd ~/.local/share/hexai/prompts/
+cd ~/.local/hexai/data/prompts/
 git init
 git add user.jsonl
 git commit -m "Add custom prompts"

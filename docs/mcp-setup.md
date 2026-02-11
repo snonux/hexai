@@ -84,7 +84,7 @@ claude mcp remove hexai-prompts -s user
 
 **Server Options:**
 - `--config`: Path to hexai config file (optional)
-- `--log`: Path to log file (default: `~/.local/state/hexai/hexai-mcp-server.log`)
+- `--log`: Path to log file (default: `~/.local/hexai/state/hexai-mcp-server.log`)
 - `--prompts-dir`: Directory for prompt storage (optional)
 - `--version`: Print version and exit
 
@@ -119,12 +119,12 @@ Any MCP-compatible client can use hexai-mcp-server. The general pattern is:
 
 ## Prompts Directory
 
-By default, prompts are stored in `~/.local/share/hexai/prompts/` (XDG_DATA_HOME). You can customize this location using:
+By default, prompts are stored in `~/.local/hexai/data/prompts/` (XDG_DATA_HOME). You can customize this location using:
 
 1. **Command-line flag**: `--prompts-dir /path/to/prompts`
 2. **Environment variable**: `HEXAI_MCP_PROMPTS_DIR=/path/to/prompts`
 3. **Config file**: Add `prompts_dir = "/path/to/prompts"` to `[mcp]` section in `config.toml`
-4. **Default**: `$XDG_DATA_HOME/hexai/prompts/` or `~/.local/share/hexai/prompts/`
+4. **Default**: `$XDG_DATA_HOME/prompts/` or `~/.local/hexai/data/prompts/`
 
 **Precedence order** (highest to lowest):
 1. Command-line flag (`--prompts-dir`)
@@ -194,7 +194,7 @@ chmod +x ~/go/bin/hexai-mcp-server
 
 **Check the log file**:
 ```bash
-tail -f ~/.local/state/hexai/hexai-mcp-server.log
+tail -f ~/.local/hexai/state/hexai-mcp-server.log
 ```
 
 Common issues:
@@ -206,19 +206,19 @@ Common issues:
 
 1. Verify prompts directory exists:
    ```bash
-   ls -la ~/.local/share/hexai/prompts/
+   ls -la ~/.local/hexai/data/prompts/
    # Should show default.jsonl and possibly user.jsonl
    ```
 
 2. Check default.jsonl has content:
    ```bash
-   wc -l ~/.local/share/hexai/prompts/default.jsonl
+   wc -l ~/.local/hexai/data/prompts/default.jsonl
    # Should show 7 or more lines
    ```
 
 3. Verify JSON format:
    ```bash
-   jq -s '.' ~/.local/share/hexai/prompts/default.jsonl
+   jq -s '.' ~/.local/hexai/data/prompts/default.jsonl
    # Should parse successfully
    ```
 

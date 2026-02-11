@@ -57,7 +57,7 @@ Every operation through the MCP server automatically creates a backup:
 
 ### Storage Location
 ```
-~/.local/share/hexai/prompts/backups/
+~/.local/hexai/data/prompts/backups/
 ├── user.jsonl.20260210-190358
 ├── user.jsonl.20260210-192145
 ├── user.jsonl.20260210-193422
@@ -122,7 +122,7 @@ In rare cases where you need to manually restore:
 
 ### List Backups
 ```bash
-ls -lht ~/.local/share/hexai/prompts/backups/
+ls -lht ~/.local/hexai/data/prompts/backups/
 ```
 
 Output:
@@ -135,8 +135,8 @@ Output:
 ### Restore from Backup
 ```bash
 # Copy backup to restore
-cp ~/.local/share/hexai/prompts/backups/user.jsonl.20260210-193422 \
-   ~/.local/share/hexai/prompts/user.jsonl
+cp ~/.local/hexai/data/prompts/backups/user.jsonl.20260210-193422 \
+   ~/.local/hexai/data/prompts/user.jsonl
 
 # Restart MCP client to reload
 ```
