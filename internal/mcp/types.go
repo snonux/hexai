@@ -38,6 +38,18 @@ const (
 	ErrCodeInternalError  = -32603 // Server internal error
 )
 
+// LatestProtocolVersion is the newest MCP protocol version this server supports.
+const LatestProtocolVersion = "2025-11-25"
+
+// ValidProtocolVersions lists all MCP protocol versions this server accepts.
+// Server echoes back the client's version if valid; otherwise responds with latest.
+var ValidProtocolVersions = []string{
+	"2025-11-25",
+	"2025-06-18",
+	"2025-03-26",
+	"2024-11-05",
+}
+
 // InitializeRequest is the first message from client to establish connection.
 // Client sends capabilities and protocol version; server responds with its capabilities.
 type InitializeRequest struct {

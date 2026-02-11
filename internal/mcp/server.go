@@ -107,13 +107,13 @@ func (s *Server) handleInitialize(req Request) {
 	s.logger.Printf("initialize from client: %s %s (protocol: %s)",
 		params.ClientInfo.Name, params.ClientInfo.Version, params.ProtocolVersion)
 
-	// Validate protocol version (accept both old and new versions for compatibility)
-	if params.ProtocolVersion != "2024-11-05" && params.ProtocolVersion != "2025-06-18" {
-		s.logger.Printf("warning: unsupported protocol version: %s", params.ProtocolVersion)
-	}
+	// Negotiate protocol version: echo client's version if valid, otherwise use latest.
+	// This follows the MCP spec where the server responds with a version it supports.
+	negotiatedVersion := negotiateProtocolVersion(params.ProtocolVersion)
+	s.logger.Printf("negotiated protocol version: %s", negotiatedVersion)
 
 	result := InitializeResult{
-		ProtocolVersion: "2025-06-18",
+		ProtocolVersion: negotiatedVersion,
 		Capabilities: ServerCapabilities{
 			Prompts: &PromptsCapability{
 				ListChanged: false,
@@ -131,6 +131,17 @@ func (s *Server) handleInitialize(req Request) {
 	s.mu.Unlock()
 
 	s.sendResponse(req.ID, result)
+}
+
+// negotiateProtocolVersion returns the client's version if supported,
+// otherwise returns the latest version this server supports.
+func negotiateProtocolVersion(clientVersion string) string {
+	for _, v := range ValidProtocolVersions {
+		if v == clientVersion {
+			return clientVersion
+		}
+	}
+	return LatestProtocolVersion
 }
 
 // handleInitialized processes the initialized notification.
@@ -166,8 +177,8 @@ func (s *Server) handlePromptsList(req Request) {
 		return
 	}
 
-	// Convert to PromptInfo
-	var infos []PromptInfo
+	// Convert to PromptInfo (initialize as empty slice so JSON marshals as [] not null)
+	infos := make([]PromptInfo, 0, len(prompts))
 	for _, p := range prompts {
 		args := make([]PromptArgument, len(p.Arguments))
 		for i, a := range p.Arguments {

@@ -500,6 +500,28 @@ func TestServer_ReadMessage(t *testing.T) {
 	})
 }
 
+func TestNegotiateProtocolVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		client   string
+		expected string
+	}{
+		{"echoes supported version", "2025-11-25", "2025-11-25"},
+		{"echoes older version", "2025-06-18", "2025-06-18"},
+		{"echoes oldest version", "2024-11-05", "2024-11-05"},
+		{"returns latest for unknown", "9999-01-01", LatestProtocolVersion},
+		{"returns latest for empty", "", LatestProtocolVersion},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := negotiateProtocolVersion(tt.client)
+			if got != tt.expected {
+				t.Errorf("negotiateProtocolVersion(%q) = %q, want %q", tt.client, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestServer_HandleInitialized(t *testing.T) {
 	store := &mockPromptStore{prompts: make(map[string]*promptstore.Prompt)}
 	server, _, _ := createTestServer(t, store)
