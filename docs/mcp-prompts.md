@@ -81,78 +81,171 @@ Messages define the conversation flow:
 
 ## Built-in Prompts
 
-hexai-mcp-server includes these built-in prompts:
+hexai-mcp-server includes built-in **meta-prompts** that help you create and manage prompts interactively. These prompts leverage Claude's access to your conversation context to extract content and create templates.
 
-### code_review
-Analyzes code quality, style, and potential issues.
+### save_prompt
+Interactively create a new prompt template from your current conversation.
 
-**Arguments**:
-- `code` (required): The code to review
-
-**Tags**: development, review, quality
-
-### explain_code
-Provides detailed explanation of what code does.
-
-**Arguments**:
-- `code` (required): The code to explain
-
-**Tags**: development, documentation, learning
-
-### generate_tests
-Generates unit tests for a function or class.
+**How it works**:
+1) You provide a name and title for the new prompt
+2) Claude analyzes your conversation to understand what should be templated
+3) Claude asks clarifying questions about arguments, description, and tags
+4) Claude shows a complete preview of the prompt structure
+5) After you approve, Claude saves it using the MCP prompts/create method
 
 **Arguments**:
-- `code` (required): The code to test
-- `language` (optional): Programming language
+- `prompt_name` (required): Unique identifier (lowercase, underscores allowed)
+- `prompt_title` (required): Human-readable display name
 
-**Tags**: development, testing, tdd
+**Usage Example**:
+```
+You: (Have a conversation about code review)
+     "Can you help me review Go code for best practices?"
+Claude: (Provides code review suggestions)
 
-### document_function
-Generates documentation comments and docstrings.
+You: /save_prompt prompt_name="go_best_practices" prompt_title="Go Best Practices Review"
+
+Claude: I'll help you create this prompt. Looking at our conversation, I see you want
+        a code review focused on Go best practices.
+
+        Clarifying Questions:
+
+        1) Template Arguments
+        Should the 'code' argument be required?
+        a) Yes, required (can't review without code)
+        b) No, optional
+
+        2) Description
+        What description would best explain this prompt's purpose?
+        a) "Reviews Go code for adherence to best practices and idiomatic patterns"
+        b) "Analyzes Go code quality focusing on style, performance, and Go idioms"
+        c) Something else?
+
+        3) Tags
+        Which tags would help categorize it?
+        a) ["go", "review", "best-practices"]
+        b) ["development", "go", "code-quality"]
+        c) Other suggestions?
+
+        ...
+
+        Here's the preview:
+        ```json
+        {
+          "name": "go_best_practices",
+          "title": "Go Best Practices Review",
+          ...
+        }
+        ```
+
+        Should I save this prompt?
+
+You: Yes, looks good!
+
+Claude: (Saves the prompt using MCP prompts/create)
+```
+
+**Tags**: meta, prompt-management, interactive
+
+### update_prompt
+Interactively modify an existing prompt.
+
+**How it works**:
+1) You provide the name of the prompt to update
+2) Claude fetches and shows the current version
+3) Claude asks what changes you want to make
+4) If you reference conversation content, Claude helps extract and template it
+5) Claude shows a preview with changes highlighted
+6) After you approve, Claude updates it using the MCP prompts/update method
 
 **Arguments**:
-- `code` (required): The code to document
+- `prompt_name` (required): Name of the existing prompt to update
 
-**Tags**: development, documentation
+**Usage Example**:
+```
+You: /update_prompt prompt_name="go_best_practices"
 
-### simplify_code
-Simplifies complex code while preserving behavior.
+Claude: Let me fetch the current version of 'go_best_practices'...
 
-**Arguments**:
-- `code` (required): The code to simplify
+        Current prompt:
+        - Name: go_best_practices
+        - Title: Go Best Practices Review
+        - Description: Reviews Go code for idiomatic patterns
+        - Arguments: code (required)
 
-**Tags**: development, refactoring, quality
+        What changes would you like to make?
 
-### fix_bugs
-Analyzes code for bugs and suggests fixes.
+You: Add an optional 'focus_area' argument that lets me specify what aspect to focus on
 
-**Arguments**:
-- `code` (required): The code to analyze
-- `error` (optional): Error message or symptoms
+Claude: Great! I'll add that argument. Here's the updated preview with changes:
 
-**Tags**: development, debugging, bug-fix
+        ```json
+        {
+          "name": "go_best_practices",
+          "arguments": [
+            {"name": "code", "required": true, ...},
+            {"name": "focus_area", "required": false, ...}  // ← NEW
+          ],
+          "messages": [
+            {
+              "text": "Review this Go code for best practices:\n\n{{code}}\n\nFocus on: {{focus_area}}"  // ← UPDATED
+            }
+          ]
+        }
+        ```
 
-### refactor_extract
-Extracts code into a separate, reusable function.
+        Should I save these changes?
 
-**Arguments**:
-- `code` (required): The code to extract
-- `function_name` (optional): Desired function name
+You: Yes!
 
-**Tags**: development, refactoring
+Claude: (Updates the prompt using MCP prompts/update)
+```
+
+**Tags**: meta, prompt-management, interactive
+
+**Note**: Built-in prompts (including these meta-prompts) cannot be modified or deleted. If you need to customize a built-in, create a new prompt with a different name.
 
 ## Creating Custom Prompts
 
 ### Storage Files
 
-Prompts are stored in two files:
-- `default.jsonl`: Built-in prompts (automatically created)
-- `user.jsonl`: Your custom prompts
+Prompts are stored as follows:
+- **Built-in prompts**: Compiled into the `hexai-mcp-server` binary (no file needed)
+- **User prompts**: Stored in `user.jsonl` at `~/.local/share/hexai/prompts/` (or your configured directory)
 
-Both files are in: `~/.local/hexai/data/prompts/` (or your configured directory)
+This means built-in prompts are always available and up-to-date with the binary version.
 
-### Method 1: Manual Editing
+### Method 1: Interactive Meta-Prompts (Recommended)
+
+Use the built-in `save_prompt` meta-prompt to create prompts interactively. This is the easiest method because:
+- Claude extracts content from your current conversation
+- You get guided questions about templating
+- You see a preview before saving
+- No manual JSON editing required
+
+**Example workflow**:
+```
+1) Have a conversation with Claude about your task
+   You: "Help me write better commit messages"
+   Claude: (Provides guidance on commit message best practices)
+
+2) Invoke the meta-prompt
+   You: /save_prompt prompt_name="better_commits" prompt_title="Better Commit Messages"
+
+3) Answer Claude's clarifying questions
+   Claude: "Should I template the 'diff' as an argument?"
+   You: "Yes, make it required"
+
+4) Review and approve
+   Claude: (Shows JSON preview)
+   You: "Looks good!"
+
+5) Prompt is saved to user.jsonl
+```
+
+To modify an existing prompt, use `/update_prompt prompt_name="better_commits"`.
+
+### Method 2: Manual Editing
 
 Edit `user.jsonl` directly:
 
@@ -172,7 +265,7 @@ Add a new prompt (one line, formatted for readability here):
 cat user.jsonl | jq .
 ```
 
-### Method 2: Python Script
+### Method 3: Python Script
 
 Create prompts programmatically:
 
@@ -215,7 +308,7 @@ with open("~/.local/hexai/data/prompts/user.jsonl", "a") as f:
     f.write(json.dumps(prompt) + "\n")
 ```
 
-### Method 3: Go Code
+### Method 4: Go Code
 
 Use hexai's promptstore package:
 

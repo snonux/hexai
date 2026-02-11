@@ -3,6 +3,8 @@ package promptstore
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -82,9 +84,9 @@ func TestJSONLStore_List(t *testing.T) {
 		t.Fatalf("List() error = %v", err)
 	}
 
-	// Should have all prompts
-	if len(prompts) != 7 {
-		t.Errorf("List() got %d prompts, want 7", len(prompts))
+	// Should have all prompts (7 user + 2 built-ins)
+	if len(prompts) != 9 {
+		t.Errorf("List() got %d prompts, want 9 (7 user + 2 built-ins)", len(prompts))
 	}
 
 	// No cursor for full list
@@ -305,4 +307,253 @@ func TestJSONLStore_SearchByTags(t *testing.T) {
 	if results[0].Name != "test1" {
 		t.Errorf("SearchByTags() got prompt %s, want test1", results[0].Name)
 	}
+}
+
+func TestJSONLStore_LoadAllPrompts_CodeAndFile(t *testing.T) {
+	t.Run("loads from both code (built-ins) and user.jsonl", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		store, err := NewJSONLStore(tmpDir)
+		if err != nil {
+			t.Fatalf("NewJSONLStore() error = %v", err)
+		}
+
+		// Create a user prompt
+		userPrompt := &Prompt{
+			Name:     "user_test",
+			Title:    "User Test",
+			Messages: []PromptMessage{{Role: "user", Content: MessageContent{Type: "text", Text: "User test"}}},
+			Created:  time.Now(),
+			Updated:  time.Now(),
+		}
+		if err := store.Create(userPrompt); err != nil {
+			t.Fatalf("Create() error = %v", err)
+		}
+
+		// List all prompts (should include both built-ins from code and user prompt)
+		prompts, _, err := store.List("", 100)
+		if err != nil {
+			t.Fatalf("List() error = %v", err)
+		}
+
+		// Check we have at least the built-ins (save_prompt, update_prompt) + user prompt
+		if len(prompts) < 3 {
+			t.Errorf("List() got %d prompts, want at least 3 (2 built-ins + 1 user)", len(prompts))
+		}
+
+		// Verify built-in prompts are present
+		hasBuiltIn := false
+		hasUser := false
+		for _, p := range prompts {
+			if p.Name == "save_prompt" || p.Name == "update_prompt" {
+				hasBuiltIn = true
+			}
+			if p.Name == "user_test" {
+				hasUser = true
+			}
+		}
+
+		if !hasBuiltIn {
+			t.Error("List() missing built-in prompts (save_prompt or update_prompt)")
+		}
+		if !hasUser {
+			t.Error("List() missing user prompt (user_test)")
+		}
+	})
+
+	t.Run("built-ins take precedence over user prompts with same name", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		store, err := NewJSONLStore(tmpDir)
+		if err != nil {
+			t.Fatalf("NewJSONLStore() error = %v", err)
+		}
+
+		// Get the built-in save_prompt (from code)
+		builtIn, err := store.Get("save_prompt")
+		if err != nil {
+			t.Fatalf("Get(save_prompt) error = %v", err)
+		}
+		originalTitle := builtIn.Title
+
+		// Manually add a conflicting prompt to user.jsonl (bypass protection)
+		// This simulates a conflict scenario
+		jStore := store.(*JSONLStore)
+		conflictPrompt := &Prompt{
+			Name:     "save_prompt",
+			Title:    "Conflicting Title",
+			Messages: []PromptMessage{{Role: "user", Content: MessageContent{Type: "text", Text: "Conflict"}}},
+			Created:  time.Now(),
+			Updated:  time.Now(),
+		}
+		// Write directly to user.jsonl without using Create (which has protection)
+		userPrompts := []Prompt{*conflictPrompt}
+		if err := jStore.writePromptsToFile("user.jsonl", userPrompts); err != nil {
+			t.Fatalf("writePromptsToFile() error = %v", err)
+		}
+
+		// Get save_prompt again - should return built-in from code, not user version
+		result, err := store.Get("save_prompt")
+		if err != nil {
+			t.Fatalf("Get(save_prompt) after conflict error = %v", err)
+		}
+
+		if result.Title != originalTitle {
+			t.Errorf("Get(save_prompt) title = %v, want %v (built-in should take precedence)", result.Title, originalTitle)
+		}
+	})
+}
+
+func TestJSONLStore_BuiltInProtection_Update(t *testing.T) {
+	tmpDir := t.TempDir()
+	store, err := NewJSONLStore(tmpDir)
+	if err != nil {
+		t.Fatalf("NewJSONLStore() error = %v", err)
+	}
+
+	// Get the built-in save_prompt
+	builtIn, err := store.Get("save_prompt")
+	if err != nil {
+		t.Fatalf("Get(save_prompt) error = %v", err)
+	}
+
+	// Try to update it
+	builtIn.Title = "Modified Title"
+	err = store.Update(builtIn)
+
+	// Should fail with clear error message
+	if err == nil {
+		t.Fatal("Update() on built-in prompt should fail")
+	}
+
+	expectedMsg := "cannot update built-in prompt: save_prompt"
+	if !contains(err.Error(), expectedMsg) {
+		t.Errorf("Update() error = %v, want error containing %q", err, expectedMsg)
+	}
+}
+
+func TestJSONLStore_BuiltInProtection_Delete(t *testing.T) {
+	tmpDir := t.TempDir()
+	store, err := NewJSONLStore(tmpDir)
+	if err != nil {
+		t.Fatalf("NewJSONLStore() error = %v", err)
+	}
+
+	// Verify save_prompt exists
+	_, err = store.Get("save_prompt")
+	if err != nil {
+		t.Fatalf("Get(save_prompt) error = %v (built-in should exist)", err)
+	}
+
+	// Try to delete it
+	err = store.Delete("save_prompt")
+
+	// Should fail with clear error message
+	if err == nil {
+		t.Fatal("Delete() on built-in prompt should fail")
+	}
+
+	expectedMsg := "cannot delete built-in prompt: save_prompt"
+	if !contains(err.Error(), expectedMsg) {
+		t.Errorf("Delete() error = %v, want error containing %q", err, expectedMsg)
+	}
+
+	// Verify it still exists
+	_, err = store.Get("save_prompt")
+	if err != nil {
+		t.Error("Get(save_prompt) after failed delete should still work")
+	}
+}
+
+func TestJSONLStore_Create_NameConflictWithBuiltIn(t *testing.T) {
+	tmpDir := t.TempDir()
+	store, err := NewJSONLStore(tmpDir)
+	if err != nil {
+		t.Fatalf("NewJSONLStore() error = %v", err)
+	}
+
+	// Try to create a prompt with the same name as a built-in
+	conflictPrompt := &Prompt{
+		Name:     "save_prompt",
+		Title:    "My Custom Save",
+		Messages: []PromptMessage{{Role: "user", Content: MessageContent{Type: "text", Text: "Custom"}}},
+		Created:  time.Now(),
+		Updated:  time.Now(),
+	}
+
+	err = store.Create(conflictPrompt)
+
+	// Should fail with clear error message
+	if err == nil {
+		t.Fatal("Create() with built-in name should fail")
+	}
+
+	expectedMsg := "prompt already exists: save_prompt"
+	if !contains(err.Error(), expectedMsg) {
+		t.Errorf("Create() error = %v, want error containing %q", err, expectedMsg)
+	}
+}
+
+func TestJSONLStore_BuiltInPromptsLoadedFromCode(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create store (built-ins loaded from code, not from file)
+	store, err := NewJSONLStore(tmpDir)
+	if err != nil {
+		t.Fatalf("NewJSONLStore() error = %v", err)
+	}
+
+	// Verify save_prompt exists (loaded from code)
+	savePrompt, err := store.Get("save_prompt")
+	if err != nil {
+		t.Fatalf("Get(save_prompt) error = %v (should be loaded from code)", err)
+	}
+	if savePrompt.Name != "save_prompt" {
+		t.Errorf("Get(save_prompt) name = %v, want save_prompt", savePrompt.Name)
+	}
+
+	// Verify update_prompt exists (loaded from code)
+	updatePrompt, err := store.Get("update_prompt")
+	if err != nil {
+		t.Fatalf("Get(update_prompt) error = %v (should be loaded from code)", err)
+	}
+	if updatePrompt.Name != "update_prompt" {
+		t.Errorf("Get(update_prompt) name = %v, want update_prompt", updatePrompt.Name)
+	}
+
+	// Verify both have correct tags
+	if !containsTag(savePrompt.Tags, "meta") {
+		t.Error("save_prompt should have 'meta' tag")
+	}
+	if !containsTag(updatePrompt.Tags, "meta") {
+		t.Error("update_prompt should have 'meta' tag")
+	}
+
+	// Verify no default.jsonl file was created
+	defaultPath := filepath.Join(tmpDir, "default.jsonl")
+	if _, err := os.Stat(defaultPath); !os.IsNotExist(err) {
+		t.Error("default.jsonl should not be created (built-ins loaded from code)")
+	}
+}
+
+// Helper function to check if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsSubstring(s, substr))
+}
+
+func containsSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// Helper function to check if a slice contains a tag
+func containsTag(tags []string, tag string) bool {
+	for _, t := range tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }

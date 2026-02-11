@@ -18,7 +18,7 @@ It has got improved capabilities for Go code understanding (for example, create 
   - Automatic backups on every change (keeps last 10)
   - Compatible with Claude Code CLI, Cursor, and other MCP clients
   - File-based storage with JSONL format (git-friendly)
-  - Built-in prompts for code review, testing, documentation, etc.
+  - Built-in meta-prompts for interactive prompt creation and management
 * TUI AI code-action runner (`hexai-tmux-action`) with Bubble Tea
   - Includes a "Custom prompt" action (hotkey `p`) that opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary Markdown file.
 * Tmux popup editor (`hexai-tmux-edit`) for composing longer AI agent prompts
@@ -56,7 +56,6 @@ hexai follows the XDG Base Directory Specification:
   - `hexai-tmux-edit.log` - Tmux edit debug logs
   - `hexai-mcp-server.log` - MCP server debug logs
 - **Data:** `~/.local/hexai/data/` (or `$XDG_DATA_HOME/`)
-  - `prompts/default.jsonl` - Built-in prompts for MCP server
-  - `prompts/user.jsonl` - User-created custom prompts
+  - `prompts/user.jsonl` - User-created custom prompts (built-in prompts are compiled into the binary)
 - **Temporary Files:** `/tmp/` (OS temp directory)
   - `hexai-*.md` - Temporary editor workspaces (auto-deleted)
