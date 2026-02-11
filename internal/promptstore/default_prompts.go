@@ -104,11 +104,10 @@ Start by examining our conversation and asking your clarifying questions using t
 						Text: `I want to update the existing prompt '{{prompt_name}}'.
 
 Please help me by:
-1) First, use prompts/get to retrieve the current prompt '{{prompt_name}}' and show me what exists
-2) Ask me what changes I want to make (description, arguments, messages, tags)
-3) If I reference content from our current conversation, help extract and template it
-4) Show me a complete preview of the updated prompt with changes highlighted
-5) Only after I approve, use the update_prompt tool to save the changes
+1) Ask me what changes I want to make to the prompt '{{prompt_name}}' (title, description, arguments, messages, or tags)
+2) If I reference content from our current conversation, help extract and template it
+3) Show me a complete preview of the updated prompt with changes highlighted
+4) Only after I approve, use the update_prompt tool to save the changes
 
 IMPORTANT FORMATTING RULES for clarifying questions:
 - Use numbered questions: 1), 2), 3)
@@ -137,7 +136,7 @@ Examples:
   3b) Second aspect to evaluate
   3c) Third aspect to evaluate
 
-Start by fetching and showing me the current prompt, then ask clarifying questions using this format.`,
+Start by asking me what changes I want to make, using this format for any clarifying questions.`,
 					},
 				},
 			},
@@ -164,16 +163,17 @@ Start by fetching and showing me the current prompt, then ask clarifying questio
 						Text: `I want to delete the existing prompt '{{prompt_name}}'.
 
 Please help me by:
-1) First, use prompts/get to retrieve the prompt '{{prompt_name}}' and show me its details so I can confirm it's the right one
-2) Ask me to explicitly confirm the deletion
-3) Only after I explicitly confirm, use the delete_prompt tool to delete it
+1) Confirm with me that I want to delete the prompt named '{{prompt_name}}'
+2) Explain that this action cannot be undone (though backups are automatically created)
+3) Ask me to type 'yes' to confirm the deletion
+4) Only after I explicitly confirm with 'yes', use the delete_prompt tool to delete it
 
 IMPORTANT NOTES:
 - Built-in prompts (save_prompt, update_prompt, delete_prompt) cannot be deleted
 - Only custom prompts stored in user.jsonl can be deleted
-- This action cannot be undone (though backups are automatically created)
+- Backups are automatically created before deletion
 
-Start by showing me the prompt details.`,
+Ask me to confirm the deletion of '{{prompt_name}}'.`,
 					},
 				},
 			},
