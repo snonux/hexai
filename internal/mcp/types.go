@@ -192,6 +192,48 @@ type DeletePromptRequest struct {
 	Name string `json:"name"`
 }
 
+// Tool defines an MCP tool that can be invoked via tools/call.
+// Each tool has a name, description, and JSON Schema for input validation.
+type Tool struct {
+	Name        string                 `json:"name"`        // Unique tool identifier
+	Description string                 `json:"description"` // Human-readable description
+	InputSchema map[string]interface{} `json:"inputSchema"` // JSON Schema for arguments
+}
+
+// ListToolsRequest contains parameters for tools/list method.
+// Supports pagination via cursor-based iteration.
+type ListToolsRequest struct {
+	Cursor string `json:"cursor,omitempty"` // Pagination cursor (empty for first page)
+}
+
+// ListToolsResult contains list of available tools.
+// Includes nextCursor for fetching additional pages if needed.
+type ListToolsResult struct {
+	Tools      []Tool `json:"tools"`                // Available tools
+	NextCursor string `json:"nextCursor,omitempty"` // Pagination cursor
+}
+
+// CallToolRequest contains parameters for tools/call method.
+// Specifies which tool to execute and its input arguments.
+type CallToolRequest struct {
+	Name      string                 `json:"name"`                // Tool name to execute
+	Arguments map[string]interface{} `json:"arguments,omitempty"` // Tool input arguments
+}
+
+// CallToolResult contains the result of a tool execution.
+// Returns content (text output) and optional error flag.
+type CallToolResult struct {
+	Content []ToolContent `json:"content"`           // Tool output content
+	IsError bool          `json:"isError,omitempty"` // True if tool execution failed
+}
+
+// ToolContent represents content returned by a tool.
+// Currently only text content is supported.
+type ToolContent struct {
+	Type string `json:"type"` // Content type (e.g., "text")
+	Text string `json:"text"` // Text content
+}
+
 // PromptOperationResult indicates success/failure of create/update/delete.
 type PromptOperationResult struct {
 	Success bool   `json:"success"`

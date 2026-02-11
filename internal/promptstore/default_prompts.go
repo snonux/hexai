@@ -43,7 +43,7 @@ Please help me by:
    - What tags would help categorize it
    - Whether multi-turn messages are needed
 3) Showing me a complete preview of the prompt structure in a code block
-4) Only after I approve, use the MCP prompts/create method to save it
+4) Only after I approve, use the create_prompt tool to save it
 
 IMPORTANT FORMATTING RULES for clarifying questions:
 - Use numbered questions: 1), 2), 3)
@@ -104,11 +104,11 @@ Start by examining our conversation and asking your clarifying questions using t
 						Text: `I want to update the existing prompt '{{prompt_name}}'.
 
 Please help me by:
-1) First, retrieve the current prompt using prompts/get to show me what exists
+1) First, show me the current prompt (you can access it via the prompts capability)
 2) Ask me what changes I want to make (description, arguments, messages, tags)
 3) If I reference content from our current conversation, help extract and template it
 4) Show me a complete preview of the updated prompt with changes highlighted
-5) Only after I approve, use the MCP prompts/update method to save the changes
+5) Only after I approve, use the update_prompt tool to save the changes
 
 IMPORTANT FORMATTING RULES for clarifying questions:
 - Use numbered questions: 1), 2), 3)
