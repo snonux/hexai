@@ -41,7 +41,7 @@ The hexai-mcp-server is a complete Model Context Protocol implementation with pr
 ### 5. Storage & Organization
 - ✅ **JSONL format** - Git-friendly, human-readable
 - ✅ **Separate files** - `default.jsonl` (built-in), `user.jsonl` (custom)
-- ✅ **XDG-compliant** - `~/.local/share/hexai/prompts/`
+- ✅ **XDG-compliant** - `~/.local/hexai/data/prompts/`
 - ✅ **Configurable** - Override via flag, env var, or config file
 - ✅ **Tag-based categorization** - Filter and organize prompts
 
@@ -123,7 +123,7 @@ hexai-prompt restore 1
 
 ```bash
 # Edit user.jsonl directly
-$EDITOR ~/.local/share/hexai/prompts/user.jsonl
+$EDITOR ~/.local/hexai/data/prompts/user.jsonl
 
 # Validate after editing
 hexai-prompt validate
@@ -141,7 +141,7 @@ hexai-prompt validate
 Every write operation (create/update/delete) automatically creates a timestamped backup:
 
 ```
-~/.local/share/hexai/prompts/backups/
+~/.local/hexai/data/prompts/backups/
 ├── user.jsonl.20260210-190358
 ├── user.jsonl.20260210-192145
 └── user.jsonl.20260210-193422
@@ -270,7 +270,7 @@ git commit -m "Add team prompt"
 git push
 
 # Team members import
-jq -c . team-prompt.json >> ~/.local/share/hexai/prompts/user.jsonl
+jq -c . team-prompt.json >> ~/.local/hexai/data/prompts/user.jsonl
 ```
 
 ## 🔧 Configuration
@@ -305,7 +305,7 @@ jq -c . team-prompt.json >> ~/.local/share/hexai/prompts/user.jsonl
 
 ### Storage Location
 
-**Default**: `~/.local/share/hexai/prompts/`
+**Default**: `~/.local/hexai/data/prompts/`
 
 **Override** (priority order):
 1. `--prompts-dir /path/to/prompts` (CLI flag)

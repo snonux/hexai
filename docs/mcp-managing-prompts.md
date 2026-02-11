@@ -16,9 +16,9 @@ All prompt management is done through the MCP server protocol. Use any MCP clien
 
 ## 📍 Prompt Locations
 
-- **Default prompts**: `~/.local/share/hexai/prompts/default.jsonl` (built-in, auto-regenerated)
-- **Custom prompts**: `~/.local/share/hexai/prompts/user.jsonl` (your prompts)
-- **Backups**: `~/.local/share/hexai/prompts/backups/` (automatic backups)
+- **Default prompts**: `~/.local/hexai/data/prompts/default.jsonl` (built-in, auto-regenerated)
+- **Custom prompts**: `~/.local/hexai/data/prompts/user.jsonl` (your prompts)
+- **Backups**: `~/.local/hexai/data/prompts/backups/` (automatic backups)
 - **Override directory**: Set `HEXAI_MCP_PROMPTS_DIR` environment variable
 
 ## 📝 Method 1: Using MCP Protocol (Recommended)
@@ -102,10 +102,10 @@ Use your MCP client (Claude Code, Cursor) to list prompts, or use the MCP protoc
 ### Edit user.jsonl
 ```bash
 # Using your editor
-$EDITOR ~/.local/share/hexai/prompts/user.jsonl
+$EDITOR ~/.local/hexai/data/prompts/user.jsonl
 
 # Or with nano
-nano ~/.local/share/hexai/prompts/user.jsonl
+nano ~/.local/hexai/data/prompts/user.jsonl
 ```
 
 ### Prompt Format (JSONL - one line per prompt)
@@ -145,7 +145,7 @@ nano ~/.local/share/hexai/prompts/user.jsonl
 
 **To add**: Minify with `jq -c` and append:
 ```bash
-jq -c . my-prompt.json >> ~/.local/share/hexai/prompts/user.jsonl
+jq -c . my-prompt.json >> ~/.local/hexai/data/prompts/user.jsonl
 ```
 
 ## 📝 Method 3: Programmatic Access (Go)
@@ -159,7 +159,7 @@ import (
 )
 
 func main() {
-    dir := "/home/paul/.local/share/hexai/prompts"
+    dir := "/home/paul/.local/hexai/data/prompts"
     store, _ := promptstore.NewJSONLStore(dir)
 
     prompt := &promptstore.Prompt{
@@ -205,7 +205,7 @@ Some MCP clients (like Claude Code, Cursor) may cache the prompt list:
 
 ### View Automatic Backups
 ```bash
-ls -lht ~/.local/share/hexai/prompts/backups/
+ls -lht ~/.local/hexai/data/prompts/backups/
 ```
 
 Output shows timestamped backups (most recent first):
@@ -217,14 +217,14 @@ Output shows timestamped backups (most recent first):
 ### Restore from Backup (Manual)
 ```bash
 # Copy backup to restore
-cp ~/.local/share/hexai/prompts/backups/user.jsonl.20260210-193422 \
-   ~/.local/share/hexai/prompts/user.jsonl
+cp ~/.local/hexai/data/prompts/backups/user.jsonl.20260210-193422 \
+   ~/.local/hexai/data/prompts/user.jsonl
 ```
 
 ### Import a Prompt
 ```bash
 # From a JSON file
-jq -c . imported-prompt.json >> ~/.local/share/hexai/prompts/user.jsonl
+jq -c . imported-prompt.json >> ~/.local/hexai/data/prompts/user.jsonl
 hexai-prompt validate
 ```
 
@@ -244,7 +244,7 @@ git push
 ```bash
 cd team-prompts/
 for f in *.json; do
-    jq -c . "$f" >> ~/.local/share/hexai/prompts/user.jsonl
+    jq -c . "$f" >> ~/.local/hexai/data/prompts/user.jsonl
 done
 ```
 
@@ -264,7 +264,7 @@ done
 
 **Method 2**: Edit user.jsonl directly
 ```bash
-$EDITOR ~/.local/share/hexai/prompts/user.jsonl
+$EDITOR ~/.local/hexai/data/prompts/user.jsonl
 # Find the line with the prompt name and edit it
 hexai-prompt validate
 ```
@@ -276,8 +276,8 @@ store.Update(prompt)  // Updates existing prompt by name
 
 ### Count Prompts
 ```bash
-wc -l ~/.local/share/hexai/prompts/default.jsonl  # Built-in
-wc -l ~/.local/share/hexai/prompts/user.jsonl     # Custom
+wc -l ~/.local/hexai/data/prompts/default.jsonl  # Built-in
+wc -l ~/.local/hexai/data/prompts/user.jsonl     # Custom
 ```
 
 ## 🛠️ Troubleshooting
@@ -285,23 +285,23 @@ wc -l ~/.local/share/hexai/prompts/user.jsonl     # Custom
 ### Invalid JSON
 ```bash
 # Check specific file
-jq empty ~/.local/share/hexai/prompts/user.jsonl
+jq empty ~/.local/hexai/data/prompts/user.jsonl
 ```
 
 ### Prompt Not Appearing
 ```bash
 # Check MCP server logs
-tail -f ~/.local/state/hexai/hexai-mcp-server.log
+tail -f ~/.local/hexai/state/hexai-mcp-server.log
 
 # Verify file exists
-cat ~/.local/share/hexai/prompts/user.jsonl | jq .
+cat ~/.local/hexai/data/prompts/user.jsonl | jq .
 ```
 
 ### Duplicate Prompt Names
 Prompt names must be unique. If you have duplicates:
 ```bash
 # List all prompt names
-cat ~/.local/share/hexai/prompts/user.jsonl | jq -r .name | sort | uniq -d
+cat ~/.local/hexai/data/prompts/user.jsonl | jq -r .name | sort | uniq -d
 
 # Fix: Edit user.jsonl and rename or remove duplicates
 ```
@@ -309,10 +309,10 @@ cat ~/.local/share/hexai/prompts/user.jsonl | jq -r .name | sort | uniq -d
 ### Reset to Defaults
 ```bash
 # Backup first
-cp ~/.local/share/hexai/prompts/default.jsonl ~/backup/
+cp ~/.local/hexai/data/prompts/default.jsonl ~/backup/
 
 # Delete and let server recreate
-rm ~/.local/share/hexai/prompts/default.jsonl
+rm ~/.local/hexai/data/prompts/default.jsonl
 
 # Restart MCP server or wait for next request
 ```
