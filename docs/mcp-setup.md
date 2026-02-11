@@ -32,60 +32,57 @@ The binary will be installed to `~/go/bin/hexai-mcp-server` (or wherever your `G
 
 ## Configuring Claude Code CLI
 
-Claude Code CLI discovers MCP servers via `~/.config/claude/mcp.json`. Create or edit this file:
+Claude Code CLI uses the `claude mcp add` command to register MCP servers. The configuration is stored in `~/.claude.json` (user scope) or `.mcp.json` (project scope).
 
-### Option 1: Full Path (Recommended)
+### Option 1: User Scope (Recommended)
 
-```json
-{
-  "mcpServers": {
-    "hexai-prompts": {
-      "command": "/home/paul/go/bin/hexai-mcp-server",
-      "args": [],
-      "env": {}
-    }
-  }
-}
+Register the MCP server for all projects:
+
+```bash
+claude mcp add --transport stdio --scope user hexai-prompts -- \
+  ~/go/bin/hexai-mcp-server
 ```
 
-Replace `/home/paul` with your actual home directory path.
+### Option 2: Project Scope
 
-### Option 2: Using $PATH
+Register only for the current project (creates `.mcp.json` in project root):
 
-If `~/go/bin` is in your PATH:
-
-```json
-{
-  "mcpServers": {
-    "hexai-prompts": {
-      "command": "hexai-mcp-server",
-      "args": [],
-      "env": {}
-    }
-  }
-}
+```bash
+claude mcp add --transport stdio --scope project hexai-prompts -- \
+  ~/go/bin/hexai-mcp-server
 ```
 
 ### Option 3: Custom Configuration
 
-```json
-{
-  "mcpServers": {
-    "hexai-prompts": {
-      "command": "/home/paul/go/bin/hexai-mcp-server",
-      "args": [
-        "--config", "/home/paul/.config/hexai/config.toml",
-        "--log", "/tmp/hexai-mcp-server.log"
-      ],
-      "env": {
-        "HEXAI_MCP_PROMPTS_DIR": "/home/paul/Dropbox/hexai-prompts"
-      }
-    }
-  }
-}
+Pass additional flags to the server:
+
+```bash
+claude mcp add --transport stdio --scope user hexai-prompts -- \
+  ~/go/bin/hexai-mcp-server \
+  --prompts-dir ~/Dropbox/hexai-prompts \
+  --log /tmp/hexai-mcp-server.log
 ```
 
-**Configuration Options:**
+### Verify Connection
+
+After adding, verify the server is connected:
+
+```bash
+claude mcp list
+# Expected: hexai-prompts: ✓ Connected
+```
+
+### Managing MCP Servers
+
+```bash
+# List all configured servers
+claude mcp list
+
+# Remove a server
+claude mcp remove hexai-prompts -s user
+```
+
+**Server Options:**
 - `--config`: Path to hexai config file (optional)
 - `--log`: Path to log file (default: `~/.local/state/hexai/hexai-mcp-server.log`)
 - `--prompts-dir`: Directory for prompt storage (optional)
@@ -116,9 +113,9 @@ After configuring, restart Cursor to load the MCP server.
 
 Any MCP-compatible client can use hexai-mcp-server. The general pattern is:
 
-1. Find the client's MCP configuration file (usually in `~/.config/<client>/mcp.json`)
+1. Find the client's MCP configuration method (CLI command or JSON config file)
 2. Add an entry with the command path to `hexai-mcp-server`
-3. Restart the client
+3. Restart the client if required
 
 ## Prompts Directory
 
@@ -228,8 +225,9 @@ Common issues:
 ### Client Configuration Issues
 
 **Claude Code CLI**:
-- Configuration file: `~/.config/claude/mcp.json`
-- Restart required after config changes
+- Configuration managed via `claude mcp add/remove/list` commands
+- User config stored in `~/.claude.json`, project config in `.mcp.json`
+- Restart Claude Code after config changes
 
 **Cursor**:
 - Configuration file: `~/.cursor/mcp.json`
@@ -240,23 +238,15 @@ Common issues:
 
 ### Multiple Prompt Collections
 
-You can run multiple instances of hexai-mcp-server with different prompt directories:
+You can register multiple instances of hexai-mcp-server with different prompt directories:
 
-```json
-{
-  "mcpServers": {
-    "hexai-general": {
-      "command": "/home/paul/go/bin/hexai-mcp-server",
-      "args": ["--prompts-dir", "/home/paul/prompts/general"],
-      "env": {}
-    },
-    "hexai-go": {
-      "command": "/home/paul/go/bin/hexai-mcp-server",
-      "args": ["--prompts-dir", "/home/paul/prompts/go"],
-      "env": {}
-    }
-  }
-}
+```bash
+claude mcp add --transport stdio --scope user hexai-general -- \
+  ~/go/bin/hexai-mcp-server --prompts-dir ~/prompts/general
+
+claude mcp add --transport stdio --scope user hexai-go -- \
+  ~/go/bin/hexai-mcp-server --prompts-dir ~/prompts/go
+```
 ```
 
 ### Shared Team Prompts

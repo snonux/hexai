@@ -57,43 +57,34 @@ func createTestServer(t *testing.T, store promptstore.PromptStore) (*Server, *by
 	return NewServer(inBuf, outBuf, logger, store), inBuf, outBuf
 }
 
+// sendRequest writes a JSON-RPC request as newline-delimited JSON (MCP stdio protocol).
 func sendRequest(w io.Writer, req Request) error {
 	data, err := json.Marshal(req)
 	if err != nil {
 		return err
 	}
-	header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(data))
-	if _, err := io.WriteString(w, header); err != nil {
+	if _, err := w.Write(data); err != nil {
 		return err
 	}
-	if _, err := w.Write(data); err != nil {
+	if _, err := io.WriteString(w, "\n"); err != nil {
 		return err
 	}
 	return nil
 }
 
+// readResponse reads a newline-delimited JSON-RPC response (MCP stdio protocol).
 func readResponse(r io.Reader) (*Response, error) {
-	// Simple read for testing (assumes one message in buffer)
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 
-	// Find Content-Length
-	lines := strings.Split(string(data), "\r\n")
-	var contentLength int
-	bodyStart := 0
-	for i, line := range lines {
-		if strings.HasPrefix(line, "Content-Length:") {
-			fmt.Sscanf(line, "Content-Length: %d", &contentLength)
-		}
-		if line == "" {
-			bodyStart = i + 1
-			break
-		}
+	// Parse newline-delimited JSON; take the last non-empty line as the response
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) == 0 {
+		return nil, fmt.Errorf("no response data")
 	}
-
-	body := strings.Join(lines[bodyStart:], "\r\n")
+	body := lines[len(lines)-1]
 	var resp Response
 	if err := json.Unmarshal([]byte(body), &resp); err != nil {
 		return nil, fmt.Errorf("unmarshal response: %w, body: %s", err, body)
@@ -459,11 +450,9 @@ func TestServer_ReadMessage(t *testing.T) {
 		logger := log.New(io.Discard, "", 0)
 		server := NewServer(inBuf, outBuf, logger, store)
 
-		// Write a message with proper framing
-		msg := []byte(`{"jsonrpc":"2.0","id":1,"method":"test"}`)
-		header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(msg))
-		inBuf.WriteString(header)
-		inBuf.Write(msg)
+		// Write a newline-delimited JSON message (MCP stdio protocol)
+		msg := `{"jsonrpc":"2.0","id":1,"method":"test"}`
+		inBuf.WriteString(msg + "\n")
 
 		// Read it back
 		body, err := server.readMessage()
@@ -471,7 +460,28 @@ func TestServer_ReadMessage(t *testing.T) {
 			t.Fatalf("readMessage() error = %v", err)
 		}
 
-		if string(body) != string(msg) {
+		if string(body) != msg {
+			t.Errorf("readMessage() = %s, want %s", body, msg)
+		}
+	})
+
+	t.Run("skips empty lines", func(t *testing.T) {
+		store := &mockPromptStore{prompts: make(map[string]*promptstore.Prompt)}
+		inBuf := &bytes.Buffer{}
+		outBuf := &bytes.Buffer{}
+		logger := log.New(io.Discard, "", 0)
+		server := NewServer(inBuf, outBuf, logger, store)
+
+		// Write empty lines followed by a valid message
+		msg := `{"jsonrpc":"2.0","id":1,"method":"test"}`
+		inBuf.WriteString("\n\n" + msg + "\n")
+
+		body, err := server.readMessage()
+		if err != nil {
+			t.Fatalf("readMessage() error = %v", err)
+		}
+
+		if string(body) != msg {
 			t.Errorf("readMessage() = %s, want %s", body, msg)
 		}
 	})
