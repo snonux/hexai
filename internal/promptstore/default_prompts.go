@@ -104,7 +104,7 @@ Start by examining our conversation and asking your clarifying questions using t
 						Text: `I want to update the existing prompt '{{prompt_name}}'.
 
 Please help me by:
-1) First, show me the current prompt (you can access it via the prompts capability)
+1) First, use prompts/get to retrieve the current prompt '{{prompt_name}}' and show me what exists
 2) Ask me what changes I want to make (description, arguments, messages, tags)
 3) If I reference content from our current conversation, help extract and template it
 4) Show me a complete preview of the updated prompt with changes highlighted
@@ -164,7 +164,7 @@ Start by fetching and showing me the current prompt, then ask clarifying questio
 						Text: `I want to delete the existing prompt '{{prompt_name}}'.
 
 Please help me by:
-1) First, show me the current prompt so I can confirm it's the right one
+1) First, use prompts/get to retrieve the prompt '{{prompt_name}}' and show me its details so I can confirm it's the right one
 2) Ask me to explicitly confirm the deletion
 3) Only after I explicitly confirm, use the delete_prompt tool to delete it
 
