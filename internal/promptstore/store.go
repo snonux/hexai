@@ -37,7 +37,7 @@ type PromptStore interface {
 }
 
 // JSONLStore is a file-based prompt store using JSONL format.
-// Stores prompts in multiple JSONL files (default.jsonl for built-ins, user.jsonl for custom).
+// Built-in prompts are loaded from code, user prompts are stored in user.jsonl.
 // Automatically creates backups before any write operation.
 type JSONLStore struct {
 	dataDir string
@@ -76,7 +76,7 @@ func NewJSONLStore(dataDir string) (PromptStore, error) {
 }
 
 // List returns prompts with pagination.
-// cursor format: "<file>:<offset>" where file is "default" or "user", offset is line number.
+// Returns both built-in prompts (from code) and user prompts (from user.jsonl).
 func (s *JSONLStore) List(cursor string, limit int) ([]Prompt, string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -150,12 +150,21 @@ func (s *JSONLStore) Create(prompt *Prompt) error {
 		return fmt.Errorf("backup failed: %w", err)
 	}
 
-	// Check if prompt already exists (use internal method to avoid deadlock)
-	allPrompts, err := s.loadAllPrompts()
+	// Check if prompt already exists in built-ins
+	isBuiltIn, err := s.isBuiltInPrompt(prompt.Name)
 	if err != nil {
-		return fmt.Errorf("load prompts: %w", err)
+		return fmt.Errorf("check built-in prompts: %w", err)
 	}
-	for _, p := range allPrompts {
+	if isBuiltIn {
+		return fmt.Errorf("prompt already exists: %s (choose a different name)", prompt.Name)
+	}
+
+	// Check if prompt already exists in user prompts
+	userPrompts, err := s.loadPromptsFromFile("user.jsonl")
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("load user prompts: %w", err)
+	}
+	for _, p := range userPrompts {
 		if p.Name == prompt.Name {
 			return fmt.Errorf("prompt already exists: %s", prompt.Name)
 		}
@@ -184,9 +193,19 @@ func (s *JSONLStore) Create(prompt *Prompt) error {
 
 // Update modifies an existing prompt in user.jsonl.
 // Note: This rewrites the entire user.jsonl file.
+// Cannot update built-in prompts (returns error).
 func (s *JSONLStore) Update(prompt *Prompt) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// Check if this is a built-in prompt (cannot be updated)
+	isBuiltIn, err := s.isBuiltInPrompt(prompt.Name)
+	if err != nil {
+		return fmt.Errorf("check built-in prompts: %w", err)
+	}
+	if isBuiltIn {
+		return fmt.Errorf("cannot update built-in prompt: %s (create a new prompt with a different name instead)", prompt.Name)
+	}
 
 	// Backup before write
 	if err := s.backupUserPrompts(); err != nil {
@@ -218,9 +237,19 @@ func (s *JSONLStore) Update(prompt *Prompt) error {
 }
 
 // Delete removes a prompt from user.jsonl.
+// Cannot delete built-in prompts (returns error).
 func (s *JSONLStore) Delete(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// Check if this is a built-in prompt (cannot be deleted)
+	isBuiltIn, err := s.isBuiltInPrompt(name)
+	if err != nil {
+		return fmt.Errorf("check built-in prompts: %w", err)
+	}
+	if isBuiltIn {
+		return fmt.Errorf("cannot delete built-in prompt: %s", name)
+	}
 
 	// Backup before write
 	if err := s.backupUserPrompts(); err != nil {
@@ -291,14 +320,52 @@ func (s *JSONLStore) hasAllTags(promptTags, searchTags []string) bool {
 	return true
 }
 
-// loadAllPrompts loads prompts from user.jsonl.
+// loadAllPrompts loads prompts from both built-in code and user.jsonl.
+// Built-in prompts (from code) take precedence in case of name conflicts.
+// Logs a warning to stderr if a user prompt conflicts with a built-in.
 func (s *JSONLStore) loadAllPrompts() ([]Prompt, error) {
+	// Load built-in prompts directly from code (no file needed)
+	builtInPrompts := DefaultPrompts()
+
+	// Load user prompts from user.jsonl
 	userPrompts, err := s.loadPromptsFromFile("user.jsonl")
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	return userPrompts, nil
+	// Create a map of built-in prompt names for conflict detection
+	builtInNames := make(map[string]bool)
+	for _, p := range builtInPrompts {
+		builtInNames[p.Name] = true
+	}
+
+	// Combine prompts, skipping user prompts that conflict with built-ins
+	allPrompts := make([]Prompt, 0, len(builtInPrompts)+len(userPrompts))
+	allPrompts = append(allPrompts, builtInPrompts...)
+
+	for _, p := range userPrompts {
+		if builtInNames[p.Name] {
+			fmt.Fprintf(os.Stderr, "warning: skipping user prompt '%s' - conflicts with built-in\n", p.Name)
+			continue
+		}
+		allPrompts = append(allPrompts, p)
+	}
+
+	return allPrompts, nil
+}
+
+// isBuiltInPrompt checks if a prompt with the given name exists in the built-in prompts.
+// Returns true if the prompt is a built-in (read-only) prompt.
+func (s *JSONLStore) isBuiltInPrompt(name string) (bool, error) {
+	builtIns := DefaultPrompts()
+
+	for _, p := range builtIns {
+		if p.Name == name {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // loadPromptsFromFile reads prompts from a JSONL file.
