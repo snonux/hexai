@@ -321,7 +321,7 @@ func TestStateDir_XDG(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StateDir: %v", err)
 	}
-	expected := filepath.Join(dir, "hexai")
+	expected := filepath.Join(dir, "state")
 	if stateDir != expected {
 		t.Fatalf("expected %q, got %q", expected, stateDir)
 	}
@@ -337,9 +337,9 @@ func TestStateDir_Default(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StateDir: %v", err)
 	}
-	// Should default to ~/.local/state/hexai
-	if !strings.Contains(stateDir, ".local/state/hexai") {
-		t.Fatalf("expected path to contain .local/state/hexai, got %q", stateDir)
+	// Should default to ~/.local/hexai/state
+	if !strings.Contains(stateDir, ".local/hexai/state") {
+		t.Fatalf("expected path to contain .local/hexai/state, got %q", stateDir)
 	}
 	// Verify directory was created
 	if _, err := os.Stat(stateDir); err != nil {

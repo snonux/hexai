@@ -114,7 +114,7 @@ func TestGetPromptsDir(t *testing.T) {
 			name:      "uses default XDG location",
 			envVar:    "",
 			cfgValue:  "",
-			wantMatch: "hexai/prompts",
+			wantMatch: ".local/hexai/data/prompts",
 		},
 	}
 

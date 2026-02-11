@@ -1284,7 +1284,7 @@ func ConfigPath() (string, error) {
 	return configPath, nil
 }
 
-// StateDir returns the XDG state directory for hexai (~/.local/state/hexai by default).
+// StateDir returns the XDG state directory for hexai (~/.local/hexai/state by default).
 // Creates the directory if it doesn't exist. This is used for persistent state data
 // like logs and history that should survive reboots.
 func StateDir() (string, error) {
@@ -1294,10 +1294,10 @@ func StateDir() (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("cannot find user home directory: %v", err)
 		}
-		stateHome = filepath.Join(home, ".local", "state")
+		stateHome = filepath.Join(home, ".local", "hexai")
 	}
 
-	stateDir := filepath.Join(stateHome, "hexai")
+	stateDir := filepath.Join(stateHome, "state")
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
 		return "", fmt.Errorf("cannot create state directory: %v", err)
 	}

@@ -22,7 +22,7 @@ func TestAppendHistory(t *testing.T) {
 	}
 
 	// Verify file was created
-	historyPath := filepath.Join(tmpDir, "hexai", "tmux-edit-history.jsonl")
+	historyPath := filepath.Join(tmpDir, "state", "tmux-edit-history.jsonl")
 	if _, err := os.Stat(historyPath); err != nil {
 		t.Fatalf("history file not created: %v", err)
 	}

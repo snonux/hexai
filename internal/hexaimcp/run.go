@@ -131,17 +131,17 @@ func getPromptsDir(cfg appconfig.App) (string, error) {
 		return expandPath(cfgDir)
 	}
 
-	// Default: $XDG_DATA_HOME/hexai/prompts/ or ~/.local/share/hexai/prompts/
+	// Default: $XDG_DATA_HOME/prompts/ or ~/.local/hexai/data/prompts/
 	dataDir := os.Getenv("XDG_DATA_HOME")
 	if dataDir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("cannot find user home directory: %w", err)
 		}
-		dataDir = filepath.Join(home, ".local", "share")
+		dataDir = filepath.Join(home, ".local", "hexai", "data")
 	}
 
-	return filepath.Join(dataDir, "hexai", "prompts"), nil
+	return filepath.Join(dataDir, "prompts"), nil
 }
 
 // expandPath expands ~ to home directory and returns absolute path.

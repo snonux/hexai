@@ -47,15 +47,15 @@ hexai follows the XDG Base Directory Specification:
 - **Configuration:** `~/.config/hexai/config.toml` (or `$XDG_CONFIG_HOME/hexai/`)
   - Global settings, provider credentials, and preferences
   - Project-specific: `.hexaiconfig.toml` at repository root
-- **Cache:** `~/.cache/hexai/` (or `$XDG_CACHE_HOME/hexai/`)
+- **Cache:** `~/.local/hexai/cache/` (or `$XDG_CACHE_HOME/hexai/`)
   - `stats.json` - LLM usage tracking (regenerable)
   - `stats.lock` - File lock for stats access
-- **State & Logs:** `~/.local/state/hexai/` (or `$XDG_STATE_HOME/hexai/`)
+- **State & Logs:** `~/.local/hexai/state/` (or `$XDG_STATE_HOME/state/`)
   - `tmux-edit-history.jsonl` - History of text submitted via tmux popup
   - `hexai-lsp.log` - LSP server debug logs
   - `hexai-tmux-edit.log` - Tmux edit debug logs
   - `hexai-mcp-server.log` - MCP server debug logs
-- **Data:** `~/.local/share/hexai/` (or `$XDG_DATA_HOME/hexai/`)
+- **Data:** `~/.local/hexai/data/` (or `$XDG_DATA_HOME/`)
   - `prompts/default.jsonl` - Built-in prompts for MCP server
   - `prompts/user.jsonl` - User-created custom prompts
 - **Temporary Files:** `/tmp/` (OS temp directory)

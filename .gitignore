@@ -11,8 +11,7 @@ docs/coverage/
 
 # Temp/scratch files
 .tmux-edit-send.*.md
-/.gocache/
-/.gocache*
+/.local/
 /.gomodcache/
 /*.out
 /*.html

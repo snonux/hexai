@@ -234,7 +234,7 @@ func CacheDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve home: %w", err)
 	}
-	return filepath.Join(home, ".cache", "hexai"), nil
+	return filepath.Join(home, ".local", "hexai", "cache"), nil
 }
 
 // stringsTrim is a tiny helper to avoid importing strings everywhere here.
