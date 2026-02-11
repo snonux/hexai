@@ -145,5 +145,41 @@ Start by fetching and showing me the current prompt, then ask clarifying questio
 			Created: now,
 			Updated: now,
 		},
+		{
+			Name:        "delete_prompt",
+			Title:       "Delete Custom Prompt",
+			Description: "Interactively delete an existing custom prompt with confirmation. Claude will show the current prompt, ask for confirmation, and only delete after explicit approval. Built-in prompts cannot be deleted.",
+			Arguments: []PromptArgument{
+				{
+					Name:        "prompt_name",
+					Description: "Name of the existing prompt to delete",
+					Required:    true,
+				},
+			},
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: MessageContent{
+						Type: "text",
+						Text: `I want to delete the existing prompt '{{prompt_name}}'.
+
+Please help me by:
+1) First, show me the current prompt so I can confirm it's the right one
+2) Ask me to explicitly confirm the deletion
+3) Only after I explicitly confirm, use the delete_prompt tool to delete it
+
+IMPORTANT NOTES:
+- Built-in prompts (save_prompt, update_prompt, delete_prompt) cannot be deleted
+- Only custom prompts stored in user.jsonl can be deleted
+- This action cannot be undone (though backups are automatically created)
+
+Start by showing me the prompt details.`,
+					},
+				},
+			},
+			Tags:    []string{"meta", "prompt-management", "interactive"},
+			Created: now,
+			Updated: now,
+		},
 	}
 }
