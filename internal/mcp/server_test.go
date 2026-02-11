@@ -73,23 +73,40 @@ func sendRequest(w io.Writer, req Request) error {
 }
 
 // readResponse reads a newline-delimited JSON-RPC response (MCP stdio protocol).
+// Skips notification messages (those without an ID) and returns the actual response.
 func readResponse(r io.Reader) (*Response, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse newline-delimited JSON; take the last non-empty line as the response
+	// Parse newline-delimited JSON; find the first line with an ID (skip notifications)
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 	if len(lines) == 0 {
 		return nil, fmt.Errorf("no response data")
 	}
-	body := lines[len(lines)-1]
-	var resp Response
-	if err := json.Unmarshal([]byte(body), &resp); err != nil {
-		return nil, fmt.Errorf("unmarshal response: %w, body: %s", err, body)
+	
+	// Try to find a response (message with an ID)
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		
+		// Quick check if this might be a response (has "id" field)
+		if !strings.Contains(line, `"id"`) {
+			continue // Skip notifications
+		}
+		
+		var resp Response
+		if err := json.Unmarshal([]byte(line), &resp); err != nil {
+			continue // Not a valid response, try next line
+		}
+		
+		// Valid response found
+		return &resp, nil
 	}
-	return &resp, nil
+	
+	return nil, fmt.Errorf("no response found in output (only notifications)")
 }
 
 func TestServer_Initialize(t *testing.T) {
