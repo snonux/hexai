@@ -3,7 +3,7 @@
 Hexai uses Mage for developer tasks. Install Mage, then run targets like build, dev, test, and install.
 
 - Install Mage: `go install github.com/magefile/mage@latest`
-- Build binaries: `mage build` (produces `hexai`, `hexai-lsp`, `hexai-tmux-action`, and `hexai-tmux-edit`)
+- Build binaries: `mage build` (produces `hexai`, `hexai-lsp-server`, `hexai-tmux-action`, and `hexai-tmux-edit`)
 - Dev build (+ tests, vet, lint): `mage dev`
 - Run tests: `mage test`
 - Run tests with coverage: `go test ./... -cover`
@@ -19,6 +19,6 @@ Note: `mage lint` uses `golangci-lint`. Install via `mage devinstall` if needed.
 Either use the Mage method as mentioned above, or install directly with:
 
 - CLI: `go install codeberg.org/snonux/hexai/cmd/hexai@latest`
-- LSP: `go install codeberg.org/snonux/hexai/cmd/hexai-lsp@latest`
+- LSP: `go install codeberg.org/snonux/hexai/cmd/hexai-lsp-server@latest`
 - Action runner: `go install codeberg.org/snonux/hexai/cmd/hexai-tmux-action@latest`
 - Tmux popup editor: `go install codeberg.org/snonux/hexai/cmd/hexai-tmux-edit@latest`

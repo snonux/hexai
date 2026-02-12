@@ -48,5 +48,5 @@ func defaultLogPath() string {
 	if err != nil {
 		panic(fmt.Sprintf("cannot create state directory: %v", err))
 	}
-	return fmt.Sprintf("%s/hexai-lsp.log", stateDir)
+	return fmt.Sprintf("%s/hexai-lsp-server.log", stateDir)
 }

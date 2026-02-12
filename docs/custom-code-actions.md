@@ -1,6 +1,6 @@
 # Custom Code Actions Design
 
-This document proposes how Hexai can support user-defined code actions via the config file, and surface them in both hexai-lsp and hexai-tmux-action.
+This document proposes how Hexai can support user-defined code actions via the config file, and surface them in both hexai-lsp-server and hexai-tmux-action.
 
 ## Goals
 
@@ -65,7 +65,7 @@ Notes:
 
 ### Validation
 
-Implement `func (a App) Validate() error` and call it on startup in hexai-lsp and hexai-tmux-action. Fail fast with a descriptive error if any rule is violated:
+Implement `func (a App) Validate() error` and call it on startup in hexai-lsp-server and hexai-tmux-action. Fail fast with a descriptive error if any rule is violated:
 - Duplicate `id` among custom actions (case-insensitive): "config: duplicate custom action id: <id>"
 - Duplicate custom action `hotkey` (case-insensitive, non-empty): "config: duplicate custom action hotkey: <hotkey>"
 - `tmux.custom_menu_hotkey` collides with built-in tmux top-level hotkeys (`r,i,c,t,p,s`) or is not a single character: "config: invalid tmux.custom_menu_hotkey: <value>"
@@ -76,7 +76,7 @@ Implement `func (a App) Validate() error` and call it on startup in hexai-lsp an
 - Invalid `scope` value: "config: custom action <id> has invalid scope: <value>"
 
 If validation fails:
-- hexai-lsp: log the error and exit the server (do not serve requests).
+- hexai-lsp-server: log the error and exit the server (do not serve requests).
 - hexai-tmux-action: print the error on stderr and exit non-zero.
 
 ## LSP Integration

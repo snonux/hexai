@@ -52,7 +52,7 @@ hexai follows the XDG Base Directory Specification:
   - `stats.lock` - File lock for stats access
 - **State & Logs:** `~/.local/hexai/state/` (or `$XDG_STATE_HOME/state/`)
   - `tmux-edit-history.jsonl` - History of text submitted via tmux popup
-  - `hexai-lsp.log` - LSP server debug logs
+  - `hexai-lsp-server.log` - LSP server debug logs
   - `hexai-tmux-edit.log` - Tmux edit debug logs
   - `hexai-mcp-server.log` - MCP server debug logs
 - **Data:** `~/.local/hexai/data/` (or `$XDG_DATA_HOME/`)

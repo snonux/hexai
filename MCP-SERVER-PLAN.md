@@ -1044,7 +1044,7 @@ type RespError struct {
 - `/home/paul/git/hexai/internal/lsp/transport.go` - Transport pattern
 - `/home/paul/git/hexai/internal/lsp/server.go` - Server dispatch pattern
 - `/home/paul/git/hexai/internal/tmuxedit/history.go` - JSONL storage pattern
-- `/home/paul/git/hexai/cmd/hexai-lsp/main.go` - Command entry point
+- `/home/paul/git/hexai/cmd/hexai-lsp-server/main.go` - Command entry point
 - `/home/paul/git/hexai/internal/appconfig/config.go` - Config extension pattern
 
 ### Files to Create
