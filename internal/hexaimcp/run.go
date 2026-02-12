@@ -12,6 +12,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/mcp"
 	"codeberg.org/snonux/hexai/internal/promptstore"
+	"codeberg.org/snonux/hexai/internal/slashcommands"
 )
 
 // ServerRunner interface allows dependency injection for testing.
@@ -25,11 +26,12 @@ type ServerFactory func(
 	w io.Writer,
 	logger *log.Logger,
 	store promptstore.PromptStore,
+	syncer *slashcommands.Syncer,
 ) ServerRunner
 
 // defaultServerFactory is the production server factory.
-func defaultServerFactory(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore) ServerRunner {
-	return mcp.NewServer(r, w, logger, store)
+func defaultServerFactory(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer *slashcommands.Syncer) ServerRunner {
+	return mcp.NewServer(r, w, logger, store, syncer)
 }
 
 // Run starts the MCP server with the given configuration.
@@ -76,8 +78,14 @@ func RunWithFactory(
 		return fmt.Errorf("cannot create prompt store: %w", err)
 	}
 
+	// Create slash command syncer (optional)
+	syncer, err := createSyncer(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("cannot create syncer: %w", err)
+	}
+
 	// Create and run server
-	server := factory(stdin, stdout, logger, store)
+	server := factory(stdin, stdout, logger, store, syncer)
 	if err := server.Run(); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}
@@ -155,4 +163,65 @@ func expandPath(path string) (string, error) {
 	}
 
 	return filepath.Abs(path)
+}
+
+// createSyncer creates a slash command syncer from config.
+// Returns nil syncer if sync is disabled.
+func createSyncer(cfg appconfig.App, logger *log.Logger) (*slashcommands.Syncer, error) {
+	syncer, err := slashcommands.NewSyncer(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if syncer != nil && cfg.MCPSlashCommandSync {
+		logger.Printf("slash command sync enabled: %s", cfg.MCPSlashCommandDir)
+	}
+
+	return syncer, nil
+}
+
+// RunBackfill performs a one-time sync of all prompts and exits.
+func RunBackfill(logPath, configPath string) error {
+	logger, err := setupLogger(logPath)
+	if err != nil {
+		return fmt.Errorf("cannot setup logger: %w", err)
+	}
+	defer func() {
+		if f, ok := logger.Writer().(*os.File); ok && f != os.Stderr {
+			f.Close()
+		}
+	}()
+
+	logger.Printf("hexai-mcp-server backfill starting")
+
+	cfg := loadConfig(logger, configPath)
+
+	// Force enable sync for backfill
+	if cfg.MCPSlashCommandDir == "" {
+		return fmt.Errorf("commands directory not configured (use --slashcommand-dir)")
+	}
+	cfg.MCPSlashCommandSync = true
+
+	syncer, err := createSyncer(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("cannot create syncer: %w", err)
+	}
+
+	promptsDir, err := getPromptsDir(cfg)
+	if err != nil {
+		return fmt.Errorf("cannot determine prompts directory: %w", err)
+	}
+
+	store, err := promptstore.NewJSONLStore(promptsDir)
+	if err != nil {
+		return fmt.Errorf("cannot create prompt store: %w", err)
+	}
+
+	logger.Printf("starting backfill sync...")
+	if err := syncer.SyncAll(store); err != nil {
+		return fmt.Errorf("backfill failed: %w", err)
+	}
+
+	logger.Printf("backfill complete")
+	return nil
 }

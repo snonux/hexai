@@ -871,7 +871,7 @@ func TestServer_Run_InvalidJSON(t *testing.T) {
 	inBuf := &bytes.Buffer{}
 	outBuf := &bytes.Buffer{}
 	logger := log.New(io.Discard, "", 0)
-	server := NewServer(inBuf, outBuf, logger, store)
+	server := NewServer(inBuf, outBuf, logger, store, nil)
 
 	// Write invalid JSON
 	msg := []byte(`{invalid json}`)

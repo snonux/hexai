@@ -15,6 +15,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/mcp"
 	"codeberg.org/snonux/hexai/internal/promptstore"
+	"codeberg.org/snonux/hexai/internal/slashcommands"
 )
 
 // mockServerRunner implements ServerRunner for testing
@@ -34,8 +35,8 @@ func TestFullProtocolFlow(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create test server factory
-	serverFactory := func(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore) ServerRunner {
-		return mcp.NewServer(r, w, logger, store)
+	serverFactory := func(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer *slashcommands.Syncer) ServerRunner {
+		return mcp.NewServer(r, w, logger, store, syncer)
 	}
 
 	// Setup I/O pipes
@@ -271,7 +272,7 @@ func TestDefaultServerFactory(t *testing.T) {
 		t.Fatalf("NewJSONLStore() error = %v", err)
 	}
 
-	server := defaultServerFactory(inBuf, outBuf, logger, store)
+	server := defaultServerFactory(inBuf, outBuf, logger, store, nil)
 	if server == nil {
 		t.Fatal("defaultServerFactory() returned nil")
 	}
@@ -282,7 +283,7 @@ func TestRun(t *testing.T) {
 	logPath := filepath.Join(tmpDir, "test.log")
 
 	// Create a mock server factory that returns immediately
-	mockFactory := func(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore) ServerRunner {
+	mockFactory := func(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer *slashcommands.Syncer) ServerRunner {
 		return &mockServerRunner{
 			runFunc: func() error {
 				return nil // Exit immediately
@@ -315,7 +316,7 @@ func TestRunWithFactory_ServerError(t *testing.T) {
 	logPath := filepath.Join(tmpDir, "test.log")
 
 	// Create a mock server factory that returns an error
-	mockFactory := func(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore) ServerRunner {
+	mockFactory := func(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer *slashcommands.Syncer) ServerRunner {
 		return &mockServerRunner{
 			runFunc: func() error {
 				return fmt.Errorf("mock server error")

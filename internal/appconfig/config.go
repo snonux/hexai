@@ -126,7 +126,9 @@ type App struct {
 	TmuxEditAgents       []TmuxEditAgentCfg `json:"-" toml:"-"`
 
 	// MCP: Model Context Protocol server settings
-	MCPPromptsDir string `json:"-" toml:"-"` // Directory for prompt storage
+	MCPPromptsDir       string `json:"-" toml:"-"` // Directory for prompt storage
+	MCPSlashCommandSync bool   `json:"-" toml:"-"` // Enable slash command sync
+	MCPSlashCommandDir  string `json:"-" toml:"-"` // Directory for slash command files
 }
 
 // CustomAction describes a user-defined code action.
@@ -383,7 +385,9 @@ type sectionTmuxEditAgent struct {
 
 // sectionMCP configures the MCP server settings.
 type sectionMCP struct {
-	PromptsDir string `toml:"prompts_dir"`
+	PromptsDir       string `toml:"prompts_dir"`
+	SlashCommandSync bool   `toml:"slashcommand_sync"`
+	SlashCommandDir  string `toml:"slashcommand_dir"`
 }
 
 type sectionOpenAI struct {
@@ -718,6 +722,12 @@ func (fc *fileConfig) toApp() App {
 	// mcp
 	if strings.TrimSpace(fc.MCP.PromptsDir) != "" {
 		out.MCPPromptsDir = strings.TrimSpace(fc.MCP.PromptsDir)
+	}
+	if fc.MCP.SlashCommandSync {
+		out.MCPSlashCommandSync = fc.MCP.SlashCommandSync
+	}
+	if strings.TrimSpace(fc.MCP.SlashCommandDir) != "" {
+		out.MCPSlashCommandDir = strings.TrimSpace(fc.MCP.SlashCommandDir)
 	}
 
 	return out
@@ -1057,6 +1067,16 @@ func (a *App) mergeBasics(other *App) {
 	}
 	if other.IgnoreLSPNotify != nil {
 		a.IgnoreLSPNotify = other.IgnoreLSPNotify
+	}
+	// MCP settings
+	if s := strings.TrimSpace(other.MCPPromptsDir); s != "" {
+		a.MCPPromptsDir = s
+	}
+	if other.MCPSlashCommandSync {
+		a.MCPSlashCommandSync = other.MCPSlashCommandSync
+	}
+	if s := strings.TrimSpace(other.MCPSlashCommandDir); s != "" {
+		a.MCPSlashCommandDir = s
 	}
 }
 
@@ -1597,6 +1617,15 @@ func loadFromEnv(logger *log.Logger) *App {
 	// MCP settings
 	if s := getenv("HEXAI_MCP_PROMPTS_DIR"); s != "" {
 		out.MCPPromptsDir = s
+		any = true
+	}
+	if s := getenv("HEXAI_MCP_SLASHCOMMAND_SYNC"); s != "" {
+		b := s == "true" || s == "1"
+		out.MCPSlashCommandSync = b
+		any = true
+	}
+	if s := getenv("HEXAI_MCP_SLASHCOMMAND_DIR"); s != "" {
+		out.MCPSlashCommandDir = s
 		any = true
 	}
 
