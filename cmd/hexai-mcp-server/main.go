@@ -17,6 +17,9 @@ func main() {
 	logPath := flag.String("log", defaultLog, "path to log file (optional)")
 	configPath := flag.String("config", "", "path to config file (optional)")
 	promptsDir := flag.String("prompts-dir", "", "path to prompts directory (optional)")
+	slashCommandSync := flag.Bool("slashcommand-sync", false, "enable slash command sync")
+	slashCommandDir := flag.String("slashcommand-dir", "", "directory for slash command files")
+	syncAll := flag.Bool("sync-all", false, "backfill all existing prompts and exit")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -28,6 +31,20 @@ func main() {
 	// If prompts-dir is specified, set environment variable for RunWithFactory
 	if *promptsDir != "" {
 		os.Setenv("HEXAI_MCP_PROMPTS_DIR", *promptsDir)
+	}
+	if *slashCommandSync {
+		os.Setenv("HEXAI_MCP_SLASHCOMMAND_SYNC", "true")
+	}
+	if *slashCommandDir != "" {
+		os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", *slashCommandDir)
+	}
+
+	// Handle backfill operation
+	if *syncAll {
+		if err := hexaimcp.RunBackfill(*logPath, *configPath); err != nil {
+			log.Fatalf("backfill error: %v", err)
+		}
+		return
 	}
 
 	if err := hexaimcp.Run(*logPath, *configPath, os.Stdin, os.Stdout, os.Stderr); err != nil {

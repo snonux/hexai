@@ -54,7 +54,7 @@ func createTestServer(t *testing.T, store promptstore.PromptStore) (*Server, *by
 	inBuf := &bytes.Buffer{}
 	outBuf := &bytes.Buffer{}
 	logger := log.New(io.Discard, "", 0)
-	return NewServer(inBuf, outBuf, logger, store), inBuf, outBuf
+	return NewServer(inBuf, outBuf, logger, store, nil), inBuf, outBuf
 }
 
 // sendRequest writes a JSON-RPC request as newline-delimited JSON (MCP stdio protocol).
@@ -395,7 +395,7 @@ func TestServer_Run(t *testing.T) {
 		inBuf := &bytes.Buffer{}
 		outBuf := &bytes.Buffer{}
 		logger := log.New(io.Discard, "", 0)
-		server := NewServer(inBuf, outBuf, logger, store)
+		server := NewServer(inBuf, outBuf, logger, store, nil)
 
 		err := server.Run()
 		if err != nil {
@@ -408,7 +408,7 @@ func TestServer_Run(t *testing.T) {
 		inBuf := &bytes.Buffer{}
 		outBuf := &bytes.Buffer{}
 		logger := log.New(io.Discard, "", 0)
-		server := NewServer(inBuf, outBuf, logger, store)
+		server := NewServer(inBuf, outBuf, logger, store, nil)
 
 		// Send initialize request
 		req := Request{
@@ -465,7 +465,7 @@ func TestServer_ReadMessage(t *testing.T) {
 		inBuf := &bytes.Buffer{}
 		outBuf := &bytes.Buffer{}
 		logger := log.New(io.Discard, "", 0)
-		server := NewServer(inBuf, outBuf, logger, store)
+		server := NewServer(inBuf, outBuf, logger, store, nil)
 
 		// Write a newline-delimited JSON message (MCP stdio protocol)
 		msg := `{"jsonrpc":"2.0","id":1,"method":"test"}`
@@ -487,7 +487,7 @@ func TestServer_ReadMessage(t *testing.T) {
 		inBuf := &bytes.Buffer{}
 		outBuf := &bytes.Buffer{}
 		logger := log.New(io.Discard, "", 0)
-		server := NewServer(inBuf, outBuf, logger, store)
+		server := NewServer(inBuf, outBuf, logger, store, nil)
 
 		// Write empty lines followed by a valid message
 		msg := `{"jsonrpc":"2.0","id":1,"method":"test"}`
@@ -508,7 +508,7 @@ func TestServer_ReadMessage(t *testing.T) {
 		inBuf := &bytes.Buffer{}
 		outBuf := &bytes.Buffer{}
 		logger := log.New(io.Discard, "", 0)
-		server := NewServer(inBuf, outBuf, logger, store)
+		server := NewServer(inBuf, outBuf, logger, store, nil)
 
 		_, err := server.readMessage()
 		if err != io.EOF {

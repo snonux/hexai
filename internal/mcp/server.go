@@ -13,6 +13,7 @@ import (
 
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/promptstore"
+	"codeberg.org/snonux/hexai/internal/slashcommands"
 )
 
 // Server implements an MCP server over stdio using JSON-RPC 2.0.
@@ -23,6 +24,7 @@ type Server struct {
 	outMu       sync.Mutex
 	logger      *log.Logger
 	store       promptstore.PromptStore
+	syncer      *slashcommands.Syncer
 	initialized bool
 	mu          sync.RWMutex
 
@@ -32,12 +34,13 @@ type Server struct {
 
 // NewServer creates a new MCP server with the given store and I/O streams.
 // The store provides access to prompts; logger is used for debugging.
-func NewServer(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore) *Server {
+func NewServer(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer *slashcommands.Syncer) *Server {
 	s := &Server{
 		in:     bufio.NewReader(r),
 		out:    w,
 		logger: logger,
 		store:  store,
+		syncer: syncer,
 	}
 
 	// Initialize dispatch table
@@ -354,6 +357,14 @@ func (s *Server) handlePromptsCreate(req Request) {
 	}
 
 	s.logger.Printf("created prompt: %s", params.Name)
+
+	// Sync to slash commands if enabled
+	if s.syncer != nil {
+		if err := s.syncer.Sync(prompt, slashcommands.OpCreate); err != nil {
+			s.logger.Printf("slash command sync failed: %v", err)
+		}
+	}
+
 	s.sendResponse(req.ID, result)
 
 	// Notify clients that the prompt list has changed
@@ -453,6 +464,14 @@ func (s *Server) handlePromptsUpdate(req Request) {
 	}
 
 	s.logger.Printf("updated prompt: %s", params.Name)
+
+	// Sync to slash commands if enabled
+	if s.syncer != nil {
+		if err := s.syncer.Sync(existing, slashcommands.OpUpdate); err != nil {
+			s.logger.Printf("slash command sync failed: %v", err)
+		}
+	}
+
 	s.sendResponse(req.ID, result)
 
 	// Notify clients that the prompt list has changed
@@ -531,6 +550,14 @@ func (s *Server) handlePromptsDelete(req Request) {
 	}
 
 	s.logger.Printf("deleted prompt: %s", params.Name)
+
+	// Delete slash command file if enabled
+	if s.syncer != nil {
+		if err := s.syncer.Delete(params.Name); err != nil {
+			s.logger.Printf("slash command sync delete failed: %v", err)
+		}
+	}
+
 	s.sendResponse(req.ID, result)
 
 	// Notify clients that the prompt list has changed
@@ -712,6 +739,14 @@ func (s *Server) callCreatePromptTool(id any, args map[string]interface{}) {
 	}
 
 	s.logger.Printf("created prompt via tool: %s", params.Name)
+
+	// Sync to slash commands if enabled
+	if s.syncer != nil {
+		if err := s.syncer.Sync(prompt, slashcommands.OpCreate); err != nil {
+			s.logger.Printf("slash command sync failed: %v", err)
+		}
+	}
+
 	s.sendToolSuccess(id, fmt.Sprintf("Successfully created prompt: %s", params.Name))
 
 	// Notify clients that the prompt list has changed
@@ -751,6 +786,14 @@ func (s *Server) callUpdatePromptTool(id any, args map[string]interface{}) {
 	}
 
 	s.logger.Printf("updated prompt via tool: %s", params.Name)
+
+	// Sync to slash commands if enabled
+	if s.syncer != nil {
+		if err := s.syncer.Sync(existing, slashcommands.OpUpdate); err != nil {
+			s.logger.Printf("slash command sync failed: %v", err)
+		}
+	}
+
 	s.sendToolSuccess(id, fmt.Sprintf("Successfully updated prompt: %s", params.Name))
 
 	// Notify clients that the prompt list has changed
@@ -774,6 +817,14 @@ func (s *Server) callDeletePromptTool(id any, args map[string]interface{}) {
 	}
 
 	s.logger.Printf("deleted prompt via tool: %s", name)
+
+	// Delete slash command file if enabled
+	if s.syncer != nil {
+		if err := s.syncer.Delete(name); err != nil {
+			s.logger.Printf("slash command sync delete failed: %v", err)
+		}
+	}
+
 	s.sendToolSuccess(id, fmt.Sprintf("Successfully deleted prompt: %s", name))
 
 	// Notify clients that the prompt list has changed
