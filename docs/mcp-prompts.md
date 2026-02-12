@@ -203,6 +203,61 @@ Claude: (Updates the prompt using MCP prompts/update)
 
 **Tags**: meta, prompt-management, interactive
 
+### design_prompt
+Interactively design a brand new prompt template from scratch with minimal questions.
+
+**How it works**:
+1) Claude asks what the prompt should do (1-2 sentences)
+2) Claude asks what arguments it needs (if any)
+3) Claude asks for metadata (name, title, tags)
+4) Claude shows a preview of the complete prompt
+5) After you approve, Claude saves it using the MCP prompts/create method
+
+**Arguments**: None (fully interactive)
+
+**Usage Example**:
+```
+You: /design_prompt
+
+Claude: What should this prompt do?
+
+You: Review database schemas and suggest optimizations for performance and best practices
+
+Claude: What arguments does it need?
+
+You: schema (required), db_type (optional)
+
+Claude: Prompt name, title, and tags?
+
+You: Name: review_db_schema
+     Title: Database Schema Review
+     Tags: database, schema, review
+
+Claude: Here's your prompt:
+
+        ```json
+        {
+          "name": "review_db_schema",
+          "title": "Database Schema Review",
+          "description": "Review database schemas and suggest optimizations for performance and best practices",
+          "arguments": [
+            {"name": "schema", "required": true},
+            {"name": "db_type", "required": false}
+          ],
+          "messages": [...],
+          "tags": ["database", "schema", "review"]
+        }
+        ```
+
+        Should I save this?
+
+You: Yes
+
+Claude: (Saves the prompt using MCP prompts/create)
+```
+
+**Tags**: meta, prompt-management, interactive, creation
+
 **Note**: Built-in prompts (including these meta-prompts) cannot be modified or deleted. If you need to customize a built-in, create a new prompt with a different name.
 
 ## Creating Custom Prompts

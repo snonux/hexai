@@ -6,8 +6,8 @@ import (
 )
 
 // DefaultPrompts returns the built-in meta-prompts for prompt management.
-// These prompts help users create and update prompts interactively using Claude's
-// access to conversation context.
+// These prompts help users create, update, delete, and design prompts interactively
+// using Claude's access to conversation context.
 func DefaultPrompts() []Prompt {
 	now := time.Now()
 
@@ -178,6 +178,33 @@ Ask me to confirm the deletion of '{{prompt_name}}'.`,
 				},
 			},
 			Tags:    []string{"meta", "prompt-management", "interactive"},
+			Created: now,
+			Updated: now,
+		},
+		{
+			Name:        "design_prompt",
+			Title:       "Design New Prompt from Scratch",
+			Description: "Interactively design a brand new prompt template through guided questions. Claude will help you define the purpose, arguments, message flow, and metadata step by step, show a preview, and wait for approval before saving.",
+			Arguments:   []PromptArgument{},
+			Messages: []PromptMessage{
+				{
+					Role: "user",
+					Content: MessageContent{
+						Type: "text",
+						Text: `I want to design a brand new prompt template from scratch.
+
+Please ask me:
+1) What should this prompt do? (describe the task/purpose in 1-2 sentences)
+2) What arguments does it need? (if any - use {{argument}} syntax)
+3) Prompt name (lowercase, underscores only), title, and tags
+
+Then show me a preview and save it after I approve.
+
+Keep questions brief and focused.`,
+					},
+				},
+			},
+			Tags:    []string{"meta", "prompt-management", "interactive", "creation"},
 			Created: now,
 			Updated: now,
 		},
