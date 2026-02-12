@@ -32,7 +32,7 @@ func Build() error {
 // BuildHexaiLSP builds the LSP server binary.
 func BuildHexaiLSP() error {
 	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai-lsp", "cmd/hexai-lsp/main.go")
+	return sh.RunV("go", "build", "-o", "hexai-lsp-server", "cmd/hexai-lsp-server/main.go")
 }
 
 // BuildHexaiCLI builds the CLI binary.
@@ -63,7 +63,7 @@ func BuildHexaiMCPServer() error {
 func Dev() error {
 	printCoverage()
 	mg.Deps(Test, Vet, Lint)
-	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp", "cmd/hexai-lsp/main.go"); err != nil {
+	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp-server", "cmd/hexai-lsp-server/main.go"); err != nil {
 		return err
 	}
 	if err := sh.RunV("go", "build", "-race", "-o", "hexai", "cmd/hexai/main.go"); err != nil {
@@ -82,7 +82,7 @@ func Dev() error {
 func Run() error {
 	printCoverage()
 	mg.Deps(Dev)
-	return sh.RunV("go", "run", "cmd/hexai-lsp/main.go")
+	return sh.RunV("go", "run", "cmd/hexai-lsp-server/main.go")
 }
 
 // RunCLI runs the CLI with a small test input.
@@ -109,7 +109,7 @@ func Install() error {
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		return err
 	}
-	if err := sh.RunV("cp", "-v", "./hexai-lsp", bin+"/"); err != nil {
+	if err := sh.RunV("cp", "-v", "./hexai-lsp-server", bin+"/"); err != nil {
 		return err
 	}
 	if err := sh.RunV("cp", "-v", "./hexai", bin+"/"); err != nil {

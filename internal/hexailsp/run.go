@@ -32,7 +32,7 @@ func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) er
 }
 
 func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	logger := log.New(stderr, "hexai-lsp ", log.LstdFlags|log.Lmsgprefix)
+	logger := log.New(stderr, "hexai-lsp-server ", log.LstdFlags|log.Lmsgprefix)
 	if strings.TrimSpace(logPath) != "" {
 		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 		if err != nil {

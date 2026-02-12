@@ -29,7 +29,7 @@ func TestRunWithFactory_UsesDefaultsAndCallsServer(t *testing.T) {
 	_ = os.Setenv("OPENAI_API_KEY", "")
 
 	var stderr bytes.Buffer
-	logger := log.New(&stderr, "hexai-lsp ", 0)
+	logger := log.New(&stderr, "hexai-lsp-server ", 0)
 	cfg := appconfig.Load(nil) // defaults
 	var gotOpts lsp.ServerOptions
 	factory := func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.ServerOptions) ServerRunner {
@@ -64,7 +64,7 @@ func TestRunWithFactory_BuildsClientWhenKeysPresent(t *testing.T) {
 	_ = os.Setenv("OPENAI_API_KEY", "dummy")
 
 	var stderr bytes.Buffer
-	logger := log.New(&stderr, "hexai-lsp ", 0)
+	logger := log.New(&stderr, "hexai-lsp-server ", 0)
 	cfg := appconfig.Load(nil) // defaults, provider=openai by default
 	var got llm.Client
 	factory := func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.ServerOptions) ServerRunner {
@@ -81,7 +81,7 @@ func TestRunWithFactory_BuildsClientWhenKeysPresent(t *testing.T) {
 
 func TestRun_RespectsLogPathFlag(t *testing.T) {
 	tmp := t.TempDir()
-	logFile := filepath.Join(tmp, "hexai-lsp.log")
+	logFile := filepath.Join(tmp, "hexai-lsp-server.log")
 	// Run with real Run but nil env key so client disabled; ensure no panic and file created
 	if err := Run(logFile, bytes.NewBuffer(nil), bytes.NewBuffer(nil), bytes.NewBuffer(nil)); err != nil {
 		t.Fatalf("Run error: %v", err)
@@ -94,7 +94,7 @@ func TestRun_RespectsLogPathFlag(t *testing.T) {
 func TestRunWithFactory_NormalizesContextMode_AndSetsPreviewLimit(t *testing.T) {
 	t.Cleanup(func() { logging.SetLogPreviewLimit(0) })
 	var stderr bytes.Buffer
-	logger := log.New(&stderr, "hexai-lsp ", 0)
+	logger := log.New(&stderr, "hexai-lsp-server ", 0)
 	cfg := appconfig.App{
 		ContextMode:     "  File-On-New-Func  ",
 		LogPreviewLimit: 3,
@@ -117,7 +117,7 @@ func TestRunWithFactory_NormalizesContextMode_AndSetsPreviewLimit(t *testing.T) 
 
 func TestRunWithFactory_LogContextFlag(t *testing.T) {
 	var stderr bytes.Buffer
-	logger := log.New(&stderr, "hexai-lsp ", 0)
+	logger := log.New(&stderr, "hexai-lsp-server ", 0)
 	cfg := appconfig.App{}
 	var got1, got2 lsp.ServerOptions
 	first := true

@@ -5,10 +5,10 @@ inline triggers, code actions, and the CLI — with examples.
 
 ## LSP server
 
-- Run over stdio: `hexai-lsp`
+- Run over stdio: `hexai-lsp-server`
 - Flags:
   - `-version`: print Hexai version and exit.
-  - `-log`: path to log file (default `/tmp/hexai-lsp.log`).
+  - `-log`: path to log file (default `/tmp/hexai-lsp-server.log`).
 
 ### Configure in Helix
 
@@ -23,7 +23,7 @@ formatter = { command = "goimports" }
 language-servers = [ "gopls", "golangci-lint-lsp", "hexai" ]
 
 [language-server.hexai]
-command = "hexai-lsp"
+command = "hexai-lsp-server"
 ```
 
 Note: additional LSPs (`gopls`, `golangci-lint-lsp`) are optional; Hexai works without them.

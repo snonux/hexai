@@ -10,7 +10,7 @@ import (
 func TestMain_Version(t *testing.T) {
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
-	os.Args = []string{"hexai-lsp", "-version"}
+	os.Args = []string{"hexai-lsp-server", "-version"}
 	var buf bytes.Buffer
 	old := log.Writer()
 	log.SetOutput(&buf)
