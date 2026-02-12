@@ -84,9 +84,9 @@ func TestJSONLStore_List(t *testing.T) {
 		t.Fatalf("List() error = %v", err)
 	}
 
-	// Should have all prompts (7 user + 3 built-ins)
-	if len(prompts) != 10 {
-		t.Errorf("List() got %d prompts, want 10 (7 user + 3 built-ins)", len(prompts))
+	// Should have all prompts (7 user + 4 built-ins)
+	if len(prompts) != 11 {
+		t.Errorf("List() got %d prompts, want 11 (7 user + 4 built-ins)", len(prompts))
 	}
 
 	// No cursor for full list
