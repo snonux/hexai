@@ -53,7 +53,7 @@ func BuildHexaiTmuxEdit() error {
 	return sh.RunV("go", "build", "-o", "hexai-tmux-edit", "cmd/hexai-tmux-edit/main.go")
 }
 
-// BuildHexaiMCPServer builds the MCP server binary.
+// BuildHexaiMCPServer builds the MCP server binary (DEPRECATED - experimental, not actively maintained).
 func BuildHexaiMCPServer() error {
 	printCoverage()
 	return sh.RunV("go", "build", "-o", "hexai-mcp-server", "cmd/hexai-mcp-server/main.go")

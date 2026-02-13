@@ -1,5 +1,17 @@
 # hexai-mcp-server Complete Feature Summary
 
+> **⚠️ DEPRECATION NOTICE**
+>
+> This MCP server is **EXPERIMENTAL** and **NOT ACTIVELY MAINTAINED**.
+>
+> The author currently manages prompts through slash commands and meta-commands
+> in the hexai agent system, making this MCP server redundant for its original
+> purpose. This code is kept for potential future enhancements (possibly with
+> different functionality beyond prompt management), but no guarantees are made
+> about stability or continued support.
+>
+> **This documentation is preserved for reference only.**
+
 ## 🎯 Overview
 
 The hexai-mcp-server is a complete Model Context Protocol implementation with prompt management capabilities. It includes both **standard MCP methods** and **management extensions** that allow full CRUD operations on prompts.

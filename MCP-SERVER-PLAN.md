@@ -1,5 +1,17 @@
 # Plan: hexai-mcp-server - MCP Server for Prompts and Runbooks
 
+> **⚠️ DEPRECATION NOTICE**
+>
+> This MCP server is **EXPERIMENTAL** and **NOT ACTIVELY MAINTAINED**.
+>
+> The author currently manages prompts through slash commands and meta-commands
+> in the hexai agent system, making this MCP server redundant for its original
+> purpose. This code is kept for potential future enhancements (possibly with
+> different functionality beyond prompt management), but no guarantees are made
+> about stability or continued support.
+>
+> **This documentation is preserved for reference only.**
+
 ## Context
 
 This change adds a new MCP (Model Context Protocol) server to hexai for managing prompts and runbooks. Currently, hexai has prompts hardcoded in the configuration file, making it difficult to share, version, and dynamically manage reusable prompts. An MCP server provides a standardized protocol for AI agents (like Claude Code CLI, Cursor) to discover and use prompts/runbooks from hexai.

@@ -13,7 +13,7 @@ It has got improved capabilities for Go code understanding (for example, create 
 * LSP in-editor chat with the LLM
 * Stand-alone command line tool for LLM interaction
 * Parallel completions and CLI responses from multiple providers/models for side-by-side comparison
-* **MCP server for prompt/runbook management** (`hexai-mcp-server`)
+* **MCP server for prompt/runbook management** (`hexai-mcp-server`) - **⚠️ DEPRECATED/EXPERIMENTAL**
   - Create, update, delete, and retrieve prompts via MCP protocol
   - Automatic backups on every change (keeps last 10)
   - Compatible with Claude Code CLI, Cursor, and other MCP clients
@@ -27,14 +27,16 @@ It has got improved capabilities for Go code understanding (for example, create 
   - Config-driven: add new agents via `[tmux_edit]` in config.toml
 * Support for OpenAI, OpenRouter, Anthropic, and Ollama
 
+> **Note on hexai-mcp-server:** This component is currently experimental and not actively maintained. The author manages prompts through slash commands and meta-commands in the hexai agent system, making the MCP server redundant for its original purpose. The code is preserved for potential future enhancements with different functionality beyond prompt management. See the [MCP documentation](docs/mcp-setup.md) for reference only.
+
 ## Documentation
 
 * [Build and install guide](docs/buildandinstall.md)
 * [Configuration guide](docs/configuration.md)
 * [Usage examples](docs/usage.md)
 * [Helix + tmux quickstart](docs/tmux.md)
-* [MCP server setup guide](docs/mcp-setup.md)
-* [Creating custom prompts](docs/mcp-prompts.md)
+* [MCP server setup guide](docs/mcp-setup.md) *(deprecated - reference only)*
+* [Creating custom prompts](docs/mcp-prompts.md) *(deprecated - reference only)*
 
 ## Tmux Status Line
 

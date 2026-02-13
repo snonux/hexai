@@ -1,5 +1,17 @@
 # MCP Server Setup Guide
 
+> **⚠️ DEPRECATION NOTICE**
+>
+> This MCP server is **EXPERIMENTAL** and **NOT ACTIVELY MAINTAINED**.
+>
+> The author currently manages prompts through slash commands and meta-commands
+> in the hexai agent system, making this MCP server redundant for its original
+> purpose. This code is kept for potential future enhancements (possibly with
+> different functionality beyond prompt management), but no guarantees are made
+> about stability or continued support.
+>
+> **This documentation is preserved for reference only.**
+
 ## What is MCP?
 
 Model Context Protocol (MCP) is a standardized protocol for AI agents to discover and use prompts, tools, and resources from external servers. The `hexai-mcp-server` provides a prompt management system that works with any MCP-compatible agent like Claude Code CLI, Cursor, or other AI coding assistants.

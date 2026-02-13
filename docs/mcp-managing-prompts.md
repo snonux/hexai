@@ -1,5 +1,17 @@
 # Managing MCP Prompts
 
+> **⚠️ DEPRECATION NOTICE**
+>
+> This MCP server is **EXPERIMENTAL** and **NOT ACTIVELY MAINTAINED**.
+>
+> The author currently manages prompts through slash commands and meta-commands
+> in the hexai agent system, making this MCP server redundant for its original
+> purpose. This code is kept for potential future enhancements (possibly with
+> different functionality beyond prompt management), but no guarantees are made
+> about stability or continued support.
+>
+> **This documentation is preserved for reference only.**
+
 Quick reference for managing hexai MCP server prompts.
 
 ## 🚀 All Management Through MCP Protocol

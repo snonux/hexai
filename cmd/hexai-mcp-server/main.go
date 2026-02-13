@@ -12,7 +12,33 @@ import (
 	"codeberg.org/snonux/hexai/internal/hexaimcp"
 )
 
+// printDeprecationWarning outputs a deprecation notice to stderr explaining
+// that hexai-mcp-server is experimental and not actively maintained.
+func printDeprecationWarning() {
+	warning := `
+⚠️  DEPRECATION NOTICE ⚠️
+
+hexai-mcp-server is currently EXPERIMENTAL and NOT ACTIVELY MAINTAINED.
+
+The author does not have a real use case for this MCP server at this time.
+Prompts are now managed through slash commands and meta-commands in the
+main hexai agent system, making this MCP server's prompt management
+functionality redundant.
+
+This code is kept in the repository for potential future enhancements
+(possibly adding more useful functionality than prompt management), but
+no guarantees are made about its stability or continued support.
+
+Use at your own risk.
+
+────────────────────────────────────────────────────────────────────────
+`
+	fmt.Fprintln(os.Stderr, warning)
+}
+
 func main() {
+	printDeprecationWarning()
+
 	defaultLog := defaultLogPath()
 	logPath := flag.String("log", defaultLog, "path to log file (optional)")
 	configPath := flag.String("config", "", "path to config file (optional)")

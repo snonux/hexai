@@ -61,6 +61,7 @@ func RunWithFactory(
 	}()
 
 	logger.Printf("hexai-mcp-server starting")
+	logger.Printf("WARNING: hexai-mcp-server is DEPRECATED and experimental - not actively maintained")
 
 	// Load configuration
 	cfg := loadConfig(logger, configPath)

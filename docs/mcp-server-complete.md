@@ -1,5 +1,17 @@
 # hexai-mcp-server: Complete Solution
 
+> **⚠️ DEPRECATION NOTICE**
+>
+> This MCP server is **EXPERIMENTAL** and **NOT ACTIVELY MAINTAINED**.
+>
+> The author currently manages prompts through slash commands and meta-commands
+> in the hexai agent system, making this MCP server redundant for its original
+> purpose. This code is kept for potential future enhancements (possibly with
+> different functionality beyond prompt management), but no guarantees are made
+> about stability or continued support.
+>
+> **This documentation is preserved for reference only.**
+
 ## Overview
 
 The hexai-mcp-server is a **fully self-contained MCP server** that manages prompts entirely through the protocol. No additional tools needed!
