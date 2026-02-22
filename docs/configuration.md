@@ -141,4 +141,5 @@ Hexai Tmux Edit (popup editor)
   ```
 
 - Built-in agents: `claude`, `cursor`, `amp`, `aider`. See [config.toml.example](../config.toml.example) for all fields.
+- OpenAI Codex CLI uses its native external editor shortcut (`Ctrl+G`) instead of a built-in `tmux_edit` agent profile.
 - Tmux keybinding: `bind e run-shell -b "cd '#{pane_current_path}' && hexai-tmux-edit --pane '#{pane_id}'"`

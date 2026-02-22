@@ -73,6 +73,8 @@ window_minutes = 60  # default 60; min 1, max 1440
 
 `hexai-tmux-edit` opens your `$EDITOR` in a tmux popup to compose longer prompts when working with AI CLI agents (Claude Code, Cursor, Amp, Aider, etc.).
 
+OpenAI Codex CLI already supports editing in an external editor via `Ctrl+G`, so it does not need a built-in `hexai-tmux-edit` agent profile.
+
 ![Popup editor in action](tmux-edit-popup.png)
 
 The editor opens as a tmux popup overlay, pre-filled with any existing prompt text from the agent's input. After saving and closing, the text is sent back:

@@ -157,6 +157,8 @@ Tips:
 
 This is useful when working with AI CLI agents (Claude Code, Cursor, Amp, Aider, etc.) and you need to compose a longer, multi-line prompt with the comfort of your regular editor (spellcheck, search/replace, etc.).
 
+OpenAI Codex CLI is not a built-in `hexai-tmux-edit` agent. Codex already supports editing in an external editor via `Ctrl+G`.
+
 ### Supported agents
 
 Built-in agent detection (auto-detected from pane content, checked in order):
