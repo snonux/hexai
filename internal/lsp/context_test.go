@@ -61,6 +61,14 @@ func TestBuildAdditionalContext_AlwaysFull(t *testing.T) {
 	}
 }
 
+func TestBuildAdditionalContext_UnknownModeFallsBackToMinimal(t *testing.T) {
+	s := newTestServer()
+	s.cfg.ContextMode = "unknown-mode"
+	if ctx, ok := s.buildAdditionalContext(false, "file:///x.go", Position{}); ok || ctx != "" {
+		t.Fatalf("expected no context for unknown mode; got ok=%v ctx=%q", ok, ctx)
+	}
+}
+
 func TestTruncateToApproxTokens(t *testing.T) {
 	text := strings.Repeat("abcd", 10)     // 40 chars
 	got := truncateToApproxTokens(text, 5) // ~20 chars
