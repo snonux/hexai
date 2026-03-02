@@ -29,6 +29,35 @@ type configPathKey struct{}
 // to the executor. Cleared after use.
 var selectedCustom *appconfig.CustomAction
 
+type actionPlan struct {
+	fallback string
+	run      func(context.Context) (string, error)
+}
+
+// CodeActionHandler builds a plan for an action and resolves it.
+type CodeActionHandler interface {
+	Build(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool)
+	Resolve(ctx context.Context, plan actionPlan) (string, error)
+}
+
+type codeActionHandler struct {
+	build func(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool)
+}
+
+func (h codeActionHandler) Build(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool) {
+	if h.build == nil {
+		return actionPlan{}, false
+	}
+	return h.build(parts, cfg, client, stderr)
+}
+
+func (h codeActionHandler) Resolve(ctx context.Context, plan actionPlan) (string, error) {
+	if plan.run == nil {
+		return plan.fallback, nil
+	}
+	return plan.run(ctx)
+}
+
 func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	logger := log.New(stderr, "hexai-tmux-action ", log.LstdFlags|log.Lmsgprefix)
 	cfg := appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
@@ -98,26 +127,95 @@ func configPathFromContext(ctx context.Context) string {
 }
 
 func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
-	switch kind {
-	case ActionSkip:
-		return parts.Selection, nil
-	case ActionRewrite:
-		return handleRewriteAction(ctx, parts, cfg, client, stderr)
-	case ActionDiagnostics:
-		return handleDiagnosticsAction(ctx, parts, cfg, client)
-	case ActionDocument:
-		return handleDocumentAction(ctx, parts, cfg, client)
-	case ActionGoTest:
-		return handleGoTestAction(ctx, parts, cfg, client)
-	case ActionSimplify:
-		return handleSimplifyAction(ctx, parts, cfg, client)
-	case ActionCustom:
-		return handleCustomAction(ctx, parts, cfg, client)
-	case ActionCustomPrompt:
-		return handleCustomPromptAction(ctx, parts, cfg, client, stderr)
-	default:
+	handler, ok := codeActionHandlers()[kind]
+	if !ok {
 		return parts.Selection, nil
 	}
+	plan, ok := handler.Build(parts, cfg, client, stderr)
+	if !ok {
+		return parts.Selection, nil
+	}
+	return handler.Resolve(ctx, plan)
+}
+
+func codeActionHandlers() map[ActionKind]CodeActionHandler {
+	return map[ActionKind]CodeActionHandler{
+		ActionSkip:         codeActionHandler{build: buildSkipPlan},
+		ActionRewrite:      codeActionHandler{build: buildRewritePlan},
+		ActionDiagnostics:  codeActionHandler{build: buildDiagnosticsPlan},
+		ActionDocument:     codeActionHandler{build: buildDocumentPlan},
+		ActionGoTest:       codeActionHandler{build: buildGoTestPlan},
+		ActionSimplify:     codeActionHandler{build: buildSimplifyPlan},
+		ActionCustom:       codeActionHandler{build: buildCustomPlan},
+		ActionCustomPrompt: codeActionHandler{build: buildCustomPromptPlan},
+	}
+}
+
+func buildSkipPlan(parts InputParts, _ appconfig.App, _ chatDoer, _ io.Writer) (actionPlan, bool) {
+	return actionPlan{fallback: parts.Selection}, true
+}
+
+func buildRewritePlan(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool) {
+	return actionPlan{
+		fallback: parts.Selection,
+		run: func(ctx context.Context) (string, error) {
+			return handleRewriteAction(ctx, parts, cfg, client, stderr)
+		},
+	}, true
+}
+
+func buildDiagnosticsPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+	return actionPlan{
+		fallback: parts.Selection,
+		run: func(ctx context.Context) (string, error) {
+			return handleDiagnosticsAction(ctx, parts, cfg, client)
+		},
+	}, true
+}
+
+func buildDocumentPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+	return actionPlan{
+		fallback: parts.Selection,
+		run: func(ctx context.Context) (string, error) {
+			return handleDocumentAction(ctx, parts, cfg, client)
+		},
+	}, true
+}
+
+func buildGoTestPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+	return actionPlan{
+		fallback: parts.Selection,
+		run: func(ctx context.Context) (string, error) {
+			return handleGoTestAction(ctx, parts, cfg, client)
+		},
+	}, true
+}
+
+func buildSimplifyPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+	return actionPlan{
+		fallback: parts.Selection,
+		run: func(ctx context.Context) (string, error) {
+			return handleSimplifyAction(ctx, parts, cfg, client)
+		},
+	}, true
+}
+
+func buildCustomPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+	return actionPlan{
+		fallback: parts.Selection,
+		run: func(ctx context.Context) (string, error) {
+			return handleCustomAction(ctx, parts, cfg, client)
+		},
+	}, true
+}
+
+func buildCustomPromptPlan(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool) {
+	return actionPlan{
+		fallback: parts.Selection,
+		run: func(ctx context.Context) (string, error) {
+			return handleCustomPromptAction(ctx, parts, cfg, client, stderr)
+		},
+	}, true
 }
 
 func handleRewriteAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
