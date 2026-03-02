@@ -2,7 +2,6 @@
 package llm
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -159,11 +158,7 @@ func (c openRouterClient) logf(format string, args ...any) {
 }
 
 func (c openRouterClient) logStart(stream bool, o Options, messages []Message) {
-	logMessages := make([]struct{ Role, Content string }, len(messages))
-	for i, m := range messages {
-		logMessages[i] = struct{ Role, Content string }{m.Role, m.Content}
-	}
-	c.chatLogger.LogStart(stream, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)
+	logStartMessages(c.chatLogger, stream, o, messages)
 }
 
 func (c openRouterClient) doJSON(ctx context.Context, url string, body []byte) (*http.Response, error) {
@@ -185,16 +180,5 @@ func (c openRouterClient) doJSONWithAccept(ctx context.Context, url string, body
 }
 
 func (c openRouterClient) doJSONWithHeaders(ctx context.Context, url string, body []byte, headers map[string]string, accept string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if strings.TrimSpace(accept) != "" {
-		req.Header.Set("Accept", accept)
-	}
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	return c.httpClient.Do(req)
+	return doJSONRequest(ctx, c.httpClient, url, body, headers, accept)
 }

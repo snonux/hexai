@@ -3,7 +3,6 @@ package llm
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -241,11 +240,7 @@ func (c anthropicClient) logf(format string, args ...any) {
 }
 
 func (c anthropicClient) logStart(stream bool, o Options, messages []Message) {
-	logMessages := make([]struct{ Role, Content string }, len(messages))
-	for i, m := range messages {
-		logMessages[i] = struct{ Role, Content string }{m.Role, m.Content}
-	}
-	c.chatLogger.LogStart(stream, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)
+	logStartMessages(c.chatLogger, stream, o, messages)
 }
 
 func buildAnthropicChatRequest(o Options, messages []Message, defaultModel string, defaultTemp *float64, stream bool) anthropicChatRequest {
@@ -287,15 +282,7 @@ func buildAnthropicChatRequest(o Options, messages []Message, defaultModel strin
 }
 
 func (c anthropicClient) doJSON(ctx context.Context, url string, body []byte, headers map[string]string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	return c.httpClient.Do(req)
+	return doJSONRequest(ctx, c.httpClient, url, body, headers, "")
 }
 
 func handleAnthropicNon2xx(resp *http.Response, start time.Time) error {

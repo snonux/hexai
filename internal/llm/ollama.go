@@ -2,7 +2,6 @@
 package llm
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -189,11 +188,7 @@ func (c ollamaClient) ChatStream(ctx context.Context, messages []Message, onDelt
 
 // helpers to keep methods small
 func (c ollamaClient) logStart(stream bool, o Options, messages []Message) {
-	logMessages := make([]struct{ Role, Content string }, len(messages))
-	for i, m := range messages {
-		logMessages[i] = struct{ Role, Content string }{m.Role, m.Content}
-	}
-	c.chatLogger.LogStart(stream, o.Model, o.Temperature, o.MaxTokens, o.Stop, logMessages)
+	logStartMessages(c.chatLogger, stream, o, messages)
 }
 
 func buildOllamaRequest(o Options, messages []Message, defaultTemp *float64, stream bool) ollamaChatRequest {
@@ -221,12 +216,7 @@ func buildOllamaRequest(o Options, messages []Message, defaultTemp *float64, str
 }
 
 func (c ollamaClient) doJSON(ctx context.Context, url string, body []byte) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	return c.httpClient.Do(req)
+	return doJSONRequest(ctx, c.httpClient, url, body, nil, "")
 }
 
 func handleOllamaNon2xx(resp *http.Response, start time.Time) error {
