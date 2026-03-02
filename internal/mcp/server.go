@@ -13,8 +13,14 @@ import (
 
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/promptstore"
-	"codeberg.org/snonux/hexai/internal/slashcommands"
 )
+
+// SlashCommandSyncer is the minimal sync contract the MCP server depends on.
+type SlashCommandSyncer interface {
+	SyncCreate(prompt *promptstore.Prompt) error
+	SyncUpdate(prompt *promptstore.Prompt) error
+	Delete(promptName string) error
+}
 
 // Server implements an MCP server over stdio using JSON-RPC 2.0.
 // Follows the same pattern as the LSP server with dispatch table and thread safety.
@@ -24,7 +30,7 @@ type Server struct {
 	outMu       sync.Mutex
 	logger      *log.Logger
 	store       promptstore.PromptStore
-	syncer      *slashcommands.Syncer
+	syncer      SlashCommandSyncer
 	initialized bool
 	mu          sync.RWMutex
 
@@ -34,7 +40,7 @@ type Server struct {
 
 // NewServer creates a new MCP server with the given store and I/O streams.
 // The store provides access to prompts; logger is used for debugging.
-func NewServer(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer *slashcommands.Syncer) *Server {
+func NewServer(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer SlashCommandSyncer) *Server {
 	s := &Server{
 		in:     bufio.NewReader(r),
 		out:    w,
@@ -360,7 +366,7 @@ func (s *Server) handlePromptsCreate(req Request) {
 
 	// Sync to slash commands if enabled
 	if s.syncer != nil {
-		if err := s.syncer.Sync(prompt, slashcommands.OpCreate); err != nil {
+		if err := s.syncer.SyncCreate(prompt); err != nil {
 			s.logger.Printf("slash command sync failed: %v", err)
 		}
 	}
@@ -467,7 +473,7 @@ func (s *Server) handlePromptsUpdate(req Request) {
 
 	// Sync to slash commands if enabled
 	if s.syncer != nil {
-		if err := s.syncer.Sync(existing, slashcommands.OpUpdate); err != nil {
+		if err := s.syncer.SyncUpdate(existing); err != nil {
 			s.logger.Printf("slash command sync failed: %v", err)
 		}
 	}
@@ -742,7 +748,7 @@ func (s *Server) callCreatePromptTool(id any, args map[string]interface{}) {
 
 	// Sync to slash commands if enabled
 	if s.syncer != nil {
-		if err := s.syncer.Sync(prompt, slashcommands.OpCreate); err != nil {
+		if err := s.syncer.SyncCreate(prompt); err != nil {
 			s.logger.Printf("slash command sync failed: %v", err)
 		}
 	}
@@ -789,7 +795,7 @@ func (s *Server) callUpdatePromptTool(id any, args map[string]interface{}) {
 
 	// Sync to slash commands if enabled
 	if s.syncer != nil {
-		if err := s.syncer.Sync(existing, slashcommands.OpUpdate); err != nil {
+		if err := s.syncer.SyncUpdate(existing); err != nil {
 			s.logger.Printf("slash command sync failed: %v", err)
 		}
 	}

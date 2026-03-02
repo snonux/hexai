@@ -79,6 +79,16 @@ func (s *Syncer) Sync(prompt *promptstore.Prompt, op Operation) error {
 	return s.atomicWrite(path, []byte(markdown))
 }
 
+// SyncCreate syncs a newly created prompt.
+func (s *Syncer) SyncCreate(prompt *promptstore.Prompt) error {
+	return s.Sync(prompt, OpCreate)
+}
+
+// SyncUpdate syncs an updated prompt.
+func (s *Syncer) SyncUpdate(prompt *promptstore.Prompt) error {
+	return s.Sync(prompt, OpUpdate)
+}
+
 // Delete removes hexai-{name}.md file.
 // Returns nil if file doesn't exist (idempotent).
 func (s *Syncer) Delete(promptName string) error {

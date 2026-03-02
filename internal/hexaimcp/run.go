@@ -26,11 +26,11 @@ type ServerFactory func(
 	w io.Writer,
 	logger *log.Logger,
 	store promptstore.PromptStore,
-	syncer *slashcommands.Syncer,
+	syncer mcp.SlashCommandSyncer,
 ) ServerRunner
 
 // defaultServerFactory is the production server factory.
-func defaultServerFactory(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer *slashcommands.Syncer) ServerRunner {
+func defaultServerFactory(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer mcp.SlashCommandSyncer) ServerRunner {
 	return mcp.NewServer(r, w, logger, store, syncer)
 }
 
