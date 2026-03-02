@@ -120,7 +120,10 @@ func (s *Server) appendCustomActions(actions *[]CodeAction, p CodeActionParams, 
 				Selection   string       `json:"selection"`
 				Diagnostics []Diagnostic `json:"diagnostics"`
 			}{Type: "custom", ID: ca.ID, URI: p.TextDocument.URI, Range: p.Range, Selection: sel, Diagnostics: diags}
-			raw, _ := json.Marshal(payload)
+			raw, ok := s.marshalCodeActionData(payload)
+			if !ok {
+				continue
+			}
 			kind := ca.Kind
 			if strings.TrimSpace(kind) == "" {
 				kind = "quickfix"
@@ -139,7 +142,10 @@ func (s *Server) appendCustomActions(actions *[]CodeAction, p CodeActionParams, 
 			Range     Range  `json:"range"`
 			Selection string `json:"selection"`
 		}{Type: "custom", ID: ca.ID, URI: p.TextDocument.URI, Range: p.Range, Selection: sel}
-		raw, _ := json.Marshal(payload)
+		raw, ok := s.marshalCodeActionData(payload)
+		if !ok {
+			continue
+		}
 		kind := ca.Kind
 		if strings.TrimSpace(kind) == "" {
 			kind = "refactor"
@@ -285,7 +291,10 @@ func (s *Server) buildSimplifyCodeAction(p CodeActionParams, sel string) *CodeAc
 		Range     Range  `json:"range"`
 		Selection string `json:"selection"`
 	}{Type: "simplify", URI: p.TextDocument.URI, Range: p.Range, Selection: sel}
-	raw, _ := json.Marshal(payload)
+	raw, ok := s.marshalCodeActionData(payload)
+	if !ok {
+		return nil
+	}
 	ca := CodeAction{Title: "Hexai: simplify and improve", Kind: "refactor", Data: raw}
 	return &ca
 }
@@ -299,7 +308,10 @@ func (s *Server) buildRewriteCodeAction(p CodeActionParams, sel string) *CodeAct
 			Instruction string `json:"instruction"`
 			Selection   string `json:"selection"`
 		}{Type: "rewrite", URI: p.TextDocument.URI, Range: p.Range, Instruction: instr, Selection: cleaned}
-		raw, _ := json.Marshal(payload)
+		raw, ok := s.marshalCodeActionData(payload)
+		if !ok {
+			return nil
+		}
 		ca := CodeAction{Title: "Hexai: rewrite selection", Kind: "refactor.rewrite", Data: raw}
 		return &ca
 	}
@@ -318,7 +330,10 @@ func (s *Server) buildDiagnosticsCodeAction(p CodeActionParams, sel string) *Cod
 		Selection   string       `json:"selection"`
 		Diagnostics []Diagnostic `json:"diagnostics"`
 	}{Type: "diagnostics", URI: p.TextDocument.URI, Range: p.Range, Selection: sel, Diagnostics: diags}
-	raw, _ := json.Marshal(payload)
+	raw, ok := s.marshalCodeActionData(payload)
+	if !ok {
+		return nil
+	}
 	ca := CodeAction{Title: "Hexai: resolve diagnostics", Kind: "quickfix", Data: raw}
 	return &ca
 }
@@ -408,6 +423,15 @@ func (s *Server) handleCodeActionResolve(req Request) {
 	s.reply(req.ID, ca, nil)
 }
 
+func (s *Server) marshalCodeActionData(payload any) ([]byte, bool) {
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		logging.Logf("lsp ", "code action payload marshal error: %v", err)
+		return nil, false
+	}
+	return raw, true
+}
+
 // diagnosticsInRange parses the CodeAction context and returns diagnostics
 // that overlap the given selection range. If the context is missing or does
 // not contain diagnostics, returns an empty slice.
@@ -486,7 +510,10 @@ func (s *Server) buildGoUnitTestCodeAction(p CodeActionParams) *CodeAction {
 		URI   string `json:"uri"`
 		Range Range  `json:"range"`
 	}{Type: "go_test", URI: uri, Range: p.Range}
-	raw, _ := json.Marshal(payload)
+	raw, ok := s.marshalCodeActionData(payload)
+	if !ok {
+		return nil
+	}
 	ca := CodeAction{Title: "Hexai: implement unit test", Kind: "quickfix", Data: raw}
 	return &ca
 }
@@ -505,7 +532,10 @@ func (s *Server) buildDocumentCodeAction(p CodeActionParams, sel string) *CodeAc
 		Range     Range  `json:"range"`
 		Selection string `json:"selection"`
 	}{Type: "document", URI: p.TextDocument.URI, Range: p.Range, Selection: sel}
-	raw, _ := json.Marshal(payload)
+	raw, ok := s.marshalCodeActionData(payload)
+	if !ok {
+		return nil
+	}
 	ca := CodeAction{Title: "Hexai: document code", Kind: "refactor.rewrite", Data: raw}
 	return &ca
 }
