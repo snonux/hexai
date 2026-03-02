@@ -4,6 +4,7 @@ package mcp
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -71,7 +72,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.P
 func (s *Server) Run() error {
 	for {
 		body, err := s.readMessage()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {

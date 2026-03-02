@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"strings"
@@ -415,7 +416,7 @@ func (s *Server) Run() error {
 	defer s.cancelRequests()
 	for {
 		body, err := s.readMessage()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {

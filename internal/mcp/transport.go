@@ -4,6 +4,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -17,7 +18,7 @@ func (s *Server) readMessage() ([]byte, error) {
 	for {
 		line, err := s.in.ReadString('\n')
 		if err != nil && len(line) == 0 {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return nil, io.EOF
 			}
 			return nil, fmt.Errorf("read error: %w", err)
@@ -25,7 +26,7 @@ func (s *Server) readMessage() ([]byte, error) {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			// If we hit EOF on an empty line, propagate it
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return nil, io.EOF
 			}
 			continue // skip empty lines
