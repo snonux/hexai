@@ -3,6 +3,7 @@
 package hexailsp
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -37,7 +38,7 @@ func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io
 	if strings.TrimSpace(logPath) != "" {
 		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 		if err != nil {
-			logger.Fatalf("failed to open log file: %v", err)
+			return fmt.Errorf("failed to open log file: %w", err)
 		}
 		defer func() {
 			if err := f.Close(); err != nil {
@@ -50,7 +51,7 @@ func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io
 	loadOpts := appconfig.LoadOptions{ConfigPath: configPath}
 	cfg := appconfig.LoadWithOptions(logger, loadOpts)
 	if err := cfg.Validate(); err != nil {
-		logger.Fatalf("invalid config: %v", err)
+		return fmt.Errorf("invalid config: %w", err)
 	}
 	if cfg.StatsWindowMinutes > 0 {
 		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
@@ -63,7 +64,7 @@ func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io
 func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory) error {
 	normalizeLoggingConfig(&cfg)
 	if err := cfg.Validate(); err != nil {
-		logger.Fatalf("invalid config: %v", err)
+		return fmt.Errorf("invalid config: %w", err)
 	}
 	client = buildClientIfNil(cfg, client)
 	factory = ensureFactory(factory)
@@ -99,7 +100,7 @@ func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout i
 		})
 	}
 	if err := server.Run(); err != nil {
-		logger.Fatalf("server error: %v", err)
+		return fmt.Errorf("server error: %w", err)
 	}
 	return nil
 }

@@ -2,8 +2,6 @@
 package lsp
 
 import (
-	"os"
-
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/logging"
 	tmx "codeberg.org/snonux/hexai/internal/tmux"
@@ -43,5 +41,4 @@ func (s *Server) handleShutdown(req Request) {
 
 func (s *Server) handleExit() {
 	s.exited = true
-	os.Exit(0)
 }
