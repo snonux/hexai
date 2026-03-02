@@ -7,6 +7,8 @@ import (
 	"log"
 	"testing"
 	"time"
+
+	"codeberg.org/snonux/hexai/internal/appconfig"
 )
 
 func TestShouldSuppressForChatTriggerEOL_CustomConfig(t *testing.T) {
@@ -28,9 +30,8 @@ func TestShouldSuppressForChatTriggerEOL_CustomConfig(t *testing.T) {
 
 func TestNewServer_AssignsTriggerGlobals_AndParsingUsesThem(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{
-		InlineOpen: "<", InlineClose: ">", ChatSuffix: ")", ChatPrefixes: []string{":"},
-	})
+	cfg := appconfig.App{InlineOpen: "<", InlineClose: ">", ChatSuffix: ")", ChatPrefixes: []string{":"}}
+	s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{Config: &cfg})
 	openStr, _, openChar, closeChar := s.inlineMarkers()
 	if openChar != '<' || closeChar != '>' {
 		t.Fatalf("inline markers not applied: %q %q", string(openChar), string(closeChar))
@@ -67,7 +68,8 @@ func TestIsTriggerEvent_BareDoubleOpenBlocksEvenWithContextTriggerChar(t *testin
 
 func TestDetectAndHandleChat_CustomConfig_InsertsReply(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{ChatSuffix: "#", ChatPrefixes: []string{")"}})
+	cfg := appconfig.App{ChatSuffix: "#", ChatPrefixes: []string{")"}}
+	s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{Config: &cfg})
 	s.llmClient = fakeLLM{resp: "Hello\nmulti-line reply"}
 	uri := "file:///chat2.go"
 	s.setDocument(uri, "ok)#\n\n")

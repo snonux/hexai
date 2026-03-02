@@ -63,49 +63,9 @@ type ServerOptions struct {
 	LogContext        bool
 	ConfigStore       *runtimeconfig.Store
 	Config            *appconfig.App
-	MaxTokens         int
-	ContextMode       string
-	WindowLines       int
-	MaxContextTokens  int
 	ConfigLoadOptions appconfig.LoadOptions
 
-	Client                llm.Client
-	TriggerCharacters     []string
-	CodingTemperature     *float64
-	ManualInvokeMinPrefix int
-	CompletionDebounceMs  int
-	CompletionThrottleMs  int
-	CompletionWaitAll     *bool
-
-	// Inline/chat triggers
-	InlineOpen   string
-	InlineClose  string
-	ChatSuffix   string
-	ChatPrefixes []string
-
-	// Prompt templates
-	PromptCompSysGeneral    string
-	PromptCompSysParams     string
-	PromptCompSysInline     string
-	PromptCompUserGeneral   string
-	PromptCompUserParams    string
-	PromptCompExtraHeader   string
-	PromptNativeCompletion  string
-	PromptChatSystem        string
-	PromptRewriteSystem     string
-	PromptDiagnosticsSystem string
-	PromptDocumentSystem    string
-	PromptRewriteUser       string
-	PromptDiagnosticsUser   string
-	PromptDocumentUser      string
-	PromptGoTestSystem      string
-	PromptGoTestUser        string
-	PromptSimplifySystem    string
-	PromptSimplifyUser      string
-
-	// Custom actions
-	CustomActions []CustomAction
-
+	Client llm.Client
 	// Gitignore-aware file checker (optional)
 	IgnoreChecker *ignore.Checker
 }
@@ -158,51 +118,6 @@ func (s *Server) applyOptions(opts ServerOptions) {
 		s.cfg = opts.ConfigStore.Snapshot()
 	} else {
 		s.cfg = appconfig.App{}
-		// populate from legacy ServerOptions fields
-		s.cfg.MaxTokens = opts.MaxTokens
-		s.cfg.ContextMode = opts.ContextMode
-		s.cfg.ContextWindowLines = opts.WindowLines
-		s.cfg.MaxContextTokens = opts.MaxContextTokens
-		s.cfg.TriggerCharacters = append([]string{}, opts.TriggerCharacters...)
-		s.cfg.CodingTemperature = opts.CodingTemperature
-		s.cfg.ManualInvokeMinPrefix = opts.ManualInvokeMinPrefix
-		s.cfg.CompletionDebounceMs = opts.CompletionDebounceMs
-		s.cfg.CompletionThrottleMs = opts.CompletionThrottleMs
-		s.cfg.CompletionWaitAll = opts.CompletionWaitAll
-		s.cfg.InlineOpen = opts.InlineOpen
-		s.cfg.InlineClose = opts.InlineClose
-		s.cfg.ChatSuffix = opts.ChatSuffix
-		s.cfg.ChatPrefixes = append([]string{}, opts.ChatPrefixes...)
-		s.cfg.PromptCompletionSystemGeneral = opts.PromptCompSysGeneral
-		s.cfg.PromptCompletionSystemParams = opts.PromptCompSysParams
-		s.cfg.PromptCompletionSystemInline = opts.PromptCompSysInline
-		s.cfg.PromptCompletionUserGeneral = opts.PromptCompUserGeneral
-		s.cfg.PromptCompletionUserParams = opts.PromptCompUserParams
-		s.cfg.PromptCompletionExtraHeader = opts.PromptCompExtraHeader
-		s.cfg.PromptNativeCompletion = opts.PromptNativeCompletion
-		s.cfg.PromptChatSystem = opts.PromptChatSystem
-		s.cfg.PromptCodeActionRewriteSystem = opts.PromptRewriteSystem
-		s.cfg.PromptCodeActionDiagnosticsSystem = opts.PromptDiagnosticsSystem
-		s.cfg.PromptCodeActionDocumentSystem = opts.PromptDocumentSystem
-		s.cfg.PromptCodeActionRewriteUser = opts.PromptRewriteUser
-		s.cfg.PromptCodeActionDiagnosticsUser = opts.PromptDiagnosticsUser
-		s.cfg.PromptCodeActionDocumentUser = opts.PromptDocumentUser
-		s.cfg.PromptCodeActionGoTestSystem = opts.PromptGoTestSystem
-		s.cfg.PromptCodeActionGoTestUser = opts.PromptGoTestUser
-		s.cfg.PromptCodeActionSimplifySystem = opts.PromptSimplifySystem
-		s.cfg.PromptCodeActionSimplifyUser = opts.PromptSimplifyUser
-		s.cfg.CustomActions = make([]appconfig.CustomAction, len(opts.CustomActions))
-		for i, ca := range opts.CustomActions {
-			s.cfg.CustomActions[i] = appconfig.CustomAction{
-				ID:          ca.ID,
-				Title:       ca.Title,
-				Kind:        ca.Kind,
-				Scope:       ca.Scope,
-				Instruction: ca.Instruction,
-				System:      ca.System,
-				User:        ca.User,
-			}
-		}
 	}
 	s.llmClient = opts.Client
 	if opts.Client != nil {

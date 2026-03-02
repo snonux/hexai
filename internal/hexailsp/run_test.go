@@ -39,17 +39,20 @@ func TestRunWithFactory_UsesDefaultsAndCallsServer(t *testing.T) {
 	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
-	if gotOpts.MaxTokens != cfg.MaxTokens {
-		t.Fatalf("MaxTokens want %d got %d", cfg.MaxTokens, gotOpts.MaxTokens)
+	if gotOpts.Config == nil {
+		t.Fatalf("expected Config to be set in ServerOptions")
 	}
-	if gotOpts.ContextMode != cfg.ContextMode {
-		t.Fatalf("ContextMode want %q got %q", cfg.ContextMode, gotOpts.ContextMode)
+	if gotOpts.Config.MaxTokens != cfg.MaxTokens {
+		t.Fatalf("MaxTokens want %d got %d", cfg.MaxTokens, gotOpts.Config.MaxTokens)
 	}
-	if gotOpts.WindowLines != cfg.ContextWindowLines {
-		t.Fatalf("WindowLines want %d got %d", cfg.ContextWindowLines, gotOpts.WindowLines)
+	if gotOpts.Config.ContextMode != cfg.ContextMode {
+		t.Fatalf("ContextMode want %q got %q", cfg.ContextMode, gotOpts.Config.ContextMode)
 	}
-	if gotOpts.MaxContextTokens != cfg.MaxContextTokens {
-		t.Fatalf("MaxContextTokens want %d got %d", cfg.MaxContextTokens, gotOpts.MaxContextTokens)
+	if gotOpts.Config.ContextWindowLines != cfg.ContextWindowLines {
+		t.Fatalf("ContextWindowLines want %d got %d", cfg.ContextWindowLines, gotOpts.Config.ContextWindowLines)
+	}
+	if gotOpts.Config.MaxContextTokens != cfg.MaxContextTokens {
+		t.Fatalf("MaxContextTokens want %d got %d", cfg.MaxContextTokens, gotOpts.Config.MaxContextTokens)
 	}
 
 	if gotOpts.Client != nil { // with no env, openai client fails to build
@@ -107,8 +110,11 @@ func TestRunWithFactory_NormalizesContextMode_AndSetsPreviewLimit(t *testing.T) 
 	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
-	if gotOpts.ContextMode != "file-on-new-func" {
-		t.Fatalf("ContextMode not normalized: %q", gotOpts.ContextMode)
+	if gotOpts.Config == nil {
+		t.Fatalf("expected Config to be set in ServerOptions")
+	}
+	if gotOpts.Config.ContextMode != "file-on-new-func" {
+		t.Fatalf("ContextMode not normalized: %q", gotOpts.Config.ContextMode)
 	}
 	if logging.PreviewForLog("abcdef") != "abc…" {
 		t.Fatalf("PreviewForLog not respecting limit: %q", logging.PreviewForLog("abcdef"))

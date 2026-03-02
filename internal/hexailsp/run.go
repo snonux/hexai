@@ -137,63 +137,12 @@ func ensureFactory(factory ServerFactory) ServerFactory {
 }
 
 func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, loadOpts appconfig.LoadOptions, ignoreChecker *ignore.Checker) lsp.ServerOptions {
-	// Map custom actions from appconfig to lsp type
-	var customs []lsp.CustomAction
-	if len(cfg.CustomActions) > 0 {
-		customs = make([]lsp.CustomAction, 0, len(cfg.CustomActions))
-		for _, ca := range cfg.CustomActions {
-			customs = append(customs, lsp.CustomAction{
-				ID:          ca.ID,
-				Title:       ca.Title,
-				Kind:        ca.Kind,
-				Scope:       ca.Scope,
-				Instruction: ca.Instruction,
-				System:      ca.System,
-				User:        ca.User,
-			})
-		}
-	}
 	return lsp.ServerOptions{
-		ConfigLoadOptions:     loadOpts,
-		LogContext:            logContext,
-		ConfigStore:           nil,
-		Config:                &cfg,
-		MaxTokens:             cfg.MaxTokens,
-		ContextMode:           cfg.ContextMode,
-		WindowLines:           cfg.ContextWindowLines,
-		MaxContextTokens:      cfg.MaxContextTokens,
-		CodingTemperature:     cfg.CodingTemperature,
-		Client:                client,
-		TriggerCharacters:     cfg.TriggerCharacters,
-		ManualInvokeMinPrefix: cfg.ManualInvokeMinPrefix,
-		CompletionDebounceMs:  cfg.CompletionDebounceMs,
-		CompletionThrottleMs:  cfg.CompletionThrottleMs,
-		CompletionWaitAll:     cfg.CompletionWaitAll,
-		InlineOpen:            cfg.InlineOpen,
-		InlineClose:           cfg.InlineClose,
-		ChatSuffix:            cfg.ChatSuffix,
-		ChatPrefixes:          cfg.ChatPrefixes,
-
-		// Prompts
-		PromptCompSysGeneral:    cfg.PromptCompletionSystemGeneral,
-		PromptCompSysParams:     cfg.PromptCompletionSystemParams,
-		PromptCompSysInline:     cfg.PromptCompletionSystemInline,
-		PromptCompUserGeneral:   cfg.PromptCompletionUserGeneral,
-		PromptCompUserParams:    cfg.PromptCompletionUserParams,
-		PromptCompExtraHeader:   cfg.PromptCompletionExtraHeader,
-		PromptNativeCompletion:  cfg.PromptNativeCompletion,
-		PromptChatSystem:        cfg.PromptChatSystem,
-		PromptRewriteSystem:     cfg.PromptCodeActionRewriteSystem,
-		PromptDiagnosticsSystem: cfg.PromptCodeActionDiagnosticsSystem,
-		PromptDocumentSystem:    cfg.PromptCodeActionDocumentSystem,
-		PromptRewriteUser:       cfg.PromptCodeActionRewriteUser,
-		PromptDiagnosticsUser:   cfg.PromptCodeActionDiagnosticsUser,
-		PromptDocumentUser:      cfg.PromptCodeActionDocumentUser,
-		PromptGoTestSystem:      cfg.PromptCodeActionGoTestSystem,
-		PromptGoTestUser:        cfg.PromptCodeActionGoTestUser,
-		PromptSimplifySystem:    cfg.PromptCodeActionSimplifySystem,
-		PromptSimplifyUser:      cfg.PromptCodeActionSimplifyUser,
-		CustomActions:           customs,
-		IgnoreChecker:           ignoreChecker,
+		ConfigLoadOptions: loadOpts,
+		LogContext:        logContext,
+		ConfigStore:       nil,
+		Config:            &cfg,
+		Client:            client,
+		IgnoreChecker:     ignoreChecker,
 	}
 }

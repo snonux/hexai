@@ -47,10 +47,13 @@ func TestRunWithFactory_BuildsOptionsAndClient(t *testing.T) {
 	if err := RunWithFactory("", "", &in, &out, logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
-	if captured.MaxTokens != 123 {
+	if captured.Config == nil {
+		t.Fatalf("expected Config to be set in ServerOptions")
+	}
+	if captured.Config.MaxTokens != 123 {
 		t.Fatalf("opts not applied: %+v", captured)
 	}
-	if captured.PromptRewriteSystem != "RSYS" || captured.PromptRewriteUser != "RUSER" {
+	if captured.Config.PromptCodeActionRewriteSystem != "RSYS" || captured.Config.PromptCodeActionRewriteUser != "RUSER" {
 		t.Fatalf("prompts not mapped: %+v", captured)
 	}
 	if captured.Client == nil {
@@ -88,10 +91,13 @@ func TestRunWithFactory_SubscriptionAppliesUpdates(t *testing.T) {
 		t.Fatalf("expected ApplyOptions to be invoked on config update, got %d calls", len(runner.opts))
 	}
 	latest := runner.opts[len(runner.opts)-1]
-	if latest.MaxTokens != updated.MaxTokens {
+	if latest.Config == nil {
+		t.Fatalf("expected Config on latest options")
+	}
+	if latest.Config.MaxTokens != updated.MaxTokens {
 		t.Fatalf("expected updated max tokens, got %+v", latest)
 	}
-	if latest.ContextMode != "always-full" {
+	if latest.Config.ContextMode != "always-full" {
 		t.Fatalf("expected normalized context mode, got %+v", latest)
 	}
 }
