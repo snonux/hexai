@@ -63,7 +63,7 @@ func (s *Server) buildRequestSpecs(surface surfaceKind) []requestSpec {
 		provider = canonicalProvider(provider)
 		fallbackModel := entry.Model
 		if fallbackModel == "" {
-			fallbackModel = strings.TrimSpace(resolveDefaultModel(cfg, provider))
+			fallbackModel = strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))
 		}
 		opts := []llm.RequestOption{llm.WithMaxTokens(maxTokens)}
 		if entry.Model != "" {
@@ -88,7 +88,7 @@ func (s *Server) primaryRequestSpec(surface surfaceKind) requestSpec {
 	if len(specs) == 0 {
 		cfg := s.currentConfig()
 		provider := canonicalProvider(cfg.Provider)
-		fallback := strings.TrimSpace(resolveDefaultModel(cfg, provider))
+		fallback := strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))
 		return requestSpec{provider: provider, fallbackModel: fallback, options: []llm.RequestOption{llm.WithMaxTokens(s.maxTokens())}}
 	}
 	return specs[0]
@@ -101,10 +101,6 @@ func (s *Server) buildRequestSpec(surface surfaceKind) requestSpec {
 
 func canonicalProvider(name string) string {
 	return llmutils.CanonicalProvider(name)
-}
-
-func resolveDefaultModel(cfg appconfig.App, provider string) string {
-	return llmutils.DefaultModelForProvider(cfg, provider)
 }
 
 func surfaceConfigsFor(cfg appconfig.App, surface surfaceKind) []appconfig.SurfaceConfig {

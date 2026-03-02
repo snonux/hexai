@@ -42,10 +42,6 @@ func canonicalProvider(name string) string {
 	return llmutils.CanonicalProvider(name)
 }
 
-func defaultModelForProvider(cfg appconfig.App, provider string) string {
-	return llmutils.DefaultModelForProvider(cfg, provider)
-}
-
 func selectActionTemperature(cfg appconfig.App, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {
 	if entry.Temperature != nil {
 		return *entry.Temperature, true
@@ -193,7 +189,7 @@ func reqOptsFrom(cfg appconfig.App) requestArgs {
 	provider := canonicalProvider(cfg.Provider)
 	entries := cfg.CodeActionConfigs
 	if len(entries) == 0 {
-		entries = []appconfig.SurfaceConfig{{Provider: cfg.Provider, Model: strings.TrimSpace(defaultModelForProvider(cfg, provider))}}
+		entries = []appconfig.SurfaceConfig{{Provider: cfg.Provider, Model: strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))}}
 	}
 	primary := entries[0]
 	if strings.TrimSpace(primary.Provider) != "" {
@@ -201,7 +197,7 @@ func reqOptsFrom(cfg appconfig.App) requestArgs {
 	}
 	model := strings.TrimSpace(primary.Model)
 	if model == "" {
-		model = strings.TrimSpace(defaultModelForProvider(cfg, provider))
+		model = strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))
 	}
 	if strings.TrimSpace(primary.Model) != "" {
 		opts = append(opts, llm.WithModel(strings.TrimSpace(primary.Model)))

@@ -95,7 +95,7 @@ func buildCLIRequest(entry appconfig.SurfaceConfig, provider string, cfg appconf
 			model = strings.TrimSpace(client.DefaultModel())
 		}
 		if model == "" {
-			model = strings.TrimSpace(defaultModelForProvider(cfg, provider))
+			model = strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))
 		}
 	}
 	if entry.Model != "" {
@@ -126,10 +126,6 @@ func cliTemperatureFromEntry(cfg appconfig.App, provider string, entry appconfig
 
 func canonicalProvider(name string) string {
 	return llmutils.CanonicalProvider(name)
-}
-
-func defaultModelForProvider(cfg appconfig.App, provider string) string {
-	return llmutils.DefaultModelForProvider(cfg, provider)
 }
 
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
