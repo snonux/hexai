@@ -13,7 +13,6 @@ import (
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/stats"
 	"codeberg.org/snonux/hexai/internal/textutil"
-	tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 type surfaceKind string
@@ -198,8 +197,7 @@ func (s *Server) logLLMStats(model string) {
 				minsWin = 0.001
 			}
 			scopeRPM := float64(scopeReqs) / minsWin
-			status := tmx.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, provider, modelName, scopeRPM, scopeReqs, snap.Window)
-			_ = tmx.SetStatus(status)
+			s.emitGlobalStatus(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, provider, modelName, scopeRPM, scopeReqs, snap.Window)
 		}
 	}
 }

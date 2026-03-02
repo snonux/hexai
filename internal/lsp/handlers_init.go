@@ -4,7 +4,6 @@ package lsp
 import (
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/logging"
-	tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 func (s *Server) handleInitialize(req Request) {
@@ -31,7 +30,7 @@ func (s *Server) handleInitialized() {
 	logging.Logf("lsp ", "client initialized")
 	// Emit an initial tmux heartbeat with provider/model
 	if client := s.currentLLMClient(); client != nil {
-		_ = tmx.SetStatus(tmx.FormatLLMStartStatus(client.Name(), client.DefaultModel()))
+		s.emitLLMStartStatus(client.Name(), client.DefaultModel())
 	}
 }
 

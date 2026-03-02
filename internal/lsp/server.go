@@ -29,6 +29,7 @@ type Server struct {
 	logger       *log.Logger
 	serverCtx    context.Context
 	serverCancel context.CancelFunc
+	statusSink   StatusSink
 	exited       atomic.Bool
 	mu           sync.RWMutex
 	docs         map[string]*document
@@ -74,6 +75,12 @@ type codeActionSubsystem struct {
 	altClients  map[string]llm.Client
 }
 
+// StatusSink receives status updates from the LSP server.
+type StatusSink interface {
+	SetLLMStart(provider, model string) error
+	SetGlobal(reqs int64, rpm float64, sent int64, recv int64, provider, model string, scopeRPM float64, scopeReqs int64, window time.Duration) error
+}
+
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
 type ServerOptions struct {
 	LogContext        bool
@@ -84,6 +91,7 @@ type ServerOptions struct {
 	Client llm.Client
 	// Gitignore-aware file checker (optional)
 	IgnoreChecker *ignore.Checker
+	StatusSink    StatusSink
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
@@ -143,6 +151,9 @@ func (s *Server) applyOptions(opts ServerOptions) {
 	s.altClients = make(map[string]llm.Client)
 	if opts.IgnoreChecker != nil {
 		s.ignoreChecker = opts.IgnoreChecker
+	}
+	if opts.StatusSink != nil {
+		s.statusSink = opts.StatusSink
 	}
 }
 
@@ -409,6 +420,18 @@ func (s *Server) requestTimeoutContext(timeout time.Duration) (context.Context, 
 func (s *Server) cancelRequests() {
 	if s.serverCancel != nil {
 		s.serverCancel()
+	}
+}
+
+func (s *Server) emitLLMStartStatus(provider, model string) {
+	if s.statusSink != nil {
+		_ = s.statusSink.SetLLMStart(provider, model)
+	}
+}
+
+func (s *Server) emitGlobalStatus(reqs int64, rpm float64, sent int64, recv int64, provider, model string, scopeRPM float64, scopeReqs int64, window time.Duration) {
+	if s.statusSink != nil {
+		_ = s.statusSink.SetGlobal(reqs, rpm, sent, recv, provider, model, scopeRPM, scopeReqs, window)
 	}
 }
 

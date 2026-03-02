@@ -18,6 +18,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/lsp"
 	"codeberg.org/snonux/hexai/internal/runtimeconfig"
 	"codeberg.org/snonux/hexai/internal/stats"
+	tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
 
 // ServerRunner is the minimal interface satisfied by lsp.Server.
@@ -27,6 +28,17 @@ type ServerRunner interface{ Run() error }
 type ConfigurableServerRunner interface {
 	ServerRunner
 	ApplyOptions(lsp.ServerOptions)
+}
+
+type tmuxStatusSink struct{}
+
+func (tmuxStatusSink) SetLLMStart(provider, model string) error {
+	return tmx.SetStatus(tmx.FormatLLMStartStatus(provider, model))
+}
+
+func (tmuxStatusSink) SetGlobal(reqs int64, rpm float64, sent int64, recv int64, provider, model string, scopeRPM float64, scopeReqs int64, window time.Duration) error {
+	status := tmx.FormatGlobalStatusColored(reqs, rpm, sent, recv, provider, model, scopeRPM, scopeReqs, window)
+	return tmx.SetStatus(status)
 }
 
 // ServerFactory creates a ServerRunner. Default uses lsp.NewServer.
@@ -150,5 +162,6 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, lo
 		Config:            &cfg,
 		Client:            client,
 		IgnoreChecker:     ignoreChecker,
+		StatusSink:        tmuxStatusSink{},
 	}
 }
