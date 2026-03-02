@@ -23,6 +23,12 @@ import (
 // ServerRunner is the minimal interface satisfied by lsp.Server.
 type ServerRunner interface{ Run() error }
 
+// ConfigurableServerRunner supports runtime option updates.
+type ConfigurableServerRunner interface {
+	ServerRunner
+	ApplyOptions(lsp.ServerOptions)
+}
+
 // ServerFactory creates a ServerRunner. Default uses lsp.NewServer.
 type ServerFactory func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.ServerOptions) ServerRunner
 
@@ -81,7 +87,7 @@ func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout i
 	opts.ConfigLoadOptions = loadOpts
 	opts.ConfigStore = store
 	server := factory(stdin, stdout, logger, opts)
-	if configurable, ok := server.(interface{ ApplyOptions(lsp.ServerOptions) }); ok {
+	if configurable, ok := server.(ConfigurableServerRunner); ok {
 		store.Subscribe(func(oldCfg, newCfg appconfig.App) {
 			updated := newCfg
 			normalizeLoggingConfig(&updated)
