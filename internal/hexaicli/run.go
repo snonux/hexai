@@ -19,9 +19,8 @@ import (
 	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/stats"
+	"codeberg.org/snonux/hexai/internal/termprint"
 	"codeberg.org/snonux/hexai/internal/tmux"
-	"github.com/mattn/go-runewidth"
-	"golang.org/x/term"
 )
 
 type requestArgs struct {
@@ -35,21 +34,6 @@ type cliJob struct {
 	entry    appconfig.SurfaceConfig
 	client   llm.Client
 	req      requestArgs
-}
-
-type columnPrinter struct {
-	mu        sync.Mutex
-	stdout    io.Writer
-	columns   int
-	colWidth  int
-	partial   []string
-	providers []string
-	models    []string
-}
-
-type columnWriter struct {
-	printer *columnPrinter
-	index   int
 }
 
 type (
@@ -218,7 +202,7 @@ func runCLIJobs(ctx context.Context, jobs []cliJob, msgs []llm.Message, input st
 	return writeCLIJobSummaries(stderr, results)
 }
 
-func executeCLIJobs(ctx context.Context, jobs []cliJob, msgs []llm.Message, input string, stdout io.Writer, stderr io.Writer) ([]*cliJobResult, *columnPrinter) {
+func executeCLIJobs(ctx context.Context, jobs []cliJob, msgs []llm.Message, input string, stdout io.Writer, stderr io.Writer) ([]*cliJobResult, *termprint.ColumnPrinter) {
 	results := make([]*cliJobResult, len(jobs))
 	printer := setupCLIPrinter(stdout, jobs)
 	var wg sync.WaitGroup
@@ -235,7 +219,7 @@ func executeCLIJobs(ctx context.Context, jobs []cliJob, msgs []llm.Message, inpu
 	return results, printer
 }
 
-func setupCLIPrinter(stdout io.Writer, jobs []cliJob) *columnPrinter {
+func setupCLIPrinter(stdout io.Writer, jobs []cliJob) *termprint.ColumnPrinter {
 	if len(jobs) == 0 {
 		return nil
 	}
@@ -244,7 +228,7 @@ func setupCLIPrinter(stdout io.Writer, jobs []cliJob) *columnPrinter {
 	return printer
 }
 
-func runSingleCLIJob(ctx context.Context, job cliJob, msgs []llm.Message, input string, printer *columnPrinter) *cliJobResult {
+func runSingleCLIJob(ctx context.Context, job cliJob, msgs []llm.Message, input string, printer *termprint.ColumnPrinter) *cliJobResult {
 	var errBuf bytes.Buffer
 	var outBuf bytes.Buffer
 	jobMsgs := append([]llm.Message(nil), msgs...)
@@ -332,173 +316,14 @@ func writeCLIJobSummary(stderr io.Writer, res *cliJobResult) error {
 	return err
 }
 
-func newColumnPrinter(stdout io.Writer, jobs []cliJob) *columnPrinter {
-	cols := len(jobs)
-	width := detectTerminalWidth(stdout)
-	if width <= 0 {
-		width = 100
-	}
-	sepWidth := (cols - 1) * 3
-	colWidth := (width - sepWidth) / cols
-	if colWidth < 20 {
-		colWidth = 20
-	}
-	providers := make([]string, cols)
-	models := make([]string, cols)
+func newColumnPrinter(stdout io.Writer, jobs []cliJob) *termprint.ColumnPrinter {
+	providers := make([]string, len(jobs))
+	models := make([]string, len(jobs))
 	for _, job := range jobs {
 		providers[job.index] = job.client.Name()
 		models[job.index] = job.req.model
 	}
-	return &columnPrinter{
-		stdout:    stdout,
-		columns:   cols,
-		colWidth:  colWidth,
-		partial:   make([]string, cols),
-		providers: providers,
-		models:    models,
-	}
-}
-
-func detectTerminalWidth(w io.Writer) int {
-	type fder interface{ Fd() uintptr }
-	if f, ok := w.(*os.File); ok {
-		if width, _, err := term.GetSize(int(f.Fd())); err == nil {
-			return width
-		}
-	}
-	if f, ok := w.(fder); ok {
-		if width, _, err := term.GetSize(int(f.Fd())); err == nil {
-			return width
-		}
-	}
-	return 0
-}
-
-func (cp *columnPrinter) Writer(idx int) io.Writer {
-	return columnWriter{printer: cp, index: idx}
-}
-
-func (cp *columnPrinter) PrintHeader() {
-	cp.mu.Lock()
-	defer cp.mu.Unlock()
-	combo := make([]string, cp.columns)
-	for i := 0; i < cp.columns; i++ {
-		provider := strings.TrimSpace(cp.providers[i])
-		model := strings.TrimSpace(cp.models[i])
-		switch {
-		case provider != "" && model != "":
-			combo[i] = provider + ":" + model
-		case provider != "":
-			combo[i] = provider
-		case model != "":
-			combo[i] = model
-		default:
-			combo[i] = ""
-		}
-	}
-	cp.writeLine(combo)
-	divider := make([]string, cp.columns)
-	line := strings.Repeat("─", cp.colWidth)
-	for i := range divider {
-		divider[i] = line
-	}
-	cp.writeLine(divider)
-}
-
-func (cp *columnPrinter) Flush(idx int) {
-	cp.mu.Lock()
-	defer cp.mu.Unlock()
-	if idx < 0 || idx >= len(cp.partial) {
-		return
-	}
-	if cp.partial[idx] == "" {
-		return
-	}
-	cp.emitJobLine(idx, cp.partial[idx])
-	cp.partial[idx] = ""
-}
-
-func (w columnWriter) Write(p []byte) (int, error) {
-	return w.printer.write(w.index, string(p))
-}
-
-func (cp *columnPrinter) write(idx int, data string) (int, error) {
-	cp.mu.Lock()
-	defer cp.mu.Unlock()
-	if idx < 0 || idx >= len(cp.partial) {
-		return len(data), nil
-	}
-	data = strings.ReplaceAll(data, "\r", "")
-	cp.partial[idx] += data
-	for strings.Contains(cp.partial[idx], "\n") {
-		line, rest, _ := strings.Cut(cp.partial[idx], "\n")
-		cp.partial[idx] = rest
-		cp.emitJobLine(idx, line)
-	}
-	return len(data), nil
-}
-
-func (cp *columnPrinter) emitJobLine(idx int, line string) {
-	segments := cp.wrap(line)
-	for _, seg := range segments {
-		cells := make([]string, cp.columns)
-		if idx >= 0 && idx < len(cells) {
-			cells[idx] = seg
-		}
-		cp.writeLine(cells)
-	}
-}
-
-func (cp *columnPrinter) wrap(text string) []string {
-	text = strings.ReplaceAll(text, "\t", "    ")
-	if runewidth.StringWidth(text) <= cp.colWidth {
-		return []string{text}
-	}
-	var lines []string
-	var current strings.Builder
-	width := 0
-	for _, r := range text {
-		rw := runewidth.RuneWidth(r)
-		if width+rw > cp.colWidth && current.Len() > 0 {
-			lines = append(lines, current.String())
-			current.Reset()
-			width = 0
-		}
-		current.WriteRune(r)
-		width += rw
-	}
-	if current.Len() > 0 {
-		lines = append(lines, current.String())
-	}
-	if len(lines) == 0 {
-		lines = append(lines, "")
-	}
-	return lines
-}
-
-func (cp *columnPrinter) writeLine(cells []string) {
-	if len(cells) < cp.columns {
-		extra := make([]string, cp.columns-len(cells))
-		cells = append(cells, extra...)
-	}
-	var builder strings.Builder
-	for i := 0; i < cp.columns; i++ {
-		cell := cells[i]
-		width := runewidth.StringWidth(cell)
-		if width > cp.colWidth {
-			cell = runewidth.Truncate(cell, cp.colWidth, "…")
-			width = runewidth.StringWidth(cell)
-		}
-		builder.WriteString(cell)
-		if pad := cp.colWidth - width; pad > 0 {
-			builder.WriteString(strings.Repeat(" ", pad))
-		}
-		if i != cp.columns-1 {
-			builder.WriteString(" │ ")
-		}
-	}
-	builder.WriteByte('\n')
-	_, _ = cp.stdout.Write([]byte(builder.String()))
+	return termprint.NewColumnPrinter(stdout, providers, models)
 }
 
 // WithCLISelection injects provider indices into the context so Run only executes those jobs.
