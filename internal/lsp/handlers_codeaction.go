@@ -540,89 +540,118 @@ func (s *Server) buildDocumentCodeAction(p CodeActionParams, sel string) *CodeAc
 }
 
 func (s *Server) resolveGoTest(uri string, pos Position) (WorkspaceEdit, string, Range, bool) {
-	path := strings.TrimPrefix(uri, "file://")
-	if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+	target, ok := s.resolveGoTestTarget(uri, pos)
+	if !ok {
 		return WorkspaceEdit{}, "", Range{}, false
 	}
-	// Load source text
+	if fileExists(target.testPath) {
+		we, jump := s.appendGoTestToExistingFile(target.testURI, target.testFunc)
+		return we, target.testURI, jump, true
+	}
+	we, jump := createGoTestFileWorkspace(target.path, target.testURI, target.pkg, target.testFunc)
+	return we, target.testURI, jump, true
+}
+
+type goTestTarget struct {
+	path     string
+	testPath string
+	testURI  string
+	pkg      string
+	testFunc string
+}
+
+func (s *Server) resolveGoTestTarget(uri string, pos Position) (goTestTarget, bool) {
+	path := strings.TrimPrefix(uri, "file://")
+	if !isNonTestGoFile(path) {
+		return goTestTarget{}, false
+	}
 	_, lines := s.loadFileText(uri)
 	if len(lines) == 0 {
-		return WorkspaceEdit{}, "", Range{}, false
+		return goTestTarget{}, false
 	}
-	pkg := parseGoPackageName(lines)
 	fnStart, fnEnd := findGoFunctionAtLine(lines, pos.Line)
 	if fnStart < 0 || fnEnd < fnStart {
-		return WorkspaceEdit{}, "", Range{}, false
+		return goTestTarget{}, false
 	}
 	funcCode := strings.Join(lines[fnStart:fnEnd+1], "\n")
 	testFunc := s.generateGoTestFunction(funcCode)
 	if strings.TrimSpace(testFunc) == "" {
-		return WorkspaceEdit{}, "", Range{}, false
+		return goTestTarget{}, false
 	}
-	// Determine test file target
 	testPath := strings.TrimSuffix(path, ".go") + "_test.go"
-	testURI := "file://" + testPath
+	return goTestTarget{
+		path:     path,
+		testPath: testPath,
+		testURI:  "file://" + testPath,
+		pkg:      parseGoPackageName(lines),
+		testFunc: testFunc,
+	}, true
+}
 
-	// If test file exists, append test at EOF; otherwise, create a new file with package+import
-	if fileExists(testPath) {
-		// Build an insertion at end of file
-		_, tLines := s.loadFileText(testURI)
-		// Fallback when not open and cannot read: still insert at line 0
-		lineIdx := 0
-		col := 0
-		if len(tLines) > 0 {
-			lineIdx = len(tLines) - 1
-			col = len(tLines[lineIdx])
-		}
-		var b strings.Builder
-		// Ensure at least two newlines before the new test
-		if len(tLines) == 0 || (len(tLines) > 0 && !strings.HasSuffix(strings.Join(tLines, "\n"), "\n\n")) {
-			b.WriteString("\n\n")
-		}
-		b.WriteString(testFunc)
-		insert := b.String()
-		edit := TextEdit{Range: Range{Start: Position{Line: lineIdx, Character: col}, End: Position{Line: lineIdx, Character: col}}, NewText: insert}
-		we := WorkspaceEdit{Changes: map[string][]TextEdit{testURI: {edit}}}
-		// Compute jump range start
-		// Count how many prefix newlines added before the test function
-		prefixNL := 0
-		if strings.HasPrefix(insert, "\n\n") {
-			prefixNL = 2
-		}
-		startLine := lineIdx + prefixNL
-		// If we inserted with two newlines and last line wasn't blank, first newline moves to next line
-		if prefixNL > 0 {
-			startLine = lineIdx + prefixNL
-		}
-		jump := Range{Start: Position{Line: startLine, Character: 0}, End: Position{Line: startLine, Character: 0}}
-		return we, testURI, jump, true
+func isNonTestGoFile(path string) bool {
+	return strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go")
+}
+
+func (s *Server) appendGoTestToExistingFile(testURI string, testFunc string) (WorkspaceEdit, Range) {
+	_, tLines := s.loadFileText(testURI)
+	lineIdx, col := appendInsertPosition(tLines)
+	insert := appendInsertText(tLines, testFunc)
+	edit := TextEdit{
+		Range:   Range{Start: Position{Line: lineIdx, Character: col}, End: Position{Line: lineIdx, Character: col}},
+		NewText: insert,
 	}
-	// Create new file content
-	var content strings.Builder
+	we := WorkspaceEdit{Changes: map[string][]TextEdit{testURI: {edit}}}
+	startLine := lineIdx + strings.Count(insert[:len(insert)-len(testFunc)], "\n")
+	jump := Range{Start: Position{Line: startLine, Character: 0}, End: Position{Line: startLine, Character: 0}}
+	return we, jump
+}
+
+func appendInsertPosition(lines []string) (int, int) {
+	if len(lines) == 0 {
+		return 0, 0
+	}
+	lineIdx := len(lines) - 1
+	return lineIdx, len(lines[lineIdx])
+}
+
+func appendInsertText(lines []string, testFunc string) string {
+	prefix := "\n\n"
+	if len(lines) > 0 && strings.HasSuffix(strings.Join(lines, "\n"), "\n\n") {
+		prefix = ""
+	}
+	return prefix + testFunc
+}
+
+func createGoTestFileWorkspace(path string, testURI string, pkg string, testFunc string) (WorkspaceEdit, Range) {
+	content := newGoTestFileContent(path, pkg, testFunc)
+	create := CreateFile{Kind: "create", URI: testURI}
+	edit := TextEdit{Range: Range{Start: Position{Line: 0, Character: 0}, End: Position{Line: 0, Character: 0}}, NewText: content}
+	tde := TextDocumentEdit{TextDocument: VersionedTextDocumentIdentifier{URI: testURI}, Edits: []TextEdit{edit}}
+	we := WorkspaceEdit{DocumentChanges: []any{create, tde}}
+	startLine := findFirstTestStartLine(content)
+	jump := Range{Start: Position{Line: startLine, Character: 0}, End: Position{Line: startLine, Character: 0}}
+	return we, jump
+}
+
+func newGoTestFileContent(path string, pkg string, testFunc string) string {
 	if pkg == "" {
 		pkg = filepath.Base(filepath.Dir(path))
 	}
+	var content strings.Builder
 	content.WriteString("package ")
 	content.WriteString(pkg)
 	content.WriteString("\n\n")
 	content.WriteString("import (\n\t\"testing\"\n)\n\n")
 	content.WriteString(testFunc)
-	full := content.String()
-	// Use documentChanges with create + full content insert
-	create := CreateFile{Kind: "create", URI: testURI}
-	tde := TextDocumentEdit{TextDocument: VersionedTextDocumentIdentifier{URI: testURI}, Edits: []TextEdit{{Range: Range{Start: Position{Line: 0, Character: 0}, End: Position{Line: 0, Character: 0}}, NewText: full}}}
-	we := WorkspaceEdit{DocumentChanges: []any{create, tde}}
-	// Find start line of first test function
-	// Count lines before the substring "func Test"
-	pre := content.String()
-	idx := strings.Index(pre, "func Test")
-	startLine := 0
-	if idx > 0 {
-		before := pre[:idx]
-		startLine = strings.Count(before, "\n")
+	return content.String()
+}
+
+func findFirstTestStartLine(content string) int {
+	idx := strings.Index(content, "func Test")
+	if idx <= 0 {
+		return 0
 	}
-	jump := Range{Start: Position{Line: startLine, Character: 0}, End: Position{Line: startLine, Character: 0}}
-	return we, testURI, jump, true
+	return strings.Count(content[:idx], "\n")
 }
 
 // loadFileText returns the file content and lines. It prefers the open document; otherwise reads from disk.
