@@ -40,6 +40,19 @@ type ollamaChatResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
+func init() {
+	RegisterProvider("ollama", ollamaProviderFactory)
+}
+
+func ollamaProviderFactory(cfg Config, _ ProviderKeys) (Client, error) {
+	return newOllamaWithTimeout(
+		cfg.OllamaBaseURL,
+		cfg.OllamaModel,
+		withDefaultTemperature(cfg.OllamaTemperature, 0.2),
+		cfg.RequestTimeout,
+	), nil
+}
+
 // Constructor (kept among the first functions by convention)
 func newOllama(baseURL, model string, defaultTemp *float64) Client {
 	return newOllamaWithTimeout(baseURL, model, defaultTemp, 0)

@@ -86,6 +86,23 @@ var (
 	_ Streamer = (*anthropicClient)(nil)
 )
 
+func init() {
+	RegisterProvider("anthropic", anthropicProviderFactory)
+}
+
+func anthropicProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
+	if strings.TrimSpace(keys.AnthropicAPIKey) == "" {
+		return nil, errors.New("missing ANTHROPIC_API_KEY for provider anthropic")
+	}
+	return newAnthropicWithTimeout(
+		cfg.AnthropicBaseURL,
+		cfg.AnthropicModel,
+		keys.AnthropicAPIKey,
+		withDefaultTemperature(cfg.AnthropicTemperature, 0.2),
+		cfg.RequestTimeout,
+	), nil
+}
+
 // Constructor
 // newAnthropic constructs an Anthropic client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.

@@ -22,6 +22,23 @@ type openRouterClient struct {
 	defaultTemperature *float64
 }
 
+func init() {
+	RegisterProvider("openrouter", openRouterProviderFactory)
+}
+
+func openRouterProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
+	if strings.TrimSpace(keys.OpenRouterAPIKey) == "" {
+		return nil, errors.New("missing OPENROUTER_API_KEY for provider openrouter")
+	}
+	return newOpenRouterWithTimeout(
+		cfg.OpenRouterBaseURL,
+		cfg.OpenRouterModel,
+		keys.OpenRouterAPIKey,
+		withDefaultTemperature(cfg.OpenRouterTemperature, 0.2),
+		cfg.RequestTimeout,
+	), nil
+}
+
 func newOpenRouter(baseURL, model, apiKey string, defaultTemp *float64) Client {
 	return newOpenRouterWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
 }

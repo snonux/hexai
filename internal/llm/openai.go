@@ -73,6 +73,39 @@ type oaStreamChunk struct {
 	} `json:"error,omitempty"`
 }
 
+func init() {
+	RegisterProvider("openai", openAIProviderFactory)
+}
+
+func openAIProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
+	if strings.TrimSpace(keys.OpenAIAPIKey) == "" {
+		return nil, errors.New("missing OPENAI_API_KEY for provider openai")
+	}
+	return newOpenAIWithTimeout(
+		cfg.OpenAIBaseURL,
+		cfg.OpenAIModel,
+		keys.OpenAIAPIKey,
+		resolveOpenAITemperature(cfg.OpenAIModel, cfg.OpenAITemperature),
+		cfg.RequestTimeout,
+	), nil
+}
+
+func resolveOpenAITemperature(model string, configured *float64) *float64 {
+	isGPT5 := strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "gpt-5")
+	if isGPT5 {
+		if configured == nil || *configured == 0.2 {
+			v := 1.0
+			return &v
+		}
+		return configured
+	}
+	if configured != nil {
+		return configured
+	}
+	v := 0.2
+	return &v
+}
+
 // Constructor (kept among the first functions by convention)
 // newOpenAI constructs an OpenAI client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
