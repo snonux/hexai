@@ -29,6 +29,11 @@ type completionPlan struct {
 	cacheKey     string
 }
 
+type completionJobResult struct {
+	items []CompletionItem
+	ok    bool
+}
+
 func (s *Server) handleCompletion(req Request) {
 	if s.completionDisabled() {
 		s.reply(req.ID, CompletionList{IsIncomplete: false, Items: nil}, nil)
@@ -118,19 +123,48 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		end()
 		return nil, false, false
 	}
-	type jobResult struct {
-		items []CompletionItem
-		ok    bool
-	}
-	results := make(chan jobResult, len(specs))
-	var wg sync.WaitGroup
-	started := 0
-	s.waitForDebounce(ctx)
-	if !s.waitForThrottle(ctx) {
+	results, started, ok := s.startCompletionJobs(ctx, plan, specs)
+	if !ok || started == 0 {
 		end()
-		close(results)
 		return nil, false, false
 	}
+
+	if started == 1 {
+		items, ok := readSingleCompletionResult(results)
+		if !ok {
+			end()
+			return nil, false, false
+		}
+		end()
+		return items, true, false
+	}
+
+	if s.completionWaitAll() {
+		combined := collectCompletionResults(results)
+		end()
+		if len(combined) == 0 {
+			return nil, false, false
+		}
+		return combined, true, false
+	}
+
+	firstItems, ok := s.firstCompletionAndStore(results, plan.cacheKey, end)
+	if !ok {
+		end()
+		return nil, false, false
+	}
+	return firstItems, true, true
+}
+
+func (s *Server) startCompletionJobs(ctx context.Context, plan completionPlan, specs []requestSpec) (<-chan completionJobResult, int, bool) {
+	results := make(chan completionJobResult, len(specs))
+	s.waitForDebounce(ctx)
+	if !s.waitForThrottle(ctx) {
+		close(results)
+		return results, 0, false
+	}
+	var wg sync.WaitGroup
+	started := 0
 	for _, spec := range specs {
 		spec := spec
 		client := s.clientFor(spec)
@@ -139,83 +173,72 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		}
 		started++
 		wg.Add(1)
-		go func(idx int, spec requestSpec, client llm.Client) {
+		go func(spec requestSpec, client llm.Client) {
 			defer wg.Done()
 			items, ok := s.runCompletionForSpec(ctx, plan, spec, client)
-			results <- jobResult{items: items, ok: ok}
-		}(spec.index, spec, client)
+			results <- completionJobResult{items: items, ok: ok}
+		}(spec, client)
 	}
-
 	if started == 0 {
-		end()
 		close(results)
-		return nil, false, false
+		return results, 0, true
 	}
-
 	go func() {
 		wg.Wait()
 		close(results)
 	}()
+	return results, started, true
+}
 
-	if started == 1 {
-		res := <-results
+func readSingleCompletionResult(results <-chan completionJobResult) ([]CompletionItem, bool) {
+	res, ok := <-results
+	if !ok || !res.ok || len(res.items) == 0 {
+		return nil, false
+	}
+	return res.items, true
+}
+
+func collectCompletionResults(results <-chan completionJobResult) []CompletionItem {
+	combined := make([]CompletionItem, 0)
+	for res := range results {
 		if !res.ok || len(res.items) == 0 {
-			end()
-			return nil, false, false
+			continue
 		}
-		end()
-		return res.items, true, false
+		combined = append(combined, res.items...)
 	}
+	return combined
+}
 
-	waitAll := s.completionWaitAll()
-	if waitAll {
-		// Wait for all backends, return combined results
-		defer end()
-		combined := make([]CompletionItem, 0)
-		for res := range results {
-			if !res.ok || len(res.items) == 0 {
-				continue
-			}
-			combined = append(combined, res.items...)
-		}
-		if len(combined) == 0 {
-			return nil, false, false
-		}
-		return combined, true, false
-	}
-
-	// Return first result immediately, store combined for later
+func (s *Server) firstCompletionAndStore(results <-chan completionJobResult, cacheKey string, end func()) ([]CompletionItem, bool) {
 	firstCh := make(chan []CompletionItem, 1)
-	go func(planKey string) {
-		defer end()
-		combined := make([]CompletionItem, 0)
-		firstSent := false
-		for res := range results {
-			if !res.ok || len(res.items) == 0 {
-				continue
-			}
-			combined = append(combined, res.items...)
-			if !firstSent {
-				first := make([]CompletionItem, len(res.items))
-				copy(first, res.items)
-				firstCh <- first
-				firstSent = true
-			}
-		}
-		if !firstSent {
-			close(firstCh)
-			return
-		}
-		s.storePendingCompletion(planKey, combined)
-		close(firstCh)
-	}(plan.cacheKey)
-
+	go s.collectFirstCompletion(results, cacheKey, firstCh, end)
 	firstItems, ok := <-firstCh
 	if !ok || len(firstItems) == 0 {
-		end()
-		return nil, false, false
+		return nil, false
 	}
-	return firstItems, true, true
+	return firstItems, true
+}
+
+func (s *Server) collectFirstCompletion(results <-chan completionJobResult, cacheKey string, firstCh chan<- []CompletionItem, end func()) {
+	defer end()
+	combined := make([]CompletionItem, 0)
+	firstSent := false
+	for res := range results {
+		if !res.ok || len(res.items) == 0 {
+			continue
+		}
+		combined = append(combined, res.items...)
+		if !firstSent {
+			first := make([]CompletionItem, len(res.items))
+			copy(first, res.items)
+			firstCh <- first
+			firstSent = true
+		}
+	}
+	if firstSent {
+		s.storePendingCompletion(cacheKey, combined)
+	}
+	close(firstCh)
 }
 
 func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) {
