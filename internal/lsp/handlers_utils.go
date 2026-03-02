@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/stats"
 	"codeberg.org/snonux/hexai/internal/textutil"
@@ -99,24 +100,11 @@ func (s *Server) buildRequestSpec(surface surfaceKind) requestSpec {
 }
 
 func canonicalProvider(name string) string {
-	p := strings.ToLower(strings.TrimSpace(name))
-	if p == "" {
-		return "openai"
-	}
-	return p
+	return llmutils.CanonicalProvider(name)
 }
 
 func resolveDefaultModel(cfg appconfig.App, provider string) string {
-	switch provider {
-	case "ollama":
-		return strings.TrimSpace(cfg.OllamaModel)
-	case "anthropic":
-		return strings.TrimSpace(cfg.AnthropicModel)
-	case "openrouter":
-		return strings.TrimSpace(cfg.OpenRouterModel)
-	default:
-		return strings.TrimSpace(cfg.OpenAIModel)
-	}
+	return llmutils.DefaultModelForProvider(cfg, provider)
 }
 
 func surfaceConfigsFor(cfg appconfig.App, surface surfaceKind) []appconfig.SurfaceConfig {

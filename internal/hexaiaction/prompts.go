@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/stats"
 	"codeberg.org/snonux/hexai/internal/textutil"
 	"codeberg.org/snonux/hexai/internal/tmux"
@@ -38,22 +39,11 @@ func providerOf(c any) string {
 }
 
 func canonicalProvider(name string) string {
-	p := strings.ToLower(strings.TrimSpace(name))
-	if p == "" {
-		return "openai"
-	}
-	return p
+	return llmutils.CanonicalProvider(name)
 }
 
 func defaultModelForProvider(cfg appconfig.App, provider string) string {
-	switch provider {
-	case "ollama":
-		return cfg.OllamaModel
-	case "anthropic":
-		return cfg.AnthropicModel
-	default:
-		return cfg.OpenAIModel
-	}
+	return llmutils.DefaultModelForProvider(cfg, provider)
 }
 
 func selectActionTemperature(cfg appconfig.App, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {

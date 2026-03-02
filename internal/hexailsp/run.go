@@ -12,6 +12,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/ignore"
 	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/lsp"
 	"codeberg.org/snonux/hexai/internal/runtimeconfig"
@@ -116,44 +117,13 @@ func buildClientIfNil(cfg appconfig.App, client llm.Client) llm.Client {
 	if client != nil {
 		return client
 	}
-	llmCfg := llm.Config{
-		Provider:              cfg.Provider,
-		RequestTimeout:        cfg.RequestTimeout,
-		OpenAIBaseURL:         cfg.OpenAIBaseURL,
-		OpenAIModel:           cfg.OpenAIModel,
-		OpenAITemperature:     cfg.OpenAITemperature,
-		OpenRouterBaseURL:     cfg.OpenRouterBaseURL,
-		OpenRouterModel:       cfg.OpenRouterModel,
-		OpenRouterTemperature: cfg.OpenRouterTemperature,
-		OllamaBaseURL:         cfg.OllamaBaseURL,
-		OllamaModel:           cfg.OllamaModel,
-		OllamaTemperature:     cfg.OllamaTemperature,
-		AnthropicBaseURL:      cfg.AnthropicBaseURL,
-		AnthropicModel:        cfg.AnthropicModel,
-		AnthropicTemperature:  cfg.AnthropicTemperature,
-	}
-	// Prefer HEXAI_OPENAI_API_KEY; fall back to OPENAI_API_KEY
-	oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
-	if strings.TrimSpace(oaKey) == "" {
-		oaKey = os.Getenv("OPENAI_API_KEY")
-	}
-	// Prefer HEXAI_OPENROUTER_API_KEY; fall back to OPENROUTER_API_KEY
-	orKey := os.Getenv("HEXAI_OPENROUTER_API_KEY")
-	if strings.TrimSpace(orKey) == "" {
-		orKey = os.Getenv("OPENROUTER_API_KEY")
-	}
-	// Prefer HEXAI_ANTHROPIC_API_KEY; fall back to ANTHROPIC_API_KEY
-	anKey := os.Getenv("HEXAI_ANTHROPIC_API_KEY")
-	if strings.TrimSpace(anKey) == "" {
-		anKey = os.Getenv("ANTHROPIC_API_KEY")
-	}
-	if c, err := llm.NewFromConfig(llmCfg, oaKey, orKey, anKey); err != nil {
+	c, err := llmutils.NewClientFromApp(cfg)
+	if err != nil {
 		logging.Logf("lsp ", "llm disabled: %v", err)
 		return nil
-	} else {
-		logging.Logf("lsp ", "llm enabled provider=%s model=%s", c.Name(), c.DefaultModel())
-		return c
 	}
+	logging.Logf("lsp ", "llm enabled provider=%s model=%s", c.Name(), c.DefaultModel())
+	return c
 }
 
 func ensureFactory(factory ServerFactory) ServerFactory {

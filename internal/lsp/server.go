@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/ignore"
 	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/runtimeconfig"
 )
@@ -227,36 +227,8 @@ func (s *Server) currentLLMClient() llm.Client {
 	return s.llmClient
 }
 
-func newClientForProvider(cfg appconfig.App, provider string) (llm.Client, error) {
-	llmCfg := llm.Config{
-		Provider:              provider,
-		RequestTimeout:        cfg.RequestTimeout,
-		OpenAIBaseURL:         cfg.OpenAIBaseURL,
-		OpenAIModel:           cfg.OpenAIModel,
-		OpenAITemperature:     cfg.OpenAITemperature,
-		OpenRouterBaseURL:     cfg.OpenRouterBaseURL,
-		OpenRouterModel:       cfg.OpenRouterModel,
-		OpenRouterTemperature: cfg.OpenRouterTemperature,
-		OllamaBaseURL:         cfg.OllamaBaseURL,
-		OllamaModel:           cfg.OllamaModel,
-		OllamaTemperature:     cfg.OllamaTemperature,
-		AnthropicBaseURL:      cfg.AnthropicBaseURL,
-		AnthropicModel:        cfg.AnthropicModel,
-		AnthropicTemperature:  cfg.AnthropicTemperature,
-	}
-	oaKey := strings.TrimSpace(os.Getenv("HEXAI_OPENAI_API_KEY"))
-	if oaKey == "" {
-		oaKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
-	}
-	orKey := strings.TrimSpace(os.Getenv("HEXAI_OPENROUTER_API_KEY"))
-	if orKey == "" {
-		orKey = strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
-	}
-	anKey := strings.TrimSpace(os.Getenv("HEXAI_ANTHROPIC_API_KEY"))
-	if anKey == "" {
-		anKey = strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY"))
-	}
-	return llm.NewFromConfig(llmCfg, oaKey, orKey, anKey)
+func newClientForProvider(cfg appconfig.App, provider, modelOverride string) (llm.Client, error) {
+	return llmutils.NewClientFromAppForProvider(cfg, provider, modelOverride)
 }
 
 func (s *Server) clientFor(spec requestSpec) llm.Client {
@@ -284,35 +256,11 @@ func (s *Server) clientFor(spec requestSpec) llm.Client {
 	if store != nil {
 		cfg = store.Snapshot()
 	}
-	cfg.Provider = provider
 	modelOverride := strings.TrimSpace(spec.entry.Model)
-	switch provider {
-	case "openai":
-		if modelOverride != "" {
-			cfg.OpenAIModel = modelOverride
-		} else if spec.fallbackModel != "" {
-			cfg.OpenAIModel = spec.fallbackModel
-		}
-	case "openrouter":
-		if modelOverride != "" {
-			cfg.OpenRouterModel = modelOverride
-		} else if spec.fallbackModel != "" {
-			cfg.OpenRouterModel = spec.fallbackModel
-		}
-	case "ollama":
-		if modelOverride != "" {
-			cfg.OllamaModel = modelOverride
-		} else if spec.fallbackModel != "" {
-			cfg.OllamaModel = spec.fallbackModel
-		}
-	case "anthropic":
-		if modelOverride != "" {
-			cfg.AnthropicModel = modelOverride
-		} else if spec.fallbackModel != "" {
-			cfg.AnthropicModel = spec.fallbackModel
-		}
+	if modelOverride == "" {
+		modelOverride = strings.TrimSpace(spec.fallbackModel)
 	}
-	client, err := newClientForProvider(cfg, provider)
+	client, err := newClientForProvider(cfg, provider, modelOverride)
 	if err != nil {
 		logging.Logf("lsp ", "failed to build client for provider=%s: %v", provider, err)
 		if baseClient != nil {

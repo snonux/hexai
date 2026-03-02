@@ -8,6 +8,59 @@ import (
 	"codeberg.org/snonux/hexai/internal/llm"
 )
 
+// CanonicalProvider normalizes provider names and defaults to openai.
+func CanonicalProvider(name string) string {
+	provider := strings.ToLower(strings.TrimSpace(name))
+	if provider == "" {
+		return "openai"
+	}
+	return provider
+}
+
+// DefaultModelForProvider returns the configured default model for a provider.
+func DefaultModelForProvider(cfg appconfig.App, provider string) string {
+	switch CanonicalProvider(provider) {
+	case "openrouter":
+		return strings.TrimSpace(cfg.OpenRouterModel)
+	case "ollama":
+		return strings.TrimSpace(cfg.OllamaModel)
+	case "anthropic":
+		return strings.TrimSpace(cfg.AnthropicModel)
+	default:
+		return strings.TrimSpace(cfg.OpenAIModel)
+	}
+}
+
+// ConfigForProvider returns cfg adjusted for the selected provider/model.
+func ConfigForProvider(cfg appconfig.App, provider, modelOverride string) appconfig.App {
+	derived := cfg
+	if strings.TrimSpace(provider) == "" {
+		provider = cfg.Provider
+	}
+	normalized := CanonicalProvider(provider)
+	derived.Provider = normalized
+	model := strings.TrimSpace(modelOverride)
+	if model == "" {
+		return derived
+	}
+	switch normalized {
+	case "openrouter":
+		derived.OpenRouterModel = model
+	case "ollama":
+		derived.OllamaModel = model
+	case "anthropic":
+		derived.AnthropicModel = model
+	default:
+		derived.OpenAIModel = model
+	}
+	return derived
+}
+
+// NewClientFromAppForProvider builds a client for a specific provider/model.
+func NewClientFromAppForProvider(cfg appconfig.App, provider, modelOverride string) (llm.Client, error) {
+	return NewClientFromApp(ConfigForProvider(cfg, provider, modelOverride))
+}
+
 // NewClientFromApp builds an llm.Client using app config and environment keys.
 func NewClientFromApp(cfg appconfig.App) (llm.Client, error) {
 	llmCfg := llm.Config{

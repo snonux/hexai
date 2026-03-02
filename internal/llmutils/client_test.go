@@ -25,3 +25,52 @@ func TestNewClientFromApp_OpenAI_WithKey(t *testing.T) {
 	// ensure env override precedence
 	_ = os.Unsetenv("OPENAI_API_KEY")
 }
+
+func TestCanonicalProvider(t *testing.T) {
+	if got := CanonicalProvider("  OpenRouter "); got != "openrouter" {
+		t.Fatalf("CanonicalProvider(openrouter) = %q", got)
+	}
+	if got := CanonicalProvider(" "); got != "openai" {
+		t.Fatalf("CanonicalProvider(empty) = %q", got)
+	}
+}
+
+func TestDefaultModelForProvider(t *testing.T) {
+	cfg := appconfig.App{
+		OpenAIModel:     "gpt-4.1",
+		OpenRouterModel: "openrouter/auto",
+		OllamaModel:     "qwen3",
+		AnthropicModel:  "claude",
+	}
+	if got := DefaultModelForProvider(cfg, "openai"); got != "gpt-4.1" {
+		t.Fatalf("openai model = %q", got)
+	}
+	if got := DefaultModelForProvider(cfg, "openrouter"); got != "openrouter/auto" {
+		t.Fatalf("openrouter model = %q", got)
+	}
+	if got := DefaultModelForProvider(cfg, "ollama"); got != "qwen3" {
+		t.Fatalf("ollama model = %q", got)
+	}
+	if got := DefaultModelForProvider(cfg, "anthropic"); got != "claude" {
+		t.Fatalf("anthropic model = %q", got)
+	}
+}
+
+func TestConfigForProvider(t *testing.T) {
+	base := appconfig.App{
+		Provider:       "openai",
+		OpenAIModel:    "gpt-4.1",
+		OllamaModel:    "qwen3",
+		AnthropicModel: "claude",
+	}
+	got := ConfigForProvider(base, "ollama", "qwen3-coder")
+	if got.Provider != "ollama" {
+		t.Fatalf("provider = %q", got.Provider)
+	}
+	if got.OllamaModel != "qwen3-coder" {
+		t.Fatalf("ollama model = %q", got.OllamaModel)
+	}
+	if got.OpenAIModel != "gpt-4.1" {
+		t.Fatalf("openai model unexpectedly changed: %q", got.OpenAIModel)
+	}
+}

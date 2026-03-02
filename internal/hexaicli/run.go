@@ -70,18 +70,7 @@ func buildCLIJobs(cfg appconfig.App) ([]cliJob, error) {
 			provider = cfg.Provider
 		}
 		provider = canonicalProvider(provider)
-		derived := cfg
-		derived.Provider = provider
-		switch provider {
-		case "openai":
-			if entry.Model != "" {
-				derived.OpenAIModel = entry.Model
-			}
-		case "ollama":
-			if entry.Model != "" {
-				derived.OllamaModel = entry.Model
-			}
-		}
+		derived := llmutils.ConfigForProvider(cfg, provider, entry.Model)
 		client, err := newClientFromApp(derived)
 		if err != nil {
 			return nil, err
@@ -136,22 +125,11 @@ func cliTemperatureFromEntry(cfg appconfig.App, provider string, entry appconfig
 }
 
 func canonicalProvider(name string) string {
-	p := strings.ToLower(strings.TrimSpace(name))
-	if p == "" {
-		return "openai"
-	}
-	return p
+	return llmutils.CanonicalProvider(name)
 }
 
 func defaultModelForProvider(cfg appconfig.App, provider string) string {
-	switch provider {
-	case "ollama":
-		return cfg.OllamaModel
-	case "anthropic":
-		return cfg.AnthropicModel
-	default:
-		return cfg.OpenAIModel
-	}
+	return llmutils.DefaultModelForProvider(cfg, provider)
 }
 
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
