@@ -8,6 +8,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
@@ -24,7 +25,7 @@ type Server struct {
 	out         io.Writer
 	outMu       sync.Mutex
 	logger      *log.Logger
-	exited      bool
+	exited      atomic.Bool
 	mu          sync.RWMutex
 	docs        map[string]*document
 	logContext  bool
@@ -415,7 +416,7 @@ func (s *Server) Run() error {
 			continue
 		}
 		go s.handle(req)
-		if s.exited {
+		if s.exited.Load() {
 			return nil
 		}
 	}

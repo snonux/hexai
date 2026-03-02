@@ -40,5 +40,5 @@ func (s *Server) handleShutdown(req Request) {
 }
 
 func (s *Server) handleExit() {
-	s.exited = true
+	s.exited.Store(true)
 }
