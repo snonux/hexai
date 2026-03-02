@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/gotest"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/logging"
 )
@@ -678,73 +679,12 @@ func fileExists(path string) bool {
 
 // parseGoPackageName returns the package name from file lines, or empty if not found.
 func parseGoPackageName(lines []string) string {
-	for _, ln := range lines {
-		t := strings.TrimSpace(ln)
-		if strings.HasPrefix(t, "package ") {
-			name := strings.TrimSpace(strings.TrimPrefix(t, "package "))
-			// strip inline comments
-			if i := strings.Index(name, " "); i >= 0 {
-				name = name[:i]
-			}
-			if i := strings.Index(name, "\t"); i >= 0 {
-				name = name[:i]
-			}
-			if i := strings.Index(name, "//"); i >= 0 {
-				name = strings.TrimSpace(name[:i])
-			}
-			return name
-		}
-	}
-	return ""
+	return gotest.ParsePackageName(lines)
 }
 
 // findGoFunctionAtLine finds the function enclosing or preceding line idx. Returns start and end line indexes.
 func findGoFunctionAtLine(lines []string, idx int) (int, int) {
-	if idx < 0 {
-		idx = 0
-	}
-	if idx >= len(lines) {
-		idx = len(lines) - 1
-	}
-	// find signature start
-	start := -1
-	for i := idx; i >= 0; i-- {
-		if strings.Contains(lines[i], "func ") {
-			start = i
-			break
-		}
-		if strings.Contains(lines[i], "}") {
-			break
-		}
-	}
-	if start == -1 {
-		return -1, -1
-	}
-	// find first '{'
-	depth := 0
-	seenOpen := false
-	for i := start; i < len(lines); i++ {
-		ln := lines[i]
-		for j := 0; j < len(ln); j++ {
-			switch ln[j] {
-			case '{':
-				depth++
-				seenOpen = true
-			case '}':
-				if depth > 0 {
-					depth--
-				}
-				if seenOpen && depth == 0 {
-					return start, i
-				}
-			}
-		}
-	}
-	// if never saw '{', assume single-line prototype; return that line
-	if !seenOpen {
-		return start, start
-	}
-	return start, -1
+	return gotest.FindFunctionAtLine(lines, idx)
 }
 
 // generateGoTestFunction uses LLM to produce a test function; falls back to a stub when unavailable.
@@ -774,34 +714,9 @@ func (s *Server) generateGoTestFunction(funcCode string) string {
 
 // deriveGoFuncName extracts function or method name from code.
 func deriveGoFuncName(code string) string {
-	// look for line starting with func
-	line := firstLine(code)
-	line = strings.TrimSpace(line)
-	if !strings.HasPrefix(line, "func ") {
-		return ""
-	}
-	rest := strings.TrimSpace(strings.TrimPrefix(line, "func "))
-	// method receiver
-	if strings.HasPrefix(rest, "(") {
-		// find ")"
-		if i := strings.Index(rest, ")"); i >= 0 && i+1 < len(rest) {
-			rest = strings.TrimSpace(rest[i+1:])
-		}
-	}
-	// now rest should start with Name(
-	if i := strings.Index(rest, "("); i > 0 {
-		return strings.TrimSpace(rest[:i])
-	}
-	return ""
+	return gotest.DeriveFuncName(code)
 }
 
 func exportName(name string) string {
-	if name == "" {
-		return name
-	}
-	r := []rune(name)
-	if r[0] >= 'a' && r[0] <= 'z' {
-		r[0] = r[0] - ('a' - 'A')
-	}
-	return string(r)
+	return gotest.ExportName(name)
 }
