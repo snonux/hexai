@@ -42,12 +42,13 @@ func canonicalProvider(name string) string {
 	return llmutils.CanonicalProvider(name)
 }
 
-func selectActionTemperature(cfg appconfig.App, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {
+func selectActionTemperature(cfg actionConfig, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {
+	core := cfg.CoreSection()
 	if entry.Temperature != nil {
 		return *entry.Temperature, true
 	}
-	if cfg.CodingTemperature != nil {
-		temp := *cfg.CodingTemperature
+	if core.CodingTemperature != nil {
+		temp := *core.CodingTemperature
 		if provider == "openai" && strings.HasPrefix(strings.ToLower(model), "gpt-5") && temp == 0.2 {
 			temp = 1.0
 		}
@@ -59,13 +60,14 @@ func selectActionTemperature(cfg appconfig.App, provider string, entry appconfig
 	return 0, false
 }
 
-func runRewrite(ctx context.Context, cfg appconfig.App, client chatDoer, instruction, selection string) (string, error) {
-	sys := cfg.PromptCodeActionRewriteSystem
-	user := Render(cfg.PromptCodeActionRewriteUser, map[string]string{"instruction": instruction, "selection": selection})
+func runRewrite(ctx context.Context, cfg actionConfig, client chatDoer, instruction, selection string) (string, error) {
+	prompts := cfg.PromptSection()
+	sys := prompts.PromptCodeActionRewriteSystem
+	user := Render(prompts.PromptCodeActionRewriteUser, map[string]string{"instruction": instruction, "selection": selection})
 	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
-func runDiagnostics(ctx context.Context, cfg appconfig.App, client chatDoer, diags []string, selection string) (string, error) {
+func runDiagnostics(ctx context.Context, cfg actionConfig, client chatDoer, diags []string, selection string) (string, error) {
 	var b strings.Builder
 	for i, d := range diags {
 		if strings.TrimSpace(d) == "" {
@@ -76,33 +78,38 @@ func runDiagnostics(ctx context.Context, cfg appconfig.App, client chatDoer, dia
 			b.WriteString("\n")
 		}
 	}
-	sys := cfg.PromptCodeActionDiagnosticsSystem
-	user := Render(cfg.PromptCodeActionDiagnosticsUser, map[string]string{"diagnostics": b.String(), "selection": selection})
+	prompts := cfg.PromptSection()
+	sys := prompts.PromptCodeActionDiagnosticsSystem
+	user := Render(prompts.PromptCodeActionDiagnosticsUser, map[string]string{"diagnostics": b.String(), "selection": selection})
 	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
-func runDocument(ctx context.Context, cfg appconfig.App, client chatDoer, selection string) (string, error) {
-	sys := cfg.PromptCodeActionDocumentSystem
-	user := Render(cfg.PromptCodeActionDocumentUser, map[string]string{"selection": selection})
+func runDocument(ctx context.Context, cfg actionConfig, client chatDoer, selection string) (string, error) {
+	prompts := cfg.PromptSection()
+	sys := prompts.PromptCodeActionDocumentSystem
+	user := Render(prompts.PromptCodeActionDocumentUser, map[string]string{"selection": selection})
 	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
-func runSimplify(ctx context.Context, cfg appconfig.App, client chatDoer, selection string) (string, error) {
-	sys := cfg.PromptCodeActionSimplifySystem
-	user := Render(cfg.PromptCodeActionSimplifyUser, map[string]string{"selection": selection})
+func runSimplify(ctx context.Context, cfg actionConfig, client chatDoer, selection string) (string, error) {
+	prompts := cfg.PromptSection()
+	sys := prompts.PromptCodeActionSimplifySystem
+	user := Render(prompts.PromptCodeActionSimplifyUser, map[string]string{"selection": selection})
 	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
-func runGoTest(ctx context.Context, cfg appconfig.App, client chatDoer, funcCode string) (string, error) {
-	sys := cfg.PromptCodeActionGoTestSystem
-	user := Render(cfg.PromptCodeActionGoTestUser, map[string]string{"function": funcCode})
+func runGoTest(ctx context.Context, cfg actionConfig, client chatDoer, funcCode string) (string, error) {
+	prompts := cfg.PromptSection()
+	sys := prompts.PromptCodeActionGoTestSystem
+	user := Render(prompts.PromptCodeActionGoTestUser, map[string]string{"function": funcCode})
 	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
-func runCustom(ctx context.Context, cfg appconfig.App, client chatDoer, ca appconfig.CustomAction, parts InputParts) (string, error) {
+func runCustom(ctx context.Context, cfg actionConfig, client chatDoer, ca appconfig.CustomAction, parts InputParts) (string, error) {
+	prompts := cfg.PromptSection()
 	// If user template is provided, prefer it and optional system
 	if strings.TrimSpace(ca.User) != "" {
-		sys := cfg.PromptCodeActionRewriteSystem
+		sys := prompts.PromptCodeActionRewriteSystem
 		if strings.TrimSpace(ca.System) != "" {
 			sys = ca.System
 		}
@@ -181,15 +188,18 @@ func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, req
 }
 
 // reqOptsFrom builds LLM request options similar to LSP behavior.
-func reqOptsFrom(cfg appconfig.App) requestArgs {
+func reqOptsFrom(cfg actionConfig) requestArgs {
+	core := cfg.CoreSection()
+	providers := cfg.ProviderSection()
+	fullCfg := actionConfigAsApp(cfg)
 	opts := make([]llm.RequestOption, 0, 3)
-	if cfg.MaxTokens > 0 {
-		opts = append(opts, llm.WithMaxTokens(cfg.MaxTokens))
+	if core.MaxTokens > 0 {
+		opts = append(opts, llm.WithMaxTokens(core.MaxTokens))
 	}
-	provider := canonicalProvider(cfg.Provider)
-	entries := cfg.CodeActionConfigs
+	provider := canonicalProvider(core.Provider)
+	entries := providers.CodeActionConfigs
 	if len(entries) == 0 {
-		entries = []appconfig.SurfaceConfig{{Provider: cfg.Provider, Model: strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))}}
+		entries = []appconfig.SurfaceConfig{{Provider: core.Provider, Model: strings.TrimSpace(llmutils.DefaultModelForProvider(fullCfg, provider))}}
 	}
 	primary := entries[0]
 	if strings.TrimSpace(primary.Provider) != "" {
@@ -197,7 +207,7 @@ func reqOptsFrom(cfg appconfig.App) requestArgs {
 	}
 	model := strings.TrimSpace(primary.Model)
 	if model == "" {
-		model = strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))
+		model = strings.TrimSpace(llmutils.DefaultModelForProvider(fullCfg, provider))
 	}
 	if strings.TrimSpace(primary.Model) != "" {
 		opts = append(opts, llm.WithModel(strings.TrimSpace(primary.Model)))

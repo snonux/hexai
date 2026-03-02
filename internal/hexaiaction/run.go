@@ -36,15 +36,15 @@ type actionPlan struct {
 
 // CodeActionHandler builds a plan for an action and resolves it.
 type CodeActionHandler interface {
-	Build(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool)
+	Build(parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (actionPlan, bool)
 	Resolve(ctx context.Context, plan actionPlan) (string, error)
 }
 
 type codeActionHandler struct {
-	build func(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool)
+	build func(parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (actionPlan, bool)
 }
 
-func (h codeActionHandler) Build(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool) {
+func (h codeActionHandler) Build(parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (actionPlan, bool) {
 	if h.build == nil {
 		return actionPlan{}, false
 	}
@@ -126,7 +126,7 @@ func configPathFromContext(ctx context.Context) string {
 	return ""
 }
 
-func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
+func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (string, error) {
 	handler, ok := codeActionHandlers()[kind]
 	if !ok {
 		return parts.Selection, nil
@@ -151,11 +151,11 @@ func codeActionHandlers() map[ActionKind]CodeActionHandler {
 	}
 }
 
-func buildSkipPlan(parts InputParts, _ appconfig.App, _ chatDoer, _ io.Writer) (actionPlan, bool) {
+func buildSkipPlan(parts InputParts, _ actionConfig, _ chatDoer, _ io.Writer) (actionPlan, bool) {
 	return actionPlan{fallback: parts.Selection}, true
 }
 
-func buildRewritePlan(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool) {
+func buildRewritePlan(parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (actionPlan, bool) {
 	return actionPlan{
 		fallback: parts.Selection,
 		run: func(ctx context.Context) (string, error) {
@@ -164,7 +164,7 @@ func buildRewritePlan(parts InputParts, cfg appconfig.App, client chatDoer, stde
 	}, true
 }
 
-func buildDiagnosticsPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+func buildDiagnosticsPlan(parts InputParts, cfg actionConfig, client chatDoer, _ io.Writer) (actionPlan, bool) {
 	return actionPlan{
 		fallback: parts.Selection,
 		run: func(ctx context.Context) (string, error) {
@@ -173,7 +173,7 @@ func buildDiagnosticsPlan(parts InputParts, cfg appconfig.App, client chatDoer, 
 	}, true
 }
 
-func buildDocumentPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+func buildDocumentPlan(parts InputParts, cfg actionConfig, client chatDoer, _ io.Writer) (actionPlan, bool) {
 	return actionPlan{
 		fallback: parts.Selection,
 		run: func(ctx context.Context) (string, error) {
@@ -182,7 +182,7 @@ func buildDocumentPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ i
 	}, true
 }
 
-func buildGoTestPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+func buildGoTestPlan(parts InputParts, cfg actionConfig, client chatDoer, _ io.Writer) (actionPlan, bool) {
 	return actionPlan{
 		fallback: parts.Selection,
 		run: func(ctx context.Context) (string, error) {
@@ -191,7 +191,7 @@ func buildGoTestPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.
 	}, true
 }
 
-func buildSimplifyPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+func buildSimplifyPlan(parts InputParts, cfg actionConfig, client chatDoer, _ io.Writer) (actionPlan, bool) {
 	return actionPlan{
 		fallback: parts.Selection,
 		run: func(ctx context.Context) (string, error) {
@@ -200,7 +200,7 @@ func buildSimplifyPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ i
 	}, true
 }
 
-func buildCustomPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.Writer) (actionPlan, bool) {
+func buildCustomPlan(parts InputParts, cfg actionConfig, client chatDoer, _ io.Writer) (actionPlan, bool) {
 	return actionPlan{
 		fallback: parts.Selection,
 		run: func(ctx context.Context) (string, error) {
@@ -209,7 +209,7 @@ func buildCustomPlan(parts InputParts, cfg appconfig.App, client chatDoer, _ io.
 	}, true
 }
 
-func buildCustomPromptPlan(parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (actionPlan, bool) {
+func buildCustomPromptPlan(parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (actionPlan, bool) {
 	return actionPlan{
 		fallback: parts.Selection,
 		run: func(ctx context.Context) (string, error) {
@@ -218,7 +218,7 @@ func buildCustomPromptPlan(parts InputParts, cfg appconfig.App, client chatDoer,
 	}, true
 }
 
-func handleRewriteAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
+func handleRewriteAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (string, error) {
 	instr, cleaned := ExtractInstruction(parts.Selection)
 	if strings.TrimSpace(instr) == "" {
 		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
@@ -229,31 +229,31 @@ func handleRewriteAction(ctx context.Context, parts InputParts, cfg appconfig.Ap
 	})
 }
 
-func handleDiagnosticsAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+func handleDiagnosticsAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
 	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
 		return runDiagnostics(cctx, cfg, client, parts.Diagnostics, parts.Selection)
 	})
 }
 
-func handleDocumentAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+func handleDocumentAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
 	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
 		return runDocument(cctx, cfg, client, parts.Selection)
 	})
 }
 
-func handleGoTestAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+func handleGoTestAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
 	return runWithTimeout(ctx, timeout8s, func(cctx context.Context) (string, error) {
 		return runGoTest(cctx, cfg, client, parts.Selection)
 	})
 }
 
-func handleSimplifyAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+func handleSimplifyAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
 	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
 		return runSimplify(cctx, cfg, client, parts.Selection)
 	})
 }
 
-func handleCustomAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer) (string, error) {
+func handleCustomAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
 	if selectedCustom == nil {
 		return parts.Selection, nil
 	}
@@ -264,7 +264,7 @@ func handleCustomAction(ctx context.Context, parts InputParts, cfg appconfig.App
 	})
 }
 
-func handleCustomPromptAction(ctx context.Context, parts InputParts, cfg appconfig.App, client chatDoer, stderr io.Writer) (string, error) {
+func handleCustomPromptAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (string, error) {
 	prompt, err := editor.OpenTempAndEdit(nil)
 	if err != nil || strings.TrimSpace(prompt) == "" {
 		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
