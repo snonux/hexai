@@ -32,31 +32,42 @@ type Server struct {
 	configStore *runtimeconfig.Store
 	cfg         appconfig.App
 	llmClient   llm.Client
-	llmProvider string
-	altClients  map[string]llm.Client
-	lastInput   time.Time
+	codeActionSubsystem
+	chatSubsystem
 	// LLM request stats
 	llmReqTotal       int64
 	llmSentBytesTotal int64
 	llmRespTotal      int64
 	llmRespBytesTotal int64
 	startTime         time.Time
-	// Small LRU cache for recent code completion outputs (keyed by context)
-	compCache          map[string]string
-	compCacheOrder     []string // most-recent at end; cap ~10
-	pendingCompletions map[string][]CompletionItem
-	configLoadOpts     appconfig.LoadOptions
+	completionSubsystem
+	configLoadOpts appconfig.LoadOptions
 	// Outgoing JSON-RPC id counter for server-initiated requests
-	nextID      int64
-	lastLLMCall time.Time
-
-	completionsDisabled bool
+	nextID int64
 
 	// Gitignore-aware file checker (nil when disabled)
 	ignoreChecker *ignore.Checker
 
 	// Dispatch table for JSON-RPC methods → handler functions
 	handlers map[string]func(Request)
+}
+
+type completionSubsystem struct {
+	// Small LRU cache for recent code completion outputs (keyed by context)
+	compCache           map[string]string
+	compCacheOrder      []string // most-recent at end; cap ~10
+	pendingCompletions  map[string][]CompletionItem
+	lastLLMCall         time.Time
+	completionsDisabled bool
+}
+
+type chatSubsystem struct {
+	lastInput time.Time
+}
+
+type codeActionSubsystem struct {
+	llmProvider string
+	altClients  map[string]llm.Client
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.

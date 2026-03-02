@@ -23,11 +23,11 @@ func newIgnoreTestServer(gitRoot string, useGI bool, extra []string, notifyIgnor
 		ChatPrefixes:    []string{"?", "!", ":", ";"},
 	}
 	s := &Server{
-		logger:        log.New(io.Discard, "", 0),
-		docs:          make(map[string]*document),
-		cfg:           cfg,
-		altClients:    make(map[string]llm.Client),
-		ignoreChecker: ignore.New(gitRoot, useGI, extra),
+		logger:              log.New(io.Discard, "", 0),
+		docs:                make(map[string]*document),
+		cfg:                 cfg,
+		codeActionSubsystem: codeActionSubsystem{altClients: make(map[string]llm.Client)},
+		ignoreChecker:       ignore.New(gitRoot, useGI, extra),
 	}
 	return s
 }
@@ -127,9 +127,9 @@ func TestHandleDidOpen_IgnoredFile(t *testing.T) {
 
 func TestIsFileIgnored_NoChecker(t *testing.T) {
 	s := &Server{
-		logger:     log.New(io.Discard, "", 0),
-		docs:       make(map[string]*document),
-		altClients: make(map[string]llm.Client),
+		logger:              log.New(io.Discard, "", 0),
+		docs:                make(map[string]*document),
+		codeActionSubsystem: codeActionSubsystem{altClients: make(map[string]llm.Client)},
 		// ignoreChecker is nil
 	}
 
@@ -164,10 +164,10 @@ func TestUriToPath(t *testing.T) {
 func TestIgnoreLSPNotifyEnabled_NilConfig(t *testing.T) {
 	// When IgnoreLSPNotify is nil, defaults to true
 	s := &Server{
-		logger:     log.New(io.Discard, "", 0),
-		docs:       make(map[string]*document),
-		altClients: make(map[string]llm.Client),
-		cfg:        appconfig.App{},
+		logger:              log.New(io.Discard, "", 0),
+		docs:                make(map[string]*document),
+		codeActionSubsystem: codeActionSubsystem{altClients: make(map[string]llm.Client)},
+		cfg:                 appconfig.App{},
 	}
 	if !s.ignoreLSPNotifyEnabled() {
 		t.Error("expected notify enabled when config is nil (default)")

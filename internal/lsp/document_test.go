@@ -36,11 +36,13 @@ func newTestServer() *Server {
 		PromptCodeActionGoTestUser:        "Function under test:\n{{function}}",
 	}
 	return &Server{
-		logger:      log.New(io.Discard, "", 0),
-		docs:        make(map[string]*document),
-		cfg:         cfg,
-		altClients:  make(map[string]llm.Client),
-		llmProvider: canonicalProvider(cfg.Provider),
+		logger: log.New(io.Discard, "", 0),
+		docs:   make(map[string]*document),
+		cfg:    cfg,
+		codeActionSubsystem: codeActionSubsystem{
+			altClients:  make(map[string]llm.Client),
+			llmProvider: canonicalProvider(cfg.Provider),
+		},
 	}
 }
 
