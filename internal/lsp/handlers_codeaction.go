@@ -2,7 +2,6 @@
 package lsp
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -392,7 +391,7 @@ func (s *Server) customActionByID(id string) *CustomAction {
 }
 
 func (s *Server) completeCodeAction(ca CodeAction, uri string, rng Range, sys, user string, timeout time.Duration) (CodeAction, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := s.requestTimeoutContext(timeout)
 	defer cancel()
 	messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 	spec := s.buildRequestSpec(surfaceCodeAction)
@@ -724,7 +723,7 @@ func (s *Server) generateGoTestFunction(funcCode string) string {
 	cfg := s.currentConfig()
 	sys := cfg.PromptCodeActionGoTestSystem
 	user := renderTemplate(cfg.PromptCodeActionGoTestUser, map[string]string{"function": funcCode})
-	ctx, cancel := context.WithTimeout(context.Background(), 18*time.Second)
+	ctx, cancel := s.requestTimeoutContext(18 * time.Second)
 	defer cancel()
 	messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 	if out, err := s.chatWithStats(ctx, surfaceCodeAction, spec, messages); err == nil {

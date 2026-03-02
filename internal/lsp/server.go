@@ -3,6 +3,7 @@ package lsp
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -21,17 +22,19 @@ import (
 
 // Server implements a minimal LSP over stdio.
 type Server struct {
-	in          *bufio.Reader
-	out         io.Writer
-	outMu       sync.Mutex
-	logger      *log.Logger
-	exited      atomic.Bool
-	mu          sync.RWMutex
-	docs        map[string]*document
-	logContext  bool
-	configStore *runtimeconfig.Store
-	cfg         appconfig.App
-	llmClient   llm.Client
+	in           *bufio.Reader
+	out          io.Writer
+	outMu        sync.Mutex
+	logger       *log.Logger
+	serverCtx    context.Context
+	serverCancel context.CancelFunc
+	exited       atomic.Bool
+	mu           sync.RWMutex
+	docs         map[string]*document
+	logContext   bool
+	configStore  *runtimeconfig.Store
+	cfg          appconfig.App
+	llmClient    llm.Client
 	codeActionSubsystem
 	chatSubsystem
 	// LLM request stats
@@ -94,7 +97,17 @@ type CustomAction struct {
 }
 
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
-	s := &Server{in: bufio.NewReader(r), out: w, logger: logger, docs: make(map[string]*document), logContext: opts.LogContext, configStore: opts.ConfigStore}
+	ctx, cancel := context.WithCancel(context.Background())
+	s := &Server{
+		in:           bufio.NewReader(r),
+		out:          w,
+		logger:       logger,
+		docs:         make(map[string]*document),
+		logContext:   opts.LogContext,
+		configStore:  opts.ConfigStore,
+		serverCtx:    ctx,
+		serverCancel: cancel,
+	}
 	s.startTime = time.Now()
 	s.compCache = make(map[string]string)
 	s.pendingCompletions = make(map[string][]CompletionItem)
@@ -408,7 +421,21 @@ func (s *Server) customActions() []CustomAction {
 	return customs
 }
 
+func (s *Server) requestTimeoutContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	if s.serverCtx == nil {
+		return context.WithTimeout(context.Background(), timeout)
+	}
+	return context.WithTimeout(s.serverCtx, timeout)
+}
+
+func (s *Server) cancelRequests() {
+	if s.serverCancel != nil {
+		s.serverCancel()
+	}
+}
+
 func (s *Server) Run() error {
+	defer s.cancelRequests()
 	for {
 		body, err := s.readMessage()
 		if err == io.EOF {

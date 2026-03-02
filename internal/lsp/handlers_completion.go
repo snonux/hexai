@@ -104,7 +104,7 @@ func (s *Server) logCompletionContext(p CompletionParams, above, current, below,
 }
 
 func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	ctx, cancel := s.requestTimeoutContext(12 * time.Second)
 	var cancelOnce sync.Once
 	end := func() { cancelOnce.Do(cancel) }
 

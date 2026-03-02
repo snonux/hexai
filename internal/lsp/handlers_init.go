@@ -36,9 +36,11 @@ func (s *Server) handleInitialized() {
 }
 
 func (s *Server) handleShutdown(req Request) {
+	s.cancelRequests()
 	s.reply(req.ID, nil, nil)
 }
 
 func (s *Server) handleExit() {
+	s.cancelRequests()
 	s.exited.Store(true)
 }
