@@ -16,18 +16,48 @@ import (
 	"codeberg.org/snonux/hexai/internal/tmux"
 )
 
-// Run executes the hexai-tmux-action command flow.
-// seams for testability
-var (
-	chooseActionFn   = RunTUI
-	newClientFromApp = llmutils.NewClientFromApp
-)
-
 type configPathKey struct{}
 
-// selectedCustom carries the chosen custom action (if any) from the TUI submenu
-// to the executor. Cleared after use.
-var selectedCustom *appconfig.CustomAction
+type actionChoice struct {
+	kind   ActionKind
+	custom *appconfig.CustomAction
+}
+
+type actionChooser func(cfg appconfig.App) (actionChoice, error)
+
+type actionClient interface {
+	chatDoer
+	Name() string
+}
+
+type actionClientFactory func(cfg appconfig.App) (actionClient, error)
+
+// Runner executes action requests with injectable dependencies for testability.
+type Runner struct {
+	chooseAction actionChooser
+	newClient    actionClientFactory
+}
+
+// NewRunner builds a Runner with production dependencies.
+func NewRunner() *Runner {
+	return &Runner{
+		chooseAction: chooseActionFromConfig,
+		newClient:    defaultActionClientFactory,
+	}
+}
+
+func chooseActionFromConfig(cfg appconfig.App) (actionChoice, error) {
+	if len(cfg.CustomActions) == 0 {
+		kind, err := RunTUI()
+		return actionChoice{kind: kind}, err
+	}
+	kind, custom, err := RunTUIWithCustom(cfg.CustomActions, cfg.TmuxCustomMenuHotkey)
+	return actionChoice{kind: kind, custom: custom}, err
+}
+
+func defaultActionClientFactory(cfg appconfig.App) (actionClient, error) {
+	return llmutils.NewClientFromApp(cfg)
+}
 
 type actionPlan struct {
 	fallback string
@@ -59,6 +89,21 @@ func (h codeActionHandler) Resolve(ctx context.Context, plan actionPlan) (string
 }
 
 func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
+	return NewRunner().Run(ctx, stdin, stdout, stderr)
+}
+
+func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
+	chooser := chooseActionFromConfig
+	newClient := defaultActionClientFactory
+	if r != nil {
+		if r.chooseAction != nil {
+			chooser = r.chooseAction
+		}
+		if r.newClient != nil {
+			newClient = r.newClient
+		}
+	}
+
 	logger := log.New(stderr, "hexai-tmux-action ", log.LstdFlags|log.Lmsgprefix)
 	cfg := appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
 	if cfg.StatsWindowMinutes > 0 {
@@ -68,16 +113,12 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
-	// Enable custom action submenu with configurable hotkey
-	if len(cfg.CustomActions) > 0 {
-		chooseActionFn = func() (ActionKind, error) { return RunTUIWithCustom(cfg.CustomActions, cfg.TmuxCustomMenuHotkey) }
-	}
 	if len(cfg.CodeActionConfigs) > 0 {
 		if provider := strings.TrimSpace(cfg.CodeActionConfigs[0].Provider); provider != "" {
 			cfg.Provider = provider
 		}
 	}
-	cli, err := newClientFromApp(cfg)
+	cli, err := newClient(cfg)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
 		return err
@@ -96,11 +137,11 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	if strings.TrimSpace(parts.Selection) == "" {
 		return fmt.Errorf("hexai-tmux-action: no input provided on stdin")
 	}
-	kind, err := chooseActionFn()
+	choice, err := chooser(cfg)
 	if err != nil {
 		return err
 	}
-	out, err := executeAction(ctx, kind, parts, cfg, client, stderr)
+	out, err := executeAction(ctx, choice.kind, parts, cfg, client, stderr, choice.custom)
 	if err != nil {
 		return err
 	}
@@ -126,7 +167,10 @@ func configPathFromContext(ctx context.Context) string {
 	return ""
 }
 
-func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (string, error) {
+func executeAction(ctx context.Context, kind ActionKind, parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer, selectedCustom *appconfig.CustomAction) (string, error) {
+	if kind == ActionCustom {
+		return handleCustomAction(ctx, parts, cfg, client, selectedCustom)
+	}
 	handler, ok := codeActionHandlers()[kind]
 	if !ok {
 		return parts.Selection, nil
@@ -146,7 +190,6 @@ func codeActionHandlers() map[ActionKind]CodeActionHandler {
 		ActionDocument:     codeActionHandler{build: buildDocumentPlan},
 		ActionGoTest:       codeActionHandler{build: buildGoTestPlan},
 		ActionSimplify:     codeActionHandler{build: buildSimplifyPlan},
-		ActionCustom:       codeActionHandler{build: buildCustomPlan},
 		ActionCustomPrompt: codeActionHandler{build: buildCustomPromptPlan},
 	}
 }
@@ -200,15 +243,6 @@ func buildSimplifyPlan(parts InputParts, cfg actionConfig, client chatDoer, _ io
 	}, true
 }
 
-func buildCustomPlan(parts InputParts, cfg actionConfig, client chatDoer, _ io.Writer) (actionPlan, bool) {
-	return actionPlan{
-		fallback: parts.Selection,
-		run: func(ctx context.Context) (string, error) {
-			return handleCustomAction(ctx, parts, cfg, client)
-		},
-	}, true
-}
-
 func buildCustomPromptPlan(parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (actionPlan, bool) {
 	return actionPlan{
 		fallback: parts.Selection,
@@ -253,14 +287,13 @@ func handleSimplifyAction(ctx context.Context, parts InputParts, cfg actionConfi
 	})
 }
 
-func handleCustomAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
+func handleCustomAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer, selectedCustom *appconfig.CustomAction) (string, error) {
 	if selectedCustom == nil {
 		return parts.Selection, nil
 	}
+	custom := *selectedCustom
 	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
-		out, err := runCustom(cctx, cfg, client, *selectedCustom, parts)
-		selectedCustom = nil
-		return out, err
+		return runCustom(cctx, cfg, client, custom, parts)
 	})
 }
 

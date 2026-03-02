@@ -20,27 +20,28 @@ func (llmFake) DefaultModel() string { return "model" }
 func TestRun_WithSeams_SkipAndRewrite(t *testing.T) {
 	// Isolate from user config to avoid environment-dependent behavior/logging.
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	// Seam: choose action to Skip first, then Rewrite
-	oldChoose := chooseActionFn
-	oldNew := newClientFromApp
-	t.Cleanup(func() { chooseActionFn = oldChoose; newClientFromApp = oldNew })
+	runner := NewRunner()
+	runner.newClient = func(_ appconfig.App) (actionClient, error) { return llmFake{}, nil }
 	// 1) Skip -> echoes selection
-	chooseActionFn = func() (ActionKind, error) { return ActionSkip, nil }
-	newClientFromApp = func(_ appconfig.App) (llm.Client, error) { return llmFake{}, nil }
+	runner.chooseAction = func(_ appconfig.App) (actionChoice, error) {
+		return actionChoice{kind: ActionSkip}, nil
+	}
 	var out bytes.Buffer
 	var errBuf bytes.Buffer
 	in := bytes.NewBufferString("some code")
-	if err := Run(context.Background(), in, &out, &errBuf); err != nil {
+	if err := runner.Run(context.Background(), in, &out, &errBuf); err != nil {
 		t.Fatalf("Run skip: %v", err)
 	}
 	if out.String() != "some code" {
 		t.Fatalf("skip out: %q", out.String())
 	}
 	// 2) Rewrite -> requires inline instruction
-	chooseActionFn = func() (ActionKind, error) { return ActionRewrite, nil }
+	runner.chooseAction = func(_ appconfig.App) (actionChoice, error) {
+		return actionChoice{kind: ActionRewrite}, nil
+	}
 	out.Reset()
 	in = bytes.NewBufferString(";upper;\nhello")
-	if err := Run(context.Background(), in, &out, &errBuf); err != nil {
+	if err := runner.Run(context.Background(), in, &out, &errBuf); err != nil {
 		t.Fatalf("Run rewrite: %v", err)
 	}
 	if out.String() == "" {

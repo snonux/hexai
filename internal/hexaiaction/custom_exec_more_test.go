@@ -18,13 +18,13 @@ func (c *capDoer) Chat(_ context.Context, msgs []llm.Message, _ ...llm.RequestOp
 }
 func (*capDoer) DefaultModel() string { return "m" }
 
-func TestExecuteAction_Custom_ClearsSelection(t *testing.T) {
+func TestExecuteAction_Custom_DoesNotMutateProvidedSelection(t *testing.T) {
 	cfg := appconfig.Load(nil)
 	parts := InputParts{Selection: "code"}
-	selectedCustom = &appconfig.CustomAction{ID: "x", Title: "X", Instruction: "Do it"}
-	_, _ = executeAction(context.Background(), ActionCustom, parts, cfg, fakeDoer{"OK"}, nil)
-	if selectedCustom != nil {
-		t.Fatalf("expected selectedCustom cleared after execution")
+	selectedCustom := &appconfig.CustomAction{ID: "x", Title: "X", Instruction: "Do it"}
+	_, _ = executeAction(context.Background(), ActionCustom, parts, cfg, fakeDoer{"OK"}, nil, selectedCustom)
+	if selectedCustom == nil {
+		t.Fatalf("expected provided selectedCustom to remain local state")
 	}
 }
 

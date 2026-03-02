@@ -85,20 +85,16 @@ func TestHandleSimplifyActionPassesSelection(t *testing.T) {
 	}
 }
 
-func TestHandleCustomActionUsesSelectedCustom(t *testing.T) {
+func TestHandleCustomActionUsesProvidedCustom(t *testing.T) {
 	t.Setenv("HEXAI_TMUX_STATUS", "0")
 	sel := appconfig.CustomAction{ID: "custom", Title: "Do", Instruction: "do it"}
-	selectedCustom = &sel
 	parts := InputParts{Selection: "text"}
 	client := &stubChatDoer{}
 	cfg := appconfig.Load(nil)
-	if _, err := handleCustomAction(context.Background(), parts, cfg, client); err != nil {
+	if _, err := handleCustomAction(context.Background(), parts, cfg, client, &sel); err != nil {
 		t.Fatalf("handleCustomAction: %v", err)
 	}
 	if client.calls != 1 {
 		t.Fatalf("expected custom action to invoke chat, got %d calls", client.calls)
-	}
-	if selectedCustom != nil {
-		t.Fatal("expected selectedCustom to be cleared")
 	}
 }

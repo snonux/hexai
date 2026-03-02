@@ -22,12 +22,12 @@ func (llmFake2) DefaultModel() string { return "m" }
 func TestActionCustom_UsesEditorPrompt(t *testing.T) {
 	// Isolate from user config that might enable custom menu/TUI.
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	// Seam: choose custom, fake client, and fake editor
-	oldChoose := chooseActionFn
-	oldNew := newClientFromApp
-	chooseActionFn = func() (ActionKind, error) { return ActionCustomPrompt, nil }
-	newClientFromApp = func(_ appconfig.App) (llm.Client, error) { return llmFake2{}, nil }
-	t.Cleanup(func() { chooseActionFn = oldChoose; newClientFromApp = oldNew })
+	// Seam: choose custom, fake client, and fake editor.
+	runner := NewRunner()
+	runner.chooseAction = func(_ appconfig.App) (actionChoice, error) {
+		return actionChoice{kind: ActionCustomPrompt}, nil
+	}
+	runner.newClient = func(_ appconfig.App) (actionClient, error) { return llmFake2{}, nil }
 
 	oldRunEd := editor.RunEditor
 	editor.RunEditor = func(_ string, path string) error {
@@ -39,7 +39,7 @@ func TestActionCustom_UsesEditorPrompt(t *testing.T) {
 	in := bytes.NewBufferString("some code")
 	var out bytes.Buffer
 	var errb bytes.Buffer
-	if err := Run(context.Background(), in, &out, &errb); err != nil {
+	if err := runner.Run(context.Background(), in, &out, &errb); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if out.String() == "" {

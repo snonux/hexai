@@ -63,15 +63,14 @@ func TestRunTUIWithCustom_SubmenuAndHotkeys(t *testing.T) {
 		{ID: "a", Title: "A", Hotkey: "x", Instruction: "do"},
 		{ID: "b", Title: "B", Hotkey: "y", Instruction: "do2"},
 	}
-	kind, err := RunTUIWithCustom(customs, "z")
+	kind, selected, err := RunTUIWithCustom(customs, "z")
 	if err != nil {
 		t.Fatalf("RunTUIWithCustom error: %v", err)
 	}
 	if kind != ActionCustom {
 		t.Fatalf("expected ActionCustom, got %s", kind)
 	}
-	if selectedCustom == nil || selectedCustom.ID != "a" {
-		t.Fatalf("expected selectedCustom a, got %+v", selectedCustom)
+	if selected == nil || selected.ID != "a" {
+		t.Fatalf("expected selected custom a, got %+v", selected)
 	}
-	selectedCustom = nil
 }

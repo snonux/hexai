@@ -11,11 +11,11 @@ import (
 
 // RunTUIWithCustom shows the main menu plus a configurable "Custom actions…" item.
 // If the user selects that item, it shows a submenu listing user-defined custom actions.
-// On picking one, it sets selectedCustom and returns ActionCustom.
-func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (ActionKind, error) {
+func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (ActionKind, *appconfig.CustomAction, error) {
 	// When no customs, fall back to default menu
 	if len(customs) == 0 {
-		return RunTUI()
+		kind, err := RunTUI()
+		return kind, nil, err
 	}
 	// Build main menu with an extra entry
 	hk := 'a'
@@ -31,15 +31,15 @@ func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (Acti
 	p := teaNewProgram(m)
 	md, err := p.Run()
 	if err != nil {
-		return ActionSkip, err
+		return ActionSkip, nil, err
 	}
 	if mm, ok := md.(model); ok {
 		// If user chose built-in items (including Custom prompt), return immediately.
 		if mm.chosen != ActionCustom {
-			return mm.chosen, nil
+			return mm.chosen, nil, nil
 		}
 	}
-	// Custom submenu: list each action; select one maps to ActionCustom and sets global
+	// Custom submenu: list each action; selection maps to ActionCustom and returns that action.
 	sub := newModel()
 	subItems := make([]list.Item, 0, len(customs))
 	for _, ca := range customs {
@@ -53,7 +53,7 @@ func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (Acti
 	sp := teaNewProgram(sub)
 	smd, err := sp.Run()
 	if err != nil {
-		return ActionSkip, err
+		return ActionSkip, nil, err
 	}
 	if sm, ok := smd.(model); ok {
 		if it, ok := sm.list.SelectedItem().(item); ok {
@@ -61,13 +61,12 @@ func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (Acti
 			for i := range customs {
 				if customs[i].Title == it.title {
 					c := customs[i]
-					selectedCustom = &c
-					return ActionCustom, nil
+					return ActionCustom, &c, nil
 				}
 			}
 		}
 	}
-	return ActionSkip, nil
+	return ActionSkip, nil, nil
 }
 
 // teaNewProgram is a tiny seam for tests to stub bubbletea program creation.

@@ -11,8 +11,8 @@ import (
 func TestExecuteAction_CustomConfigured_Instruction(t *testing.T) {
 	cfg := appconfig.Load(nil)
 	parts := InputParts{Selection: "code"}
-	selectedCustom = &appconfig.CustomAction{ID: "x", Title: "X", Instruction: "Do it"}
-	out, err := executeAction(context.Background(), ActionCustom, parts, cfg, fakeDoer{"OK"}, nil)
+	selectedCustom := &appconfig.CustomAction{ID: "x", Title: "X", Instruction: "Do it"}
+	out, err := executeAction(context.Background(), ActionCustom, parts, cfg, fakeDoer{"OK"}, nil, selectedCustom)
 	if err != nil || strings.TrimSpace(out) != "OK" {
 		t.Fatalf("custom-instruction failed: %q %v", out, err)
 	}
@@ -21,8 +21,8 @@ func TestExecuteAction_CustomConfigured_Instruction(t *testing.T) {
 func TestExecuteAction_CustomConfigured_User(t *testing.T) {
 	cfg := appconfig.Load(nil)
 	parts := InputParts{Selection: "sel"}
-	selectedCustom = &appconfig.CustomAction{ID: "y", Title: "Y", User: "Apply to: {{selection}}"}
-	out, err := executeAction(context.Background(), ActionCustom, parts, cfg, fakeDoer{"OK2"}, nil)
+	selectedCustom := &appconfig.CustomAction{ID: "y", Title: "Y", User: "Apply to: {{selection}}"}
+	out, err := executeAction(context.Background(), ActionCustom, parts, cfg, fakeDoer{"OK2"}, nil, selectedCustom)
 	if err != nil || strings.TrimSpace(out) != "OK2" {
 		t.Fatalf("custom-user failed: %q %v", out, err)
 	}
