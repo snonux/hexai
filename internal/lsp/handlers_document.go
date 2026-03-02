@@ -96,101 +96,128 @@ func (s *Server) detectAndHandleChat(uri string) {
 	suffix, prefixes, _ := s.chatConfig()
 	openStr, _, openChar, closeChar := s.inlineMarkers()
 	for i, raw := range d.lines {
-		if lineHasInlinePrompt(raw, openStr, openChar, closeChar) {
-			if s.currentLLMClient() != nil {
-				pos := Position{Line: i, Character: len(raw)}
-				go s.runInlinePrompt(uri, pos)
-			}
+		if s.maybeRunInlinePrompt(uri, i, raw, openStr, openChar, closeChar) {
 			continue
 		}
-		// Find last non-space character index
-		j := len(raw) - 1
-		for j >= 0 {
-			if raw[j] == ' ' || raw[j] == '\t' {
-				j--
-				continue
-			}
-			break
-		}
-		if j < 0 {
+		match, ok := parseChatPromptLine(raw, suffix, prefixes)
+		if !ok {
 			continue
 		}
-		// Check suffix and derive the prompt text before validating prefixes
-		if suffix == "" {
+		if hasChatResponseBelow(d, i) {
 			continue
 		}
-		if string(raw[j]) != suffix {
-			continue
-		}
-		removeCount := len(suffix)
-		base := raw[:j+1-removeCount]
-		prompt := strings.TrimSpace(base)
-		if prompt == "" {
-			continue
-		}
-		// Slash commands (`/foo>`) do not require a prefix trigger.
-		isCommand := strings.HasPrefix(prompt, "/")
-		if !isCommand {
-			// Require at least one char before suffix and that char must be in chatPrefixes
-			if j < 1 {
-				continue
-			}
-			prev := string(raw[j-1])
-			match := false
-			for _, pfx := range prefixes {
-				if prev == pfx {
-					match = true
-					break
-				}
-			}
-			if !match {
-				continue
-			}
-		}
-		// Avoid double-answering: if the next non-empty line starts with '>' we skip.
-		k := i + 1
-		for k < len(d.lines) && strings.TrimSpace(d.lines[k]) == "" {
-			k++
-		}
-		if k < len(d.lines) && strings.HasPrefix(strings.TrimSpace(d.lines[k]), ">") {
-			continue
-		}
-		lineIdx := i
-		lastIdx := j
-		if resp, ok := s.chatCommandResponse(uri, lineIdx, prompt); ok {
-			msg := strings.TrimSpace(resp.message)
-			if msg != "" {
-				s.applyChatEdits(uri, lineIdx, lastIdx, removeCount, "> "+msg)
-			}
-			return
-		}
-		go func(prompt string, remove int) {
-			ctx, cancel := s.requestTimeoutContext(25 * time.Second)
-			defer cancel()
-			// Build messages with history and context_mode aware extras.
-			pos := Position{Line: lineIdx, Character: lastIdx + 1}
-			msgs := s.buildChatMessages(uri, pos, prompt)
-			spec := s.buildRequestSpec(surfaceChat)
-			client := s.clientFor(spec)
-			if client == nil {
-				return
-			}
-			modelUsed := spec.effectiveModel(client.DefaultModel())
-			logging.Logf("lsp ", "chat llm=requesting model=%s", modelUsed)
-			text, err := s.chatWithStats(ctx, surfaceChat, spec, msgs)
-			if err != nil {
-				logging.Logf("lsp ", "chat llm error: %v", err)
-				return
-			}
-			out := strings.TrimSpace(stripCodeFences(text))
-			if out == "" {
-				return
-			}
-			s.applyChatEdits(uri, lineIdx, lastIdx, remove, "> "+out)
-		}(prompt, removeCount)
+		s.handleChatPrompt(uri, i, match)
 		// Only handle one per change tick to avoid flooding
 		break
 	}
+}
+
+type chatPromptLine struct {
+	lastNonSpace int
+	removeCount  int
+	prompt       string
+}
+
+func (s *Server) maybeRunInlinePrompt(uri string, lineIdx int, raw string, openStr string, openChar byte, closeChar byte) bool {
+	if !lineHasInlinePrompt(raw, openStr, openChar, closeChar) {
+		return false
+	}
+	if s.currentLLMClient() != nil {
+		pos := Position{Line: lineIdx, Character: len(raw)}
+		go s.runInlinePrompt(uri, pos)
+	}
+	return true
+}
+
+func parseChatPromptLine(raw string, suffix string, prefixes []string) (chatPromptLine, bool) {
+	if suffix == "" {
+		return chatPromptLine{}, false
+	}
+	last := findLastNonSpaceIndex(raw)
+	if last < 0 || string(raw[last]) != suffix {
+		return chatPromptLine{}, false
+	}
+	removeCount := len(suffix)
+	baseEnd := last + 1 - removeCount
+	if baseEnd < 0 {
+		return chatPromptLine{}, false
+	}
+	prompt := strings.TrimSpace(raw[:baseEnd])
+	if prompt == "" {
+		return chatPromptLine{}, false
+	}
+	if !strings.HasPrefix(prompt, "/") && !hasTriggerPrefix(raw, last, prefixes) {
+		return chatPromptLine{}, false
+	}
+	return chatPromptLine{lastNonSpace: last, removeCount: removeCount, prompt: prompt}, true
+}
+
+func findLastNonSpaceIndex(raw string) int {
+	for i := len(raw) - 1; i >= 0; i-- {
+		if raw[i] != ' ' && raw[i] != '\t' {
+			return i
+		}
+	}
+	return -1
+}
+
+func hasTriggerPrefix(raw string, suffixIdx int, prefixes []string) bool {
+	if suffixIdx < 1 {
+		return false
+	}
+	prev := string(raw[suffixIdx-1])
+	for _, pfx := range prefixes {
+		if prev == pfx {
+			return true
+		}
+	}
+	return false
+}
+
+func hasChatResponseBelow(d *document, lineIdx int) bool {
+	for i := lineIdx + 1; i < len(d.lines); i++ {
+		trimmed := strings.TrimSpace(d.lines[i])
+		if trimmed == "" {
+			continue
+		}
+		return strings.HasPrefix(trimmed, ">")
+	}
+	return false
+}
+
+func (s *Server) handleChatPrompt(uri string, lineIdx int, match chatPromptLine) {
+	if resp, ok := s.chatCommandResponse(uri, lineIdx, match.prompt); ok {
+		msg := strings.TrimSpace(resp.message)
+		if msg != "" {
+			s.applyChatEdits(uri, lineIdx, match.lastNonSpace, match.removeCount, "> "+msg)
+		}
+		return
+	}
+	go s.requestChatResponse(uri, lineIdx, match)
+}
+
+func (s *Server) requestChatResponse(uri string, lineIdx int, match chatPromptLine) {
+	ctx, cancel := s.requestTimeoutContext(25 * time.Second)
+	defer cancel()
+	pos := Position{Line: lineIdx, Character: match.lastNonSpace + 1}
+	msgs := s.buildChatMessages(uri, pos, match.prompt)
+	spec := s.buildRequestSpec(surfaceChat)
+	client := s.clientFor(spec)
+	if client == nil {
+		return
+	}
+	modelUsed := spec.effectiveModel(client.DefaultModel())
+	logging.Logf("lsp ", "chat llm=requesting model=%s", modelUsed)
+	text, err := s.chatWithStats(ctx, surfaceChat, spec, msgs)
+	if err != nil {
+		logging.Logf("lsp ", "chat llm error: %v", err)
+		return
+	}
+	out := strings.TrimSpace(stripCodeFences(text))
+	if out == "" {
+		return
+	}
+	s.applyChatEdits(uri, lineIdx, match.lastNonSpace, match.removeCount, "> "+out)
 }
 
 // applyChatEdits removes the triggering punctuation at end of the line and
