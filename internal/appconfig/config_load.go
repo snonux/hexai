@@ -1,0 +1,932 @@
+package appconfig
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/pelletier/go-toml/v2"
+)
+
+// ProjectConfigFilename is the name of the per-project config file placed at a git repo root.
+const ProjectConfigFilename = ".hexaiconfig.toml"
+
+// Load reads configuration from a file and merges with defaults.
+// It respects the XDG Base Directory Specification.
+func Load(logger *log.Logger) App { return LoadWithOptions(logger, LoadOptions{}) }
+
+// LoadWithOptions reads configuration and applies the requested loading options.
+func LoadWithOptions(logger *log.Logger, opts LoadOptions) App {
+	cfg := newDefaultConfig()
+	if logger == nil {
+		return cfg // Return defaults if no logger is provided (e.g. in tests)
+	}
+
+	// Step 1: Load global config file
+	configPath := strings.TrimSpace(opts.ConfigPath)
+	if configPath != "" {
+		if fileCfg, err := loadFromFile(configPath, logger); err == nil && fileCfg != nil {
+			cfg.mergeWith(fileCfg)
+		} else if err != nil {
+			logger.Printf("cannot open config file %s: %v", configPath, err)
+		}
+	} else {
+		path, err := getConfigPath()
+		if err != nil {
+			logger.Printf("%v", err)
+		} else if fileCfg, err := loadFromFile(path, logger); err == nil && fileCfg != nil {
+			cfg.mergeWith(fileCfg)
+		}
+	}
+
+	// Step 2: Load per-project config (.hexaiconfig.toml at git repo root).
+	// Project config overrides global config but is itself overridden by env vars.
+	loadProjectConfig(logger, opts, &cfg)
+
+	// Step 3: Environment overrides (always take precedence over all config files)
+	if !opts.IgnoreEnv {
+		if envCfg := loadFromEnv(logger); envCfg != nil {
+			cfg.mergeWith(envCfg)
+		}
+	}
+	return cfg
+}
+
+// ConfigPath returns the default config file path
+// ($XDG_CONFIG_HOME/hexai/config.toml or ~/.config/hexai/config.toml).
+func ConfigPath() (string, error) {
+	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+		return filepath.Join(xdgConfigHome, "hexai", "config.toml"), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot find user home directory: %v", err)
+	}
+	return filepath.Join(home, ".config", "hexai", "config.toml"), nil
+}
+
+// StateDir returns the XDG state directory for hexai (~/.local/hexai/state by default).
+// Creates the directory if it doesn't exist. This is used for persistent state data
+// like logs and history that should survive reboots.
+func StateDir() (string, error) {
+	stateHome := os.Getenv("XDG_STATE_HOME")
+	if stateHome == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("cannot find user home directory: %v", err)
+		}
+		stateHome = filepath.Join(home, ".local", "hexai")
+	}
+
+	stateDir := filepath.Join(stateHome, "state")
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		return "", fmt.Errorf("cannot create state directory: %v", err)
+	}
+	return stateDir, nil
+}
+
+// ProjectConfigPath returns the path to the per-project config file if a git repository
+// root is detected from the current working directory. Returns empty string otherwise.
+func ProjectConfigPath() string {
+	root := FindGitRoot()
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, ProjectConfigFilename)
+}
+
+// FindGitRoot walks up from the current working directory to find the nearest
+// .git directory or file (worktrees use a .git file), returning its parent
+// path or "" if none is found.
+func FindGitRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		if info, statErr := os.Stat(filepath.Join(dir, ".git")); statErr == nil &&
+			(info.IsDir() || info.Mode().IsRegular()) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "" // reached filesystem root
+		}
+		dir = parent
+	}
+}
+
+func getConfigPath() (string, error) {
+	return ConfigPath()
+}
+
+// loadProjectConfig attempts to load .hexaiconfig.toml from the project root and
+// merges it into cfg. Uses opts.ProjectRoot if set, otherwise auto-detects via FindGitRoot().
+func loadProjectConfig(logger *log.Logger, opts LoadOptions, cfg *App) {
+	projectRoot := strings.TrimSpace(opts.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = FindGitRoot()
+	}
+	if projectRoot == "" {
+		return
+	}
+	projectCfgPath := filepath.Join(projectRoot, ProjectConfigFilename)
+	if projCfg, err := loadFromFile(projectCfgPath, logger); err == nil && projCfg != nil {
+		cfg.mergeWith(projCfg)
+	}
+}
+
+func loadFromFile(path string, logger *log.Logger) (*App, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) && logger != nil {
+			logger.Printf("cannot open TOML config file %s: %v", path, err)
+		}
+		return nil, err
+	}
+
+	var tables fileConfig
+	errTables := toml.NewDecoder(strings.NewReader(string(b))).Decode(&tables)
+	// Raw map for validation/presence checks
+	var raw map[string]any
+	_ = toml.Unmarshal(b, &raw)
+	if errTables != nil {
+		if logger != nil {
+			logger.Printf("invalid TOML config file %s: %v", path, errTables)
+		}
+		return nil, errTables
+	}
+
+	// Reject legacy flat keys at top-level (sectioned-only config is allowed)
+	legacy := map[string]struct{}{
+		"max_tokens": {}, "context_mode": {}, "context_window_lines": {}, "max_context_tokens": {},
+		"log_preview_limit": {}, "completion_debounce_ms": {}, "completion_throttle_ms": {},
+		"manual_invoke_min_prefix": {}, "trigger_characters": {}, "inline_open": {}, "inline_close": {},
+		"chat_suffix": {}, "chat_prefixes": {}, "coding_temperature": {}, "provider": {},
+		"openai_model": {}, "openai_base_url": {}, "openai_temperature": {},
+		"ollama_model": {}, "ollama_base_url": {}, "ollama_temperature": {},
+	}
+	for k := range raw {
+		if _, isTable := map[string]struct{}{
+			"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {},
+			"chat": {}, "provider": {}, "models": {}, "openai": {}, "ollama": {}, "prompts": {},
+		}[k]; isTable {
+			continue
+		}
+		if _, isLegacy := legacy[k]; isLegacy {
+			return nil, fmt.Errorf("unsupported flat key '%s' in config; use sectioned tables (see config.toml.example)", k)
+		}
+	}
+
+	if logger != nil {
+		logger.Printf("loaded configuration from %s (TOML)", path)
+	}
+
+	// Build App from tables only
+	tab := tables.toApp()
+	// Ensure explicit values from raw map are respected (defensive for ints)
+	if t, ok := raw["completion"].(map[string]any); ok {
+		if v, present := t["manual_invoke_min_prefix"]; present {
+			switch vv := v.(type) {
+			case int64:
+				tab.ManualInvokeMinPrefix = int(vv)
+			case int:
+				tab.ManualInvokeMinPrefix = vv
+			case float64:
+				tab.ManualInvokeMinPrefix = int(vv)
+			}
+		}
+	}
+	if t, ok := raw["logging"].(map[string]any); ok {
+		if v, present := t["log_preview_limit"]; present {
+			switch vv := v.(type) {
+			case int64:
+				tab.LogPreviewLimit = int(vv)
+			case int:
+				tab.LogPreviewLimit = vv
+			case float64:
+				tab.LogPreviewLimit = int(vv)
+			}
+		}
+	}
+	if m := parseSurfaceModels(raw, logger); m != nil {
+		tab.mergeSurfaceModels(m)
+	}
+	return &tab, nil
+}
+
+func (fc *fileConfig) toApp() App {
+	out := App{}
+	applyCoreSections(fc, &out)
+	applyProviderSections(fc, &out)
+	applyPromptSections(fc, &out)
+	applyFeatureSections(fc, &out)
+	return out
+}
+
+func applyCoreSections(fc *fileConfig, out *App) {
+	applyGeneralSection(fc, out)
+	applyLoggingSection(fc, out)
+	applyCompletionSection(fc, out)
+	applyTriggerSection(fc, out)
+	applyInlineSection(fc, out)
+	applyChatSection(fc, out)
+	applyProviderNameSection(fc, out)
+	applyIgnoreSection(fc, out)
+}
+
+func applyProviderSections(fc *fileConfig, out *App) {
+	applyOpenAISection(fc, out)
+	applyOpenRouterSection(fc, out)
+	applyOllamaSection(fc, out)
+	applyAnthropicSection(fc, out)
+}
+
+func applyPromptSections(fc *fileConfig, out *App) {
+	applyPromptCompletion(fc, out)
+	applyPromptChat(fc, out)
+	applyPromptCodeAction(fc, out)
+	applyPromptCLI(fc, out)
+	applyPromptProviderNative(fc, out)
+}
+
+func applyFeatureSections(fc *fileConfig, out *App) {
+	applyTmuxSection(fc, out)
+	applyStatsSection(fc, out)
+	fc.applyTmuxEdit(out)
+	applyMCPSection(fc, out)
+}
+
+func applyGeneralSection(fc *fileConfig, out *App) {
+	if (fc.General == sectionGeneral{}) && fc.General.CodingTemperature == nil {
+		return
+	}
+	tmp := App{
+		MaxTokens:          fc.General.MaxTokens,
+		ContextMode:        fc.General.ContextMode,
+		ContextWindowLines: fc.General.ContextWindowLines,
+		MaxContextTokens:   fc.General.MaxContextTokens,
+		CodingTemperature:  fc.General.CodingTemperature,
+		RequestTimeout:     fc.General.RequestTimeout,
+	}
+	out.mergeBasics(&tmp)
+}
+
+func applyLoggingSection(fc *fileConfig, out *App) {
+	if fc.Logging == (sectionLogging{}) {
+		return
+	}
+	out.mergeBasics(&App{LogPreviewLimit: fc.Logging.LogPreviewLimit})
+}
+
+func applyCompletionSection(fc *fileConfig, out *App) {
+	if fc.Completion.CompletionDebounceMs == 0 &&
+		fc.Completion.CompletionThrottleMs == 0 &&
+		fc.Completion.ManualInvokeMinPrefix == 0 &&
+		fc.Completion.CompletionWaitAll == nil {
+		return
+	}
+	tmp := App{
+		CompletionDebounceMs:  fc.Completion.CompletionDebounceMs,
+		CompletionThrottleMs:  fc.Completion.CompletionThrottleMs,
+		ManualInvokeMinPrefix: fc.Completion.ManualInvokeMinPrefix,
+		CompletionWaitAll:     fc.Completion.CompletionWaitAll,
+	}
+	out.mergeBasics(&tmp)
+}
+
+func applyTriggerSection(fc *fileConfig, out *App) {
+	if len(fc.Triggers.TriggerCharacters) == 0 {
+		return
+	}
+	out.mergeBasics(&App{TriggerCharacters: fc.Triggers.TriggerCharacters})
+}
+
+func applyInlineSection(fc *fileConfig, out *App) {
+	if fc.Inline == (sectionInline{}) {
+		return
+	}
+	out.mergeBasics(&App{InlineOpen: fc.Inline.InlineOpen, InlineClose: fc.Inline.InlineClose})
+}
+
+func applyChatSection(fc *fileConfig, out *App) {
+	if strings.TrimSpace(fc.Chat.ChatSuffix) == "" && len(fc.Chat.ChatPrefixes) == 0 {
+		return
+	}
+	out.mergeBasics(&App{ChatSuffix: fc.Chat.ChatSuffix, ChatPrefixes: fc.Chat.ChatPrefixes})
+}
+
+func applyProviderNameSection(fc *fileConfig, out *App) {
+	if strings.TrimSpace(fc.Provider.Name) == "" {
+		return
+	}
+	out.mergeBasics(&App{Provider: fc.Provider.Name})
+}
+
+func applyIgnoreSection(fc *fileConfig, out *App) {
+	if fc.Ignore.Gitignore == nil && len(fc.Ignore.ExtraPatterns) == 0 && fc.Ignore.LSPNotifyIgnored == nil {
+		return
+	}
+	tmp := App{
+		IgnoreGitignore:     fc.Ignore.Gitignore,
+		IgnoreExtraPatterns: fc.Ignore.ExtraPatterns,
+		IgnoreLSPNotify:     fc.Ignore.LSPNotifyIgnored,
+	}
+	out.mergeBasics(&tmp)
+}
+
+func applyOpenAISection(fc *fileConfig, out *App) {
+	if fc.OpenAI.isZero() && fc.OpenAI.Temperature == nil {
+		return
+	}
+	tmp := App{
+		OpenAIBaseURL:     fc.OpenAI.BaseURL,
+		OpenAIModel:       fc.OpenAI.resolvedModel(),
+		OpenAITemperature: fc.OpenAI.Temperature,
+	}
+	out.mergeProviderFields(&tmp)
+}
+
+func applyOpenRouterSection(fc *fileConfig, out *App) {
+	if fc.OpenRouter == (sectionOpenRouter{}) && fc.OpenRouter.Temperature == nil {
+		return
+	}
+	tmp := App{
+		OpenRouterBaseURL:     fc.OpenRouter.BaseURL,
+		OpenRouterModel:       fc.OpenRouter.Model,
+		OpenRouterTemperature: fc.OpenRouter.Temperature,
+	}
+	out.mergeProviderFields(&tmp)
+}
+
+func applyOllamaSection(fc *fileConfig, out *App) {
+	if fc.Ollama == (sectionOllama{}) && fc.Ollama.Temperature == nil {
+		return
+	}
+	tmp := App{
+		OllamaBaseURL:     fc.Ollama.BaseURL,
+		OllamaModel:       fc.Ollama.Model,
+		OllamaTemperature: fc.Ollama.Temperature,
+	}
+	out.mergeProviderFields(&tmp)
+}
+
+func applyAnthropicSection(fc *fileConfig, out *App) {
+	if fc.Anthropic == (sectionAnthropic{}) && fc.Anthropic.Temperature == nil {
+		return
+	}
+	tmp := App{
+		AnthropicBaseURL:     fc.Anthropic.BaseURL,
+		AnthropicModel:       fc.Anthropic.Model,
+		AnthropicTemperature: fc.Anthropic.Temperature,
+	}
+	out.mergeProviderFields(&tmp)
+}
+
+func applyPromptCompletion(fc *fileConfig, out *App) {
+	if fc.Prompts.Completion == (sectionPromptsCompletion{}) {
+		return
+	}
+	setIfNotBlank(&out.PromptCompletionSystemGeneral, fc.Prompts.Completion.SystemGeneral)
+	setIfNotBlank(&out.PromptCompletionSystemParams, fc.Prompts.Completion.SystemParams)
+	setIfNotBlank(&out.PromptCompletionSystemInline, fc.Prompts.Completion.SystemInline)
+	setIfNotBlank(&out.PromptCompletionUserGeneral, fc.Prompts.Completion.UserGeneral)
+	setIfNotBlank(&out.PromptCompletionUserParams, fc.Prompts.Completion.UserParams)
+	setIfNotBlank(&out.PromptCompletionExtraHeader, fc.Prompts.Completion.ExtraHeader)
+}
+
+func applyPromptChat(fc *fileConfig, out *App) {
+	setIfNotBlank(&out.PromptChatSystem, fc.Prompts.Chat.System)
+}
+
+func applyPromptCodeAction(fc *fileConfig, out *App) {
+	ca := fc.Prompts.CodeAction
+	if strings.TrimSpace(ca.RewriteSystem) == "" &&
+		strings.TrimSpace(ca.DiagnosticsSystem) == "" &&
+		strings.TrimSpace(ca.DocumentSystem) == "" &&
+		strings.TrimSpace(ca.RewriteUser) == "" &&
+		strings.TrimSpace(ca.DiagnosticsUser) == "" &&
+		strings.TrimSpace(ca.DocumentUser) == "" &&
+		strings.TrimSpace(ca.GoTestSystem) == "" &&
+		strings.TrimSpace(ca.GoTestUser) == "" &&
+		strings.TrimSpace(ca.SimplifySystem) == "" &&
+		strings.TrimSpace(ca.SimplifyUser) == "" &&
+		len(ca.Custom) == 0 {
+		return
+	}
+	setIfNotBlank(&out.PromptCodeActionRewriteSystem, ca.RewriteSystem)
+	setIfNotBlank(&out.PromptCodeActionDiagnosticsSystem, ca.DiagnosticsSystem)
+	setIfNotBlank(&out.PromptCodeActionDocumentSystem, ca.DocumentSystem)
+	setIfNotBlank(&out.PromptCodeActionRewriteUser, ca.RewriteUser)
+	setIfNotBlank(&out.PromptCodeActionDiagnosticsUser, ca.DiagnosticsUser)
+	setIfNotBlank(&out.PromptCodeActionDocumentUser, ca.DocumentUser)
+	setIfNotBlank(&out.PromptCodeActionGoTestSystem, ca.GoTestSystem)
+	setIfNotBlank(&out.PromptCodeActionGoTestUser, ca.GoTestUser)
+	setIfNotBlank(&out.PromptCodeActionSimplifySystem, ca.SimplifySystem)
+	setIfNotBlank(&out.PromptCodeActionSimplifyUser, ca.SimplifyUser)
+	if len(ca.Custom) > 0 {
+		out.CustomActions = append(out.CustomActions, toCustomActions(ca.Custom)...)
+	}
+}
+
+func applyPromptCLI(fc *fileConfig, out *App) {
+	if fc.Prompts.CLI == (sectionPromptsCLI{}) {
+		return
+	}
+	setIfNotBlank(&out.PromptCLIDefaultSystem, fc.Prompts.CLI.DefaultSystem)
+	setIfNotBlank(&out.PromptCLIExplainSystem, fc.Prompts.CLI.ExplainSystem)
+}
+
+func applyPromptProviderNative(fc *fileConfig, out *App) {
+	setIfNotBlank(&out.PromptNativeCompletion, fc.Prompts.ProviderNative.Completion)
+}
+
+func applyTmuxSection(fc *fileConfig, out *App) {
+	if fc.Tmux == (sectionTmux{}) {
+		return
+	}
+	out.TmuxCustomMenuHotkey = strings.TrimSpace(fc.Tmux.CustomMenuHotkey)
+}
+
+func applyStatsSection(fc *fileConfig, out *App) {
+	if fc.Stats.WindowMinutes > 0 {
+		out.StatsWindowMinutes = fc.Stats.WindowMinutes
+	}
+}
+
+func applyMCPSection(fc *fileConfig, out *App) {
+	if strings.TrimSpace(fc.MCP.PromptsDir) != "" {
+		out.MCPPromptsDir = strings.TrimSpace(fc.MCP.PromptsDir)
+	}
+	if fc.MCP.SlashCommandSync {
+		out.MCPSlashCommandSync = fc.MCP.SlashCommandSync
+	}
+	if strings.TrimSpace(fc.MCP.SlashCommandDir) != "" {
+		out.MCPSlashCommandDir = strings.TrimSpace(fc.MCP.SlashCommandDir)
+	}
+}
+
+func toCustomActions(custom []sectionCustomAction) []CustomAction {
+	out := make([]CustomAction, 0, len(custom))
+	for _, ca := range custom {
+		out = append(out, CustomAction{
+			ID:          strings.TrimSpace(ca.ID),
+			Title:       strings.TrimSpace(ca.Title),
+			Kind:        strings.TrimSpace(ca.Kind),
+			Scope:       strings.ToLower(strings.TrimSpace(ca.Scope)),
+			Hotkey:      strings.TrimSpace(ca.Hotkey),
+			Instruction: ca.Instruction,
+			System:      ca.System,
+			User:        ca.User,
+		})
+	}
+	return out
+}
+
+func setIfNotBlank(dst *string, value string) {
+	if strings.TrimSpace(value) != "" {
+		*dst = value
+	}
+}
+
+// applyTmuxEdit converts the [tmux_edit] section into App fields.
+func (fc *fileConfig) applyTmuxEdit(out *App) {
+	te := fc.TmuxEdit
+	if strings.TrimSpace(te.PopupWidth) != "" {
+		out.TmuxEditPopupWidth = strings.TrimSpace(te.PopupWidth)
+	}
+	if strings.TrimSpace(te.PopupHeight) != "" {
+		out.TmuxEditPopupHeight = strings.TrimSpace(te.PopupHeight)
+	}
+	if strings.TrimSpace(te.DefaultAgent) != "" {
+		out.TmuxEditDefaultAgent = strings.TrimSpace(te.DefaultAgent)
+	}
+	for _, a := range te.Agents {
+		if strings.TrimSpace(a.Name) == "" {
+			continue
+		}
+		out.TmuxEditAgents = append(out.TmuxEditAgents, TmuxEditAgentCfg{
+			Name:           strings.TrimSpace(a.Name),
+			DisplayName:    strings.TrimSpace(a.DisplayName),
+			DetectPattern:  strings.TrimSpace(a.DetectPattern),
+			SectionPattern: strings.TrimSpace(a.SectionPattern),
+			PromptPattern:  strings.TrimSpace(a.PromptPattern),
+			StripPatterns:  a.StripPatterns,
+			ClearFirst:     a.ClearFirst,
+			ClearKeys:      strings.TrimSpace(a.ClearKeys),
+			NewlineKeys:    strings.TrimSpace(a.NewlineKeys),
+			SubmitKeys:     strings.TrimSpace(a.SubmitKeys),
+		})
+	}
+}
+
+func parseSurfaceModels(raw map[string]any, logger *log.Logger) *App {
+	modelsRaw, ok := raw["models"]
+	if !ok {
+		return nil
+	}
+	table, ok := modelsRaw.(map[string]any)
+	if !ok {
+		if logger != nil {
+			logger.Printf("config: ignoring models section (expected table, got %T)", modelsRaw)
+		}
+		return nil
+	}
+	var out App
+	appendEntries := func(dest *[]SurfaceConfig, key string, val any) bool {
+		entries, ok := parseSurfaceEntries(val, key, logger)
+		if !ok || len(entries) == 0 {
+			return false
+		}
+		*dest = append(*dest, entries...)
+		return true
+	}
+	any := appendEntries(&out.CompletionConfigs, "models.completion", table["completion"])
+	if ok := appendEntries(&out.CodeActionConfigs, "models.code_action", table["code_action"]); ok {
+		if len(out.CodeActionConfigs) > 1 {
+			if logger != nil {
+				logger.Printf("config: models.code_action supports a single entry; ignoring %d extra", len(out.CodeActionConfigs)-1)
+			}
+			out.CodeActionConfigs = out.CodeActionConfigs[:1]
+		}
+		any = true
+	}
+	any = appendEntries(&out.ChatConfigs, "models.chat", table["chat"]) || any
+	any = appendEntries(&out.CLIConfigs, "models.cli", table["cli"]) || any
+	if !any {
+		return nil
+	}
+	return &out
+}
+
+func parseSurfaceEntries(raw any, path string, logger *log.Logger) ([]SurfaceConfig, bool) {
+	switch v := raw.(type) {
+	case nil:
+		return nil, false
+	case []any:
+		var out []SurfaceConfig
+		for i, entry := range v {
+			cfg, ok := decodeModelEntry(entry, fmt.Sprintf("%s[%d]", path, i), logger)
+			if !ok || cfg == nil {
+				continue
+			}
+			out = append(out, *cfg)
+		}
+		return out, len(out) > 0
+	default:
+		if cfg, ok := decodeModelEntry(v, path, logger); ok && cfg != nil {
+			return []SurfaceConfig{*cfg}, true
+		}
+		return nil, false
+	}
+}
+
+func decodeModelEntry(raw any, path string, logger *log.Logger) (*SurfaceConfig, bool) {
+	if raw == nil {
+		return nil, false
+	}
+	switch v := raw.(type) {
+	case string:
+		model := strings.TrimSpace(v)
+		if model == "" {
+			return nil, false
+		}
+		return &SurfaceConfig{Model: model}, true
+	case map[string]any:
+		model := ""
+		provider := ""
+		if m, ok := v["model"]; ok {
+			s, ok := m.(string)
+			if !ok {
+				if logger != nil {
+					logger.Printf("config: %s.model must be a string", path)
+				}
+				return nil, false
+			}
+			model = strings.TrimSpace(s)
+		}
+		if pRaw, ok := v["provider"]; ok {
+			ps, ok := pRaw.(string)
+			if !ok {
+				if logger != nil {
+					logger.Printf("config: %s.provider must be a string", path)
+				}
+				return nil, false
+			}
+			provider = strings.TrimSpace(ps)
+		}
+		var tempPtr *float64
+		if tRaw, ok := v["temperature"]; ok {
+			parsed, ok := parseTemperatureValue(tRaw, path, logger)
+			if !ok {
+				return nil, false
+			}
+			tempPtr = parsed
+		}
+		if model == "" && tempPtr == nil && provider == "" {
+			return nil, false
+		}
+		return &SurfaceConfig{Provider: provider, Model: model, Temperature: tempPtr}, true
+	default:
+		if logger != nil {
+			logger.Printf("config: %s must be a string or table, got %T", path, raw)
+		}
+		return nil, false
+	}
+}
+
+func parseTemperatureValue(raw any, path string, logger *log.Logger) (*float64, bool) {
+	switch v := raw.(type) {
+	case float64:
+		return floatPtr(v), true
+	case int64:
+		return floatPtr(float64(v)), true
+	case string:
+		s := strings.TrimSpace(v)
+		if s == "" {
+			return nil, true
+		}
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			if logger != nil {
+				logger.Printf("config: %s.temperature invalid: %v", path, err)
+			}
+			return nil, false
+		}
+		return floatPtr(f), true
+	default:
+		if logger != nil {
+			logger.Printf("config: %s.temperature must be numeric or string, got %T", path, raw)
+		}
+		return nil, false
+	}
+}
+
+func floatPtr(v float64) *float64 {
+	f := v
+	return &f
+}
+
+// --- Environment overrides ---
+
+// loadFromEnv constructs an App containing only fields set via HEXAI_* env vars.
+// These values should take precedence over file config when merged.
+func loadFromEnv(logger *log.Logger) *App {
+	var out App
+	any := applyCoreEnv(&out, logger)
+	any = applyProviderEnv(&out, logger) || any
+	any = applySurfaceEnv(&out, logger) || any
+	any = applyIgnoreEnv(&out) || any
+	any = applyMCPEnv(&out) || any
+	if !any {
+		return nil
+	}
+	return &out
+}
+
+func applyCoreEnv(out *App, logger *log.Logger) bool {
+	any := false
+	any = applyEnvInt(&out.MaxTokens, "HEXAI_MAX_TOKENS", logger) || any
+	any = applyEnvString(&out.ContextMode, "HEXAI_CONTEXT_MODE") || any
+	any = applyEnvInt(&out.ContextWindowLines, "HEXAI_CONTEXT_WINDOW_LINES", logger) || any
+	any = applyEnvInt(&out.MaxContextTokens, "HEXAI_MAX_CONTEXT_TOKENS", logger) || any
+	any = applyEnvInt(&out.LogPreviewLimit, "HEXAI_LOG_PREVIEW_LIMIT", logger) || any
+	any = applyEnvInt(&out.RequestTimeout, "HEXAI_REQUEST_TIMEOUT", logger) || any
+	any = applyEnvInt(&out.ManualInvokeMinPrefix, "HEXAI_MANUAL_INVOKE_MIN_PREFIX", logger) || any
+	any = applyEnvInt(&out.CompletionDebounceMs, "HEXAI_COMPLETION_DEBOUNCE_MS", logger) || any
+	any = applyEnvInt(&out.CompletionThrottleMs, "HEXAI_COMPLETION_THROTTLE_MS", logger) || any
+	any = applyEnvFloat(&out.CodingTemperature, "HEXAI_CODING_TEMPERATURE", logger) || any
+	any = applyEnvCSV(&out.TriggerCharacters, "HEXAI_TRIGGER_CHARACTERS") || any
+	any = applyEnvString(&out.InlineOpen, "HEXAI_INLINE_OPEN") || any
+	any = applyEnvString(&out.InlineClose, "HEXAI_INLINE_CLOSE") || any
+	any = applyEnvString(&out.ChatSuffix, "HEXAI_CHAT_SUFFIX") || any
+	any = applyEnvCSV(&out.ChatPrefixes, "HEXAI_CHAT_PREFIXES") || any
+	any = applyEnvString(&out.Provider, "HEXAI_PROVIDER") || any
+	return any
+}
+
+func applyProviderEnv(out *App, logger *log.Logger) bool {
+	picker := newModelPicker(out.Provider)
+	any := false
+	any = applyEnvString(&out.OpenAIBaseURL, "HEXAI_OPENAI_BASE_URL") || any
+	if model, ok := picker.pick("openai", getenvTrim("HEXAI_OPENAI_MODEL")); ok {
+		out.OpenAIModel = model
+		any = true
+	}
+	any = applyEnvFloat(&out.OpenAITemperature, "HEXAI_OPENAI_TEMPERATURE", logger) || any
+
+	any = applyEnvString(&out.OpenRouterBaseURL, "HEXAI_OPENROUTER_BASE_URL") || any
+	if model, ok := picker.pick("openrouter", getenvTrim("HEXAI_OPENROUTER_MODEL")); ok {
+		out.OpenRouterModel = model
+		any = true
+	}
+	any = applyEnvFloat(&out.OpenRouterTemperature, "HEXAI_OPENROUTER_TEMPERATURE", logger) || any
+
+	any = applyEnvString(&out.OllamaBaseURL, "HEXAI_OLLAMA_BASE_URL") || any
+	if model, ok := picker.pick("ollama", getenvTrim("HEXAI_OLLAMA_MODEL")); ok {
+		out.OllamaModel = model
+		any = true
+	}
+	any = applyEnvFloat(&out.OllamaTemperature, "HEXAI_OLLAMA_TEMPERATURE", logger) || any
+
+	any = applyEnvString(&out.AnthropicBaseURL, "HEXAI_ANTHROPIC_BASE_URL") || any
+	if model, ok := picker.pick("anthropic", getenvTrim("HEXAI_ANTHROPIC_MODEL")); ok {
+		out.AnthropicModel = model
+		any = true
+	}
+	any = applyEnvFloat(&out.AnthropicTemperature, "HEXAI_ANTHROPIC_TEMPERATURE", logger) || any
+	return any
+}
+
+func applySurfaceEnv(out *App, logger *log.Logger) bool {
+	any := false
+	if entries, ok := buildSurfaceEntryFromEnv("HEXAI_MODEL_COMPLETION", "HEXAI_TEMPERATURE_COMPLETION", "HEXAI_PROVIDER_COMPLETION", logger); ok {
+		out.CompletionConfigs = entries
+		any = true
+	}
+	if entries, ok := buildSurfaceEntryFromEnv("HEXAI_MODEL_CODE_ACTION", "HEXAI_TEMPERATURE_CODE_ACTION", "HEXAI_PROVIDER_CODE_ACTION", logger); ok {
+		out.CodeActionConfigs = entries
+		any = true
+	}
+	if entries, ok := buildSurfaceEntryFromEnv("HEXAI_MODEL_CHAT", "HEXAI_TEMPERATURE_CHAT", "HEXAI_PROVIDER_CHAT", logger); ok {
+		out.ChatConfigs = entries
+		any = true
+	}
+	if entries, ok := buildSurfaceEntryFromEnv("HEXAI_MODEL_CLI", "HEXAI_TEMPERATURE_CLI", "HEXAI_PROVIDER_CLI", logger); ok {
+		out.CLIConfigs = entries
+		any = true
+	}
+	return any
+}
+
+func applyIgnoreEnv(out *App) bool {
+	any := false
+	any = applyEnvBoolPtr(&out.IgnoreGitignore, "HEXAI_IGNORE_GITIGNORE") || any
+	any = applyEnvCSV(&out.IgnoreExtraPatterns, "HEXAI_IGNORE_EXTRA_PATTERNS") || any
+	any = applyEnvBoolPtr(&out.IgnoreLSPNotify, "HEXAI_IGNORE_LSP_NOTIFY") || any
+	return any
+}
+
+func applyMCPEnv(out *App) bool {
+	any := false
+	any = applyEnvString(&out.MCPPromptsDir, "HEXAI_MCP_PROMPTS_DIR") || any
+	any = applyEnvBool(&out.MCPSlashCommandSync, "HEXAI_MCP_SLASHCOMMAND_SYNC") || any
+	any = applyEnvString(&out.MCPSlashCommandDir, "HEXAI_MCP_SLASHCOMMAND_DIR") || any
+	return any
+}
+
+func buildSurfaceEntryFromEnv(modelKey, tempKey, providerKey string, logger *log.Logger) ([]SurfaceConfig, bool) {
+	model := getenvTrim(modelKey)
+	tempPtr, tempSet := parseEnvFloatPtr(tempKey, logger)
+	provider := getenvTrim(providerKey)
+	if model == "" && provider == "" && !tempSet {
+		return nil, false
+	}
+	entry := SurfaceConfig{Provider: provider, Model: model}
+	if tempSet {
+		entry.Temperature = tempPtr
+	}
+	return []SurfaceConfig{entry}, true
+}
+
+func applyEnvString(target *string, key string) bool {
+	value := getenvTrim(key)
+	if value == "" {
+		return false
+	}
+	*target = value
+	return true
+}
+
+func applyEnvInt(target *int, key string, logger *log.Logger) bool {
+	value, ok := parseEnvInt(key, logger)
+	if !ok {
+		return false
+	}
+	*target = value
+	return true
+}
+
+func applyEnvFloat(target **float64, key string, logger *log.Logger) bool {
+	value, ok := parseEnvFloatPtr(key, logger)
+	if !ok {
+		return false
+	}
+	*target = value
+	return true
+}
+
+func applyEnvCSV(target *[]string, key string) bool {
+	value := getenvTrim(key)
+	if value == "" {
+		return false
+	}
+	parts := strings.Split(value, ",")
+	*target = nil
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			*target = append(*target, t)
+		}
+	}
+	return true
+}
+
+func applyEnvBool(target *bool, key string) bool {
+	value := getenvTrim(key)
+	if value == "" {
+		return false
+	}
+	*target = value == "true" || value == "1"
+	return true
+}
+
+func applyEnvBoolPtr(target **bool, key string) bool {
+	value := getenvTrim(key)
+	if value == "" {
+		return false
+	}
+	parsed := value == "true" || value == "1"
+	*target = &parsed
+	return true
+}
+
+func getenvTrim(key string) string {
+	return strings.TrimSpace(os.Getenv(key))
+}
+
+func parseEnvInt(key string, logger *log.Logger) (int, bool) {
+	value := getenvTrim(key)
+	if value == "" {
+		return 0, false
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		if logger != nil {
+			logger.Printf("invalid %s: %v", key, err)
+		}
+		return 0, false
+	}
+	return n, true
+}
+
+func parseEnvFloatPtr(key string, logger *log.Logger) (*float64, bool) {
+	value := getenvTrim(key)
+	if value == "" {
+		return nil, false
+	}
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		if logger != nil {
+			logger.Printf("invalid %s: %v", key, err)
+		}
+		return nil, false
+	}
+	return &f, true
+}
+
+type modelPicker struct {
+	providerLower string
+	modelForce    string
+	modelGeneric  string
+	forceUsed     bool
+	genericUsed   bool
+}
+
+func newModelPicker(provider string) *modelPicker {
+	return &modelPicker{
+		providerLower: strings.ToLower(strings.TrimSpace(provider)),
+		modelForce:    getenvTrim("HEXAI_MODEL_FORCE"),
+		modelGeneric:  getenvTrim("HEXAI_MODEL"),
+	}
+}
+
+func (p *modelPicker) pick(providerName, specific string) (string, bool) {
+	specific = strings.TrimSpace(specific)
+	nameLower := strings.ToLower(strings.TrimSpace(providerName))
+	if p.modelForce != "" {
+		if p.providerLower == nameLower {
+			p.forceUsed = true
+			return p.modelForce, true
+		}
+		if p.providerLower == "" && !p.forceUsed {
+			p.forceUsed = true
+			return p.modelForce, true
+		}
+	}
+	if specific != "" {
+		return specific, true
+	}
+	if p.modelGeneric != "" {
+		if p.providerLower == nameLower {
+			return p.modelGeneric, true
+		}
+		if p.providerLower == "" && !p.genericUsed {
+			p.genericUsed = true
+			return p.modelGeneric, true
+		}
+	}
+	return "", false
+}
