@@ -152,12 +152,18 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) {
 	errTables := toml.NewDecoder(strings.NewReader(string(b))).Decode(&tables)
 	// Raw map for validation/presence checks
 	var raw map[string]any
-	_ = toml.Unmarshal(b, &raw)
+	errRaw := toml.Unmarshal(b, &raw)
 	if errTables != nil {
 		if logger != nil {
 			logger.Printf("invalid TOML config file %s: %v", path, errTables)
 		}
 		return nil, errTables
+	}
+	if errRaw != nil {
+		if logger != nil {
+			logger.Printf("invalid TOML config file %s: %v", path, errRaw)
+		}
+		return nil, errRaw
 	}
 
 	// Reject legacy flat keys at top-level (sectioned-only config is allowed)
