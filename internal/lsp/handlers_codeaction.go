@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/logging"
 )
@@ -380,7 +381,7 @@ func formatCustomDiagnostics(diagnostics []Diagnostic) string {
 	return b.String()
 }
 
-func (s *Server) customActionByID(id string) *CustomAction {
+func (s *Server) customActionByID(id string) *appconfig.CustomAction {
 	for _, item := range s.customActions() {
 		if item.ID == id {
 			action := item

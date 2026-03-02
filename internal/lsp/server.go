@@ -85,17 +85,6 @@ type ServerOptions struct {
 	IgnoreChecker *ignore.Checker
 }
 
-// CustomAction mirrors user-defined code actions passed from config.
-type CustomAction struct {
-	ID          string
-	Title       string
-	Kind        string
-	Scope       string // "selection" | "diagnostics"
-	Instruction string // if set, use rewrite templates
-	System      string // optional when User is set
-	User        string // if set, use this user template
-}
-
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Server{
@@ -401,24 +390,12 @@ func (s *Server) promptSet() appconfig.App {
 	return s.currentConfig()
 }
 
-func (s *Server) customActions() []CustomAction {
+func (s *Server) customActions() []appconfig.CustomAction {
 	cfg := s.currentConfig()
 	if len(cfg.CustomActions) == 0 {
 		return nil
 	}
-	customs := make([]CustomAction, 0, len(cfg.CustomActions))
-	for _, ca := range cfg.CustomActions {
-		customs = append(customs, CustomAction{
-			ID:          ca.ID,
-			Title:       ca.Title,
-			Kind:        ca.Kind,
-			Scope:       ca.Scope,
-			Instruction: ca.Instruction,
-			System:      ca.System,
-			User:        ca.User,
-		})
-	}
-	return customs
+	return append([]appconfig.CustomAction{}, cfg.CustomActions...)
 }
 
 func (s *Server) requestTimeoutContext(timeout time.Duration) (context.Context, context.CancelFunc) {
