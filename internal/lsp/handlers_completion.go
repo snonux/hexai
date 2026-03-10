@@ -63,7 +63,7 @@ func (s *Server) handleCompletion(req Request) {
 		if s.logContext {
 			s.logCompletionContext(p, above, current, below, funcCtx)
 		}
-		if s.llmClient != nil {
+		if s.currentLLMClient() != nil {
 			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
 			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
 			items, ok, incomplete := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
@@ -509,38 +509,6 @@ func (s *Server) waitForDebounce(ctx context.Context) {
 		case <-timer.C:
 			// loop and re-evaluate in case input occurred during sleep
 		}
-	}
-}
-
-// waitForThrottle enforces a minimum spacing between LLM calls. Returns false
-// if the context is canceled while waiting.
-func (s *Server) waitForThrottle(ctx context.Context) bool {
-	interval := s.completionThrottle()
-	if interval <= 0 {
-		return true
-	}
-	var wait time.Duration
-	for {
-		s.mu.Lock()
-		next := s.lastLLMCall.Add(interval)
-		now := time.Now()
-		if now.Before(next) {
-			wait = next.Sub(now)
-			s.mu.Unlock()
-			timer := time.NewTimer(wait)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return false
-			case <-timer.C:
-				// try again to set the next call time
-				continue
-			}
-		}
-		// we are allowed to proceed now; record this call as the latest
-		s.lastLLMCall = now
-		s.mu.Unlock()
-		return true
 	}
 }
 

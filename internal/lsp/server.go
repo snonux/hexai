@@ -36,7 +36,6 @@ type Server struct {
 	logContext   bool
 	configStore  *runtimeconfig.Store
 	cfg          appconfig.App
-	llmClient    llm.Client
 	codeActionSubsystem
 	chatSubsystem
 	// LLM request stats
@@ -58,12 +57,7 @@ type Server struct {
 }
 
 type completionSubsystem struct {
-	// Small LRU cache for recent code completion outputs (keyed by context)
-	compCache           map[string]string
-	compCacheOrder      []string // most-recent at end; cap ~10
-	pendingCompletions  map[string][]CompletionItem
-	lastLLMCall         time.Time
-	completionsDisabled bool
+	completionState
 }
 
 type chatSubsystem struct {
@@ -71,8 +65,7 @@ type chatSubsystem struct {
 }
 
 type codeActionSubsystem struct {
-	llmProvider string
-	altClients  map[string]llm.Client
+	llmClientRegistry
 }
 
 // StatusSink receives status updates from the LSP server.
@@ -105,10 +98,14 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 		configStore:  opts.ConfigStore,
 		serverCtx:    ctx,
 		serverCancel: cancel,
+		codeActionSubsystem: codeActionSubsystem{
+			llmClientRegistry: llmClientRegistry{},
+		},
+		completionSubsystem: completionSubsystem{
+			completionState: completionState{},
+		},
 	}
 	s.startTime = time.Now()
-	s.compCache = make(map[string]string)
-	s.pendingCompletions = make(map[string][]CompletionItem)
 	s.applyOptions(opts)
 	// Initialize dispatch table
 	s.handlers = map[string]func(Request){
@@ -142,19 +139,13 @@ func (s *Server) applyOptions(opts ServerOptions) {
 	} else {
 		s.cfg = appconfig.App{}
 	}
-	s.llmClient = opts.Client
-	if opts.Client != nil {
-		s.llmProvider = canonicalProvider(opts.Client.Name())
-	} else {
-		s.llmProvider = canonicalProvider(s.cfg.Provider)
-	}
-	s.altClients = make(map[string]llm.Client)
 	if opts.IgnoreChecker != nil {
 		s.ignoreChecker = opts.IgnoreChecker
 	}
 	if opts.StatusSink != nil {
 		s.statusSink = opts.StatusSink
 	}
+	s.llmClientRegistry.applyOptions(opts.Client, s.cfg.Provider)
 }
 
 // ApplyOptions updates the server's configuration at runtime.
@@ -163,9 +154,7 @@ func (s *Server) ApplyOptions(opts ServerOptions) {
 }
 
 func (s *Server) currentLLMClient() llm.Client {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.llmClient
+	return s.llmClientRegistry.current()
 }
 
 func newClientForProvider(cfg appconfig.App, provider, modelOverride string) (llm.Client, error) {
@@ -173,112 +162,18 @@ func newClientForProvider(cfg appconfig.App, provider, modelOverride string) (ll
 }
 
 func (s *Server) clientFor(spec requestSpec) llm.Client {
-	provider := canonicalProvider(spec.provider)
-	s.mu.RLock()
-	baseProvider := s.llmProvider
-	baseClient := s.llmClient
-	if baseClient != nil && strings.TrimSpace(baseProvider) == "" {
-		baseProvider = canonicalProvider(baseClient.Name())
-	}
-	if provider == "" {
-		provider = baseProvider
-	}
-	if provider == baseProvider && baseClient != nil {
-		s.mu.RUnlock()
-		return baseClient
-	}
-	if c, ok := s.altClients[provider]; ok {
-		s.mu.RUnlock()
-		return c
-	}
-	cfg := s.cfg
-	store := s.configStore
-	s.mu.RUnlock()
-	if store != nil {
-		cfg = store.Snapshot()
-	}
-	modelOverride := strings.TrimSpace(spec.entry.Model)
-	if modelOverride == "" {
-		modelOverride = strings.TrimSpace(spec.fallbackModel)
-	}
-	client, err := newClientForProvider(cfg, provider, modelOverride)
-	if err != nil {
-		logging.Logf("lsp ", "failed to build client for provider=%s: %v", provider, err)
-		if baseClient != nil {
-			return baseClient
-		}
-		return nil
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if provider == s.llmProvider {
-		if s.llmClient == nil {
-			s.llmClient = client
-			s.llmProvider = provider
-		}
-		return s.llmClient
-	}
-	if existing, ok := s.altClients[provider]; ok {
-		return existing
-	}
-	if s.altClients == nil {
-		s.altClients = make(map[string]llm.Client)
-	}
-	s.altClients[provider] = client
-	return client
+	return s.llmClientRegistry.clientFor(spec, s.currentConfig(), newClientForProvider)
 }
 
 func (s *Server) currentConfig() appconfig.App {
-	if s.configStore != nil {
-		return s.configStore.Snapshot()
-	}
 	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.cfg
-}
-
-func (s *Server) storePendingCompletion(key string, items []CompletionItem) {
-	if len(items) == 0 {
-		return
+	store := s.configStore
+	cfg := s.cfg
+	s.mu.RUnlock()
+	if store != nil {
+		return store.Snapshot()
 	}
-	cpy := make([]CompletionItem, len(items))
-	copy(cpy, items)
-	s.mu.Lock()
-	if s.pendingCompletions == nil {
-		s.pendingCompletions = make(map[string][]CompletionItem)
-	}
-	s.pendingCompletions[key] = cpy
-	s.mu.Unlock()
-}
-
-func (s *Server) setCompletionsDisabled(disabled bool) bool {
-	s.mu.Lock()
-	prev := s.completionsDisabled
-	s.completionsDisabled = disabled
-	s.mu.Unlock()
-	return prev
-}
-
-func (s *Server) completionDisabled() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.completionsDisabled
-}
-
-func (s *Server) takePendingCompletion(key string) []CompletionItem {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.pendingCompletions) == 0 {
-		return nil
-	}
-	items, ok := s.pendingCompletions[key]
-	if !ok {
-		return nil
-	}
-	delete(s.pendingCompletions, key)
-	cpy := make([]CompletionItem, len(items))
-	copy(cpy, items)
-	return cpy
+	return cfg
 }
 
 func (s *Server) maxTokens() int {

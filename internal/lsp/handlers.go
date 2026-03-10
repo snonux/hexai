@@ -187,8 +187,6 @@ func (s *Server) reply(id json.RawMessage, result any, err *RespError) {
 // that an LLM request is already in flight.
 // removed: previous single in-flight LLM busy gate and busy item
 
-// --- small completion cache (last ~10 entries) ---
-
 func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string {
 	// Normalize left-of-cursor by trimming trailing spaces/tabs
 	idx := p.Position.Character
@@ -230,56 +228,6 @@ func (s *Server) completionCacheKey(p CompletionParams, above, current, below, f
 		fmt.Sprintf("params=%t", inParams),
 		extra,
 	}, "\x1f") // use unit separator to avoid collisions
-}
-
-func (s *Server) completionCacheGet(key string) (string, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	v, ok := s.compCache[key]
-	if !ok {
-		return "", false
-	}
-	// move to most-recent
-	s.compCacheTouchLocked(key)
-	return v, true
-}
-
-func (s *Server) completionCachePut(key, value string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.compCache == nil {
-		s.compCache = make(map[string]string)
-	}
-	if _, exists := s.compCache[key]; !exists {
-		s.compCacheOrder = append(s.compCacheOrder, key)
-		s.compCache[key] = value
-		if len(s.compCacheOrder) > 10 {
-			// evict oldest
-			old := s.compCacheOrder[0]
-			s.compCacheOrder = s.compCacheOrder[1:]
-			delete(s.compCache, old)
-		}
-		return
-	}
-	// update existing and mark most-recent
-	s.compCache[key] = value
-	s.compCacheTouchLocked(key)
-}
-
-func (s *Server) compCacheTouchLocked(key string) {
-	// assumes s.mu is held
-	// remove any existing occurrence of key in order slice
-	idx := -1
-	for i, k := range s.compCacheOrder {
-		if k == key {
-			idx = i
-			break
-		}
-	}
-	if idx >= 0 {
-		s.compCacheOrder = append(append([]string{}, s.compCacheOrder[:idx]...), s.compCacheOrder[idx+1:]...)
-	}
-	s.compCacheOrder = append(s.compCacheOrder, key)
 }
 
 // isTriggerEvent returns true when the completion request appears to be caused

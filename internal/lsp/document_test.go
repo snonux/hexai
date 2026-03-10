@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/llm"
 )
 
 func newTestServer() *Server {
@@ -40,9 +39,9 @@ func newTestServer() *Server {
 		docs:   make(map[string]*document),
 		cfg:    cfg,
 		codeActionSubsystem: codeActionSubsystem{
-			altClients:  make(map[string]llm.Client),
-			llmProvider: canonicalProvider(cfg.Provider),
+			llmClientRegistry: llmClientRegistry{llmProvider: canonicalProvider(cfg.Provider)},
 		},
+		completionSubsystem: completionSubsystem{completionState: completionState{}},
 	}
 }
 

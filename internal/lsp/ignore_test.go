@@ -9,7 +9,6 @@ import (
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/ignore"
-	"codeberg.org/snonux/hexai/internal/llm"
 )
 
 // newIgnoreTestServer creates a Server with an ignore checker configured
@@ -26,7 +25,8 @@ func newIgnoreTestServer(gitRoot string, useGI bool, extra []string, notifyIgnor
 		logger:              log.New(io.Discard, "", 0),
 		docs:                make(map[string]*document),
 		cfg:                 cfg,
-		codeActionSubsystem: codeActionSubsystem{altClients: make(map[string]llm.Client)},
+		codeActionSubsystem: codeActionSubsystem{llmClientRegistry: llmClientRegistry{}},
+		completionSubsystem: completionSubsystem{completionState: completionState{}},
 		ignoreChecker:       ignore.New(gitRoot, useGI, extra),
 	}
 	return s
@@ -129,7 +129,7 @@ func TestIsFileIgnored_NoChecker(t *testing.T) {
 	s := &Server{
 		logger:              log.New(io.Discard, "", 0),
 		docs:                make(map[string]*document),
-		codeActionSubsystem: codeActionSubsystem{altClients: make(map[string]llm.Client)},
+		codeActionSubsystem: codeActionSubsystem{llmClientRegistry: llmClientRegistry{}},
 		// ignoreChecker is nil
 	}
 
@@ -166,7 +166,7 @@ func TestIgnoreLSPNotifyEnabled_NilConfig(t *testing.T) {
 	s := &Server{
 		logger:              log.New(io.Discard, "", 0),
 		docs:                make(map[string]*document),
-		codeActionSubsystem: codeActionSubsystem{altClients: make(map[string]llm.Client)},
+		codeActionSubsystem: codeActionSubsystem{llmClientRegistry: llmClientRegistry{}},
 		cfg:                 appconfig.App{},
 	}
 	if !s.ignoreLSPNotifyEnabled() {
