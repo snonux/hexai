@@ -15,7 +15,7 @@ func main() {
 	infile := flag.String("infile", "", "Read input from this file instead of stdin")
 	outfile := flag.String("outfile", "", "Write output to this file instead of stdout")
 	uiChild := flag.Bool("ui-child", false, "INTERNAL: run interactive UI and write to -outfile atomically")
-	defaultPath := defaultConfigPath()
+	defaultPath := appconfig.DefaultConfigPath()
 	configPath := flag.String("config", "", fmt.Sprintf("path to config file (default: %s)", defaultPath))
 	tmuxTarget := flag.String("tmux-target", "", "tmux split target (advanced)")
 	tmuxSplit := flag.String("tmux-split", "v", "tmux split orientation: v or h")
@@ -34,12 +34,4 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func defaultConfigPath() string {
-	path, err := appconfig.ConfigPath()
-	if err != nil {
-		return "$XDG_CONFIG_HOME/hexai/config.toml"
-	}
-	return path
 }

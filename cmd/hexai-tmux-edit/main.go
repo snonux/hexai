@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	defaultPath := defaultConfigPath()
+	defaultPath := appconfig.DefaultConfigPath()
 	configPath := flag.String("config", "", fmt.Sprintf("path to config file (default: %s)", defaultPath))
 	agent := flag.String("agent", "", "AI agent name (auto-detected if omitted)")
 	pane := flag.String("pane", "", "tmux target pane ID (e.g. %%5)")
@@ -37,12 +37,4 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func defaultConfigPath() string {
-	path, err := appconfig.ConfigPath()
-	if err != nil {
-		return "$XDG_CONFIG_HOME/hexai/config.toml"
-	}
-	return path
 }

@@ -17,7 +17,7 @@ import (
 func main() {
 	defaultLog := defaultLogPath()
 	logPath := flag.String("log", defaultLog, "path to log file (optional)")
-	defaultCfg := defaultConfigPath()
+	defaultCfg := appconfig.DefaultConfigPath()
 	configPath := flag.String("config", "", fmt.Sprintf("path to config file (default: %s)", defaultCfg))
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -30,14 +30,6 @@ func main() {
 	if err := hexailsp.RunWithConfig(*logPath, path, os.Stdin, os.Stdout, os.Stderr); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
-}
-
-func defaultConfigPath() string {
-	path, err := appconfig.ConfigPath()
-	if err != nil {
-		return "$XDG_CONFIG_HOME/hexai/config.toml"
-	}
-	return path
 }
 
 // defaultLogPath returns the default LSP log file path in the state directory.

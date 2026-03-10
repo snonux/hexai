@@ -2,6 +2,7 @@ package appconfig
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -311,6 +312,26 @@ func TestGetConfigPath_XDG(t *testing.T) {
 	}
 	if !strings.HasPrefix(path, filepath.Join(dir, "hexai")) || !strings.HasSuffix(path, "config.toml") {
 		t.Fatalf("unexpected path: %s", path)
+	}
+}
+
+func TestDefaultConfigPath_UsesResolvedPath(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	got := DefaultConfigPath()
+	want := filepath.Join(dir, "hexai", "config.toml")
+	if got != want {
+		t.Fatalf("DefaultConfigPath() = %q, want %q", got, want)
+	}
+}
+
+func TestDefaultConfigPath_FallsBackOnError(t *testing.T) {
+	got := configPathOrFallback(func() (string, error) {
+		return "", errors.New("boom")
+	})
+	if got != configPathFallback {
+		t.Fatalf("configPathOrFallback() = %q, want %q", got, configPathFallback)
 	}
 }
 
