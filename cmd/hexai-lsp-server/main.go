@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"codeberg.org/snonux/hexai/internal"
@@ -40,13 +41,11 @@ func defaultConfigPath() string {
 }
 
 // defaultLogPath returns the default LSP log file path in the state directory.
-// Falls back to /tmp if state directory cannot be determined.
-// defaultLogPath returns the default LSP log file path in the state directory.
-// Panics if state directory cannot be created.
+// Falls back to the system temp directory if the state directory is unavailable.
 func defaultLogPath() string {
 	stateDir, err := appconfig.StateDir()
 	if err != nil {
-		panic(fmt.Sprintf("cannot create state directory: %v", err))
+		return filepath.Join(os.TempDir(), "hexai-lsp-server.log")
 	}
 	return fmt.Sprintf("%s/hexai-lsp-server.log", stateDir)
 }
