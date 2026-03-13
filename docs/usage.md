@@ -81,8 +81,11 @@ Process text via the configured LLM:
 - `cat SOMEFILE.txt | hexai`
 - `hexai 'some prompt text here'`
 - `cat SOMEFILE.txt | hexai 'some prompt text here'` (stdin and arg are concatenated)
+- `hexai --tps-simulation 12-18` to simulate model output speed without calling a provider
 
-Defaults: concise answers. If the prompt asks for commands, Hexai outputs only commands. Add the word `explain` to request a verbose explanation. Exit codes: `0` success, `1` provider/config error, `2` no input.
+Defaults: concise answers. If the prompt asks for commands, Hexai outputs only commands. Add the word `explain` to request a verbose explanation. Exit codes: `0` success, `1` provider/config error, `2` no input`.
+
+`--tps-simulation` accepts either a fixed rate such as `20` or a range such as `12-18`. It streams positional arguments, piped stdin, or built-in placeholder text when no input is provided, so you can preview perceived model latency without needing a real provider or local hardware.
 
 ### Examples
 
@@ -101,6 +104,12 @@ hexai 'install ripgrep on macOS'
 
 # Verbose explanation
 hexai 'install ripgrep on macOS and explain'
+
+# Simulate 12-18 tokens per second with placeholder text
+hexai --tps-simulation 12-18
+
+# Simulate how a file would feel when streamed back by a model
+cat SOMEFILE.txt | hexai --tps-simulation 20
 ```
 
 ## Hexai Action (TUI)

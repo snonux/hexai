@@ -115,6 +115,18 @@ func canonicalProvider(name string) string {
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
 // It assumes flags have already been parsed by the caller.
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	if spec, ok, err := tpsSimulationFromContext(ctx); err != nil {
+		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+err.Error()+logging.AnsiReset)
+		return err
+	} else if ok {
+		input, inputErr := readSimulationInput(stdin, args)
+		if inputErr != nil {
+			_, _ = fmt.Fprintln(stderr, logging.AnsiBase+inputErr.Error()+logging.AnsiReset)
+			return inputErr
+		}
+		return runTPSSimulation(ctx, spec, input, stdout)
+	}
+
 	// Load configuration with a logger so file-based config is respected.
 	logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
 	configPath := configPathFromContext(ctx)

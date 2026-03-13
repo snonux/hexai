@@ -27,6 +27,7 @@ func main() {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	defaultPath := appconfig.DefaultConfigPath()
 	configFlag := fs.String("config", configPath, fmt.Sprintf("path to config file (default: %s)", defaultPath))
+	tpsSimulation := fs.String("tps-simulation", "", "simulate stdout at a token-per-second rate; accepts '12' or '10-20'")
 	showVersion := fs.Bool("version", false, "print version and exit")
 	selectedFlags := make([]bool, len(cliEntries))
 	for i, entry := range cliEntries {
@@ -60,6 +61,9 @@ func main() {
 	ctx := context.Background()
 	if finalPath != "" {
 		ctx = hexaicli.WithCLIConfigPath(ctx, finalPath)
+	}
+	if strings.TrimSpace(*tpsSimulation) != "" {
+		ctx = hexaicli.WithCLITPSSimulation(ctx, *tpsSimulation)
 	}
 	if len(selection) > 0 {
 		ctx = hexaicli.WithCLISelection(ctx, selection)
