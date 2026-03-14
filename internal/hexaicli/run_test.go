@@ -154,8 +154,68 @@ model = "gpt-x"
 func TestPrintProviderInfo(t *testing.T) {
 	var b bytes.Buffer
 	printProviderInfo(&b, &fakeClient{name: "x", model: "y"}, "y")
-	if !strings.Contains(b.String(), "provider=x model=y") {
-		t.Fatalf("missing provider line: %q", b.String())
+	if !strings.Contains(b.String(), "x:y") || !strings.Contains(b.String(), "─") {
+		t.Fatalf("missing provider header: %q", b.String())
+	}
+	if strings.Contains(b.String(), "provider=") {
+		t.Fatalf("unexpected legacy provider line: %q", b.String())
+	}
+}
+
+func TestRun_SingleProviderHeaderUsesStderr(t *testing.T) {
+	oldNew := newClientFromApp
+	defer func() { newClientFromApp = oldNew }()
+	newClientFromApp = func(_ appconfig.App) (llm.Client, error) {
+		return &fakeClient{name: "openai", model: "gpt-4.1", resp: "OUT"}, nil
+	}
+
+	restore, f := setStdin(t, "hello")
+	defer restore()
+
+	var stdout, stderr bytes.Buffer
+	if err := Run(context.Background(), nil, f, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if got := stdout.String(); got != "OUT" {
+		t.Fatalf("stdout = %q, want %q", got, "OUT")
+	}
+	if !strings.Contains(stderr.String(), "openai:gpt-4.1") || !strings.Contains(stderr.String(), "─") {
+		t.Fatalf("stderr missing provider header: %q", stderr.String())
+	}
+	if strings.Contains(stdout.String(), "openai:gpt-4.1") || strings.Contains(stdout.String(), "─") {
+		t.Fatalf("stdout should not contain provider header: %q", stdout.String())
+	}
+}
+
+func TestExecuteCLIJobs_MultiProviderHeaderUsesStderr(t *testing.T) {
+	jobs := []cliJob{
+		{
+			index:    0,
+			provider: "openai",
+			client:   &fakeClient{name: "openai", model: "gpt-4.1", resp: "LEFT"},
+			req:      requestArgs{model: "gpt-4.1"},
+		},
+		{
+			index:    1,
+			provider: "anthropic",
+			client:   &fakeClient{name: "anthropic", model: "claude", resp: "RIGHT"},
+			req:      requestArgs{model: "claude"},
+		},
+	}
+
+	var stdout, stderr bytes.Buffer
+	results, printer := executeCLIJobs(context.Background(), jobs, buildMessages("hello"), "hello", &stdout, &stderr, false)
+	if printer == nil {
+		t.Fatalf("expected column printer for multi-provider run")
+	}
+	if len(results) != 2 || results[0] == nil || results[1] == nil {
+		t.Fatalf("expected results for both jobs, got %#v", results)
+	}
+	if !strings.Contains(stderr.String(), "openai:gpt-4.1") || !strings.Contains(stderr.String(), "anthropic:claude") {
+		t.Fatalf("stderr missing multi-provider header: %q", stderr.String())
+	}
+	if strings.Contains(stdout.String(), "openai:gpt-4.1") || strings.Contains(stdout.String(), "anthropic:claude") {
+		t.Fatalf("stdout should not contain provider header: %q", stdout.String())
 	}
 }
 

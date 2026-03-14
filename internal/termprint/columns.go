@@ -83,30 +83,15 @@ func (cp *ColumnPrinter) Writer(idx int) io.Writer {
 
 // PrintHeader writes provider/model headers and a divider row.
 func (cp *ColumnPrinter) PrintHeader() {
+	cp.PrintHeaderTo(cp.stdout)
+}
+
+// PrintHeaderTo writes provider/model headers and a divider row to w.
+func (cp *ColumnPrinter) PrintHeaderTo(w io.Writer) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
-	combo := make([]string, cp.columns)
-	for i := 0; i < cp.columns; i++ {
-		provider := strings.TrimSpace(cp.providers[i])
-		model := strings.TrimSpace(cp.models[i])
-		switch {
-		case provider != "" && model != "":
-			combo[i] = provider + ":" + model
-		case provider != "":
-			combo[i] = provider
-		case model != "":
-			combo[i] = model
-		default:
-			combo[i] = ""
-		}
-	}
-	cp.writeLine(combo)
-	divider := make([]string, cp.columns)
-	line := strings.Repeat("─", cp.colWidth)
-	for i := range divider {
-		divider[i] = line
-	}
-	cp.writeLine(divider)
+	cp.writeLineTo(w, cp.headerCells())
+	cp.writeLineTo(w, cp.dividerCells())
 }
 
 // Flush emits any buffered partial line for a column.
@@ -182,6 +167,38 @@ func (cp *ColumnPrinter) wrap(text string) []string {
 }
 
 func (cp *ColumnPrinter) writeLine(cells []string) {
+	cp.writeLineTo(cp.stdout, cells)
+}
+
+func (cp *ColumnPrinter) headerCells() []string {
+	cells := make([]string, cp.columns)
+	for i := 0; i < cp.columns; i++ {
+		provider := strings.TrimSpace(cp.providers[i])
+		model := strings.TrimSpace(cp.models[i])
+		switch {
+		case provider != "" && model != "":
+			cells[i] = provider + ":" + model
+		case provider != "":
+			cells[i] = provider
+		case model != "":
+			cells[i] = model
+		default:
+			cells[i] = ""
+		}
+	}
+	return cells
+}
+
+func (cp *ColumnPrinter) dividerCells() []string {
+	cells := make([]string, cp.columns)
+	line := strings.Repeat("─", cp.colWidth)
+	for i := range cells {
+		cells[i] = line
+	}
+	return cells
+}
+
+func (cp *ColumnPrinter) writeLineTo(w io.Writer, cells []string) {
 	if len(cells) < cp.columns {
 		extra := make([]string, cp.columns-len(cells))
 		cells = append(cells, extra...)
@@ -203,5 +220,5 @@ func (cp *ColumnPrinter) writeLine(cells []string) {
 		}
 	}
 	builder.WriteByte('\n')
-	_, _ = cp.stdout.Write([]byte(builder.String()))
+	_, _ = w.Write([]byte(builder.String()))
 }

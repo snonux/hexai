@@ -85,6 +85,8 @@ Process text via the configured LLM:
 
 Defaults: concise answers. If the prompt asks for commands, Hexai outputs only commands. Add the word `explain` to request a verbose explanation. Exit codes: `0` success, `1` provider/config error, `2` no input`.
 
+Provider/model headers and run summaries are written to `stderr`, so `stdout` stays usable in pipes.
+
 `--tps-simulation` accepts either a fixed rate such as `20` or a range such as `12-18`. It streams positional arguments, piped stdin, or built-in placeholder text when no input is provided, so you can preview perceived model latency without needing a real provider or local hardware.
 
 ### Examples

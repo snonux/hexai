@@ -39,7 +39,7 @@ func TestRun_ModelEnvOverride_FlowsIntoClient(t *testing.T) {
 	if seenModel != "gpt-5-codex" {
 		t.Fatalf("expected cfg.OpenAIModel=gpt-5-codex, got %q", seenModel)
 	}
-	if !strings.Contains(errb.String(), "model=gpt-5-codex") {
+	if !strings.Contains(errb.String(), "openai:gpt-5-codex") {
 		t.Fatalf("stderr should print effective model, got: %s", errb.String())
 	}
 }
