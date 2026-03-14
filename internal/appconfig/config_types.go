@@ -170,7 +170,7 @@ func newDefaultConfig() App {
 		ContextWindowLines:    120,
 		MaxContextTokens:      4000,
 		LogPreviewLimit:       100,
-		RequestTimeout:        30,
+		RequestTimeout:        600,
 		CodingTemperature:     &t,
 		OpenAITemperature:     &t,
 		OllamaTemperature:     &t,
