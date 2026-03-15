@@ -87,6 +87,10 @@ Defaults: concise answers. If the prompt asks for commands, Hexai outputs only c
 
 Provider/model headers and run summaries are written to `stderr`, so `stdout` stays usable in pipes.
 
+Successful CLI responses are cached for 24 hours under Hexai's cache directory. The cache key includes the input text, provider, resolved model, and effective CLI prompt text, so prompt/config changes automatically invalidate old entries.
+
+To rerun a multi-provider prompt and print only one response cleanly, use the existing numbered provider flags such as `-0`, `-1`, etc. That reuses the cached response for just that provider when available, which avoids the side-by-side layout on `stdout`.
+
 `--tps-simulation` accepts either a fixed rate such as `20` or a range such as `12-18`. It streams positional arguments, piped stdin, or built-in placeholder text when no input is provided, so you can preview perceived model latency without needing a real provider or local hardware.
 
 ### Examples
@@ -106,6 +110,11 @@ hexai 'install ripgrep on macOS'
 
 # Verbose explanation
 hexai 'install ripgrep on macOS and explain'
+
+# Warm the cache with two configured CLI providers, then print only the
+# second provider's cached response on a rerun
+hexai 'summarize this file'
+hexai -1 'summarize this file'
 
 # Simulate 12-18 tokens per second with placeholder text
 hexai --tps-simulation 12-18

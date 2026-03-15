@@ -13,6 +13,7 @@ import (
 func TestRun_DefaultRequestTimeoutIsTenMinutes(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	t.Setenv("HEXAI_REQUEST_TIMEOUT", "")
 
 	oldNew := newClientFromApp

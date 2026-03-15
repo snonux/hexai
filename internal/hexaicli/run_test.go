@@ -188,17 +188,28 @@ func TestRun_SingleProviderHeaderUsesStderr(t *testing.T) {
 }
 
 func TestExecuteCLIJobs_MultiProviderHeaderUsesStderr(t *testing.T) {
+	oldNew := newClientFromApp
+	defer func() { newClientFromApp = oldNew }()
+	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
+		switch cfg.Provider {
+		case "anthropic":
+			return &fakeClient{name: "anthropic", model: "claude", resp: "RIGHT"}, nil
+		default:
+			return &fakeClient{name: "openai", model: "gpt-4.1", resp: "LEFT"}, nil
+		}
+	}
+
 	jobs := []cliJob{
 		{
 			index:    0,
 			provider: "openai",
-			client:   &fakeClient{name: "openai", model: "gpt-4.1", resp: "LEFT"},
+			cfg:      appconfig.App{Provider: "openai", OpenAIModel: "gpt-4.1"},
 			req:      requestArgs{model: "gpt-4.1"},
 		},
 		{
 			index:    1,
 			provider: "anthropic",
-			client:   &fakeClient{name: "anthropic", model: "claude", resp: "RIGHT"},
+			cfg:      appconfig.App{Provider: "anthropic", AnthropicModel: "claude"},
 			req:      requestArgs{model: "claude"},
 		},
 	}
@@ -225,7 +236,7 @@ func TestBuildCLIRequest_Override(t *testing.T) {
 		AnthropicModel: "claude-3-5-sonnet",
 	}
 	entry := appconfig.SurfaceConfig{Provider: "anthropic", Model: "override", Temperature: floatPtr(0.7)}
-	req := buildCLIRequest(entry, "anthropic", cfg, &fakeClient{name: "anthropic", model: "default"})
+	req := buildCLIRequest(entry, "anthropic", cfg)
 	if req.model != "override" {
 		t.Fatalf("expected model override, got %q", req.model)
 	}
@@ -241,7 +252,8 @@ func TestBuildCLIRequest_Override(t *testing.T) {
 func TestBuildCLIRequest_Gpt5Temp(t *testing.T) {
 	cfg := appconfig.App{Provider: "openai", CodingTemperature: floatPtr(0.2)}
 	entry := appconfig.SurfaceConfig{}
-	req := buildCLIRequest(entry, "openai", cfg, &fakeClient{name: "openai", model: "gpt-5.1"})
+	cfg.OpenAIModel = "gpt-5.1"
+	req := buildCLIRequest(entry, "openai", cfg)
 	if req.model != "gpt-5.1" {
 		t.Fatalf("expected fallback model, got %q", req.model)
 	}
@@ -255,21 +267,6 @@ func TestBuildCLIRequest_Gpt5Temp(t *testing.T) {
 }
 
 func TestBuildCLIJobs_MultiEntries(t *testing.T) {
-	old := newClientFromApp
-	defer func() { newClientFromApp = old }()
-	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
-		model := cfg.OpenAIModel
-		if cfg.Provider == "anthropic" {
-			model = cfg.AnthropicModel
-		}
-		if cfg.Provider == "ollama" {
-			model = cfg.OllamaModel
-		}
-		if strings.TrimSpace(model) == "" {
-			model = "default"
-		}
-		return &fakeClient{name: cfg.Provider, model: model}, nil
-	}
 	cfg := appconfig.App{
 		Provider:    "ollama",
 		OllamaModel: "llama3",
@@ -290,6 +287,9 @@ func TestBuildCLIJobs_MultiEntries(t *testing.T) {
 	}
 	if jobs[1].provider != "anthropic" || jobs[1].req.model != "claude" {
 		t.Fatalf("unexpected second job: %+v", jobs[1])
+	}
+	if jobs[0].cfg.Provider != "openai" || jobs[1].cfg.Provider != "anthropic" {
+		t.Fatalf("unexpected derived configs: %+v", jobs)
 	}
 }
 

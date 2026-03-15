@@ -56,6 +56,22 @@ func TestDefaultModelForProvider(t *testing.T) {
 	}
 }
 
+func TestDefaultModelForProvider_Fallbacks(t *testing.T) {
+	cfg := appconfig.App{}
+	if got := DefaultModelForProvider(cfg, "openai"); got != "gpt-4.1" {
+		t.Fatalf("openai fallback = %q", got)
+	}
+	if got := DefaultModelForProvider(cfg, "openrouter"); got != "openrouter/auto" {
+		t.Fatalf("openrouter fallback = %q", got)
+	}
+	if got := DefaultModelForProvider(cfg, "ollama"); got != "qwen3-coder:30b-a3b-q4_K_M" {
+		t.Fatalf("ollama fallback = %q", got)
+	}
+	if got := DefaultModelForProvider(cfg, "anthropic"); got != "claude-3-5-sonnet-20240620" {
+		t.Fatalf("anthropic fallback = %q", got)
+	}
+}
+
 func TestConfigForProvider(t *testing.T) {
 	base := appconfig.App{
 		Provider:       "openai",

@@ -10,6 +10,23 @@ import (
 	"codeberg.org/snonux/hexai/internal/llm"
 )
 
+func TestMain(m *testing.M) {
+	cacheDir, err := os.MkdirTemp("", "hexai-cli-cache-*")
+	if err != nil {
+		panic(err)
+	}
+	oldCacheHome := os.Getenv("XDG_CACHE_HOME")
+	_ = os.Setenv("XDG_CACHE_HOME", cacheDir)
+	code := m.Run()
+	if oldCacheHome == "" {
+		_ = os.Unsetenv("XDG_CACHE_HOME")
+	} else {
+		_ = os.Setenv("XDG_CACHE_HOME", oldCacheHome)
+	}
+	_ = os.RemoveAll(cacheDir)
+	os.Exit(code)
+}
+
 // setStdin sets os.Stdin from a string and returns a restore func and reader.
 func setStdin(t *testing.T, content string) (func(), *os.File) {
 	t.Helper()

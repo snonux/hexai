@@ -21,13 +21,25 @@ func CanonicalProvider(name string) string {
 func DefaultModelForProvider(cfg appconfig.App, provider string) string {
 	switch CanonicalProvider(provider) {
 	case "openrouter":
-		return strings.TrimSpace(cfg.OpenRouterModel)
+		if model := strings.TrimSpace(cfg.OpenRouterModel); model != "" {
+			return model
+		}
+		return "openrouter/auto"
 	case "ollama":
-		return strings.TrimSpace(cfg.OllamaModel)
+		if model := strings.TrimSpace(cfg.OllamaModel); model != "" {
+			return model
+		}
+		return "qwen3-coder:30b-a3b-q4_K_M"
 	case "anthropic":
-		return strings.TrimSpace(cfg.AnthropicModel)
+		if model := strings.TrimSpace(cfg.AnthropicModel); model != "" {
+			return model
+		}
+		return "claude-3-5-sonnet-20240620"
 	default:
-		return strings.TrimSpace(cfg.OpenAIModel)
+		if model := strings.TrimSpace(cfg.OpenAIModel); model != "" {
+			return model
+		}
+		return "gpt-4.1"
 	}
 }
 
