@@ -42,12 +42,7 @@ type Server struct {
 	cfg         appconfig.App
 	codeActionSubsystem
 	chatSubsystem
-	// LLM request stats — atomic to avoid taking the server-wide mu lock.
-	llmReqTotal       atomic.Int64
-	llmSentBytesTotal atomic.Int64
-	llmRespTotal      atomic.Int64
-	llmRespBytesTotal atomic.Int64
-	startTime         time.Time
+	llmStatsSubsystem
 	completionSubsystem
 	configLoadOpts appconfig.LoadOptions
 	// Outgoing JSON-RPC id counter for server-initiated requests
@@ -70,6 +65,16 @@ type chatSubsystem struct {
 
 type codeActionSubsystem struct {
 	llmClientRegistry
+}
+
+// llmStatsSubsystem holds atomic LLM request counters. All fields are
+// lock-free (atomic.Int64), so no mutex is needed.
+type llmStatsSubsystem struct {
+	llmReqTotal       atomic.Int64
+	llmSentBytesTotal atomic.Int64
+	llmRespTotal      atomic.Int64
+	llmRespBytesTotal atomic.Int64
+	startTime         time.Time
 }
 
 // StatusSink receives status updates from the LSP server.
