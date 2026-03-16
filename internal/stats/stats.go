@@ -75,6 +75,31 @@ type Snapshot struct {
 	Window    time.Duration
 }
 
+// ScopeReqs returns the request count for a specific provider+model pair.
+// Returns 0 when the provider or model is not present in the snapshot.
+func (s Snapshot) ScopeReqs(provider, model string) int64 {
+	if pe, ok := s.Providers[provider]; ok {
+		if mc, ok2 := pe.Models[model]; ok2 {
+			return mc.Reqs
+		}
+	}
+	return 0
+}
+
+// ScopeRPM returns the requests-per-minute for a specific provider+model
+// pair, derived from ScopeReqs and the snapshot's sliding window.
+func (s Snapshot) ScopeRPM(provider, model string) float64 {
+	reqs := s.ScopeReqs(provider, model)
+	if reqs == 0 {
+		return 0
+	}
+	mins := s.Window.Minutes()
+	if mins <= 0 {
+		mins = 0.001
+	}
+	return float64(reqs) / mins
+}
+
 // Update appends one event and prunes old entries under lock.
 func Update(ctx context.Context, provider, model string, sentBytes, recvBytes int) error {
 	dir, err := CacheDir()

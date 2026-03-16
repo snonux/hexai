@@ -593,16 +593,8 @@ func summarizeChatRun(ctx context.Context, client llm.Client, model string, msgs
 	if err == nil {
 		summary.snapshot = snap
 	}
-	minsWin := summary.snapshot.Window.Minutes()
-	if minsWin <= 0 {
-		minsWin = 0.001
-	}
-	if pe, ok := summary.snapshot.Providers[client.Name()]; ok {
-		if mc, ok2 := pe.Models[model]; ok2 {
-			summary.scopeReq = mc.Reqs
-		}
-	}
-	summary.scopeRPM = float64(summary.scopeReq) / minsWin
+	summary.scopeReq = summary.snapshot.ScopeReqs(client.Name(), model)
+	summary.scopeRPM = summary.snapshot.ScopeRPM(client.Name(), model)
 	return summary
 }
 

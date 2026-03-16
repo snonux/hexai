@@ -129,20 +129,12 @@ func runOnce(ctx context.Context, client chatDoer, sys, user string, req request
 	if model == "" {
 		model = client.DefaultModel()
 	}
-	_ = stats.Update(ctx, providerOf(client), model, sent, recv)
+	provider := providerOf(client)
+	_ = stats.Update(ctx, provider, model, sent, recv)
 	if snap, err := stats.TakeSnapshot(); err == nil {
-		minsWin := snap.Window.Minutes()
-		if minsWin <= 0 {
-			minsWin = 0.001
-		}
-		scopeReqs := int64(0)
-		if pe, ok := snap.Providers[providerOf(client)]; ok {
-			if mc, ok2 := pe.Models[model]; ok2 {
-				scopeReqs = mc.Reqs
-			}
-		}
-		scopeRPM := float64(scopeReqs) / minsWin
-		_ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, providerOf(client), model, scopeRPM, scopeReqs, snap.Window))
+		scopeReqs := snap.ScopeReqs(provider, model)
+		scopeRPM := snap.ScopeRPM(provider, model)
+		_ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, provider, model, scopeRPM, scopeReqs, snap.Window))
 	}
 	return out, nil
 }

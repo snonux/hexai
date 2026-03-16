@@ -170,18 +170,8 @@ func (s *Server) logLLMStats(model string) {
 			if modelName == "" {
 				modelName = client.DefaultModel()
 			}
-			// Per-scope rpm estimated from window
-			scopeReqs := int64(0)
-			if pe, ok := snap.Providers[provider]; ok {
-				if mc, ok2 := pe.Models[modelName]; ok2 {
-					scopeReqs = mc.Reqs
-				}
-			}
-			minsWin := snap.Window.Minutes()
-			if minsWin <= 0 {
-				minsWin = 0.001
-			}
-			scopeRPM := float64(scopeReqs) / minsWin
+			scopeReqs := snap.ScopeReqs(provider, modelName)
+			scopeRPM := snap.ScopeRPM(provider, modelName)
 			s.emitGlobalStatus(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, provider, modelName, scopeRPM, scopeReqs, snap.Window)
 		}
 	}

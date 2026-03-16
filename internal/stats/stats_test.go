@@ -334,3 +334,50 @@ func TestUpdate_CancelledContext(t *testing.T) {
 		t.Fatal("expected error from cancelled context, got nil")
 	}
 }
+
+func TestSnapshot_ScopeReqs(t *testing.T) {
+	snap := Snapshot{
+		Providers: map[string]ProviderEntry{
+			"openai": {Models: map[string]Counters{"gpt-5.0": {Reqs: 42}}},
+		},
+	}
+	if got := snap.ScopeReqs("openai", "gpt-5.0"); got != 42 {
+		t.Fatalf("expected 42, got %d", got)
+	}
+	if got := snap.ScopeReqs("openai", "gpt-4.1"); got != 0 {
+		t.Fatalf("expected 0 for missing model, got %d", got)
+	}
+	if got := snap.ScopeReqs("anthropic", "gpt-5.0"); got != 0 {
+		t.Fatalf("expected 0 for missing provider, got %d", got)
+	}
+}
+
+func TestSnapshot_ScopeRPM(t *testing.T) {
+	snap := Snapshot{
+		Providers: map[string]ProviderEntry{
+			"openai": {Models: map[string]Counters{"gpt-5.0": {Reqs: 60}}},
+		},
+		Window: time.Hour,
+	}
+	rpm := snap.ScopeRPM("openai", "gpt-5.0")
+	if rpm != 1.0 {
+		t.Fatalf("expected 1.0 rpm, got %v", rpm)
+	}
+	// Missing model should return 0
+	if rpm := snap.ScopeRPM("openai", "missing"); rpm != 0 {
+		t.Fatalf("expected 0 rpm for missing, got %v", rpm)
+	}
+}
+
+func TestSnapshot_ScopeRPM_ZeroWindow(t *testing.T) {
+	snap := Snapshot{
+		Providers: map[string]ProviderEntry{
+			"openai": {Models: map[string]Counters{"gpt-5.0": {Reqs: 10}}},
+		},
+		Window: 0, // edge case
+	}
+	rpm := snap.ScopeRPM("openai", "gpt-5.0")
+	if rpm <= 0 {
+		t.Fatalf("expected positive rpm even with zero window, got %v", rpm)
+	}
+}
