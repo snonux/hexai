@@ -63,7 +63,7 @@ func ConfigPath() (string, error) {
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("cannot find user home directory: %v", err)
+		return "", fmt.Errorf("cannot find user home directory: %w", err)
 	}
 	return filepath.Join(home, ".config", "hexai", "config.toml"), nil
 }
@@ -76,14 +76,14 @@ func StateDir() (string, error) {
 	if stateHome == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", fmt.Errorf("cannot find user home directory: %v", err)
+			return "", fmt.Errorf("cannot find user home directory: %w", err)
 		}
 		stateHome = filepath.Join(home, ".local", "hexai")
 	}
 
 	stateDir := filepath.Join(stateHome, "state")
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
-		return "", fmt.Errorf("cannot create state directory: %v", err)
+		return "", fmt.Errorf("cannot create state directory: %w", err)
 	}
 	return stateDir, nil
 }
