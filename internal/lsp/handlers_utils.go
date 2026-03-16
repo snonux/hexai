@@ -125,33 +125,33 @@ func chooseSurfaceTemperature(cfg appconfig.App, entry appconfig.SurfaceConfig, 
 	return llmutils.ResolveTemperature(provider, effectiveModel, entry.Temperature, cfg.CodingTemperature)
 }
 
-// small helpers for LLM traffic stats
+// incSentCounters atomically increments request count and sent bytes.
 func (s *Server) incSentCounters(n int) {
-	s.mu.Lock()
-	s.llmReqTotal++
-	s.llmSentBytesTotal += int64(n)
-	s.mu.Unlock()
+	s.llmReqTotal.Add(1)
+	s.llmSentBytesTotal.Add(int64(n))
 }
 
+// incRecvCounters atomically increments response count and received bytes.
 func (s *Server) incRecvCounters(n int) {
-	s.mu.Lock()
-	s.llmRespTotal++
-	s.llmRespBytesTotal += int64(n)
-	s.mu.Unlock()
+	s.llmRespTotal.Add(1)
+	s.llmRespBytesTotal.Add(int64(n))
 }
 
+// logLLMStats logs local LLM traffic counters and the global stats snapshot.
+// Counter reads are atomic so no server-wide lock is needed.
 func (s *Server) logLLMStats(model string) {
-	s.mu.RLock()
+	reqs := s.llmReqTotal.Load()
+	sentTot := s.llmSentBytesTotal.Load()
+	recvTot := s.llmRespBytesTotal.Load()
 	avgSent := int64(0)
-	if s.llmReqTotal > 0 {
-		avgSent = s.llmSentBytesTotal / s.llmReqTotal
+	if reqs > 0 {
+		avgSent = sentTot / reqs
 	}
+	respTotal := s.llmRespTotal.Load()
 	avgRecv := int64(0)
-	if s.llmRespTotal > 0 {
-		avgRecv = s.llmRespBytesTotal / s.llmRespTotal
+	if respTotal > 0 {
+		avgRecv = recvTot / respTotal
 	}
-	reqs, sentTot, recvTot := s.llmReqTotal, s.llmSentBytesTotal, s.llmRespBytesTotal
-	s.mu.RUnlock()
 	mins := time.Since(s.startTime).Minutes()
 	if mins <= 0 {
 		mins = 0.001

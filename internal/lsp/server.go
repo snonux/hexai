@@ -38,11 +38,11 @@ type Server struct {
 	cfg          appconfig.App
 	codeActionSubsystem
 	chatSubsystem
-	// LLM request stats
-	llmReqTotal       int64
-	llmSentBytesTotal int64
-	llmRespTotal      int64
-	llmRespBytesTotal int64
+	// LLM request stats — atomic to avoid taking the server-wide mu lock.
+	llmReqTotal       atomic.Int64
+	llmSentBytesTotal atomic.Int64
+	llmRespTotal      atomic.Int64
+	llmRespBytesTotal atomic.Int64
 	startTime         time.Time
 	completionSubsystem
 	configLoadOpts appconfig.LoadOptions
