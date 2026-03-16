@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/appconfig"
@@ -120,5 +121,5 @@ func defaultLogPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot create state directory: %w", err)
 	}
-	return fmt.Sprintf("%s/hexai-mcp-server.log", stateDir), nil
+	return filepath.Join(stateDir, "hexai-mcp-server.log"), nil
 }

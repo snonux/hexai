@@ -39,5 +39,5 @@ func defaultLogPath() string {
 	if err != nil {
 		return filepath.Join(os.TempDir(), "hexai-lsp-server.log")
 	}
-	return fmt.Sprintf("%s/hexai-lsp-server.log", stateDir)
+	return filepath.Join(stateDir, "hexai-lsp-server.log")
 }
