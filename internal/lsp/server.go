@@ -31,6 +31,7 @@ type Server struct {
 	serverCancel context.CancelFunc
 	statusSink   StatusSink
 	exited       atomic.Bool
+	inflight     sync.WaitGroup // tracks background goroutines (inline prompt, chat, etc.)
 	mu           sync.RWMutex
 	docs         map[string]*document
 	logContext   bool
@@ -332,8 +333,12 @@ func (s *Server) emitGlobalStatus(reqs int64, rpm float64, sent int64, recv int6
 }
 
 // Run starts the server's main loop, reading and dispatching LSP messages until EOF or exit.
+// On shutdown it cancels the server context and waits for in-flight goroutines.
 func (s *Server) Run() error {
-	defer s.cancelRequests()
+	defer func() {
+		s.cancelRequests()
+		s.inflight.Wait()
+	}()
 	for {
 		body, err := s.readMessage()
 		if errors.Is(err, io.EOF) {

@@ -124,7 +124,11 @@ func (s *Server) maybeRunInlinePrompt(uri string, lineIdx int, raw string, openS
 	}
 	if s.currentLLMClient() != nil {
 		pos := Position{Line: lineIdx, Character: len(raw)}
-		go s.runInlinePrompt(uri, pos)
+		s.inflight.Add(1)
+		go func() {
+			defer s.inflight.Done()
+			s.runInlinePrompt(uri, pos)
+		}()
 	}
 	return true
 }
@@ -193,7 +197,11 @@ func (s *Server) handleChatPrompt(uri string, lineIdx int, match chatPromptLine)
 		}
 		return
 	}
-	go s.requestChatResponse(uri, lineIdx, match)
+	s.inflight.Add(1)
+	go func() {
+		defer s.inflight.Done()
+		s.requestChatResponse(uri, lineIdx, match)
+	}()
 }
 
 func (s *Server) requestChatResponse(uri string, lineIdx int, match chatPromptLine) {
@@ -432,7 +440,9 @@ func (s *Server) clientShowDocument(uri string, sel *Range) {
 // The goroutine respects s.serverCtx so it won't write after shutdown.
 func (s *Server) deferShowDocument(uri string, sel Range) {
 	ctx := s.serverCtx
+	s.inflight.Add(1)
 	go func() {
+		defer s.inflight.Done()
 		if ctx == nil {
 			time.Sleep(120 * time.Millisecond)
 			s.clientShowDocument(uri, &sel)
