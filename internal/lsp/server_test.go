@@ -11,7 +11,7 @@ import (
 
 func TestPromptSetUsesConfigStoreSnapshot(t *testing.T) {
 	s := newTestServer()
-	initial := appconfig.App{MaxTokens: 77}
+	initial := appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 77}}
 	store := runtimeconfig.New(initial)
 	s.configStore = store
 
@@ -75,7 +75,7 @@ func (stubLLMClient) DefaultModel() string { return "stub-model" }
 func TestServerApplyOptions(t *testing.T) {
 	s := newTestServer()
 	client := stubLLMClient{}
-	cfg := appconfig.App{MaxTokens: 88}
+	cfg := appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 88}}
 	opts := ServerOptions{Config: &cfg, Client: client}
 	s.ApplyOptions(opts)
 	if s.currentLLMClient() != client {

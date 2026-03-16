@@ -109,9 +109,11 @@ func TestSplitConfigPath(t *testing.T) {
 
 func TestPickDefaultModel(t *testing.T) {
 	cfg := appconfig.App{
-		OllamaModel:    "llama3",
-		AnthropicModel: "claude-sonnet",
-		OpenAIModel:    "gpt-4o",
+		ProviderConfig: appconfig.ProviderConfig{
+			OllamaModel:    "llama3",
+			AnthropicModel: "claude-sonnet",
+			OpenAIModel:    "gpt-4o",
+		},
 	}
 	tests := []struct {
 		provider string

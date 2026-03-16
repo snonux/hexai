@@ -211,14 +211,20 @@ func TestExecuteCLIJobs_MultiProviderHeaderUsesStderr(t *testing.T) {
 		{
 			index:    0,
 			provider: "openai",
-			cfg:      appconfig.App{Provider: "openai", OpenAIModel: "gpt-4.1"},
-			req:      requestArgs{model: "gpt-4.1"},
+			cfg: appconfig.App{
+				CoreConfig:     appconfig.CoreConfig{Provider: "openai"},
+				ProviderConfig: appconfig.ProviderConfig{OpenAIModel: "gpt-4.1"},
+			},
+			req: requestArgs{model: "gpt-4.1"},
 		},
 		{
 			index:    1,
 			provider: "anthropic",
-			cfg:      appconfig.App{Provider: "anthropic", AnthropicModel: "claude"},
-			req:      requestArgs{model: "claude"},
+			cfg: appconfig.App{
+				CoreConfig:     appconfig.CoreConfig{Provider: "anthropic"},
+				ProviderConfig: appconfig.ProviderConfig{AnthropicModel: "claude"},
+			},
+			req: requestArgs{model: "claude"},
 		},
 	}
 
@@ -240,8 +246,8 @@ func TestExecuteCLIJobs_MultiProviderHeaderUsesStderr(t *testing.T) {
 
 func TestBuildCLIRequest_Override(t *testing.T) {
 	cfg := appconfig.App{
-		Provider:       "openai",
-		AnthropicModel: "claude-3-5-sonnet",
+		CoreConfig:     appconfig.CoreConfig{Provider: "openai"},
+		ProviderConfig: appconfig.ProviderConfig{AnthropicModel: "claude-3-5-sonnet"},
 	}
 	entry := appconfig.SurfaceConfig{Provider: "anthropic", Model: "override", Temperature: floatPtr(0.7)}
 	req := buildCLIRequest(entry, "anthropic", cfg)
@@ -258,7 +264,7 @@ func TestBuildCLIRequest_Override(t *testing.T) {
 }
 
 func TestBuildCLIRequest_Gpt5Temp(t *testing.T) {
-	cfg := appconfig.App{Provider: "openai", CodingTemperature: floatPtr(0.2)}
+	cfg := appconfig.App{CoreConfig: appconfig.CoreConfig{Provider: "openai", CodingTemperature: floatPtr(0.2)}}
 	entry := appconfig.SurfaceConfig{}
 	cfg.OpenAIModel = "gpt-5.1"
 	req := buildCLIRequest(entry, "openai", cfg)
@@ -276,11 +282,13 @@ func TestBuildCLIRequest_Gpt5Temp(t *testing.T) {
 
 func TestBuildCLIJobs_MultiEntries(t *testing.T) {
 	cfg := appconfig.App{
-		Provider:    "ollama",
-		OllamaModel: "llama3",
-		CLIConfigs: []appconfig.SurfaceConfig{
-			{Provider: "openai", Model: "gpt-4o"},
-			{Provider: "anthropic", Model: "claude"},
+		CoreConfig: appconfig.CoreConfig{Provider: "ollama"},
+		ProviderConfig: appconfig.ProviderConfig{
+			OllamaModel: "llama3",
+			CLIConfigs: []appconfig.SurfaceConfig{
+				{Provider: "openai", Model: "gpt-4o"},
+				{Provider: "anthropic", Model: "claude"},
+			},
 		},
 	}
 	jobs, err := buildCLIJobs(cfg)
@@ -319,7 +327,13 @@ func TestFilterJobsBySelection(t *testing.T) {
 }
 
 func TestNewClientFromConfig_Ollama(t *testing.T) {
-	cfg := appconfig.App{Provider: "ollama", OllamaBaseURL: "http://x", OllamaModel: "m"}
+	cfg := appconfig.App{
+		CoreConfig: appconfig.CoreConfig{Provider: "ollama"},
+		ProviderConfig: appconfig.ProviderConfig{
+			OllamaBaseURL: "http://x",
+			OllamaModel:   "m",
+		},
+	}
 	c, err := newClientFromConfig(cfg)
 	if err != nil || c == nil {
 		t.Fatalf("expected client: %v %v", c, err)
@@ -327,7 +341,13 @@ func TestNewClientFromConfig_Ollama(t *testing.T) {
 }
 
 func TestNewClientFromConfig_OpenAI_MissingKey(t *testing.T) {
-	cfg := appconfig.App{Provider: "openai", OpenAIBaseURL: "https://api", OpenAIModel: "gpt"}
+	cfg := appconfig.App{
+		CoreConfig: appconfig.CoreConfig{Provider: "openai"},
+		ProviderConfig: appconfig.ProviderConfig{
+			OpenAIBaseURL: "https://api",
+			OpenAIModel:   "gpt",
+		},
+	}
 	t.Setenv("HEXAI_OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	if _, err := newClientFromConfig(cfg); err == nil {

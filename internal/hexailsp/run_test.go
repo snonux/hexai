@@ -99,8 +99,10 @@ func TestRunWithFactory_NormalizesContextMode_AndSetsPreviewLimit(t *testing.T) 
 	var stderr bytes.Buffer
 	logger := log.New(&stderr, "hexai-lsp-server ", 0)
 	cfg := appconfig.App{
-		ContextMode:     "  File-On-New-Func  ",
-		LogPreviewLimit: 3,
+		CoreConfig: appconfig.CoreConfig{
+			ContextMode:     "  File-On-New-Func  ",
+			LogPreviewLimit: 3,
+		},
 	}
 	var gotOpts lsp.ServerOptions
 	factory := func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.ServerOptions) ServerRunner {

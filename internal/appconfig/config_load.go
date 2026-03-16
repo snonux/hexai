@@ -290,14 +290,14 @@ func applyGeneralSection(fc *fileConfig, out *App) {
 	if (fc.General == sectionGeneral{}) && fc.General.CodingTemperature == nil {
 		return
 	}
-	tmp := App{
+	tmp := App{CoreConfig: CoreConfig{
 		MaxTokens:          fc.General.MaxTokens,
 		ContextMode:        fc.General.ContextMode,
 		ContextWindowLines: fc.General.ContextWindowLines,
 		MaxContextTokens:   fc.General.MaxContextTokens,
 		CodingTemperature:  fc.General.CodingTemperature,
 		RequestTimeout:     fc.General.RequestTimeout,
-	}
+	}}
 	out.mergeBasics(&tmp)
 }
 
@@ -305,7 +305,7 @@ func applyLoggingSection(fc *fileConfig, out *App) {
 	if fc.Logging == (sectionLogging{}) {
 		return
 	}
-	out.mergeBasics(&App{LogPreviewLimit: fc.Logging.LogPreviewLimit})
+	out.mergeBasics(&App{CoreConfig: CoreConfig{LogPreviewLimit: fc.Logging.LogPreviewLimit}})
 }
 
 func applyCompletionSection(fc *fileConfig, out *App) {
@@ -315,12 +315,12 @@ func applyCompletionSection(fc *fileConfig, out *App) {
 		fc.Completion.CompletionWaitAll == nil {
 		return
 	}
-	tmp := App{
+	tmp := App{CoreConfig: CoreConfig{
 		CompletionDebounceMs:  fc.Completion.CompletionDebounceMs,
 		CompletionThrottleMs:  fc.Completion.CompletionThrottleMs,
 		ManualInvokeMinPrefix: fc.Completion.ManualInvokeMinPrefix,
 		CompletionWaitAll:     fc.Completion.CompletionWaitAll,
-	}
+	}}
 	out.mergeBasics(&tmp)
 }
 
@@ -328,39 +328,39 @@ func applyTriggerSection(fc *fileConfig, out *App) {
 	if len(fc.Triggers.TriggerCharacters) == 0 {
 		return
 	}
-	out.mergeBasics(&App{TriggerCharacters: fc.Triggers.TriggerCharacters})
+	out.mergeBasics(&App{CoreConfig: CoreConfig{TriggerCharacters: fc.Triggers.TriggerCharacters}})
 }
 
 func applyInlineSection(fc *fileConfig, out *App) {
 	if fc.Inline == (sectionInline{}) {
 		return
 	}
-	out.mergeBasics(&App{InlineOpen: fc.Inline.InlineOpen, InlineClose: fc.Inline.InlineClose})
+	out.mergeBasics(&App{CoreConfig: CoreConfig{InlineOpen: fc.Inline.InlineOpen, InlineClose: fc.Inline.InlineClose}})
 }
 
 func applyChatSection(fc *fileConfig, out *App) {
 	if strings.TrimSpace(fc.Chat.ChatSuffix) == "" && len(fc.Chat.ChatPrefixes) == 0 {
 		return
 	}
-	out.mergeBasics(&App{ChatSuffix: fc.Chat.ChatSuffix, ChatPrefixes: fc.Chat.ChatPrefixes})
+	out.mergeBasics(&App{CoreConfig: CoreConfig{ChatSuffix: fc.Chat.ChatSuffix, ChatPrefixes: fc.Chat.ChatPrefixes}})
 }
 
 func applyProviderNameSection(fc *fileConfig, out *App) {
 	if strings.TrimSpace(fc.Provider.Name) == "" {
 		return
 	}
-	out.mergeBasics(&App{Provider: fc.Provider.Name})
+	out.mergeBasics(&App{CoreConfig: CoreConfig{Provider: fc.Provider.Name}})
 }
 
 func applyIgnoreSection(fc *fileConfig, out *App) {
 	if fc.Ignore.Gitignore == nil && len(fc.Ignore.ExtraPatterns) == 0 && fc.Ignore.LSPNotifyIgnored == nil {
 		return
 	}
-	tmp := App{
+	tmp := App{FeatureConfig: FeatureConfig{
 		IgnoreGitignore:     fc.Ignore.Gitignore,
 		IgnoreExtraPatterns: fc.Ignore.ExtraPatterns,
 		IgnoreLSPNotify:     fc.Ignore.LSPNotifyIgnored,
-	}
+	}}
 	out.mergeBasics(&tmp)
 }
 
@@ -368,11 +368,11 @@ func applyOpenAISection(fc *fileConfig, out *App) {
 	if fc.OpenAI.isZero() && fc.OpenAI.Temperature == nil {
 		return
 	}
-	tmp := App{
+	tmp := App{ProviderConfig: ProviderConfig{
 		OpenAIBaseURL:     fc.OpenAI.BaseURL,
 		OpenAIModel:       fc.OpenAI.resolvedModel(),
 		OpenAITemperature: fc.OpenAI.Temperature,
-	}
+	}}
 	out.mergeProviderFields(&tmp)
 }
 
@@ -380,11 +380,11 @@ func applyOpenRouterSection(fc *fileConfig, out *App) {
 	if fc.OpenRouter == (sectionOpenRouter{}) && fc.OpenRouter.Temperature == nil {
 		return
 	}
-	tmp := App{
+	tmp := App{ProviderConfig: ProviderConfig{
 		OpenRouterBaseURL:     fc.OpenRouter.BaseURL,
 		OpenRouterModel:       fc.OpenRouter.Model,
 		OpenRouterTemperature: fc.OpenRouter.Temperature,
-	}
+	}}
 	out.mergeProviderFields(&tmp)
 }
 
@@ -392,11 +392,11 @@ func applyOllamaSection(fc *fileConfig, out *App) {
 	if fc.Ollama == (sectionOllama{}) && fc.Ollama.Temperature == nil {
 		return
 	}
-	tmp := App{
+	tmp := App{ProviderConfig: ProviderConfig{
 		OllamaBaseURL:     fc.Ollama.BaseURL,
 		OllamaModel:       fc.Ollama.Model,
 		OllamaTemperature: fc.Ollama.Temperature,
-	}
+	}}
 	out.mergeProviderFields(&tmp)
 }
 
@@ -404,11 +404,11 @@ func applyAnthropicSection(fc *fileConfig, out *App) {
 	if fc.Anthropic == (sectionAnthropic{}) && fc.Anthropic.Temperature == nil {
 		return
 	}
-	tmp := App{
+	tmp := App{ProviderConfig: ProviderConfig{
 		AnthropicBaseURL:     fc.Anthropic.BaseURL,
 		AnthropicModel:       fc.Anthropic.Model,
 		AnthropicTemperature: fc.Anthropic.Temperature,
-	}
+	}}
 	out.mergeProviderFields(&tmp)
 }
 

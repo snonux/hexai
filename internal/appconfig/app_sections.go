@@ -3,85 +3,119 @@ package appconfig
 import "slices"
 
 // CoreConfig contains core runtime and interaction settings.
+// It is embedded in App; JSON tags ensure marshalling works correctly.
 type CoreConfig struct {
-	MaxTokens             int
-	ContextMode           string
-	ContextWindowLines    int
-	MaxContextTokens      int
-	LogPreviewLimit       int
-	RequestTimeout        int
-	CodingTemperature     *float64
-	ManualInvokeMinPrefix int
-	CompletionDebounceMs  int
-	CompletionThrottleMs  int
-	CompletionWaitAll     *bool
-	TriggerCharacters     []string
-	Provider              string
-	InlineOpen            string
-	InlineClose           string
-	ChatSuffix            string
-	ChatPrefixes          []string
+	MaxTokens          int    `json:"max_tokens"`
+	ContextMode        string `json:"context_mode"`
+	ContextWindowLines int    `json:"context_window_lines"`
+	MaxContextTokens   int    `json:"max_context_tokens"`
+	LogPreviewLimit    int    `json:"log_preview_limit"`
+	RequestTimeout     int    `json:"request_timeout"`
+	// Single knob for LSP requests; if set, overrides hardcoded temps in LSP.
+	CodingTemperature *float64 `json:"coding_temperature"`
+	// Minimum identifier characters required for manual (TriggerKind=1) invoke
+	// to proceed without structural triggers. 0 means always allow.
+	ManualInvokeMinPrefix int `json:"manual_invoke_min_prefix"`
+	// Completion debounce in milliseconds. When > 0, the server waits until
+	// there has been no text change for at least this duration before sending
+	// an LLM completion request.
+	CompletionDebounceMs int `json:"completion_debounce_ms"`
+	// Completion throttle in milliseconds. When > 0, caps the minimum spacing
+	// between LLM requests (both chat and code-completer paths).
+	CompletionThrottleMs int `json:"completion_throttle_ms"`
+	// CompletionWaitAll controls whether to wait for all configured completion
+	// backends before returning results. When true (default), waits for all
+	// backends. When false, returns the first result immediately.
+	CompletionWaitAll *bool    `json:"completion_wait_all"`
+	TriggerCharacters []string `json:"trigger_characters"`
+	Provider          string   `json:"provider"`
+	// Inline prompt trigger characters (default: >!text> and >>!text>)
+	InlineOpen  string `json:"inline_open"`
+	InlineClose string `json:"inline_close"`
+	// In-editor chat triggers (default: suffix ">" after one of [?, !, :, ;])
+	ChatSuffix   string   `json:"chat_suffix"`
+	ChatPrefixes []string `json:"chat_prefixes"`
 }
 
 // ProviderConfig contains provider endpoints/models and per-surface model overrides.
+// It is embedded in App; JSON tags ensure marshalling works correctly.
 type ProviderConfig struct {
-	OpenAIBaseURL         string
-	OpenAIModel           string
-	OpenAITemperature     *float64
-	OpenRouterBaseURL     string
-	OpenRouterModel       string
-	OpenRouterTemperature *float64
-	OllamaBaseURL         string
-	OllamaModel           string
-	OllamaTemperature     *float64
-	AnthropicBaseURL      string
-	AnthropicModel        string
-	AnthropicTemperature  *float64
-	CompletionConfigs     []SurfaceConfig
-	CodeActionConfigs     []SurfaceConfig
-	ChatConfigs           []SurfaceConfig
-	CLIConfigs            []SurfaceConfig
+	// Provider-specific options
+	OpenAIBaseURL string `json:"openai_base_url"`
+	OpenAIModel   string `json:"openai_model"`
+	// Default temperature for OpenAI requests (nil means use provider default)
+	OpenAITemperature *float64 `json:"openai_temperature"`
+	OpenRouterBaseURL string   `json:"openrouter_base_url"`
+	OpenRouterModel   string   `json:"openrouter_model"`
+	// Default temperature for OpenRouter requests (nil means use provider default)
+	OpenRouterTemperature *float64 `json:"openrouter_temperature"`
+	OllamaBaseURL         string   `json:"ollama_base_url"`
+	OllamaModel           string   `json:"ollama_model"`
+	// Default temperature for Ollama requests (nil means use provider default)
+	OllamaTemperature *float64 `json:"ollama_temperature"`
+	AnthropicBaseURL  string   `json:"anthropic_base_url"`
+	AnthropicModel    string   `json:"anthropic_model"`
+	// Default temperature for Anthropic requests (nil means use provider default)
+	AnthropicTemperature *float64 `json:"anthropic_temperature"`
+	// Per-surface provider/model configurations (ordered; first entry is primary)
+	CompletionConfigs []SurfaceConfig `json:"-"`
+	CodeActionConfigs []SurfaceConfig `json:"-"`
+	ChatConfigs       []SurfaceConfig `json:"-"`
+	CLIConfigs        []SurfaceConfig `json:"-"`
 }
 
 // PromptConfig contains all prompt templates and custom action prompts.
+// It is embedded in App; fields use json:"-" since prompts are not exposed via JSON.
 type PromptConfig struct {
-	PromptCompletionSystemGeneral     string
-	PromptCompletionSystemParams      string
-	PromptCompletionSystemInline      string
-	PromptCompletionUserGeneral       string
-	PromptCompletionUserParams        string
-	PromptCompletionExtraHeader       string
-	PromptNativeCompletion            string
-	PromptChatSystem                  string
-	PromptCodeActionRewriteSystem     string
-	PromptCodeActionDiagnosticsSystem string
-	PromptCodeActionDocumentSystem    string
-	PromptCodeActionRewriteUser       string
-	PromptCodeActionDiagnosticsUser   string
-	PromptCodeActionDocumentUser      string
-	PromptCodeActionGoTestSystem      string
-	PromptCodeActionGoTestUser        string
-	PromptCodeActionSimplifySystem    string
-	PromptCodeActionSimplifyUser      string
-	PromptCLIDefaultSystem            string
-	PromptCLIExplainSystem            string
-	CustomActions                     []CustomAction
-	TmuxCustomMenuHotkey              string
+	// Prompt templates (configured only via file; no env overrides)
+	// Completion
+	PromptCompletionSystemGeneral string `json:"-"`
+	PromptCompletionSystemParams  string `json:"-"`
+	PromptCompletionSystemInline  string `json:"-"`
+	PromptCompletionUserGeneral   string `json:"-"`
+	PromptCompletionUserParams    string `json:"-"`
+	PromptCompletionExtraHeader   string `json:"-"`
+	// Provider-native code-completer
+	PromptNativeCompletion string `json:"-"`
+	// In-editor chat
+	PromptChatSystem string `json:"-"`
+	// Code actions
+	PromptCodeActionRewriteSystem     string `json:"-"`
+	PromptCodeActionDiagnosticsSystem string `json:"-"`
+	PromptCodeActionDocumentSystem    string `json:"-"`
+	PromptCodeActionRewriteUser       string `json:"-"`
+	PromptCodeActionDiagnosticsUser   string `json:"-"`
+	PromptCodeActionDocumentUser      string `json:"-"`
+	PromptCodeActionGoTestSystem      string `json:"-"`
+	PromptCodeActionGoTestUser        string `json:"-"`
+	PromptCodeActionSimplifySystem    string `json:"-"`
+	PromptCodeActionSimplifyUser      string `json:"-"`
+	// CLI
+	PromptCLIDefaultSystem string `json:"-"`
+	PromptCLIExplainSystem string `json:"-"`
+	// Custom code actions and tmux integration
+	CustomActions        []CustomAction `json:"-"`
+	TmuxCustomMenuHotkey string         `json:"-"`
 }
 
 // FeatureConfig contains non-LLM feature toggles/integration settings.
+// It is embedded in App; fields use json:"-" since features are not exposed via JSON.
 type FeatureConfig struct {
-	StatsWindowMinutes   int
-	IgnoreGitignore      *bool
-	IgnoreExtraPatterns  []string
-	IgnoreLSPNotify      *bool
-	TmuxEditPopupWidth   string
-	TmuxEditPopupHeight  string
-	TmuxEditDefaultAgent string
-	TmuxEditAgents       []TmuxEditAgentCfg
-	MCPPromptsDir        string
-	MCPSlashCommandSync  bool
-	MCPSlashCommandDir   string
+	// Stats
+	StatsWindowMinutes int `json:"-"`
+	// Ignore: gitignore-aware file filtering for LSP
+	IgnoreGitignore     *bool    `json:"-"`
+	IgnoreExtraPatterns []string `json:"-"`
+	IgnoreLSPNotify     *bool    `json:"-"`
+	// TmuxEdit: popup editor settings for hexai-tmux-edit
+	TmuxEditPopupWidth   string             `json:"-"`
+	TmuxEditPopupHeight  string             `json:"-"`
+	TmuxEditDefaultAgent string             `json:"-"`
+	TmuxEditAgents       []TmuxEditAgentCfg `json:"-"`
+	// MCP: Model Context Protocol server settings
+	MCPPromptsDir       string `json:"-"` // Directory for prompt storage
+	MCPSlashCommandSync bool   `json:"-"` // Enable slash command sync
+	MCPSlashCommandDir  string `json:"-"` // Directory for slash command files
 }
 
 // AppSections is the focused split of App into subsystem-specific config groups.
@@ -110,174 +144,72 @@ func (a *App) ApplySections(sections AppSections) {
 	a.ApplyFeatureSection(sections.Features)
 }
 
-// CoreSection returns the core runtime and interaction settings.
+// CoreSection returns a deep copy of the core runtime and interaction settings.
+// Slices are cloned to prevent callers from mutating the original.
 func (a App) CoreSection() CoreConfig {
-	return CoreConfig{
-		MaxTokens:             a.MaxTokens,
-		ContextMode:           a.ContextMode,
-		ContextWindowLines:    a.ContextWindowLines,
-		MaxContextTokens:      a.MaxContextTokens,
-		LogPreviewLimit:       a.LogPreviewLimit,
-		RequestTimeout:        a.RequestTimeout,
-		CodingTemperature:     a.CodingTemperature,
-		ManualInvokeMinPrefix: a.ManualInvokeMinPrefix,
-		CompletionDebounceMs:  a.CompletionDebounceMs,
-		CompletionThrottleMs:  a.CompletionThrottleMs,
-		CompletionWaitAll:     a.CompletionWaitAll,
-		TriggerCharacters:     slices.Clone(a.TriggerCharacters),
-		Provider:              a.Provider,
-		InlineOpen:            a.InlineOpen,
-		InlineClose:           a.InlineClose,
-		ChatSuffix:            a.ChatSuffix,
-		ChatPrefixes:          slices.Clone(a.ChatPrefixes),
-	}
+	c := a.CoreConfig
+	c.TriggerCharacters = slices.Clone(a.TriggerCharacters)
+	c.ChatPrefixes = slices.Clone(a.ChatPrefixes)
+	return c
 }
 
 // ApplyCoreSection applies core runtime and interaction settings.
+// Slices are cloned to prevent the caller's copy from being shared.
 func (a *App) ApplyCoreSection(core CoreConfig) {
-	a.MaxTokens = core.MaxTokens
-	a.ContextMode = core.ContextMode
-	a.ContextWindowLines = core.ContextWindowLines
-	a.MaxContextTokens = core.MaxContextTokens
-	a.LogPreviewLimit = core.LogPreviewLimit
-	a.RequestTimeout = core.RequestTimeout
-	a.CodingTemperature = core.CodingTemperature
-	a.ManualInvokeMinPrefix = core.ManualInvokeMinPrefix
-	a.CompletionDebounceMs = core.CompletionDebounceMs
-	a.CompletionThrottleMs = core.CompletionThrottleMs
-	a.CompletionWaitAll = core.CompletionWaitAll
+	a.CoreConfig = core
 	a.TriggerCharacters = slices.Clone(core.TriggerCharacters)
-	a.Provider = core.Provider
-	a.InlineOpen = core.InlineOpen
-	a.InlineClose = core.InlineClose
-	a.ChatSuffix = core.ChatSuffix
 	a.ChatPrefixes = slices.Clone(core.ChatPrefixes)
 }
 
-// ProviderSection returns provider endpoint/model settings and surface overrides.
+// ProviderSection returns a deep copy of provider endpoint/model settings.
+// Surface config slices are cloned to prevent callers from mutating the original.
 func (a App) ProviderSection() ProviderConfig {
-	return ProviderConfig{
-		OpenAIBaseURL:         a.OpenAIBaseURL,
-		OpenAIModel:           a.OpenAIModel,
-		OpenAITemperature:     a.OpenAITemperature,
-		OpenRouterBaseURL:     a.OpenRouterBaseURL,
-		OpenRouterModel:       a.OpenRouterModel,
-		OpenRouterTemperature: a.OpenRouterTemperature,
-		OllamaBaseURL:         a.OllamaBaseURL,
-		OllamaModel:           a.OllamaModel,
-		OllamaTemperature:     a.OllamaTemperature,
-		AnthropicBaseURL:      a.AnthropicBaseURL,
-		AnthropicModel:        a.AnthropicModel,
-		AnthropicTemperature:  a.AnthropicTemperature,
-		CompletionConfigs:     cloneSurfaceConfigs(a.CompletionConfigs),
-		CodeActionConfigs:     cloneSurfaceConfigs(a.CodeActionConfigs),
-		ChatConfigs:           cloneSurfaceConfigs(a.ChatConfigs),
-		CLIConfigs:            cloneSurfaceConfigs(a.CLIConfigs),
-	}
+	p := a.ProviderConfig
+	p.CompletionConfigs = cloneSurfaceConfigs(a.CompletionConfigs)
+	p.CodeActionConfigs = cloneSurfaceConfigs(a.CodeActionConfigs)
+	p.ChatConfigs = cloneSurfaceConfigs(a.ChatConfigs)
+	p.CLIConfigs = cloneSurfaceConfigs(a.CLIConfigs)
+	return p
 }
 
 // ApplyProviderSection applies provider endpoint/model settings and surface overrides.
+// Surface config slices are cloned to prevent the caller's copy from being shared.
 func (a *App) ApplyProviderSection(providers ProviderConfig) {
-	a.OpenAIBaseURL = providers.OpenAIBaseURL
-	a.OpenAIModel = providers.OpenAIModel
-	a.OpenAITemperature = providers.OpenAITemperature
-	a.OpenRouterBaseURL = providers.OpenRouterBaseURL
-	a.OpenRouterModel = providers.OpenRouterModel
-	a.OpenRouterTemperature = providers.OpenRouterTemperature
-	a.OllamaBaseURL = providers.OllamaBaseURL
-	a.OllamaModel = providers.OllamaModel
-	a.OllamaTemperature = providers.OllamaTemperature
-	a.AnthropicBaseURL = providers.AnthropicBaseURL
-	a.AnthropicModel = providers.AnthropicModel
-	a.AnthropicTemperature = providers.AnthropicTemperature
+	a.ProviderConfig = providers
 	a.CompletionConfigs = cloneSurfaceConfigs(providers.CompletionConfigs)
 	a.CodeActionConfigs = cloneSurfaceConfigs(providers.CodeActionConfigs)
 	a.ChatConfigs = cloneSurfaceConfigs(providers.ChatConfigs)
 	a.CLIConfigs = cloneSurfaceConfigs(providers.CLIConfigs)
 }
 
-// PromptSection returns prompt templates and custom action prompt settings.
+// PromptSection returns a deep copy of prompt templates and custom action settings.
+// The CustomActions slice is cloned to prevent callers from mutating the original.
 func (a App) PromptSection() PromptConfig {
-	return PromptConfig{
-		PromptCompletionSystemGeneral:     a.PromptCompletionSystemGeneral,
-		PromptCompletionSystemParams:      a.PromptCompletionSystemParams,
-		PromptCompletionSystemInline:      a.PromptCompletionSystemInline,
-		PromptCompletionUserGeneral:       a.PromptCompletionUserGeneral,
-		PromptCompletionUserParams:        a.PromptCompletionUserParams,
-		PromptCompletionExtraHeader:       a.PromptCompletionExtraHeader,
-		PromptNativeCompletion:            a.PromptNativeCompletion,
-		PromptChatSystem:                  a.PromptChatSystem,
-		PromptCodeActionRewriteSystem:     a.PromptCodeActionRewriteSystem,
-		PromptCodeActionDiagnosticsSystem: a.PromptCodeActionDiagnosticsSystem,
-		PromptCodeActionDocumentSystem:    a.PromptCodeActionDocumentSystem,
-		PromptCodeActionRewriteUser:       a.PromptCodeActionRewriteUser,
-		PromptCodeActionDiagnosticsUser:   a.PromptCodeActionDiagnosticsUser,
-		PromptCodeActionDocumentUser:      a.PromptCodeActionDocumentUser,
-		PromptCodeActionGoTestSystem:      a.PromptCodeActionGoTestSystem,
-		PromptCodeActionGoTestUser:        a.PromptCodeActionGoTestUser,
-		PromptCodeActionSimplifySystem:    a.PromptCodeActionSimplifySystem,
-		PromptCodeActionSimplifyUser:      a.PromptCodeActionSimplifyUser,
-		PromptCLIDefaultSystem:            a.PromptCLIDefaultSystem,
-		PromptCLIExplainSystem:            a.PromptCLIExplainSystem,
-		CustomActions:                     append([]CustomAction{}, a.CustomActions...),
-		TmuxCustomMenuHotkey:              a.TmuxCustomMenuHotkey,
-	}
+	p := a.PromptConfig
+	p.CustomActions = append([]CustomAction{}, a.CustomActions...)
+	return p
 }
 
 // ApplyPromptSection applies prompt templates and custom action prompt settings.
+// The CustomActions slice is cloned to prevent the caller's copy from being shared.
 func (a *App) ApplyPromptSection(prompts PromptConfig) {
-	a.PromptCompletionSystemGeneral = prompts.PromptCompletionSystemGeneral
-	a.PromptCompletionSystemParams = prompts.PromptCompletionSystemParams
-	a.PromptCompletionSystemInline = prompts.PromptCompletionSystemInline
-	a.PromptCompletionUserGeneral = prompts.PromptCompletionUserGeneral
-	a.PromptCompletionUserParams = prompts.PromptCompletionUserParams
-	a.PromptCompletionExtraHeader = prompts.PromptCompletionExtraHeader
-	a.PromptNativeCompletion = prompts.PromptNativeCompletion
-	a.PromptChatSystem = prompts.PromptChatSystem
-	a.PromptCodeActionRewriteSystem = prompts.PromptCodeActionRewriteSystem
-	a.PromptCodeActionDiagnosticsSystem = prompts.PromptCodeActionDiagnosticsSystem
-	a.PromptCodeActionDocumentSystem = prompts.PromptCodeActionDocumentSystem
-	a.PromptCodeActionRewriteUser = prompts.PromptCodeActionRewriteUser
-	a.PromptCodeActionDiagnosticsUser = prompts.PromptCodeActionDiagnosticsUser
-	a.PromptCodeActionDocumentUser = prompts.PromptCodeActionDocumentUser
-	a.PromptCodeActionGoTestSystem = prompts.PromptCodeActionGoTestSystem
-	a.PromptCodeActionGoTestUser = prompts.PromptCodeActionGoTestUser
-	a.PromptCodeActionSimplifySystem = prompts.PromptCodeActionSimplifySystem
-	a.PromptCodeActionSimplifyUser = prompts.PromptCodeActionSimplifyUser
-	a.PromptCLIDefaultSystem = prompts.PromptCLIDefaultSystem
-	a.PromptCLIExplainSystem = prompts.PromptCLIExplainSystem
+	a.PromptConfig = prompts
 	a.CustomActions = append([]CustomAction{}, prompts.CustomActions...)
-	a.TmuxCustomMenuHotkey = prompts.TmuxCustomMenuHotkey
 }
 
-// FeatureSection returns non-LLM feature toggles and integrations.
+// FeatureSection returns a deep copy of non-LLM feature toggles and integrations.
+// Slices are cloned to prevent callers from mutating the original.
 func (a App) FeatureSection() FeatureConfig {
-	return FeatureConfig{
-		StatsWindowMinutes:   a.StatsWindowMinutes,
-		IgnoreGitignore:      a.IgnoreGitignore,
-		IgnoreExtraPatterns:  slices.Clone(a.IgnoreExtraPatterns),
-		IgnoreLSPNotify:      a.IgnoreLSPNotify,
-		TmuxEditPopupWidth:   a.TmuxEditPopupWidth,
-		TmuxEditPopupHeight:  a.TmuxEditPopupHeight,
-		TmuxEditDefaultAgent: a.TmuxEditDefaultAgent,
-		TmuxEditAgents:       append([]TmuxEditAgentCfg{}, a.TmuxEditAgents...),
-		MCPPromptsDir:        a.MCPPromptsDir,
-		MCPSlashCommandSync:  a.MCPSlashCommandSync,
-		MCPSlashCommandDir:   a.MCPSlashCommandDir,
-	}
+	f := a.FeatureConfig
+	f.IgnoreExtraPatterns = slices.Clone(a.IgnoreExtraPatterns)
+	f.TmuxEditAgents = append([]TmuxEditAgentCfg{}, a.TmuxEditAgents...)
+	return f
 }
 
 // ApplyFeatureSection applies non-LLM feature toggles and integrations.
+// Slices are cloned to prevent the caller's copy from being shared.
 func (a *App) ApplyFeatureSection(features FeatureConfig) {
-	a.StatsWindowMinutes = features.StatsWindowMinutes
-	a.IgnoreGitignore = features.IgnoreGitignore
+	a.FeatureConfig = features
 	a.IgnoreExtraPatterns = slices.Clone(features.IgnoreExtraPatterns)
-	a.IgnoreLSPNotify = features.IgnoreLSPNotify
-	a.TmuxEditPopupWidth = features.TmuxEditPopupWidth
-	a.TmuxEditPopupHeight = features.TmuxEditPopupHeight
-	a.TmuxEditDefaultAgent = features.TmuxEditDefaultAgent
 	a.TmuxEditAgents = append([]TmuxEditAgentCfg{}, features.TmuxEditAgents...)
-	a.MCPPromptsDir = features.MCPPromptsDir
-	a.MCPSlashCommandSync = features.MCPSlashCommandSync
-	a.MCPSlashCommandDir = features.MCPSlashCommandDir
 }

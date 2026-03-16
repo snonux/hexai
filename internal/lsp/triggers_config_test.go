@@ -30,7 +30,7 @@ func TestShouldSuppressForChatTriggerEOL_CustomConfig(t *testing.T) {
 
 func TestNewServer_AssignsTriggerGlobals_AndParsingUsesThem(t *testing.T) {
 	var out bytes.Buffer
-	cfg := appconfig.App{InlineOpen: "<", InlineClose: ">", ChatSuffix: ")", ChatPrefixes: []string{":"}}
+	cfg := appconfig.App{CoreConfig: appconfig.CoreConfig{InlineOpen: "<", InlineClose: ">", ChatSuffix: ")", ChatPrefixes: []string{":"}}}
 	s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{Config: &cfg})
 	openStr, _, openChar, closeChar := s.inlineMarkers()
 	if openChar != '<' || closeChar != '>' {
@@ -68,7 +68,7 @@ func TestIsTriggerEvent_BareDoubleOpenBlocksEvenWithContextTriggerChar(t *testin
 
 func TestDetectAndHandleChat_CustomConfig_InsertsReply(t *testing.T) {
 	var out bytes.Buffer
-	cfg := appconfig.App{ChatSuffix: "#", ChatPrefixes: []string{")"}}
+	cfg := appconfig.App{CoreConfig: appconfig.CoreConfig{ChatSuffix: "#", ChatPrefixes: []string{")"}}}
 	s := NewServer(bytes.NewReader(nil), &out, log.New(io.Discard, "", 0), ServerOptions{Config: &cfg})
 	s.llmClient = fakeLLM{resp: "Hello\nmulti-line reply"}
 	uri := "file:///chat2.go"

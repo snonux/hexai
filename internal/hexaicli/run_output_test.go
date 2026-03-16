@@ -350,8 +350,20 @@ func TestRunCLIJobs_MultiJob_WritesOutputs(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 
 	jobs := []cliJob{
-		{index: 0, provider: "a", cfg: appconfig.App{Provider: "a", OllamaBaseURL: "http://x", OllamaModel: "m"}, req: requestArgs{model: "m"}},
-		{index: 1, provider: "b", cfg: appconfig.App{Provider: "b", OllamaBaseURL: "http://x", OllamaModel: "m"}, req: requestArgs{model: "m"}},
+		{index: 0, provider: "a", cfg: appconfig.App{
+			CoreConfig: appconfig.CoreConfig{Provider: "a"},
+			ProviderConfig: appconfig.ProviderConfig{
+				OllamaBaseURL: "http://x",
+				OllamaModel:   "m",
+			},
+		}, req: requestArgs{model: "m"}},
+		{index: 1, provider: "b", cfg: appconfig.App{
+			CoreConfig: appconfig.CoreConfig{Provider: "b"},
+			ProviderConfig: appconfig.ProviderConfig{
+				OllamaBaseURL: "http://x",
+				OllamaModel:   "m",
+			},
+		}, req: requestArgs{model: "m"}},
 	}
 	msgs := buildMessages("hello")
 	var stdout, stderr bytes.Buffer
@@ -378,7 +390,13 @@ func TestRunCLIJobs_MultiJob_WritesOutputs(t *testing.T) {
 
 	// Also test the runCLIJobs single-job (streaming) path.
 	singleJobs := []cliJob{
-		{index: 0, provider: "a", cfg: appconfig.App{Provider: "a", OllamaBaseURL: "http://x", OllamaModel: "m"}, req: requestArgs{model: "m"}},
+		{index: 0, provider: "a", cfg: appconfig.App{
+			CoreConfig: appconfig.CoreConfig{Provider: "a"},
+			ProviderConfig: appconfig.ProviderConfig{
+				OllamaBaseURL: "http://x",
+				OllamaModel:   "m",
+			},
+		}, req: requestArgs{model: "m"}},
 	}
 	stdout.Reset()
 	stderr.Reset()

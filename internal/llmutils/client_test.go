@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewClientFromApp_Ollama(t *testing.T) {
-	cfg := appconfig.App{Provider: "ollama"}
+	cfg := appconfig.App{CoreConfig: appconfig.CoreConfig{Provider: "ollama"}}
 	c, err := NewClientFromApp(cfg)
 	if err != nil || c == nil {
 		t.Fatalf("ollama client failed: %v %v", c, err)
@@ -17,7 +17,7 @@ func TestNewClientFromApp_Ollama(t *testing.T) {
 
 func TestNewClientFromApp_OpenAI_WithKey(t *testing.T) {
 	t.Setenv("HEXAI_OPENAI_API_KEY", "test-key")
-	cfg := appconfig.App{Provider: "openai"}
+	cfg := appconfig.App{CoreConfig: appconfig.CoreConfig{Provider: "openai"}}
 	c, err := NewClientFromApp(cfg)
 	if err != nil || c == nil {
 		t.Fatalf("openai client failed: %v %v", c, err)
@@ -37,10 +37,12 @@ func TestCanonicalProvider(t *testing.T) {
 
 func TestDefaultModelForProvider(t *testing.T) {
 	cfg := appconfig.App{
-		OpenAIModel:     "gpt-4.1",
-		OpenRouterModel: "openrouter/auto",
-		OllamaModel:     "qwen3",
-		AnthropicModel:  "claude",
+		ProviderConfig: appconfig.ProviderConfig{
+			OpenAIModel:     "gpt-4.1",
+			OpenRouterModel: "openrouter/auto",
+			OllamaModel:     "qwen3",
+			AnthropicModel:  "claude",
+		},
 	}
 	if got := DefaultModelForProvider(cfg, "openai"); got != "gpt-4.1" {
 		t.Fatalf("openai model = %q", got)
@@ -74,10 +76,12 @@ func TestDefaultModelForProvider_Fallbacks(t *testing.T) {
 
 func TestConfigForProvider(t *testing.T) {
 	base := appconfig.App{
-		Provider:       "openai",
-		OpenAIModel:    "gpt-4.1",
-		OllamaModel:    "qwen3",
-		AnthropicModel: "claude",
+		CoreConfig: appconfig.CoreConfig{Provider: "openai"},
+		ProviderConfig: appconfig.ProviderConfig{
+			OpenAIModel:    "gpt-4.1",
+			OllamaModel:    "qwen3",
+			AnthropicModel: "claude",
+		},
 	}
 	got := ConfigForProvider(base, "ollama", "qwen3-coder")
 	if got.Provider != "ollama" {

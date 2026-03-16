@@ -118,38 +118,60 @@ func Diff(oldCfg, newCfg appconfig.App) []Change {
 	return changes
 }
 
+// flattenAppConfig converts an App config into a flat key/value map for diffing.
+// It recurses into embedded structs (CoreConfig, ProviderConfig, etc.) to reach
+// all leaf fields. Keys are derived from json tags, with fallbacks for fields
+// that use json:"-" (e.g. surface configs, stats).
 func flattenAppConfig(cfg appconfig.App) map[string]string {
 	result := make(map[string]string)
-	val := reflect.ValueOf(cfg)
+	flattenStructFields(reflect.ValueOf(cfg), result)
+	return result
+}
+
+// flattenStructFields iterates over struct fields, recursing into anonymous
+// (embedded) structs and extracting key/value pairs from leaf fields.
+func flattenStructFields(val reflect.Value, result map[string]string) {
 	typ := val.Type()
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
-		key := strings.TrimSpace(field.Tag.Get("toml"))
-		if key == "" || key == "-" {
-			switch field.Name {
-			case "StatsWindowMinutes":
-				key = "stats_window_minutes"
-			case "CompletionConfigs":
-				key = "completion_configs"
-			case "CodeActionConfigs":
-				key = "code_action_configs"
-			case "ChatConfigs":
-				key = "chat_configs"
-			case "CLIConfigs":
-				key = "cli_configs"
-			default:
-				continue
-			}
+		// Recurse into embedded (anonymous) structs to flatten their fields.
+		if field.Anonymous && field.Type.Kind() == reflect.Struct {
+			flattenStructFields(val.Field(i), result)
+			continue
 		}
-		if idx := strings.Index(key, ","); idx >= 0 {
-			key = key[:idx]
-		}
-		if key == "" || key == "-" {
+		key := fieldKey(field)
+		if key == "" {
 			continue
 		}
 		result[key] = stringifyValue(val.Field(i))
 	}
-	return result
+}
+
+// fieldKey derives the flattened map key for a struct field from its json tag,
+// with manual fallbacks for fields tagged json:"-" that still need tracking.
+func fieldKey(field reflect.StructField) string {
+	key := strings.TrimSpace(field.Tag.Get("json"))
+	if key == "" || key == "-" {
+		// Manual fallbacks for fields hidden from JSON but needed in diffs.
+		switch field.Name {
+		case "StatsWindowMinutes":
+			return "stats_window_minutes"
+		case "CompletionConfigs":
+			return "completion_configs"
+		case "CodeActionConfigs":
+			return "code_action_configs"
+		case "ChatConfigs":
+			return "chat_configs"
+		case "CLIConfigs":
+			return "cli_configs"
+		default:
+			return ""
+		}
+	}
+	if idx := strings.Index(key, ","); idx >= 0 {
+		key = key[:idx]
+	}
+	return key
 }
 
 func stringifyValue(v reflect.Value) string {

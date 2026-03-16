@@ -30,13 +30,17 @@ func capResp(t *testing.T, buf *bytes.Buffer) Response {
 func TestHandleCodeAction_ListsCustomActions(t *testing.T) {
 	var out bytes.Buffer
 	cfg := appconfig.App{
-		InlineOpen:   ">!",
-		InlineClose:  ">",
-		ChatSuffix:   ">",
-		ChatPrefixes: []string{"?", "!", ":", ";"},
-		CustomActions: []appconfig.CustomAction{
-			{ID: "extract", Title: "Extract function", Scope: "selection", Kind: "refactor.extract", Instruction: "Extract into function"},
-			{ID: "fix", Title: "Fix diagnostics", Scope: "diagnostics", Kind: "quickfix", User: "Fix:\n{{diagnostics}}\n\n{{selection}}"},
+		CoreConfig: appconfig.CoreConfig{
+			InlineOpen:   ">!",
+			InlineClose:  ">",
+			ChatSuffix:   ">",
+			ChatPrefixes: []string{"?", "!", ":", ";"},
+		},
+		PromptConfig: appconfig.PromptConfig{
+			CustomActions: []appconfig.CustomAction{
+				{ID: "extract", Title: "Extract function", Scope: "selection", Kind: "refactor.extract", Instruction: "Extract into function"},
+				{ID: "fix", Title: "Fix diagnostics", Scope: "diagnostics", Kind: "quickfix", User: "Fix:\n{{diagnostics}}\n\n{{selection}}"},
+			},
 		},
 	}
 	s := &Server{

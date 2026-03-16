@@ -33,10 +33,14 @@ func TestRunOnce_StripsFences(t *testing.T) {
 
 func TestReqOptsFrom_Override(t *testing.T) {
 	cfg := appconfig.App{
-		MaxTokens:         123,
-		Provider:          "openai",
-		AnthropicModel:    "claude-3-5-sonnet",
-		CodeActionConfigs: []appconfig.SurfaceConfig{{Provider: "anthropic", Model: "override", Temperature: ptrFloat(0.6)}},
+		CoreConfig: appconfig.CoreConfig{
+			MaxTokens: 123,
+			Provider:  "openai",
+		},
+		ProviderConfig: appconfig.ProviderConfig{
+			AnthropicModel:    "claude-3-5-sonnet",
+			CodeActionConfigs: []appconfig.SurfaceConfig{{Provider: "anthropic", Model: "override", Temperature: ptrFloat(0.6)}},
+		},
 	}
 	req := reqOptsFrom(cfg)
 	if req.model != "override" {
@@ -52,7 +56,13 @@ func TestReqOptsFrom_Override(t *testing.T) {
 }
 
 func TestReqOptsFrom_Gpt5Temp(t *testing.T) {
-	cfg := appconfig.App{Provider: "openai", CodingTemperature: ptrFloat(0.2), OpenAIModel: "gpt-5.0"}
+	cfg := appconfig.App{
+		CoreConfig: appconfig.CoreConfig{
+			Provider:          "openai",
+			CodingTemperature: ptrFloat(0.2),
+		},
+		ProviderConfig: appconfig.ProviderConfig{OpenAIModel: "gpt-5.0"},
+	}
 	req := reqOptsFrom(cfg)
 	var opts llm.Options
 	for _, o := range req.options {

@@ -13,7 +13,7 @@ import (
 
 func TestNewSyncer_Disabled(t *testing.T) {
 	cfg := appconfig.App{
-		MCPSlashCommandSync: false,
+		FeatureConfig: appconfig.FeatureConfig{MCPSlashCommandSync: false},
 	}
 
 	syncer, err := NewSyncer(cfg)
@@ -28,8 +28,10 @@ func TestNewSyncer_Disabled(t *testing.T) {
 
 func TestNewSyncer_NoDirectory(t *testing.T) {
 	cfg := appconfig.App{
-		MCPSlashCommandSync: true,
-		MCPSlashCommandDir:  "",
+		FeatureConfig: appconfig.FeatureConfig{
+			MCPSlashCommandSync: true,
+			MCPSlashCommandDir:  "",
+		},
 	}
 
 	_, err := NewSyncer(cfg)
@@ -43,8 +45,10 @@ func TestNewSyncer_CreatesDirectory(t *testing.T) {
 	testDir := filepath.Join(tmpDir, "test-commands")
 
 	cfg := appconfig.App{
-		MCPSlashCommandSync: true,
-		MCPSlashCommandDir:  testDir,
+		FeatureConfig: appconfig.FeatureConfig{
+			MCPSlashCommandSync: true,
+			MCPSlashCommandDir:  testDir,
+		},
 	}
 
 	syncer, err := NewSyncer(cfg)
@@ -71,8 +75,10 @@ func TestNewSyncer_ExpandsHomeDirectory(t *testing.T) {
 	defer os.Setenv("HOME", home)
 
 	cfg := appconfig.App{
-		MCPSlashCommandSync: true,
-		MCPSlashCommandDir:  "~/test-commands",
+		FeatureConfig: appconfig.FeatureConfig{
+			MCPSlashCommandSync: true,
+			MCPSlashCommandDir:  "~/test-commands",
+		},
 	}
 
 	syncer, err := NewSyncer(cfg)

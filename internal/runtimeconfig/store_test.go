@@ -105,7 +105,7 @@ func TestSubscribe_NilListener(t *testing.T) {
 }
 
 func TestSubscribe_ReceivesUpdates(t *testing.T) {
-	store := New(appconfig.App{MaxTokens: 100})
+	store := New(appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 100}})
 
 	var gotOld, gotNew appconfig.App
 	callCount := 0
@@ -115,7 +115,7 @@ func TestSubscribe_ReceivesUpdates(t *testing.T) {
 		callCount++
 	})
 
-	store.Set(appconfig.App{MaxTokens: 200})
+	store.Set(appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 200}})
 	if callCount != 1 {
 		t.Fatalf("expected listener called once, got %d", callCount)
 	}
@@ -125,7 +125,7 @@ func TestSubscribe_ReceivesUpdates(t *testing.T) {
 
 	// After unsubscribe, listener must not be called again.
 	unsub()
-	store.Set(appconfig.App{MaxTokens: 300})
+	store.Set(appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 300}})
 	if callCount != 1 {
 		t.Fatalf("expected listener not called after unsubscribe, got %d", callCount)
 	}
@@ -137,14 +137,14 @@ func TestSubscribe_MultipleListeners(t *testing.T) {
 	unsub0 := store.Subscribe(func(_, _ appconfig.App) { calls[0]++ })
 	unsub1 := store.Subscribe(func(_, _ appconfig.App) { calls[1]++ })
 
-	store.Set(appconfig.App{MaxTokens: 1})
+	store.Set(appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 1}})
 	if calls[0] != 1 || calls[1] != 1 {
 		t.Fatalf("expected both listeners called once: %v", calls)
 	}
 
 	// Unsubscribe first listener only.
 	unsub0()
-	store.Set(appconfig.App{MaxTokens: 2})
+	store.Set(appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 2}})
 	if calls[0] != 1 || calls[1] != 2 {
 		t.Fatalf("expected only second listener called: %v", calls)
 	}
@@ -152,8 +152,8 @@ func TestSubscribe_MultipleListeners(t *testing.T) {
 }
 
 func TestSet_ReturnsChanges(t *testing.T) {
-	store := New(appconfig.App{MaxTokens: 10, Provider: "ollama"})
-	changes := store.Set(appconfig.App{MaxTokens: 20, Provider: "ollama"})
+	store := New(appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 10, Provider: "ollama"}})
+	changes := store.Set(appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 20, Provider: "ollama"}})
 	found := false
 	for _, ch := range changes {
 		if ch.Key == "max_tokens" {
@@ -169,7 +169,7 @@ func TestSet_ReturnsChanges(t *testing.T) {
 }
 
 func TestSet_NoChanges(t *testing.T) {
-	cfg := appconfig.App{MaxTokens: 10}
+	cfg := appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 10}}
 	store := New(cfg)
 	changes := store.Set(cfg)
 	if len(changes) != 0 {
@@ -181,7 +181,7 @@ func TestReload_NilLogger(t *testing.T) {
 	// Reload with nil logger should not panic; it exercises the nil-logger guard
 	// in Reload (skipping logger.Print). LoadWithOptions returns defaults when
 	// logger is nil, so the store gets default config applied.
-	store := New(appconfig.App{MaxTokens: 1})
+	store := New(appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 1}})
 	changes, err := store.Reload(nil, appconfig.LoadOptions{IgnoreEnv: true})
 	if err != nil {
 		t.Fatalf("reload failed: %v", err)
@@ -227,8 +227,8 @@ func TestStringifyValue_BoolAndFloat(t *testing.T) {
 	// Exercise the bool and float branches via Diff on App fields.
 	temp1 := 0.5
 	temp2 := 0.9
-	oldCfg := appconfig.App{CodingTemperature: &temp1}
-	newCfg := appconfig.App{CodingTemperature: &temp2}
+	oldCfg := appconfig.App{CoreConfig: appconfig.CoreConfig{CodingTemperature: &temp1}}
+	newCfg := appconfig.App{CoreConfig: appconfig.CoreConfig{CodingTemperature: &temp2}}
 	changes := Diff(oldCfg, newCfg)
 	found := false
 	for _, ch := range changes {
@@ -248,7 +248,7 @@ func TestStringifyValue_NilPointer(t *testing.T) {
 	// nil *float64 should produce "(unset)".
 	oldCfg := appconfig.App{}
 	temp := 0.3
-	newCfg := appconfig.App{CodingTemperature: &temp}
+	newCfg := appconfig.App{CoreConfig: appconfig.CoreConfig{CodingTemperature: &temp}}
 	changes := Diff(oldCfg, newCfg)
 	found := false
 	for _, ch := range changes {
@@ -268,7 +268,7 @@ func TestStringifyValue_NilBoolPointer(t *testing.T) {
 	// CompletionWaitAll is *bool; nil should produce "(unset)".
 	b := true
 	oldCfg := appconfig.App{}
-	newCfg := appconfig.App{CompletionWaitAll: &b}
+	newCfg := appconfig.App{CoreConfig: appconfig.CoreConfig{CompletionWaitAll: &b}}
 	changes := Diff(oldCfg, newCfg)
 	found := false
 	for _, ch := range changes {
@@ -286,8 +286,8 @@ func TestStringifyValue_NilBoolPointer(t *testing.T) {
 
 func TestStringifyValue_StringSlice(t *testing.T) {
 	// TriggerCharacters is []string; exercise the string-slice branch.
-	oldCfg := appconfig.App{TriggerCharacters: []string{".", ":"}}
-	newCfg := appconfig.App{TriggerCharacters: []string{".", ":", "("}}
+	oldCfg := appconfig.App{CoreConfig: appconfig.CoreConfig{TriggerCharacters: []string{".", ":"}}}
+	newCfg := appconfig.App{CoreConfig: appconfig.CoreConfig{TriggerCharacters: []string{".", ":", "("}}}
 	changes := Diff(oldCfg, newCfg)
 	found := false
 	for _, ch := range changes {
@@ -309,7 +309,7 @@ func TestStringifyValue_StringSlice(t *testing.T) {
 func TestStringifyValue_NilSlice(t *testing.T) {
 	// nil slice vs non-nil slice.
 	oldCfg := appconfig.App{}
-	newCfg := appconfig.App{TriggerCharacters: []string{"x"}}
+	newCfg := appconfig.App{CoreConfig: appconfig.CoreConfig{TriggerCharacters: []string{"x"}}}
 	changes := Diff(oldCfg, newCfg)
 	found := false
 	for _, ch := range changes {
@@ -329,13 +329,17 @@ func TestStringifyValue_SurfaceConfigWithTemperature(t *testing.T) {
 	// Exercise the SurfaceConfig temperature branch.
 	temp := 0.750
 	oldCfg := appconfig.App{
-		CompletionConfigs: []appconfig.SurfaceConfig{
-			{Provider: "openai", Model: "gpt-4o", Temperature: &temp},
+		ProviderConfig: appconfig.ProviderConfig{
+			CompletionConfigs: []appconfig.SurfaceConfig{
+				{Provider: "openai", Model: "gpt-4o", Temperature: &temp},
+			},
 		},
 	}
 	newCfg := appconfig.App{
-		CompletionConfigs: []appconfig.SurfaceConfig{
-			{Provider: "openai", Model: "gpt-4o"},
+		ProviderConfig: appconfig.ProviderConfig{
+			CompletionConfigs: []appconfig.SurfaceConfig{
+				{Provider: "openai", Model: "gpt-4o"},
+			},
 		},
 	}
 	changes := Diff(oldCfg, newCfg)
@@ -356,8 +360,10 @@ func TestStringifyValue_SurfaceConfigWithTemperature(t *testing.T) {
 func TestStringifyValue_SurfaceConfigEmptyProvider(t *testing.T) {
 	// Exercise the SurfaceConfig branch where provider is empty.
 	oldCfg := appconfig.App{
-		ChatConfigs: []appconfig.SurfaceConfig{
-			{Provider: "", Model: "some-model"},
+		ProviderConfig: appconfig.ProviderConfig{
+			ChatConfigs: []appconfig.SurfaceConfig{
+				{Provider: "", Model: "some-model"},
+			},
 		},
 	}
 	newCfg := appconfig.App{}
@@ -377,8 +383,8 @@ func TestStringifyValue_SurfaceConfigEmptyProvider(t *testing.T) {
 }
 
 func TestDiff_SurfaceModel(t *testing.T) {
-	oldCfg := appconfig.App{CompletionConfigs: []appconfig.SurfaceConfig{{Provider: "openai", Model: "gpt-4o"}}}
-	newCfg := appconfig.App{CompletionConfigs: []appconfig.SurfaceConfig{{Provider: "anthropic", Model: "claude-3-5-sonnet"}}}
+	oldCfg := appconfig.App{ProviderConfig: appconfig.ProviderConfig{CompletionConfigs: []appconfig.SurfaceConfig{{Provider: "openai", Model: "gpt-4o"}}}}
+	newCfg := appconfig.App{ProviderConfig: appconfig.ProviderConfig{CompletionConfigs: []appconfig.SurfaceConfig{{Provider: "anthropic", Model: "claude-3-5-sonnet"}}}}
 	changes := Diff(oldCfg, newCfg)
 	if len(changes) == 0 {
 		t.Fatalf("expected diff entries, got none")

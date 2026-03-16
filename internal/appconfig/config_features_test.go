@@ -182,10 +182,12 @@ func TestTmuxEditConfig_Merge(t *testing.T) {
 	clearHexaiEnv(t)
 	a := newDefaultConfig()
 	b := App{
-		TmuxEditPopupWidth:   "70%",
-		TmuxEditDefaultAgent: "amp",
-		TmuxEditAgents: []TmuxEditAgentCfg{
-			{Name: "amp", DisplayName: "Amp"},
+		FeatureConfig: FeatureConfig{
+			TmuxEditPopupWidth:   "70%",
+			TmuxEditDefaultAgent: "amp",
+			TmuxEditAgents: []TmuxEditAgentCfg{
+				{Name: "amp", DisplayName: "Amp"},
+			},
 		},
 	}
 	a.mergeWith(&b)

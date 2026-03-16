@@ -112,7 +112,7 @@ func TestGetPromptsDir(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := appconfig.App{
-				MCPPromptsDir: tt.cfgValue,
+				FeatureConfig: appconfig.FeatureConfig{MCPPromptsDir: tt.cfgValue},
 			}
 
 			result, err := getPromptsDir(cfg)
@@ -424,7 +424,7 @@ func TestGetPromptsDir_XDGDataHome(t *testing.T) {
 // TestGetPromptsDir_TildeInConfig verifies tilde expansion for config path.
 func TestGetPromptsDir_TildeInConfig(t *testing.T) {
 	cfg := appconfig.App{
-		MCPPromptsDir: "~/my-prompts",
+		FeatureConfig: appconfig.FeatureConfig{MCPPromptsDir: "~/my-prompts"},
 	}
 
 	result, err := getPromptsDir(cfg)
@@ -449,7 +449,7 @@ func TestGetPromptsDir_TildeInConfig(t *testing.T) {
 func TestCreateSyncer_Disabled(t *testing.T) {
 	logger := log.New(io.Discard, "", 0)
 	cfg := appconfig.App{
-		MCPSlashCommandSync: false,
+		FeatureConfig: appconfig.FeatureConfig{MCPSlashCommandSync: false},
 	}
 
 	syncer, err := createSyncer(cfg, logger)
@@ -467,8 +467,10 @@ func TestCreateSyncer_Enabled(t *testing.T) {
 	tmpDir := t.TempDir()
 	logger := log.New(io.Discard, "", 0)
 	cfg := appconfig.App{
-		MCPSlashCommandSync: true,
-		MCPSlashCommandDir:  tmpDir,
+		FeatureConfig: appconfig.FeatureConfig{
+			MCPSlashCommandSync: true,
+			MCPSlashCommandDir:  tmpDir,
+		},
 	}
 
 	syncer, err := createSyncer(cfg, logger)
@@ -485,8 +487,10 @@ func TestCreateSyncer_Enabled(t *testing.T) {
 func TestCreateSyncer_Error(t *testing.T) {
 	logger := log.New(io.Discard, "", 0)
 	cfg := appconfig.App{
-		MCPSlashCommandSync: true,
-		MCPSlashCommandDir:  "", // empty directory triggers error
+		FeatureConfig: appconfig.FeatureConfig{
+			MCPSlashCommandSync: true,
+			MCPSlashCommandDir:  "",
+		},
 	}
 
 	_, err := createSyncer(cfg, logger)
@@ -646,9 +650,11 @@ func TestApplyOverrides(t *testing.T) {
 
 	t.Run("does not overwrite with zero values", func(t *testing.T) {
 		cfg := appconfig.App{
-			MCPPromptsDir:       "/existing/prompts",
-			MCPSlashCommandSync: true,
-			MCPSlashCommandDir:  "/existing/cmds",
+			FeatureConfig: appconfig.FeatureConfig{
+				MCPPromptsDir:       "/existing/prompts",
+				MCPSlashCommandSync: true,
+				MCPSlashCommandDir:  "/existing/cmds",
+			},
 		}
 		overrides := MCPOverrides{} // all zero values
 		applyOverrides(&cfg, overrides)

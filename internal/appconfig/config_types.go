@@ -11,114 +11,16 @@ type SurfaceConfig struct {
 }
 
 // App holds user-configurable settings read from ~/.config/hexai/config.toml.
+// Fields are organized into embedded section structs. Go promotes all fields,
+// so existing code like cfg.MaxTokens continues to work. App is never directly
+// TOML-decoded; the fileConfig struct handles TOML parsing and fields are copied
+// to App in loadFromFile. JSON marshalling works because section structs carry
+// the appropriate json tags.
 type App struct {
-	MaxTokens          int    `json:"max_tokens" toml:"max_tokens"`
-	ContextMode        string `json:"context_mode" toml:"context_mode"`
-	ContextWindowLines int    `json:"context_window_lines" toml:"context_window_lines"`
-	MaxContextTokens   int    `json:"max_context_tokens" toml:"max_context_tokens"`
-	LogPreviewLimit    int    `json:"log_preview_limit" toml:"log_preview_limit"`
-	RequestTimeout     int    `json:"request_timeout" toml:"request_timeout"`
-	// Single knob for LSP requests; if set, overrides hardcoded temps in LSP.
-	CodingTemperature *float64 `json:"coding_temperature" toml:"coding_temperature"`
-	// Minimum identifier characters required for manual (TriggerKind=1) invoke
-	// to proceed without structural triggers. 0 means always allow.
-	ManualInvokeMinPrefix int `json:"manual_invoke_min_prefix" toml:"manual_invoke_min_prefix"`
-
-	// Completion debounce in milliseconds. When > 0, the server waits until
-	// there has been no text change for at least this duration before sending
-	// an LLM completion request.
-	CompletionDebounceMs int `json:"completion_debounce_ms" toml:"completion_debounce_ms"`
-	// Completion throttle in milliseconds. When > 0, caps the minimum spacing
-	// between LLM requests (both chat and code-completer paths).
-	CompletionThrottleMs int `json:"completion_throttle_ms" toml:"completion_throttle_ms"`
-	// CompletionWaitAll controls whether to wait for all configured completion
-	// backends before returning results. When true (default), waits for all
-	// backends. When false, returns the first result immediately.
-	CompletionWaitAll *bool `json:"completion_wait_all" toml:"completion_wait_all"`
-
-	TriggerCharacters []string `json:"trigger_characters" toml:"trigger_characters"`
-	Provider          string   `json:"provider" toml:"provider"`
-
-	// Inline prompt trigger characters (default: >!text> and >>!text>)
-	InlineOpen  string `json:"inline_open" toml:"inline_open"`
-	InlineClose string `json:"inline_close" toml:"inline_close"`
-	// In-editor chat triggers (default: suffix ">" after one of [?, !, :, ;])
-	ChatSuffix   string   `json:"chat_suffix" toml:"chat_suffix"`
-	ChatPrefixes []string `json:"chat_prefixes" toml:"chat_prefixes"`
-
-	// Provider-specific options
-	OpenAIBaseURL string `json:"openai_base_url" toml:"openai_base_url"`
-	OpenAIModel   string `json:"openai_model" toml:"openai_model"`
-	// Default temperature for OpenAI requests (nil means use provider default)
-	OpenAITemperature *float64 `json:"openai_temperature" toml:"openai_temperature"`
-	OpenRouterBaseURL string   `json:"openrouter_base_url" toml:"openrouter_base_url"`
-	OpenRouterModel   string   `json:"openrouter_model" toml:"openrouter_model"`
-	// Default temperature for OpenRouter requests (nil means use provider default)
-	OpenRouterTemperature *float64 `json:"openrouter_temperature" toml:"openrouter_temperature"`
-	OllamaBaseURL         string   `json:"ollama_base_url" toml:"ollama_base_url"`
-	OllamaModel           string   `json:"ollama_model" toml:"ollama_model"`
-	// Default temperature for Ollama requests (nil means use provider default)
-	OllamaTemperature *float64 `json:"ollama_temperature" toml:"ollama_temperature"`
-	AnthropicBaseURL  string   `json:"anthropic_base_url" toml:"anthropic_base_url"`
-	AnthropicModel    string   `json:"anthropic_model" toml:"anthropic_model"`
-	// Default temperature for Anthropic requests (nil means use provider default)
-	AnthropicTemperature *float64 `json:"anthropic_temperature" toml:"anthropic_temperature"`
-
-	// Per-surface provider/model configurations (ordered; first entry is primary)
-	CompletionConfigs []SurfaceConfig `json:"-" toml:"-"`
-	CodeActionConfigs []SurfaceConfig `json:"-" toml:"-"`
-	ChatConfigs       []SurfaceConfig `json:"-" toml:"-"`
-	CLIConfigs        []SurfaceConfig `json:"-" toml:"-"`
-
-	// Prompt templates (configured only via file; no env overrides)
-	// Completion/chat/code action/CLI prompt strings. See config.toml.example for placeholders.
-	// Completion
-	PromptCompletionSystemGeneral string `json:"-" toml:"-"`
-	PromptCompletionSystemParams  string `json:"-" toml:"-"`
-	PromptCompletionSystemInline  string `json:"-" toml:"-"`
-	PromptCompletionUserGeneral   string `json:"-" toml:"-"`
-	PromptCompletionUserParams    string `json:"-" toml:"-"`
-	PromptCompletionExtraHeader   string `json:"-" toml:"-"`
-	// Provider-native code-completer
-	PromptNativeCompletion string `json:"-" toml:"-"`
-	// In-editor chat
-	PromptChatSystem string `json:"-" toml:"-"`
-	// Code actions
-	PromptCodeActionRewriteSystem     string `json:"-" toml:"-"`
-	PromptCodeActionDiagnosticsSystem string `json:"-" toml:"-"`
-	PromptCodeActionDocumentSystem    string `json:"-" toml:"-"`
-	PromptCodeActionRewriteUser       string `json:"-" toml:"-"`
-	PromptCodeActionDiagnosticsUser   string `json:"-" toml:"-"`
-	PromptCodeActionDocumentUser      string `json:"-" toml:"-"`
-	PromptCodeActionGoTestSystem      string `json:"-" toml:"-"`
-	PromptCodeActionGoTestUser        string `json:"-" toml:"-"`
-	PromptCodeActionSimplifySystem    string `json:"-" toml:"-"`
-	PromptCodeActionSimplifyUser      string `json:"-" toml:"-"`
-	// CLI
-	PromptCLIDefaultSystem string `json:"-" toml:"-"`
-	PromptCLIExplainSystem string `json:"-" toml:"-"`
-
-	// Custom code actions and tmux integration
-	CustomActions        []CustomAction `json:"-" toml:"-"`
-	TmuxCustomMenuHotkey string         `json:"-" toml:"-"`
-	// Stats
-	StatsWindowMinutes int `json:"-" toml:"-"`
-
-	// Ignore: gitignore-aware file filtering for LSP
-	IgnoreGitignore     *bool    `json:"-" toml:"-"`
-	IgnoreExtraPatterns []string `json:"-" toml:"-"`
-	IgnoreLSPNotify     *bool    `json:"-" toml:"-"`
-
-	// TmuxEdit: popup editor settings for hexai-tmux-edit
-	TmuxEditPopupWidth   string             `json:"-" toml:"-"`
-	TmuxEditPopupHeight  string             `json:"-" toml:"-"`
-	TmuxEditDefaultAgent string             `json:"-" toml:"-"`
-	TmuxEditAgents       []TmuxEditAgentCfg `json:"-" toml:"-"`
-
-	// MCP: Model Context Protocol server settings
-	MCPPromptsDir       string `json:"-" toml:"-"` // Directory for prompt storage
-	MCPSlashCommandSync bool   `json:"-" toml:"-"` // Enable slash command sync
-	MCPSlashCommandDir  string `json:"-" toml:"-"` // Directory for slash command files
+	CoreConfig
+	ProviderConfig
+	PromptConfig
+	FeatureConfig
 }
 
 // CustomAction describes a user-defined code action.
@@ -159,32 +61,49 @@ type LoadOptions struct {
 	ProjectRoot string
 }
 
-// Constructor: defaults for App (kept first among functions)
+// Constructor: defaults for App (kept first among functions).
+// Initializes via embedded section structs; see CoreConfig, ProviderConfig,
+// PromptConfig, and FeatureConfig for field documentation.
 func newDefaultConfig() App {
-	// Coding-friendly default temperature across providers
+	// Coding-friendly default temperature across providers.
 	// Users can override per provider in config.toml (including 0.0).
 	t := 0.2
 	return App{
-		MaxTokens:             4000,
-		ContextMode:           "always-full",
-		ContextWindowLines:    120,
-		MaxContextTokens:      4000,
-		LogPreviewLimit:       100,
-		RequestTimeout:        600,
-		CodingTemperature:     &t,
-		OpenAITemperature:     &t,
-		OllamaTemperature:     &t,
-		AnthropicTemperature:  &t,
-		ManualInvokeMinPrefix: 0,
-		CompletionDebounceMs:  800,
-		CompletionThrottleMs:  0,
-		// Inline/chat trigger defaults
-		InlineOpen:   ">!",
-		InlineClose:  ">",
-		ChatSuffix:   ">",
-		ChatPrefixes: []string{"?", "!", ":", ";"},
+		CoreConfig: CoreConfig{
+			MaxTokens:             4000,
+			ContextMode:           "always-full",
+			ContextWindowLines:    120,
+			MaxContextTokens:      4000,
+			LogPreviewLimit:       100,
+			RequestTimeout:        600,
+			CodingTemperature:     &t,
+			ManualInvokeMinPrefix: 0,
+			CompletionDebounceMs:  800,
+			CompletionThrottleMs:  0,
+			// Inline/chat trigger defaults
+			InlineOpen:   ">!",
+			InlineClose:  ">",
+			ChatSuffix:   ">",
+			ChatPrefixes: []string{"?", "!", ":", ";"},
+		},
+		ProviderConfig: ProviderConfig{
+			OpenAITemperature:    &t,
+			OllamaTemperature:    &t,
+			AnthropicTemperature: &t,
+		},
+		PromptConfig: defaultPromptConfig(),
+		FeatureConfig: FeatureConfig{
+			StatsWindowMinutes: 60,
+			// Ignore: respect .gitignore by default, notify in LSP by default
+			IgnoreGitignore: boolPtr(true),
+			IgnoreLSPNotify: boolPtr(true),
+		},
+	}
+}
 
-		// Default prompt templates (match current hard-coded strings)
+// defaultPromptConfig returns the default prompt template values.
+func defaultPromptConfig() PromptConfig {
+	return PromptConfig{
 		PromptCompletionSystemParams:  "You are a code completion engine for function signatures. Return only the parameter list contents (without parentheses), no braces, no prose. Prefer idiomatic names and types.",
 		PromptCompletionUserParams:    "Cursor is inside the function parameter list. Suggest only the parameter list (no parentheses).\nFunction line: {{function}}\nCurrent line (cursor at {{char}}): {{current}}",
 		PromptCompletionSystemGeneral: "You are a terse code completion engine. Return only the code to insert, no surrounding prose or backticks. Only continue from the cursor; never repeat characters already present to the left of the cursor on the current line (e.g., if 'name :=' is already typed, only return the right-hand side expression).",
@@ -209,13 +128,6 @@ func newDefaultConfig() App {
 
 		PromptCLIDefaultSystem: "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation.",
 		PromptCLIExplainSystem: "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context.",
-
-		// Stats
-		StatsWindowMinutes: 60,
-
-		// Ignore: respect .gitignore by default, notify in LSP by default
-		IgnoreGitignore: boolPtr(true),
-		IgnoreLSPNotify: boolPtr(true),
 	}
 }
 

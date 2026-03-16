@@ -15,11 +15,13 @@ import (
 // from the given gitRoot and extra patterns.
 func newIgnoreTestServer(gitRoot string, useGI bool, extra []string, notifyIgnored *bool) *Server {
 	cfg := appconfig.App{
-		IgnoreLSPNotify: notifyIgnored,
-		InlineOpen:      ">!",
-		InlineClose:     ">",
-		ChatSuffix:      ">",
-		ChatPrefixes:    []string{"?", "!", ":", ";"},
+		CoreConfig: appconfig.CoreConfig{
+			InlineOpen:   ">!",
+			InlineClose:  ">",
+			ChatSuffix:   ">",
+			ChatPrefixes: []string{"?", "!", ":", ";"},
+		},
+		FeatureConfig: appconfig.FeatureConfig{IgnoreLSPNotify: notifyIgnored},
 	}
 	s := &Server{
 		logger:              log.New(io.Discard, "", 0),

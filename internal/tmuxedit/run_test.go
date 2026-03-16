@@ -167,8 +167,10 @@ func TestRunWithConfig_CustomDimensions(t *testing.T) {
 	sendKeys = func(string, ...string) error { return nil }
 
 	cfg := appconfig.App{
-		TmuxEditPopupWidth:  "90%",
-		TmuxEditPopupHeight: "85%",
+		FeatureConfig: appconfig.FeatureConfig{
+			TmuxEditPopupWidth:  "90%",
+			TmuxEditPopupHeight: "85%",
+		},
 	}
 	err := runWithConfig(Options{}, cfg)
 	if err != nil {

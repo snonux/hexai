@@ -36,7 +36,7 @@ func TestRunChat_Streaming(t *testing.T) {
 }
 
 func TestBuildMessagesFromConfig(t *testing.T) {
-	cfg := appconfig.App{PromptCLIDefaultSystem: "DEF", PromptCLIExplainSystem: "EXP"}
+	cfg := appconfig.App{PromptConfig: appconfig.PromptConfig{PromptCLIDefaultSystem: "DEF", PromptCLIExplainSystem: "EXP"}}
 	msgs := buildMessagesFromConfig(cfg, "tell me")
 	if msgs[0].Content != "DEF" {
 		t.Fatalf("default system wrong: %q", msgs[0].Content)

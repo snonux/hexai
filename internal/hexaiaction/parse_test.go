@@ -81,14 +81,16 @@ func (f *fakeClient) DefaultModel() string { return "m" }
 
 func TestRuners_Prompts(t *testing.T) {
 	cfg := appconfig.App{
-		PromptCodeActionRewriteSystem:     "SYS-R",
-		PromptCodeActionRewriteUser:       "R {{instruction}} :: {{selection}}",
-		PromptCodeActionDiagnosticsSystem: "SYS-D",
-		PromptCodeActionDiagnosticsUser:   "D {{diagnostics}} :: {{selection}}",
-		PromptCodeActionDocumentSystem:    "SYS-C",
-		PromptCodeActionDocumentUser:      "C {{selection}}",
-		PromptCodeActionGoTestSystem:      "SYS-T",
-		PromptCodeActionGoTestUser:        "T {{function}}",
+		PromptConfig: appconfig.PromptConfig{
+			PromptCodeActionRewriteSystem:     "SYS-R",
+			PromptCodeActionRewriteUser:       "R {{instruction}} :: {{selection}}",
+			PromptCodeActionDiagnosticsSystem: "SYS-D",
+			PromptCodeActionDiagnosticsUser:   "D {{diagnostics}} :: {{selection}}",
+			PromptCodeActionDocumentSystem:    "SYS-C",
+			PromptCodeActionDocumentUser:      "C {{selection}}",
+			PromptCodeActionGoTestSystem:      "SYS-T",
+			PromptCodeActionGoTestUser:        "T {{function}}",
+		},
 	}
 	f := &fakeClient{out: "```\nDONE\n```"}
 	ctx := context.Background()
