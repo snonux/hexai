@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 func (s *Server) handle(req Request) {
@@ -274,16 +275,18 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 		}
 		// For TriggerForIncomplete (3), require manual char check below
 	}
-	// 2) Fallback: check the character immediately prior to cursor
-	idx := p.Position.Character
-	if idx <= 0 || idx > len(current) {
+	// 2) Fallback: check the character immediately prior to cursor.
+	// Convert UTF-16 offset to byte offset for correct multi-byte handling.
+	byteIdx := utf16OffsetToByteOffset(current, p.Position.Character)
+	if byteIdx <= 0 || byteIdx > len(current) {
 		return false
 	}
 	// Bare double-open should not trigger via fallback char either (only when configured)
 	if containsAny(current, doubleSeqs) && !hasDoubleOpenTrigger(current, open, openChar, closeChar) {
 		return false
 	}
-	ch := string(current[idx-1])
+	r, _ := utf8.DecodeLastRuneInString(current[:byteIdx])
+	ch := string(r)
 	for _, c := range triggerChars {
 		if c == ch {
 			return true

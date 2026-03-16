@@ -318,7 +318,8 @@ func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan,
 	_ = stats.Update(ctx, client.Name(), modelUsed, sentSize, len(text))
 	s.logLLMStats(modelUsed)
 	trimmed := strings.TrimSpace(text)
-	cleaned := s.postProcessCompletion(trimmed, plan.current[:plan.params.Position.Character], plan.current)
+	cursorByte := utf16OffsetToByteOffset(plan.current, plan.params.Position.Character)
+	cleaned := s.postProcessCompletion(trimmed, plan.current[:cursorByte], plan.current)
 	if cleaned == "" {
 		return nil, false
 	}
@@ -374,9 +375,9 @@ func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionPar
 
 // prefixHeuristicAllows applies minimal prefix rules unless inlinePrompt or structural triggers apply.
 func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p CompletionParams, manualInvoke bool) bool {
-	// Determine the effective cursor index within current line, clamped, and
-	// skip over trailing spaces/tabs to support cases like "type Matrix| ".
-	idx := p.Position.Character
+	// Convert UTF-16 offset to byte offset for correct multi-byte handling,
+	// then clamp to the line length.
+	idx := utf16OffsetToByteOffset(current, p.Position.Character)
 	if idx > len(current) {
 		idx = len(current)
 	}
@@ -454,11 +455,12 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 	if cleaned == "" {
 		return nil, false
 	}
-	cleaned = stripDuplicateAssignmentPrefix(current[:p.Position.Character], cleaned)
+	cByte := utf16OffsetToByteOffset(current, p.Position.Character)
+	cleaned = stripDuplicateAssignmentPrefix(current[:cByte], cleaned)
 	if cleaned == "" {
 		return nil, false
 	}
-	cleaned = stripDuplicateGeneralPrefix(current[:p.Position.Character], cleaned)
+	cleaned = stripDuplicateGeneralPrefix(current[:cByte], cleaned)
 	if cleaned == "" {
 		return nil, false
 	}

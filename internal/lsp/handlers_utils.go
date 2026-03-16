@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
@@ -211,9 +212,11 @@ func computeTextEditAndFilter(cleaned string, inParams bool, current string, p C
 			return te, filter
 		}
 	}
-	startChar := computeWordStart(current, p.Position.Character)
-	te := &TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: startChar}, End: Position{Line: p.Position.Line, Character: p.Position.Character}}, NewText: cleaned}
-	filter := strings.TrimLeft(current[startChar:p.Position.Character], " \t")
+	cursorByte := utf16OffsetToByteOffset(current, p.Position.Character)
+	startByte := computeWordStart(current, cursorByte)
+	// TextEdit ranges use UTF-16 offsets; for ASCII identifiers byte == UTF-16.
+	te := &TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: startByte}, End: Position{Line: p.Position.Line, Character: p.Position.Character}}, NewText: cleaned}
+	filter := strings.TrimLeft(current[startByte:cursorByte], " \t")
 	return te, filter
 }
 
@@ -732,4 +735,23 @@ func collectSemicolonMarkers(line string, lineNum int, openStr string, open, clo
 		start = endChar
 	}
 	return edits
+}
+
+// utf16OffsetToByteOffset converts an LSP UTF-16 code-unit offset to a byte
+// offset within a Go (UTF-8) string. BMP characters (most code) are 1 UTF-16
+// unit, while supplementary characters (e.g. emoji) are 2. Returns len(s)
+// if the offset exceeds the string length.
+func utf16OffsetToByteOffset(s string, utf16Offset int) int {
+	byteIdx := 0
+	units := 0
+	for byteIdx < len(s) && units < utf16Offset {
+		r, size := utf8.DecodeRuneInString(s[byteIdx:])
+		byteIdx += size
+		if r >= 0x10000 {
+			units += 2 // surrogate pair in UTF-16
+		} else {
+			units++
+		}
+	}
+	return byteIdx
 }
