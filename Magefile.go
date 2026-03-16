@@ -248,6 +248,11 @@ func Coverage() error {
 	return nil
 }
 
+// Fmt formats all Go source files using gofumpt.
+func Fmt() error {
+	return sh.RunV("gofumpt", "-w", ".")
+}
+
 // Vet runs go vet.
 func Vet() error {
 	return sh.RunV("go", "vet", "./...")
