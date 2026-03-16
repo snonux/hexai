@@ -122,8 +122,8 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		return runTPSSimulation(ctx, spec, input, stdout)
 	}
 
-	// Load configuration with a logger so file-based config is respected.
-	logger := log.New(stderr, "hexai ", log.LstdFlags|log.Lmsgprefix)
+	// Load configuration silently; config-load messages are noise in the CLI.
+	logger := log.New(io.Discard, "", 0)
 	configPath := configPathFromContext(ctx)
 	cfg := appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPath})
 	if cfg.StatsWindowMinutes > 0 {
@@ -367,10 +367,13 @@ func writeCLIJobSummaries(stderr io.Writer, results []*cliJobResult) error {
 	return firstErr
 }
 
+// writeCLIJobSummary writes the per-job summary (stats or cache-hit note) to
+// stderr. It always starts on a new line so that streaming output that does
+// not end with a newline is not run together with the meta text.
 func writeCLIJobSummary(stderr io.Writer, res *cliJobResult) error {
 	summary := strings.TrimLeft(res.summary, "\n")
 	if summary != "" {
-		if _, err := io.WriteString(stderr, summary); err != nil {
+		if _, err := fmt.Fprintf(stderr, "\n%s", summary); err != nil {
 			return err
 		}
 	}
@@ -619,15 +622,15 @@ func printProviderInfo(errw io.Writer, client llm.Client, model string) {
 	printProviderLabel(errw, client.Name(), chooseCLIModel(model, client.DefaultModel()))
 }
 
+// printProviderLabel writes a compact "provider:model: " label to errw using
+// the same ANSI styling as other meta output. No divider line is emitted so
+// the label stays out of the way of the actual response text.
 func printProviderLabel(errw io.Writer, provider, model string) {
 	if strings.TrimSpace(model) == "" {
 		return
 	}
-	printer := termprint.NewColumnPrinter(errw, []string{provider}, []string{model})
-	if printer == nil {
-		return
-	}
-	printer.PrintHeader()
+	label := strings.TrimSpace(provider) + ":" + strings.TrimSpace(model) + ":"
+	_, _ = fmt.Fprintf(errw, logging.AnsiBase+"%s"+logging.AnsiReset+"\n", label)
 }
 
 func chooseCLIModel(model, fallback string) string {

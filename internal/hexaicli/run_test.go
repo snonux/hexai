@@ -154,8 +154,12 @@ model = "gpt-x"
 func TestPrintProviderInfo(t *testing.T) {
 	var b bytes.Buffer
 	printProviderInfo(&b, &fakeClient{name: "x", model: "y"}, "y")
-	if !strings.Contains(b.String(), "x:y") || !strings.Contains(b.String(), "─") {
-		t.Fatalf("missing provider header: %q", b.String())
+	// Expect compact "x:y:" label with no divider line.
+	if !strings.Contains(b.String(), "x:y:") {
+		t.Fatalf("missing provider label: %q", b.String())
+	}
+	if strings.Contains(b.String(), "─") {
+		t.Fatalf("unexpected divider in single-provider header: %q", b.String())
 	}
 	if strings.Contains(b.String(), "provider=") {
 		t.Fatalf("unexpected legacy provider line: %q", b.String())
@@ -179,11 +183,15 @@ func TestRun_SingleProviderHeaderUsesStderr(t *testing.T) {
 	if got := stdout.String(); got != "OUT" {
 		t.Fatalf("stdout = %q, want %q", got, "OUT")
 	}
-	if !strings.Contains(stderr.String(), "openai:gpt-4.1") || !strings.Contains(stderr.String(), "─") {
-		t.Fatalf("stderr missing provider header: %q", stderr.String())
+	// Single-provider header is now a compact "openai:gpt-4.1:" label with no divider.
+	if !strings.Contains(stderr.String(), "openai:gpt-4.1:") {
+		t.Fatalf("stderr missing provider label: %q", stderr.String())
 	}
-	if strings.Contains(stdout.String(), "openai:gpt-4.1") || strings.Contains(stdout.String(), "─") {
-		t.Fatalf("stdout should not contain provider header: %q", stdout.String())
+	if strings.Contains(stderr.String(), "─") {
+		t.Fatalf("unexpected divider in single-provider stderr: %q", stderr.String())
+	}
+	if strings.Contains(stdout.String(), "openai:gpt-4.1") {
+		t.Fatalf("stdout should not contain provider label: %q", stdout.String())
 	}
 }
 
