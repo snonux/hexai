@@ -1,9 +1,11 @@
 // Summary: ANSI-styled logging utilities with a bound standard logger and configurable preview truncation.
+// All package-level state is accessed via atomic types to avoid data races under concurrent use.
 package logging
 
 import (
 	"fmt"
 	"log"
+	"sync/atomic"
 )
 
 // ANSI color utilities shared across Hexai.
@@ -20,35 +22,40 @@ const (
 // AnsiBase is the default style: black background + grey foreground.
 const AnsiBase = AnsiBgBlack + AnsiGrey
 
-// singleton logger used across the codebase
-var std *log.Logger
+// std is the singleton logger used across the codebase, stored atomically for concurrent safety.
+var std atomic.Pointer[log.Logger]
 
-// Bind sets the underlying standard logger to use for Logf.
-func Bind(l *log.Logger) { std = l }
+// Bind atomically sets the underlying standard logger to use for Logf.
+func Bind(l *log.Logger) { std.Store(l) }
 
 // Logf prints a formatted message with a module prefix and base ANSI style.
+// It atomically loads the bound logger; if none is set the call is a no-op.
 func Logf(prefix, format string, args ...any) {
-	if std == nil {
+	l := std.Load()
+	if l == nil {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	std.Print(AnsiBase + prefix + msg + AnsiReset)
+	l.Print(AnsiBase + prefix + msg + AnsiReset)
 }
 
-// Logging configuration for previews (shared)
-var logPreviewLimit int // 0 means unlimited
+// logPreviewLimit is the max characters logged for request/response previews.
+// Stored as atomic.Int32 for concurrent safety; 0 means unlimited.
+var logPreviewLimit atomic.Int32
 
-// SetLogPreviewLimit sets the maximum number of characters to log for
-// request/response previews. Set to 0 for unlimited.
-func SetLogPreviewLimit(n int) { logPreviewLimit = n }
+// SetLogPreviewLimit atomically sets the maximum number of characters to log
+// for request/response previews. Set to 0 for unlimited.
+func SetLogPreviewLimit(n int) { logPreviewLimit.Store(int32(n)) }
 
-// PreviewForLog returns the string truncated to the configured preview limit.
+// PreviewForLog returns the string truncated to the configured preview limit
+// (loaded atomically).
 func PreviewForLog(s string) string {
-	if logPreviewLimit > 0 {
-		if len(s) <= logPreviewLimit {
+	limit := int(logPreviewLimit.Load())
+	if limit > 0 {
+		if len(s) <= limit {
 			return s
 		}
-		return s[:logPreviewLimit] + "…"
+		return s[:limit] + "…"
 	}
 	return s
 }
