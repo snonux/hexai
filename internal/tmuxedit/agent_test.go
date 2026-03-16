@@ -1,6 +1,8 @@
 package tmuxedit
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -83,6 +85,50 @@ func TestBaseAgent_ClearInput_Disabled(t *testing.T) {
 	err := b.ClearInput("%1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBaseAgent_ClearInput_EmptyKeys(t *testing.T) {
+	// clearFirst=true but no clearKeys should be a no-op
+	b := &baseAgent{clearFirst: true, clearKeys: ""}
+	err := b.ClearInput("%1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBaseAgent_ClearInput_Enabled(t *testing.T) {
+	noSleep(t)
+	var calls []string
+	oldSend := sendKeys
+	defer func() { sendKeys = oldSend }()
+	sendKeys = func(paneID string, keys ...string) error {
+		calls = append(calls, fmt.Sprintf("send:%s:%s", paneID, strings.Join(keys, ",")))
+		return nil
+	}
+
+	b := &baseAgent{clearFirst: true, clearKeys: "C-u"}
+	err := b.ClearInput("%2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(calls) != 1 || calls[0] != "send:%2:C-u" {
+		t.Errorf("expected single C-u send call, got %v", calls)
+	}
+}
+
+func TestBaseAgent_ClearInput_Error(t *testing.T) {
+	noSleep(t)
+	oldSend := sendKeys
+	defer func() { sendKeys = oldSend }()
+	sendKeys = func(string, ...string) error {
+		return fmt.Errorf("send failed")
+	}
+
+	b := &baseAgent{clearFirst: true, clearKeys: "C-u"}
+	err := b.ClearInput("%1")
+	if err == nil {
+		t.Fatal("expected error from sendClearSequence failure")
 	}
 }
 

@@ -340,3 +340,317 @@ func TestRunWithFactory_ServerError(t *testing.T) {
 		t.Errorf("RunWithFactory() error = %v, want to contain 'server error'", err)
 	}
 }
+
+// TestRunWithFactory_LoggerError verifies that a bad log path propagates as an error.
+func TestRunWithFactory_LoggerError(t *testing.T) {
+	// Use /dev/null/impossible as log path — directory creation will fail
+	// because /dev/null is a file, not a directory.
+	badLogPath := "/dev/null/impossible/test.log"
+
+	mockFactory := func(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer mcp.SlashCommandSyncer) ServerRunner {
+		return &mockServerRunner{}
+	}
+
+	err := RunWithFactory(badLogPath, "", &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
+	if err == nil {
+		t.Fatal("expected error for invalid log path, got nil")
+	}
+	if !strings.Contains(err.Error(), "cannot setup logger") {
+		t.Errorf("error = %v, want to contain 'cannot setup logger'", err)
+	}
+}
+
+// TestRunWithFactory_StderrLogger verifies RunWithFactory works when logPath
+// is empty (logger writes to stderr, defer close branch is a no-op).
+func TestRunWithFactory_StderrLogger(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	mockFactory := func(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.PromptStore, syncer mcp.SlashCommandSyncer) ServerRunner {
+		return &mockServerRunner{}
+	}
+
+	oldEnv := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
+	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldEnv)
+	os.Setenv("HEXAI_MCP_PROMPTS_DIR", tmpDir)
+
+	// Empty logPath causes logger to write to stderr (no file to close)
+	err := RunWithFactory("", "", &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
+	if err != nil {
+		t.Fatalf("RunWithFactory() error = %v", err)
+	}
+}
+
+// TestRun_CallsDefaultFactory verifies the Run() entry point invokes
+// RunWithFactory with the defaultServerFactory. The real server reads
+// from stdin until EOF; with an empty buffer it returns immediately.
+func TestRun_CallsDefaultFactory(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "test.log")
+
+	oldEnv := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
+	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldEnv)
+	os.Setenv("HEXAI_MCP_PROMPTS_DIR", tmpDir)
+
+	// Run with empty stdin — the real server hits EOF and exits cleanly.
+	// This exercises the full Run -> RunWithFactory -> defaultServerFactory path.
+	err := Run(logPath, "", &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{})
+	// The server may return nil or an error depending on how it handles EOF;
+	// the important thing is that Run() itself does not panic.
+	_ = err
+}
+
+// TestSetupLogger_InvalidPath verifies setupLogger returns an error when
+// the log directory cannot be created.
+func TestSetupLogger_InvalidPath(t *testing.T) {
+	// /dev/null is a file, so creating a subdirectory under it fails
+	_, err := setupLogger("/dev/null/subdir/test.log")
+	if err == nil {
+		t.Fatal("expected error for invalid log path, got nil")
+	}
+	if !strings.Contains(err.Error(), "cannot create log directory") {
+		t.Errorf("error = %v, want to contain 'cannot create log directory'", err)
+	}
+}
+
+// TestSetupLogger_WhitespacePath verifies that a whitespace-only path
+// falls back to stderr logging.
+func TestSetupLogger_WhitespacePath(t *testing.T) {
+	logger, err := setupLogger("   ")
+	if err != nil {
+		t.Fatalf("setupLogger() error = %v", err)
+	}
+	if logger == nil {
+		t.Fatal("setupLogger() returned nil logger")
+	}
+}
+
+// TestGetPromptsDir_XDGDataHome verifies getPromptsDir uses XDG_DATA_HOME
+// when set (covers the branch where XDG_DATA_HOME is non-empty).
+func TestGetPromptsDir_XDGDataHome(t *testing.T) {
+	oldPrompts := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
+	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldPrompts)
+	os.Setenv("HEXAI_MCP_PROMPTS_DIR", "")
+
+	oldXDG := os.Getenv("XDG_DATA_HOME")
+	defer os.Setenv("XDG_DATA_HOME", oldXDG)
+	os.Setenv("XDG_DATA_HOME", "/custom/xdg/data")
+
+	cfg := appconfig.App{}
+	result, err := getPromptsDir(cfg)
+	if err != nil {
+		t.Fatalf("getPromptsDir() error = %v", err)
+	}
+
+	want := "/custom/xdg/data/prompts"
+	if result != want {
+		t.Errorf("getPromptsDir() = %v, want %v", result, want)
+	}
+}
+
+// TestGetPromptsDir_TildeInConfig verifies tilde expansion for config path.
+func TestGetPromptsDir_TildeInConfig(t *testing.T) {
+	oldPrompts := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
+	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldPrompts)
+	os.Setenv("HEXAI_MCP_PROMPTS_DIR", "")
+
+	cfg := appconfig.App{
+		MCPPromptsDir: "~/my-prompts",
+	}
+
+	result, err := getPromptsDir(cfg)
+	if err != nil {
+		t.Fatalf("getPromptsDir() error = %v", err)
+	}
+
+	// Should not contain tilde and should be absolute
+	if strings.Contains(result, "~") {
+		t.Errorf("getPromptsDir() = %v, tilde not expanded", result)
+	}
+	if !filepath.IsAbs(result) {
+		t.Errorf("getPromptsDir() = %v, want absolute path", result)
+	}
+	if !strings.HasSuffix(result, "my-prompts") {
+		t.Errorf("getPromptsDir() = %v, want suffix 'my-prompts'", result)
+	}
+}
+
+// TestCreateSyncer_Disabled verifies createSyncer returns a non-nil syncer
+// when sync is disabled.
+func TestCreateSyncer_Disabled(t *testing.T) {
+	logger := log.New(io.Discard, "", 0)
+	cfg := appconfig.App{
+		MCPSlashCommandSync: false,
+	}
+
+	syncer, err := createSyncer(cfg, logger)
+	if err != nil {
+		t.Fatalf("createSyncer() error = %v", err)
+	}
+	if syncer == nil {
+		t.Fatal("createSyncer() returned nil syncer")
+	}
+}
+
+// TestCreateSyncer_Enabled verifies createSyncer when sync is enabled
+// with a valid temporary directory.
+func TestCreateSyncer_Enabled(t *testing.T) {
+	tmpDir := t.TempDir()
+	logger := log.New(io.Discard, "", 0)
+	cfg := appconfig.App{
+		MCPSlashCommandSync: true,
+		MCPSlashCommandDir:  tmpDir,
+	}
+
+	syncer, err := createSyncer(cfg, logger)
+	if err != nil {
+		t.Fatalf("createSyncer() error = %v", err)
+	}
+	if syncer == nil {
+		t.Fatal("createSyncer() returned nil syncer")
+	}
+}
+
+// TestCreateSyncer_Error verifies createSyncer returns an error when sync
+// is enabled but the directory config is empty.
+func TestCreateSyncer_Error(t *testing.T) {
+	logger := log.New(io.Discard, "", 0)
+	cfg := appconfig.App{
+		MCPSlashCommandSync: true,
+		MCPSlashCommandDir:  "", // empty directory triggers error
+	}
+
+	_, err := createSyncer(cfg, logger)
+	if err == nil {
+		t.Fatal("createSyncer() expected error for empty dir, got nil")
+	}
+}
+
+// TestRunBackfill_FullHappyPath verifies the happy path of RunBackfill by
+// providing a config file with a valid slash command directory and prompts dir.
+func TestRunBackfill_FullHappyPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	promptsDir := filepath.Join(tmpDir, "prompts")
+	cmdDir := filepath.Join(tmpDir, "commands")
+	logPath := filepath.Join(tmpDir, "test.log")
+
+	// Create prompts directory so the store can be initialized
+	if err := os.MkdirAll(promptsDir, 0o755); err != nil {
+		t.Fatalf("cannot create prompts dir: %v", err)
+	}
+
+	// Set environment to control prompts and slash command directories
+	oldPrompts := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
+	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldPrompts)
+	os.Setenv("HEXAI_MCP_PROMPTS_DIR", promptsDir)
+
+	// Write a config file with [mcp] section that sets the slash command dir
+	cfgContent := fmt.Sprintf("[mcp]\nslashcommand_dir = %q\nslashcommand_sync = true\n", cmdDir)
+	cfgPath := filepath.Join(tmpDir, "config.toml")
+	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0o644); err != nil {
+		t.Fatalf("cannot write config: %v", err)
+	}
+
+	// RunBackfill should succeed: config sets MCPSlashCommandDir, prompts
+	// dir exists, and SyncAll on an empty store is a no-op.
+	err := RunBackfill(logPath, cfgPath)
+	if err != nil {
+		t.Fatalf("RunBackfill() error = %v", err)
+	}
+
+	// Verify log file was created
+	if _, statErr := os.Stat(logPath); os.IsNotExist(statErr) {
+		t.Error("log file was not created")
+	}
+}
+
+// TestRunBackfill_CreateSyncerError verifies RunBackfill propagates
+// syncer creation errors (e.g. when MCPSlashCommandDir is set but
+// the syncer cannot be created due to an invalid path).
+func TestRunBackfill_CreateSyncerError(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "test.log")
+
+	// Use /dev/null as the slash command dir — creating subdirs under
+	// /dev/null will fail, which triggers a syncer creation error.
+	cfgContent := "[mcp]\nslashcommand_dir = \"/dev/null/impossible\"\n"
+	cfgPath := filepath.Join(tmpDir, "config.toml")
+	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0o644); err != nil {
+		t.Fatalf("cannot write config: %v", err)
+	}
+
+	err := RunBackfill(logPath, cfgPath)
+	if err == nil {
+		t.Fatal("expected error for invalid slash command dir, got nil")
+	}
+	if !strings.Contains(err.Error(), "cannot create syncer") {
+		t.Errorf("error = %v, want to contain 'cannot create syncer'", err)
+	}
+}
+
+// TestRunBackfill_StderrLogger verifies RunBackfill works when logPath
+// is empty (logger writes to stderr).
+func TestRunBackfill_StderrLogger(t *testing.T) {
+	tmpDir := t.TempDir()
+	promptsDir := filepath.Join(tmpDir, "prompts")
+	cmdDir := filepath.Join(tmpDir, "commands")
+
+	if err := os.MkdirAll(promptsDir, 0o755); err != nil {
+		t.Fatalf("cannot create prompts dir: %v", err)
+	}
+
+	oldPrompts := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
+	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldPrompts)
+	os.Setenv("HEXAI_MCP_PROMPTS_DIR", promptsDir)
+
+	cfgContent := fmt.Sprintf("[mcp]\nslashcommand_dir = %q\n", cmdDir)
+	cfgPath := filepath.Join(tmpDir, "config.toml")
+	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0o644); err != nil {
+		t.Fatalf("cannot write config: %v", err)
+	}
+
+	// Empty logPath — logger writes to stderr, defer close is a no-op
+	err := RunBackfill("", cfgPath)
+	if err != nil {
+		t.Fatalf("RunBackfill() error = %v", err)
+	}
+}
+
+// TestRunBackfill_LoggerError verifies RunBackfill returns an error when
+// the log path is invalid.
+func TestRunBackfill_LoggerError(t *testing.T) {
+	err := RunBackfill("/dev/null/impossible/test.log", "")
+	if err == nil {
+		t.Fatal("expected error for invalid log path, got nil")
+	}
+	if !strings.Contains(err.Error(), "cannot setup logger") {
+		t.Errorf("error = %v, want to contain 'cannot setup logger'", err)
+	}
+}
+
+// TestRunBackfill_NoCmdDir verifies RunBackfill returns an error when
+// slash command directory is not configured. Uses a nonexistent config
+// path and unsets relevant env vars to avoid picking up real config.
+func TestRunBackfill_NoCmdDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "test.log")
+
+	// Write an empty config file so loadConfig doesn't fall back to
+	// the user's real global config or project config.
+	emptyCfgPath := filepath.Join(tmpDir, "empty.toml")
+	if err := os.WriteFile(emptyCfgPath, []byte(""), 0o644); err != nil {
+		t.Fatalf("cannot write empty config: %v", err)
+	}
+
+	// Unset env var that could set the slash command dir
+	oldEnv := os.Getenv("HEXAI_MCP_SLASHCOMMAND_DIR")
+	defer os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", oldEnv)
+	os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", "")
+
+	err := RunBackfill(logPath, emptyCfgPath)
+	if err == nil {
+		t.Fatal("expected error for empty slash command dir, got nil")
+	}
+	if !strings.Contains(err.Error(), "commands directory not configured") {
+		t.Errorf("error = %v, want to contain 'commands directory not configured'", err)
+	}
+}

@@ -1,7 +1,9 @@
 package tmuxedit
 
 import (
+	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -192,6 +194,64 @@ func TestParseKeyRepeat(t *testing.T) {
 					tt.token, key, count, tt.wantKey, tt.wantCount)
 			}
 		})
+	}
+}
+
+func TestSendClearSequence_EscapeKey(t *testing.T) {
+	var calls []string
+	oldSend := sendKeys
+	defer func() { sendKeys = oldSend }()
+	sendKeys = func(paneID string, keys ...string) error {
+		calls = append(calls, strings.Join(keys, ","))
+		return nil
+	}
+
+	// sendClearSequence with "Escape" should succeed and send the key.
+	// The 150ms Escape delay is real but acceptable in tests.
+	err := sendClearSequence("%1", "Escape C-k")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{"Escape", "C-k"}
+	if len(calls) != len(want) {
+		t.Fatalf("got %d calls, want %d: %v", len(calls), len(want), calls)
+	}
+	for i, w := range want {
+		if calls[i] != w {
+			t.Errorf("call[%d] = %q, want %q", i, calls[i], w)
+		}
+	}
+}
+
+func TestSendClearSequence_SingleKeyError(t *testing.T) {
+	oldSend := sendKeys
+	defer func() { sendKeys = oldSend }()
+	sendKeys = func(string, ...string) error {
+		return fmt.Errorf("send failed")
+	}
+
+	err := sendClearSequence("%1", "C-u")
+	if err == nil {
+		t.Fatal("expected error from sendKeys failure")
+	}
+	if !strings.Contains(err.Error(), "clear key") {
+		t.Errorf("error should mention 'clear key', got: %v", err)
+	}
+}
+
+func TestSendClearSequence_RepeatedKeyError(t *testing.T) {
+	oldRepeat := sendRepeatedKey
+	defer func() { sendRepeatedKey = oldRepeat }()
+	sendRepeatedKey = func(string, string, int) error {
+		return fmt.Errorf("repeat failed")
+	}
+
+	err := sendClearSequence("%1", "BSpace*200")
+	if err == nil {
+		t.Fatal("expected error from sendRepeatedKey failure")
+	}
+	if !strings.Contains(err.Error(), "clear key") {
+		t.Errorf("error should mention 'clear key', got: %v", err)
 	}
 }
 

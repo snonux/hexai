@@ -119,6 +119,55 @@ func TestCursorAgent_ClearInput(t *testing.T) {
 	}
 }
 
+func TestCursorAgent_ExtractPrompt_EmptyPattern(t *testing.T) {
+	// A cursorAgent with empty promptPat returns empty string
+	agent := &cursorAgent{baseAgent{promptPat: ""}}
+	got := agent.ExtractPrompt("│ → hello │")
+	if got != "" {
+		t.Errorf("expected empty for empty pattern, got %q", got)
+	}
+}
+
+func TestCursorAgent_ExtractPrompt_InvalidRegex(t *testing.T) {
+	// A cursorAgent with invalid regex returns empty string
+	agent := &cursorAgent{baseAgent{promptPat: "[invalid"}}
+	got := agent.ExtractPrompt("│ → hello │")
+	if got != "" {
+		t.Errorf("expected empty for invalid regex, got %q", got)
+	}
+}
+
+func TestCursorAgent_ClearInput_Disabled(t *testing.T) {
+	agent := &cursorAgent{baseAgent{clearFirst: false, clearKeys: "End BSpace*200"}}
+	err := agent.ClearInput("%1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCursorAgent_ClearInput_EmptyKeys(t *testing.T) {
+	agent := &cursorAgent{baseAgent{clearFirst: true, clearKeys: ""}}
+	err := agent.ClearInput("%1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCursorAgent_ClearInput_Error(t *testing.T) {
+	noSleep(t)
+	oldSend := sendKeys
+	defer func() { sendKeys = oldSend }()
+	sendKeys = func(string, ...string) error {
+		return fmt.Errorf("send failed")
+	}
+
+	agent := newCursorAgent()
+	err := agent.ClearInput("%1")
+	if err == nil {
+		t.Fatal("expected error from sendClearSequence failure")
+	}
+}
+
 func TestCursorAgent_Detect(t *testing.T) {
 	agent := newCursorAgent()
 	tests := []struct {

@@ -2,6 +2,7 @@ package tmuxedit
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"testing"
 
@@ -303,6 +304,106 @@ func TestRunWithConfig_EditorError(t *testing.T) {
 	err := runWithConfig(Options{Pane: "%1"}, cfg)
 	if err == nil || !strings.Contains(err.Error(), "editor crashed") {
 		t.Errorf("expected editor error, got: %v", err)
+	}
+}
+
+func TestLogPaneLines_WithDebugLog(t *testing.T) {
+	// Set up debugLog to a buffer to cover the logging branch
+	var buf strings.Builder
+	oldDebugLog := debugLog
+	debugLog = log.New(&buf, "", 0)
+	defer func() { debugLog = oldDebugLog }()
+
+	// Content with box-drawing and arrow characters triggers logging
+	content := "normal line\n│ box line\n→ arrow line\nplain"
+	logPaneLines(content)
+
+	output := buf.String()
+	if !strings.Contains(output, "box line") {
+		t.Errorf("expected log of box-drawing line, got: %s", output)
+	}
+	if !strings.Contains(output, "arrow line") {
+		t.Errorf("expected log of arrow line, got: %s", output)
+	}
+}
+
+func TestLogPaneLines_WithoutDebugLog(t *testing.T) {
+	// When debugLog is nil, logPaneLines should not panic
+	oldDebugLog := debugLog
+	debugLog = nil
+	defer func() { debugLog = oldDebugLog }()
+
+	logPaneLines("│ test line\n→ arrow")
+	// No panic means pass
+}
+
+func TestRunWithConfig_ClearInputError(t *testing.T) {
+	noSleep(t)
+	oldCapture := capturePane
+	oldSendKeys := sendKeys
+	oldEditorPopup := openEditorPopup
+	oldRunCmd := runCommand
+	defer func() {
+		capturePane = oldCapture
+		sendKeys = oldSendKeys
+		openEditorPopup = oldEditorPopup
+		runCommand = oldRunCmd
+	}()
+
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		return []byte("%1"), nil
+	}
+	capturePane = func(string) (string, error) {
+		return "claude code v1.0\n──────\n❯ fix the bug\n──────", nil
+	}
+	openEditorPopup = func(string, string, string) (string, error) {
+		return "new text", nil
+	}
+	sendKeys = func(string, ...string) error {
+		return fmt.Errorf("clear input failed")
+	}
+
+	cfg := appconfig.App{}
+	err := runWithConfig(Options{}, cfg)
+	if err == nil || !strings.Contains(err.Error(), "clear input failed") {
+		t.Errorf("expected clear input error, got: %v", err)
+	}
+}
+
+func TestRunWithConfig_SendTextError(t *testing.T) {
+	noSleep(t)
+	oldCapture := capturePane
+	oldSendKeys := sendKeys
+	oldEditorPopup := openEditorPopup
+	oldRunCmd := runCommand
+	defer func() {
+		capturePane = oldCapture
+		sendKeys = oldSendKeys
+		openEditorPopup = oldEditorPopup
+		runCommand = oldRunCmd
+	}()
+
+	runCommand = func(name string, args ...string) ([]byte, error) {
+		return []byte("%1"), nil
+	}
+	// Use generic agent (no clear) so ClearInput succeeds
+	capturePane = func(string) (string, error) {
+		return "some unknown pane content", nil
+	}
+	openEditorPopup = func(string, string, string) (string, error) {
+		return "new text", nil
+	}
+	callCount := 0
+	sendKeys = func(string, ...string) error {
+		callCount++
+		// Fail on text send (generic agent has no clear)
+		return fmt.Errorf("send text failed")
+	}
+
+	cfg := appconfig.App{}
+	err := runWithConfig(Options{}, cfg)
+	if err == nil || !strings.Contains(err.Error(), "send text failed") {
+		t.Errorf("expected send text error, got: %v", err)
 	}
 }
 

@@ -1,6 +1,7 @@
 package tmuxedit
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -179,6 +180,133 @@ func TestSplitLines(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGetHistory_MalformedEntries(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", tmpDir)
+
+	// Create state directory and write a file with some valid and invalid lines
+	stateDir := filepath.Join(tmpDir, "state")
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		t.Fatalf("cannot create state dir: %v", err)
+	}
+	historyPath := filepath.Join(stateDir, "tmux-edit-history.jsonl")
+	content := `{"timestamp":"2025-01-01T00:00:00Z","agent":"claude","cwd":"/tmp","text":"valid"}
+not json at all
+{"timestamp":"2025-01-02T00:00:00Z","agent":"aider","cwd":"/home","text":"also valid"}
+`
+	if err := os.WriteFile(historyPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("cannot write history file: %v", err)
+	}
+
+	entries, err := GetHistory(0)
+	if err != nil {
+		t.Fatalf("GetHistory failed: %v", err)
+	}
+	// Should skip the malformed line and return the 2 valid entries
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	if entries[0].Text != "valid" {
+		t.Errorf("entries[0].Text = %q, want 'valid'", entries[0].Text)
+	}
+	if entries[1].Text != "also valid" {
+		t.Errorf("entries[1].Text = %q, want 'also valid'", entries[1].Text)
+	}
+}
+
+func TestGetHistory_EmptyLines(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", tmpDir)
+
+	stateDir := filepath.Join(tmpDir, "state")
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		t.Fatalf("cannot create state dir: %v", err)
+	}
+	historyPath := filepath.Join(stateDir, "tmux-edit-history.jsonl")
+	// File with empty lines interspersed
+	content := "\n" +
+		`{"timestamp":"2025-01-01T00:00:00Z","agent":"claude","cwd":"/tmp","text":"entry1"}` + "\n" +
+		"\n\n" +
+		`{"timestamp":"2025-01-02T00:00:00Z","agent":"aider","cwd":"/home","text":"entry2"}` + "\n"
+	if err := os.WriteFile(historyPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("cannot write history file: %v", err)
+	}
+
+	entries, err := GetHistory(0)
+	if err != nil {
+		t.Fatalf("GetHistory failed: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries (skipping empty lines), got %d", len(entries))
+	}
+}
+
+func TestGetHistory_LimitZeroReturnsAll(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", tmpDir)
+
+	for i := 0; i < 5; i++ {
+		if err := AppendHistory(fmt.Sprintf("entry%d", i), "claude", "/tmp"); err != nil {
+			t.Fatalf("AppendHistory failed: %v", err)
+		}
+	}
+
+	entries, err := GetHistory(0)
+	if err != nil {
+		t.Fatalf("GetHistory failed: %v", err)
+	}
+	if len(entries) != 5 {
+		t.Errorf("expected 5 entries with limit=0, got %d", len(entries))
+	}
+}
+
+func TestGetHistory_LimitLargerThanEntries(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", tmpDir)
+
+	if err := AppendHistory("only one", "claude", "/tmp"); err != nil {
+		t.Fatalf("AppendHistory failed: %v", err)
+	}
+
+	entries, err := GetHistory(100)
+	if err != nil {
+		t.Fatalf("GetHistory failed: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("expected 1 entry with large limit, got %d", len(entries))
+	}
+}
+
+func TestAppendHistory_InvalidStateDir(t *testing.T) {
+	// Point XDG_STATE_HOME to a path that can't be created (file, not dir)
+	tmpDir := t.TempDir()
+	blockingFile := filepath.Join(tmpDir, "blocker")
+	if err := os.WriteFile(blockingFile, []byte("x"), 0o644); err != nil {
+		t.Fatalf("cannot create blocking file: %v", err)
+	}
+	// Set state home to a path under the file (impossible to mkdir)
+	t.Setenv("XDG_STATE_HOME", filepath.Join(blockingFile, "sub"))
+
+	err := AppendHistory("text", "agent", "/cwd")
+	if err == nil {
+		t.Fatal("expected error when state directory cannot be created")
+	}
+}
+
+func TestGetHistory_InvalidStateDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	blockingFile := filepath.Join(tmpDir, "blocker")
+	if err := os.WriteFile(blockingFile, []byte("x"), 0o644); err != nil {
+		t.Fatalf("cannot create blocking file: %v", err)
+	}
+	t.Setenv("XDG_STATE_HOME", filepath.Join(blockingFile, "sub"))
+
+	_, err := GetHistory(0)
+	if err == nil {
+		t.Fatal("expected error when state directory cannot be created")
 	}
 }
 

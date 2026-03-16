@@ -4,12 +4,18 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"io"
 	"os"
 
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/hexaimcp"
+)
+
+// Seams for testing: override in tests to avoid launching real MCP server.
+var (
+	runMCP      = hexaimcp.Run
+	runBackfill = hexaimcp.RunBackfill
 )
 
 // printDeprecationWarning outputs a deprecation notice to stderr explaining
@@ -36,6 +42,17 @@ Use at your own risk.
 	fmt.Fprintln(os.Stderr, warning)
 }
 
+// mcpOptions holds the parsed command-line flags for the MCP server.
+type mcpOptions struct {
+	logPath          string
+	configPath       string
+	promptsDir       string
+	slashCommandSync bool
+	slashCommandDir  string
+	syncAll          bool
+	showVersion      bool
+}
+
 func main() {
 	printDeprecationWarning()
 
@@ -49,33 +66,45 @@ func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
-	if *showVersion {
-		fmt.Println(internal.Version)
-		return
+	opts := mcpOptions{
+		logPath:          *logPath,
+		configPath:       *configPath,
+		promptsDir:       *promptsDir,
+		slashCommandSync: *slashCommandSync,
+		slashCommandDir:  *slashCommandDir,
+		syncAll:          *syncAll,
+		showVersion:      *showVersion,
 	}
+	if err := run(opts, os.Stdin, os.Stdout, os.Stderr); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
 
-	// If prompts-dir is specified, set environment variable for RunWithFactory
-	if *promptsDir != "" {
-		os.Setenv("HEXAI_MCP_PROMPTS_DIR", *promptsDir)
+// run executes the MCP server logic with the given options and I/O streams.
+func run(opts mcpOptions, stdin io.Reader, stdout, stderr io.Writer) error {
+	// Set environment variables for RunWithFactory based on flag values
+	if opts.promptsDir != "" {
+		os.Setenv("HEXAI_MCP_PROMPTS_DIR", opts.promptsDir)
 	}
-	if *slashCommandSync {
+	if opts.slashCommandSync {
 		os.Setenv("HEXAI_MCP_SLASHCOMMAND_SYNC", "true")
 	}
-	if *slashCommandDir != "" {
-		os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", *slashCommandDir)
+	if opts.slashCommandDir != "" {
+		os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", opts.slashCommandDir)
+	}
+
+	if opts.showVersion {
+		fmt.Fprintln(stdout, internal.Version)
+		return nil
 	}
 
 	// Handle backfill operation
-	if *syncAll {
-		if err := hexaimcp.RunBackfill(*logPath, *configPath); err != nil {
-			log.Fatalf("backfill error: %v", err)
-		}
-		return
+	if opts.syncAll {
+		return runBackfill(opts.logPath, opts.configPath)
 	}
 
-	if err := hexaimcp.Run(*logPath, *configPath, os.Stdin, os.Stdout, os.Stderr); err != nil {
-		log.Fatalf("server error: %v", err)
-	}
+	return runMCP(opts.logPath, opts.configPath, stdin, stdout, stderr)
 }
 
 // defaultLogPath returns the default MCP log file path in the state directory.

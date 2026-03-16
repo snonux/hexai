@@ -21,6 +21,9 @@ import (
 	"codeberg.org/snonux/hexai/internal/tmuxedit"
 )
 
+// runTmuxEdit is the seam for testing: override in tests to avoid real tmux.
+var runTmuxEdit = tmuxedit.Run
+
 func main() {
 	defaultPath := appconfig.DefaultConfigPath()
 	configPath := flag.String("config", "", fmt.Sprintf("path to config file (default: %s)", defaultPath))
@@ -28,13 +31,19 @@ func main() {
 	pane := flag.String("pane", "", "tmux target pane ID (e.g. %%5)")
 	flag.Parse()
 
-	opts := tmuxedit.Options{
-		ConfigPath: strings.TrimSpace(*configPath),
-		Agent:      strings.TrimSpace(*agent),
-		Pane:       strings.TrimSpace(*pane),
-	}
-	if err := tmuxedit.Run(opts); err != nil {
+	opts := buildOptions(*configPath, *agent, *pane)
+	if err := runTmuxEdit(opts); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+}
+
+// buildOptions constructs tmuxedit.Options from the parsed flag values,
+// trimming whitespace from each field.
+func buildOptions(configPath, agent, pane string) tmuxedit.Options {
+	return tmuxedit.Options{
+		ConfigPath: strings.TrimSpace(configPath),
+		Agent:      strings.TrimSpace(agent),
+		Pane:       strings.TrimSpace(pane),
 	}
 }

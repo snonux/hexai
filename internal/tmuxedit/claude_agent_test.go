@@ -103,6 +103,69 @@ func TestClaudeAgent_ClearInput(t *testing.T) {
 	}
 }
 
+func TestClaudeAgent_ExtractPrompt_EmptyPattern(t *testing.T) {
+	agent := &claudeAgent{baseAgent{promptPat: "", sectionPat: `^─{5,}`}}
+	got := agent.ExtractPrompt("──────\n❯ hello\n──────")
+	if got != "" {
+		t.Errorf("expected empty for empty pattern, got %q", got)
+	}
+}
+
+func TestClaudeAgent_ExtractPrompt_InvalidRegex(t *testing.T) {
+	agent := &claudeAgent{baseAgent{promptPat: "[invalid", sectionPat: `^─{5,}`}}
+	got := agent.ExtractPrompt("──────\n❯ hello\n──────")
+	if got != "" {
+		t.Errorf("expected empty for invalid regex, got %q", got)
+	}
+}
+
+func TestClaudeAgent_ExtractPrompt_ContinuationBreaksOnEmpty(t *testing.T) {
+	agent := newClaudeAgent()
+	// Empty line between prompt blocks should break continuation
+	content := "──────────────\n" +
+		"❯ first line\n" +
+		"  continued\n" +
+		"\n" +
+		"unrelated text\n" +
+		"──────────────"
+	got := agent.ExtractPrompt(content)
+	want := "first line\ncontinued"
+	if got != want {
+		t.Errorf("ExtractPrompt() = %q, want %q", got, want)
+	}
+}
+
+func TestClaudeAgent_ClearInput_Disabled(t *testing.T) {
+	agent := &claudeAgent{baseAgent{clearFirst: false, clearKeys: "C-a C-k"}}
+	err := agent.ClearInput("%1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestClaudeAgent_ClearInput_EmptyKeys(t *testing.T) {
+	agent := &claudeAgent{baseAgent{clearFirst: true, clearKeys: ""}}
+	err := agent.ClearInput("%1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestClaudeAgent_ClearInput_Error(t *testing.T) {
+	noSleep(t)
+	oldSend := sendKeys
+	defer func() { sendKeys = oldSend }()
+	sendKeys = func(string, ...string) error {
+		return fmt.Errorf("send failed")
+	}
+
+	agent := newClaudeAgent()
+	err := agent.ClearInput("%1")
+	if err == nil {
+		t.Fatal("expected error from sendClearSequence failure")
+	}
+}
+
 func TestClaudeAgent_Detect(t *testing.T) {
 	agent := newClaudeAgent()
 	tests := []struct {
