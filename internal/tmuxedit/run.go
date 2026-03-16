@@ -111,23 +111,23 @@ func loadConfig(configPath string) appconfig.App {
 // debugLog is the debug logger. Set to a real logger via initDebugLog().
 var debugLog *log.Logger
 
-// initDebugLog creates a debug log file at /tmp/hexai-tmux-edit.log.
-// initDebugLog creates a debug log file in the state directory (~/.local/state/hexai/hexai-tmux-edit.log).
-// Falls back to /tmp if state directory cannot be created.
-// initDebugLog creates a debug log file in the state directory (~/.local/state/hexai/hexai-tmux-edit.log).
-// Panics if the state directory cannot be created.
-func initDebugLog() {
+// initDebugLog creates a debug log file in the state directory
+// (~/.local/state/hexai/hexai-tmux-edit.log). Returns an error if the
+// state directory cannot be resolved. Silently skips logging if the
+// log file itself cannot be opened.
+func initDebugLog() error {
 	stateDir, err := appconfig.StateDir()
 	if err != nil {
-		panic(fmt.Sprintf("cannot create state directory: %v", err))
+		return fmt.Errorf("cannot create state directory: %w", err)
 	}
 
 	logPath := filepath.Join(stateDir, "hexai-tmux-edit.log")
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
-		return
+		return nil
 	}
 	debugLog = log.New(f, "", log.LstdFlags|log.Lmicroseconds)
+	return nil
 }
 
 func dbg(format string, args ...any) {
@@ -140,7 +140,9 @@ func dbg(format string, args ...any) {
 // It resolves the agent (by name or auto-detect), extracts the current
 // prompt, opens the editor popup, then clears and sends the result.
 func runWithConfig(opts Options, cfg appconfig.App) error {
-	initDebugLog()
+	if err := initDebugLog(); err != nil {
+		return fmt.Errorf("init debug log: %w", err)
+	}
 	dbg("=== hexai-tmux-edit start ===")
 	dbg("opts: pane=%q agent=%q config=%q", opts.Pane, opts.Agent, opts.ConfigPath)
 

@@ -56,7 +56,11 @@ type mcpOptions struct {
 func main() {
 	printDeprecationWarning()
 
-	defaultLog := defaultLogPath()
+	defaultLog, err := defaultLogPath()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 	logPath := flag.String("log", defaultLog, "path to log file (optional)")
 	configPath := flag.String("config", "", "path to config file (optional)")
 	promptsDir := flag.String("prompts-dir", "", "path to prompts directory (optional)")
@@ -108,11 +112,11 @@ func run(opts mcpOptions, stdin io.Reader, stdout, stderr io.Writer) error {
 }
 
 // defaultLogPath returns the default MCP log file path in the state directory.
-// Panics if state directory cannot be created.
-func defaultLogPath() string {
+// Returns an error if the state directory cannot be created.
+func defaultLogPath() (string, error) {
 	stateDir, err := appconfig.StateDir()
 	if err != nil {
-		panic(fmt.Sprintf("cannot create state directory: %v", err))
+		return "", fmt.Errorf("cannot create state directory: %w", err)
 	}
-	return fmt.Sprintf("%s/hexai-mcp-server.log", stateDir)
+	return fmt.Sprintf("%s/hexai-mcp-server.log", stateDir), nil
 }

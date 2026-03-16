@@ -41,7 +41,10 @@ func TestPrintDeprecationWarning(t *testing.T) {
 }
 
 func TestDefaultLogPath(t *testing.T) {
-	path := defaultLogPath()
+	path, err := defaultLogPath()
+	if err != nil {
+		t.Fatalf("defaultLogPath returned error: %v", err)
+	}
 	if path == "" {
 		t.Fatal("expected non-empty log path")
 	}
