@@ -151,18 +151,24 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
 	return nil
 }
 
+// acquireFileLock spins on tryLockFile until it succeeds, the context is
+// cancelled, or an unexpected error occurs. A single timer is reused across
+// retries to avoid leaking timers/channels on every loop iteration.
 func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) {
 	fd := f.Fd()
+	retryTimer := time.NewTimer(5 * time.Millisecond)
+	defer retryTimer.Stop()
 	for {
 		err := tryLockFile(fd)
 		if err == nil {
 			return func() error { return unlockFile(fd) }, nil
 		}
 		if errors.Is(err, errLockWouldBlock) {
+			retryTimer.Reset(5 * time.Millisecond)
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-time.After(5 * time.Millisecond):
+			case <-retryTimer.C:
 			}
 			continue
 		}
