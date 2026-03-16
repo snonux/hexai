@@ -6,34 +6,50 @@ import (
 )
 
 // DefaultPrompts returns the built-in meta-prompts for prompt management.
-// These prompts help users create, update, delete, and design prompts interactively
-// using Claude's access to conversation context.
+// It assembles prompts from category-specific helpers so each remains concise.
 func DefaultPrompts() []Prompt {
 	now := time.Now()
-
 	return []Prompt{
-		{
-			Name:        "save_prompt",
-			Title:       "Save Current Conversation as Prompt",
-			Description: "Interactively create a new prompt template from the current conversation. Claude will analyze the conversation, ask clarifying questions about templating, show a preview, and wait for approval before saving.",
-			Arguments: []PromptArgument{
-				{
-					Name:        "prompt_name",
-					Description: "Unique identifier for the new prompt (lowercase, underscores allowed)",
-					Required:    true,
-				},
-				{
-					Name:        "prompt_title",
-					Description: "Human-readable display name for the new prompt",
-					Required:    true,
-				},
-			},
-			Messages: []PromptMessage{
-				{
-					Role: "user",
-					Content: MessageContent{
-						Type: "text",
-						Text: `I want to create a new prompt template named '{{prompt_name}}' with title '{{prompt_title}}'.
+		buildSavePrompt(now),
+		buildUpdatePrompt(now),
+		buildDeletePrompt(now),
+		buildDesignPrompt(now),
+	}
+}
+
+// formattingRules is the shared instruction block for clarifying-question formatting
+// used by the save and update meta-prompts.
+const formattingRules = `IMPORTANT FORMATTING RULES for clarifying questions:
+- Use numbered questions: 1), 2), 3)
+- ANY CHOICE MUST BE NUMBERED using combined format: 1a), 1b), 1c), 2a), 2b), etc.
+- NEVER use standalone letters like "a)" - always combine with question number
+- NEVER use dashes (-) or bullets (•) for options
+- Every option must be numbered for easy selection by the user`
+
+// buildSavePrompt creates the "save_prompt" meta-prompt that turns a conversation
+// into a reusable prompt template.
+func buildSavePrompt(now time.Time) Prompt {
+	return Prompt{
+		Name:        "save_prompt",
+		Title:       "Save Current Conversation as Prompt",
+		Description: "Interactively create a new prompt template from the current conversation. Claude will analyze the conversation, ask clarifying questions about templating, show a preview, and wait for approval before saving.",
+		Arguments: []PromptArgument{
+			{Name: "prompt_name", Description: "Unique identifier for the new prompt (lowercase, underscores allowed)", Required: true},
+			{Name: "prompt_title", Description: "Human-readable display name for the new prompt", Required: true},
+		},
+		Messages: []PromptMessage{{
+			Role:    "user",
+			Content: MessageContent{Type: "text", Text: savePromptText()},
+		}},
+		Tags:    []string{"meta", "prompt-management", "interactive"},
+		Created: now,
+		Updated: now,
+	}
+}
+
+// savePromptText returns the user message body for the save_prompt meta-prompt.
+func savePromptText() string {
+	return `I want to create a new prompt template named '{{prompt_name}}' with title '{{prompt_title}}'.
 
 Please help me by:
 1) Analyzing our current conversation to understand what should be templated
@@ -45,12 +61,7 @@ Please help me by:
 3) Showing me a complete preview of the prompt structure in a code block
 4) Only after I approve, use the create_prompt tool to save it
 
-IMPORTANT FORMATTING RULES for clarifying questions:
-- Use numbered questions: 1), 2), 3)
-- ANY CHOICE MUST BE NUMBERED using combined format: 1a), 1b), 1c), 2a), 2b), etc.
-- NEVER use standalone letters like "a)" - always combine with question number
-- NEVER use dashes (-) or bullets (•) for options
-- Every option must be numbered for easy selection by the user
+` + formattingRules + `
 
 Examples:
   1) Question Category
@@ -77,31 +88,32 @@ Examples:
   4b) Sub-question two?
       Answer options here
 
-Start by examining our conversation and asking your clarifying questions using this format.`,
-					},
-				},
-			},
-			Tags:    []string{"meta", "prompt-management", "interactive"},
-			Created: now,
-			Updated: now,
+Start by examining our conversation and asking your clarifying questions using this format.`
+}
+
+// buildUpdatePrompt creates the "update_prompt" meta-prompt for modifying
+// an existing prompt interactively.
+func buildUpdatePrompt(now time.Time) Prompt {
+	return Prompt{
+		Name:        "update_prompt",
+		Title:       "Update Existing Prompt",
+		Description: "Interactively modify an existing prompt. Claude will fetch the current version, ask what changes you want, show a preview with changes highlighted, and wait for approval before updating.",
+		Arguments: []PromptArgument{
+			{Name: "prompt_name", Description: "Name of the existing prompt to update", Required: true},
 		},
-		{
-			Name:        "update_prompt",
-			Title:       "Update Existing Prompt",
-			Description: "Interactively modify an existing prompt. Claude will fetch the current version, ask what changes you want, show a preview with changes highlighted, and wait for approval before updating.",
-			Arguments: []PromptArgument{
-				{
-					Name:        "prompt_name",
-					Description: "Name of the existing prompt to update",
-					Required:    true,
-				},
-			},
-			Messages: []PromptMessage{
-				{
-					Role: "user",
-					Content: MessageContent{
-						Type: "text",
-						Text: `I want to update the existing prompt '{{prompt_name}}'.
+		Messages: []PromptMessage{{
+			Role:    "user",
+			Content: MessageContent{Type: "text", Text: updatePromptText()},
+		}},
+		Tags:    []string{"meta", "prompt-management", "interactive"},
+		Created: now,
+		Updated: now,
+	}
+}
+
+// updatePromptText returns the user message body for the update_prompt meta-prompt.
+func updatePromptText() string {
+	return `I want to update the existing prompt '{{prompt_name}}'.
 
 Please help me by:
 1) Ask me what changes I want to make to the prompt '{{prompt_name}}' (title, description, arguments, messages, or tags)
@@ -109,12 +121,7 @@ Please help me by:
 3) Show me a complete preview of the updated prompt with changes highlighted
 4) Only after I approve, use the update_prompt tool to save the changes
 
-IMPORTANT FORMATTING RULES for clarifying questions:
-- Use numbered questions: 1), 2), 3)
-- ANY CHOICE MUST BE NUMBERED using combined format: 1a), 1b), 1c), 2a), 2b), etc.
-- NEVER use standalone letters like "a)" - always combine with question number
-- NEVER use dashes (-) or bullets (•) for options
-- Every option must be numbered for easy selection by the user
+` + formattingRules + `
 
 Examples:
   1) Question Category
@@ -136,31 +143,22 @@ Examples:
   3b) Second aspect to evaluate
   3c) Third aspect to evaluate
 
-Start by asking me what changes I want to make, using this format for any clarifying questions.`,
-					},
-				},
-			},
-			Tags:    []string{"meta", "prompt-management", "interactive"},
-			Created: now,
-			Updated: now,
+Start by asking me what changes I want to make, using this format for any clarifying questions.`
+}
+
+// buildDeletePrompt creates the "delete_prompt" meta-prompt for safely removing
+// a custom prompt with explicit confirmation.
+func buildDeletePrompt(now time.Time) Prompt {
+	return Prompt{
+		Name:        "delete_prompt",
+		Title:       "Delete Custom Prompt",
+		Description: "Interactively delete an existing custom prompt with confirmation. Claude will show the current prompt, ask for confirmation, and only delete after explicit approval. Built-in prompts cannot be deleted.",
+		Arguments: []PromptArgument{
+			{Name: "prompt_name", Description: "Name of the existing prompt to delete", Required: true},
 		},
-		{
-			Name:        "delete_prompt",
-			Title:       "Delete Custom Prompt",
-			Description: "Interactively delete an existing custom prompt with confirmation. Claude will show the current prompt, ask for confirmation, and only delete after explicit approval. Built-in prompts cannot be deleted.",
-			Arguments: []PromptArgument{
-				{
-					Name:        "prompt_name",
-					Description: "Name of the existing prompt to delete",
-					Required:    true,
-				},
-			},
-			Messages: []PromptMessage{
-				{
-					Role: "user",
-					Content: MessageContent{
-						Type: "text",
-						Text: `I want to delete the existing prompt '{{prompt_name}}'.
+		Messages: []PromptMessage{{
+			Role: "user",
+			Content: MessageContent{Type: "text", Text: `I want to delete the existing prompt '{{prompt_name}}'.
 
 Please help me by:
 1) Confirm with me that I want to delete the prompt named '{{prompt_name}}'
@@ -173,25 +171,25 @@ IMPORTANT NOTES:
 - Only custom prompts stored in user.jsonl can be deleted
 - Backups are automatically created before deletion
 
-Ask me to confirm the deletion of '{{prompt_name}}'.`,
-					},
-				},
-			},
-			Tags:    []string{"meta", "prompt-management", "interactive"},
-			Created: now,
-			Updated: now,
-		},
-		{
-			Name:        "design_prompt",
-			Title:       "Design New Prompt from Scratch",
-			Description: "Interactively design a brand new prompt template through guided questions. Claude will help you define the purpose, arguments, message flow, and metadata step by step, show a preview, and wait for approval before saving.",
-			Arguments:   []PromptArgument{},
-			Messages: []PromptMessage{
-				{
-					Role: "user",
-					Content: MessageContent{
-						Type: "text",
-						Text: `I want to design a brand new prompt template from scratch.
+Ask me to confirm the deletion of '{{prompt_name}}'.`},
+		}},
+		Tags:    []string{"meta", "prompt-management", "interactive"},
+		Created: now,
+		Updated: now,
+	}
+}
+
+// buildDesignPrompt creates the "design_prompt" meta-prompt for building
+// a brand new prompt template from scratch through guided questions.
+func buildDesignPrompt(now time.Time) Prompt {
+	return Prompt{
+		Name:        "design_prompt",
+		Title:       "Design New Prompt from Scratch",
+		Description: "Interactively design a brand new prompt template through guided questions. Claude will help you define the purpose, arguments, message flow, and metadata step by step, show a preview, and wait for approval before saving.",
+		Arguments:   []PromptArgument{},
+		Messages: []PromptMessage{{
+			Role: "user",
+			Content: MessageContent{Type: "text", Text: `I want to design a brand new prompt template from scratch.
 
 Please ask me:
 1) What should this prompt do? (describe the task/purpose in 1-2 sentences)
@@ -200,13 +198,10 @@ Please ask me:
 
 Then show me a preview and save it after I approve.
 
-Keep questions brief and focused.`,
-					},
-				},
-			},
-			Tags:    []string{"meta", "prompt-management", "interactive", "creation"},
-			Created: now,
-			Updated: now,
-		},
+Keep questions brief and focused.`},
+		}},
+		Tags:    []string{"meta", "prompt-management", "interactive", "creation"},
+		Created: now,
+		Updated: now,
 	}
 }

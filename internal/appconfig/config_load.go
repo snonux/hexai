@@ -139,6 +139,8 @@ func loadProjectConfig(logger *log.Logger, opts LoadOptions, cfg *App) {
 	}
 }
 
+// loadFromFile reads a TOML config file, validates it, and returns the parsed App.
+// Returns (nil, err) on I/O or parse errors; returns (nil, nil) when the file does not exist.
 func loadFromFile(path string, logger *log.Logger) (*App, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -148,25 +150,50 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) {
 		return nil, err
 	}
 
+	tables, raw, err := decodeTOML(b, path, logger)
+	if err != nil {
+		return nil, err
+	}
+	if err := rejectLegacyKeys(raw); err != nil {
+		return nil, err
+	}
+	if logger != nil {
+		logger.Printf("loaded configuration from %s (TOML)", path)
+	}
+
+	tab := tables.toApp()
+	applyRawIntOverrides(raw, &tab)
+	if m := parseSurfaceModels(raw, logger); m != nil {
+		tab.mergeSurfaceModels(m)
+	}
+	return &tab, nil
+}
+
+// decodeTOML parses raw TOML bytes into both the typed fileConfig and a raw map
+// for validation and defensive integer handling.
+func decodeTOML(b []byte, path string, logger *log.Logger) (*fileConfig, map[string]any, error) {
 	var tables fileConfig
 	errTables := toml.NewDecoder(strings.NewReader(string(b))).Decode(&tables)
-	// Raw map for validation/presence checks
 	var raw map[string]any
 	errRaw := toml.Unmarshal(b, &raw)
 	if errTables != nil {
 		if logger != nil {
 			logger.Printf("invalid TOML config file %s: %v", path, errTables)
 		}
-		return nil, errTables
+		return nil, nil, errTables
 	}
 	if errRaw != nil {
 		if logger != nil {
 			logger.Printf("invalid TOML config file %s: %v", path, errRaw)
 		}
-		return nil, errRaw
+		return nil, nil, errRaw
 	}
+	return &tables, raw, nil
+}
 
-	// Reject legacy flat keys at top-level (sectioned-only config is allowed)
+// rejectLegacyKeys returns an error if the raw map contains flat keys from the
+// old unsectioned config format. Only sectioned table keys are allowed.
+func rejectLegacyKeys(raw map[string]any) error {
 	legacy := map[string]struct{}{
 		"max_tokens": {}, "context_mode": {}, "context_window_lines": {}, "max_context_tokens": {},
 		"log_preview_limit": {}, "completion_debounce_ms": {}, "completion_throttle_ms": {},
@@ -175,53 +202,46 @@ func loadFromFile(path string, logger *log.Logger) (*App, error) {
 		"openai_model": {}, "openai_base_url": {}, "openai_temperature": {},
 		"ollama_model": {}, "ollama_base_url": {}, "ollama_temperature": {},
 	}
+	knownTables := map[string]struct{}{
+		"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {},
+		"chat": {}, "provider": {}, "models": {}, "openai": {}, "ollama": {}, "prompts": {},
+	}
 	for k := range raw {
-		if _, isTable := map[string]struct{}{
-			"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {},
-			"chat": {}, "provider": {}, "models": {}, "openai": {}, "ollama": {}, "prompts": {},
-		}[k]; isTable {
+		if _, isTable := knownTables[k]; isTable {
 			continue
 		}
 		if _, isLegacy := legacy[k]; isLegacy {
-			return nil, fmt.Errorf("unsupported flat key '%s' in config; use sectioned tables (see config.toml.example)", k)
+			return fmt.Errorf("unsupported flat key '%s' in config; use sectioned tables (see config.toml.example)", k)
 		}
 	}
+	return nil
+}
 
-	if logger != nil {
-		logger.Printf("loaded configuration from %s (TOML)", path)
-	}
-
-	// Build App from tables only
-	tab := tables.toApp()
-	// Ensure explicit values from raw map are respected (defensive for ints)
+// applyRawIntOverrides defensively re-applies integer values from the raw TOML map
+// that the typed decoder may have silently zeroed (e.g. int vs float mismatch).
+func applyRawIntOverrides(raw map[string]any, tab *App) {
 	if t, ok := raw["completion"].(map[string]any); ok {
-		if v, present := t["manual_invoke_min_prefix"]; present {
-			switch vv := v.(type) {
-			case int64:
-				tab.ManualInvokeMinPrefix = int(vv)
-			case int:
-				tab.ManualInvokeMinPrefix = vv
-			case float64:
-				tab.ManualInvokeMinPrefix = int(vv)
-			}
-		}
+		applyRawInt(&tab.ManualInvokeMinPrefix, t, "manual_invoke_min_prefix")
 	}
 	if t, ok := raw["logging"].(map[string]any); ok {
-		if v, present := t["log_preview_limit"]; present {
-			switch vv := v.(type) {
-			case int64:
-				tab.LogPreviewLimit = int(vv)
-			case int:
-				tab.LogPreviewLimit = vv
-			case float64:
-				tab.LogPreviewLimit = int(vv)
-			}
-		}
+		applyRawInt(&tab.LogPreviewLimit, t, "log_preview_limit")
 	}
-	if m := parseSurfaceModels(raw, logger); m != nil {
-		tab.mergeSurfaceModels(m)
+}
+
+// applyRawInt sets *dst from table[key] when the value is a numeric type.
+func applyRawInt(dst *int, table map[string]any, key string) {
+	v, present := table[key]
+	if !present {
+		return
 	}
-	return &tab, nil
+	switch vv := v.(type) {
+	case int64:
+		*dst = int(vv)
+	case int:
+		*dst = vv
+	case float64:
+		*dst = int(vv)
+	}
 }
 
 func (fc *fileConfig) toApp() App {

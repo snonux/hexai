@@ -83,54 +83,85 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	lockPath := filepath.Join(dir, lockFileName)
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = f.Close() }()
-	unlock, err := acquireFileLock(ctx, f)
+	unlock, err := lockStatsFile(ctx, dir)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = unlock() }()
-	// Read existing file (if any)
+
 	path := filepath.Join(dir, fileName)
+	sf := readStatsFile(path)
+	now := time.Now()
+	win := Window()
+	sf.WindowSeconds = int(win.Seconds())
+	sf.Events = append(sf.Events, Event{
+		TS: now, Provider: provider, Model: model,
+		Sent: int64(sentBytes), Recv: int64(recvBytes),
+	})
+	pruneOldEvents(&sf, now.Add(-win))
+	sf.UpdatedAt = now
+	return writeStatsFileAtomic(dir, path, &sf)
+}
+
+// lockStatsFile acquires an advisory file lock on the stats lock file within dir.
+// Returns an unlock function on success.
+func lockStatsFile(ctx context.Context, dir string) (func() error, error) {
+	lockPath := filepath.Join(dir, lockFileName)
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	unlock, err := acquireFileLock(ctx, f)
+	if err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	// Return a combined unlock+close function so the caller only needs one defer.
+	return func() error {
+		uErr := unlock()
+		cErr := f.Close()
+		if uErr != nil {
+			return uErr
+		}
+		return cErr
+	}, nil
+}
+
+// readStatsFile loads the on-disk stats file, returning a fresh File if it is
+// missing or has an incompatible version.
+func readStatsFile(path string) File {
 	var sf File
-	if b, rerr := os.ReadFile(path); rerr == nil {
+	if b, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(b, &sf)
 	}
 	if sf.Version != fileVersion {
 		sf = File{Version: fileVersion}
 	}
-	now := time.Now()
-	win := Window()
-	sf.WindowSeconds = int(win.Seconds())
-	// Append event
-	sf.Events = append(sf.Events, Event{TS: now, Provider: provider, Model: model, Sent: int64(sentBytes), Recv: int64(recvBytes)})
-	// Prune old
-	cutoff := now.Add(-win)
-	if len(sf.Events) > 0 {
-		// Find first >= cutoff
-		i := 0
-		for ; i < len(sf.Events); i++ {
-			if !sf.Events[i].TS.Before(cutoff) {
-				break
-			}
-		}
-		if i > 0 {
-			sf.Events = append([]Event(nil), sf.Events[i:]...)
+	return sf
+}
+
+// pruneOldEvents removes events older than cutoff in-place.
+func pruneOldEvents(sf *File, cutoff time.Time) {
+	i := 0
+	for ; i < len(sf.Events); i++ {
+		if !sf.Events[i].TS.Before(cutoff) {
+			break
 		}
 	}
-	sf.UpdatedAt = now
-	// Write atomically
+	if i > 0 {
+		sf.Events = append([]Event(nil), sf.Events[i:]...)
+	}
+}
+
+// writeStatsFileAtomic writes sf to path via a temp file + rename for crash safety.
+func writeStatsFileAtomic(dir, path string, sf *File) error {
 	tmp, err := os.CreateTemp(dir, fileName+".tmp.")
 	if err != nil {
 		return err
 	}
 	enc := json.NewEncoder(tmp)
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(&sf); err != nil {
+	if err := enc.Encode(sf); err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(tmp.Name())
 		return err
