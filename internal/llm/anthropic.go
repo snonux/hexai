@@ -1,4 +1,4 @@
-// Summary: Anthropic client implementation using Messages API with optional streaming support.
+// Anthropic client implementation using Messages API with optional streaming support.
 package llm
 
 import (

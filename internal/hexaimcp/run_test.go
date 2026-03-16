@@ -1,4 +1,4 @@
-// Summary: Integration tests for hexaimcp orchestrator
+// Integration tests for hexaimcp orchestrator.
 package hexaimcp
 
 import (

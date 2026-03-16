@@ -1,4 +1,4 @@
-// Summary: Converts MCP prompts to generic slash command Markdown format.
+// Package slashcommands converts MCP prompts to generic slash command Markdown format.
 package slashcommands
 
 import (

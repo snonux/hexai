@@ -1,4 +1,4 @@
-// Summary: Hexai MCP server entrypoint; parses flags and delegates to internal/hexaimcp.
+// Package main is the Hexai MCP server entrypoint; parses flags and delegates to internal/hexaimcp.
 package main
 
 import (

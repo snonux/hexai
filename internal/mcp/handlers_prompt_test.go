@@ -1,4 +1,4 @@
-// Summary: Tests for MCP prompt management handlers (create, update, delete, get, list)
+// Tests for MCP prompt management handlers (create, update, delete, get, list).
 package mcp
 
 import (

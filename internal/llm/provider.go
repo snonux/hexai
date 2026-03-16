@@ -1,4 +1,4 @@
-// Summary: LLM provider interfaces, request options, configuration, and factory to build a client from config.
+// Package llm defines LLM provider interfaces, request options, configuration, and factory to build a client from config.
 package llm
 
 import (

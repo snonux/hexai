@@ -1,4 +1,4 @@
-// Summary: Application configuration model and defaults.
+// Package appconfig provides the application configuration model and defaults.
 package appconfig
 
 import "strings"

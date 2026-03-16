@@ -1,4 +1,4 @@
-// Summary: MCP protocol types for JSON-RPC 2.0 messages and MCP-specific structures.
+// MCP protocol types for JSON-RPC 2.0 messages and MCP-specific structures.
 package mcp
 
 import "encoding/json"

@@ -1,4 +1,4 @@
-// Summary: MCP server core — struct definition, constructor, main loop, and message dispatch.
+// Package mcp provides the MCP server core — struct definition, constructor, main loop, and message dispatch.
 package mcp
 
 import (

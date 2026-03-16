@@ -1,4 +1,4 @@
-// Summary: OpenRouter client implementation leveraging OpenAI-compatible helpers with provider-specific headers.
+// OpenRouter client implementation leveraging OpenAI-compatible helpers with provider-specific headers.
 package llm
 
 import (

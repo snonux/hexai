@@ -1,4 +1,4 @@
-// Summary: Built-in meta-prompts for prompt management.
+// Built-in meta-prompts for prompt management.
 package promptstore
 
 import (

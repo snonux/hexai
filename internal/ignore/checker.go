@@ -1,4 +1,4 @@
-// Summary: Thread-safe gitignore-aware file checker that combines .gitignore
+// Package ignore provides a thread-safe gitignore-aware file checker that combines .gitignore
 // patterns with user-configured extra patterns. Used by the LSP server to
 // skip completions and code actions for ignored files.
 package ignore

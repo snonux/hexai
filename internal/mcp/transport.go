@@ -1,4 +1,4 @@
-// Summary: MCP transport utilities for reading and writing JSON-RPC messages
+// MCP transport utilities for reading and writing JSON-RPC messages
 // using newline-delimited JSON (JSONL) as required by the MCP stdio protocol.
 package mcp
 

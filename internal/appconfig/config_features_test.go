@@ -1,4 +1,4 @@
-// Summary: Tests for ignore config, tmux-edit config, and low-level parsing helpers
+// Tests for ignore config, tmux-edit config, and low-level parsing helpers
 // (temperature, model entries, surface entries, resolved model).
 package appconfig
 

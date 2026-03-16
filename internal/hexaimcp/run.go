@@ -1,4 +1,4 @@
-// Summary: MCP server orchestrator; loads config, sets up store, and runs server.
+// Package hexaimcp is the MCP server orchestrator; loads config, sets up store, and runs server.
 package hexaimcp
 
 import (

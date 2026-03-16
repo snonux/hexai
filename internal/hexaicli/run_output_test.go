@@ -1,4 +1,4 @@
-// Summary: Tests for CLI job output writing, result counting, config path context,
+// Tests for CLI job output writing, result counting, config path context,
 // cached output writing, and streaming error paths.
 package hexaicli
 

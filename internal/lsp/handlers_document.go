@@ -1,4 +1,4 @@
-// Summary: Document open/change/close and in-editor chat handlers split out of handlers.go.
+// Document open/change/close and in-editor chat handlers split out of handlers.go.
 package lsp
 
 import (

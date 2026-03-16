@@ -1,4 +1,4 @@
-// Summary: Completion handlers split from handlers.go to reduce file size and isolate feature logic.
+// Completion handlers split from handlers.go to reduce file size and isolate feature logic.
 package lsp
 
 import (

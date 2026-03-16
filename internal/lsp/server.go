@@ -1,4 +1,4 @@
-// Summary: Minimal LSP server over stdio; manages documents, dispatches requests, and tracks stats.
+// Package lsp provides a minimal LSP server over stdio; manages documents, dispatches requests, and tracks stats.
 package lsp
 
 import (

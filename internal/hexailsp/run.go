@@ -1,4 +1,4 @@
-// Summary: Hexai LSP runner; configures logging, loads config, builds the LLM client,
+// Package hexailsp is the Hexai LSP runner; configures logging, loads config, builds the LLM client,
 // and constructs/runs the LSP server (with injectable factory for tests).
 package hexailsp
 

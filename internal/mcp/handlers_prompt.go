@@ -1,4 +1,4 @@
-// Summary: MCP prompt-related handler methods for list, get, create, update, and delete operations.
+// MCP prompt-related handler methods for list, get, create, update, and delete operations.
 package mcp
 
 import (

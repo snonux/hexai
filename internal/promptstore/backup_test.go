@@ -1,4 +1,4 @@
-// Summary: Tests for automatic backup functionality
+// Tests for automatic backup functionality.
 package promptstore
 
 import (

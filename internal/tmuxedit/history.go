@@ -1,4 +1,4 @@
-// Summary: JSONL-based history storage for tmux popup submissions
+// Package tmuxedit provides JSONL-based history storage for tmux popup submissions.
 package tmuxedit
 
 import (

@@ -1,4 +1,4 @@
-// Summary: Code Action handlers and helpers split from handlers.go for clarity.
+// Code Action handlers and helpers split from handlers.go for clarity.
 package lsp
 
 import (

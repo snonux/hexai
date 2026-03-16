@@ -1,4 +1,4 @@
-// Summary: Builds additional context snippets based on configured mode and truncates text by token heuristic.
+// Builds additional context snippets based on configured mode and truncates text by token heuristic.
 package lsp
 
 import (

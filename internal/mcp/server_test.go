@@ -1,4 +1,4 @@
-// Summary: Tests for MCP server operations
+// Tests for MCP server operations.
 package mcp
 
 import (
@@ -85,27 +85,27 @@ func readResponse(r io.Reader) (*Response, error) {
 	if len(lines) == 0 {
 		return nil, fmt.Errorf("no response data")
 	}
-	
+
 	// Try to find a response (message with an ID)
 	for _, line := range lines {
 		if len(line) == 0 {
 			continue
 		}
-		
+
 		// Quick check if this might be a response (has "id" field)
 		if !strings.Contains(line, `"id"`) {
 			continue // Skip notifications
 		}
-		
+
 		var resp Response
 		if err := json.Unmarshal([]byte(line), &resp); err != nil {
 			continue // Not a valid response, try next line
 		}
-		
+
 		// Valid response found
 		return &resp, nil
 	}
-	
+
 	return nil, fmt.Errorf("no response found in output (only notifications)")
 }
 

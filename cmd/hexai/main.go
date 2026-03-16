@@ -1,4 +1,4 @@
-// Summary: Hexai CLI entrypoint; parses flags and delegates to internal/hexaicli.
+// Package main is the Hexai CLI entrypoint; parses flags and delegates to internal/hexaicli.
 package main
 
 import (

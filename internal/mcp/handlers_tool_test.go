@@ -1,4 +1,4 @@
-// Summary: Tests for MCP tool handlers (tools/list, tools/call for create/update/delete)
+// Tests for MCP tool handlers (tools/list, tools/call for create/update/delete).
 package mcp
 
 import (

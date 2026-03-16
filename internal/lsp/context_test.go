@@ -1,4 +1,4 @@
-// Summary: Tests for context-building logic (window, full-file) and truncation behavior.
+// Tests for context-building logic (window, full-file) and truncation behavior.
 package lsp
 
 import (

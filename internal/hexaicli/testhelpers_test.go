@@ -1,4 +1,4 @@
-// Summary: Test helpers for Hexai CLI tests (stdin swapping and fake LLM clients/streamers).
+// Test helpers for Hexai CLI tests (stdin swapping and fake LLM clients/streamers).
 package hexaicli
 
 import (

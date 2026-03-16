@@ -1,4 +1,4 @@
-// Summary: File syncer for exporting MCP prompts to slash command files.
+// File syncer for exporting MCP prompts to slash command files.
 package slashcommands
 
 import (

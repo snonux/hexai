@@ -1,4 +1,4 @@
-// Summary: ANSI-styled logging utilities with a bound standard logger and configurable preview truncation.
+// Package logging provides ANSI-styled logging utilities with a bound standard logger and configurable preview truncation.
 // All package-level state is accessed via atomic types to avoid data races under concurrent use.
 package logging
 

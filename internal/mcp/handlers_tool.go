@@ -1,4 +1,4 @@
-// Summary: MCP tool-related handler methods for listing tools, calling tools,
+// MCP tool-related handler methods for listing tools, calling tools,
 // and JSON Schema definitions for tool inputs.
 package mcp
 

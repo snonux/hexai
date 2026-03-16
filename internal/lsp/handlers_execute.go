@@ -1,4 +1,4 @@
-// Summary: ExecuteCommand handler to support post-edit navigation (jump to generated test).
+// ExecuteCommand handler to support post-edit navigation (jump to generated test).
 package lsp
 
 import (

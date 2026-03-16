@@ -1,4 +1,4 @@
-// Summary: Data models for prompt storage (templates with arguments).
+// Data models for prompt storage (templates with arguments).
 package promptstore
 
 import "time"

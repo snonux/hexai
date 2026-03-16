@@ -1,4 +1,4 @@
-// Summary: Tests for prompt store operations
+// Tests for prompt store operations.
 package promptstore
 
 import (

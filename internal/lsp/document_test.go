@@ -1,4 +1,4 @@
-// Summary: Tests for LSP document model (line management, edits, and transformations).
+// Tests for LSP document model (line management, edits, and transformations).
 package lsp
 
 import (

@@ -1,4 +1,4 @@
-// Summary: Tests for the Hexai LSP runner using a fake server factory and environment keys.
+// Tests for the Hexai LSP runner using a fake server factory and environment keys.
 package hexailsp
 
 import (

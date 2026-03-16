@@ -1,4 +1,4 @@
-// Summary: Generic LSP helpers shared across handlers (LLM opts, prompts, text utils, counters).
+// Generic LSP helpers shared across handlers (LLM opts, prompts, text utils, counters).
 package lsp
 
 import (

@@ -1,4 +1,4 @@
-// Summary: Prompt storage interface and JSONL-based implementation.
+// Package promptstore provides a prompt storage interface and JSONL-based implementation.
 package promptstore
 
 import (

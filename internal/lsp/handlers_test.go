@@ -1,4 +1,4 @@
-// Summary: Tests for instruction extraction helpers in handlers.go
+// Tests for instruction extraction helpers in handlers.go.
 package lsp
 
 import "testing"

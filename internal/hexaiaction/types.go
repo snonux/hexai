@@ -1,6 +1,5 @@
+// Package hexaiaction provides core types and constants for hexai-tmux-action.
 package hexaiaction
-
-// Summary: Core types and constants for hexai-tmux-action.
 
 type ActionKind string
 
