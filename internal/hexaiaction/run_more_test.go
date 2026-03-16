@@ -46,7 +46,7 @@ func TestHandleDiagnosticsActionInvokesLLM(t *testing.T) {
 	parts := InputParts{Diagnostics: []string{"warn1"}, Selection: "code"}
 	client := &stubChatDoer{}
 	cfg := appconfig.Load(nil)
-	if _, err := handleDiagnosticsAction(context.Background(), parts, cfg, client); err != nil {
+	if _, err := handleDiagnosticsAction(context.Background(), parts, &cfg, client); err != nil {
 		t.Fatalf("handleDiagnosticsAction: %v", err)
 	}
 	if client.calls != 1 {
@@ -68,7 +68,7 @@ func TestHandleSimplifyActionPassesSelection(t *testing.T) {
 	parts := InputParts{Selection: "value := 1"}
 	client := &stubChatDoer{}
 	cfg := appconfig.Load(nil)
-	if _, err := handleSimplifyAction(context.Background(), parts, cfg, client); err != nil {
+	if _, err := handleSimplifyAction(context.Background(), parts, &cfg, client); err != nil {
 		t.Fatalf("handleSimplifyAction: %v", err)
 	}
 	if client.calls != 1 {
@@ -91,7 +91,7 @@ func TestHandleCustomActionUsesProvidedCustom(t *testing.T) {
 	parts := InputParts{Selection: "text"}
 	client := &stubChatDoer{}
 	cfg := appconfig.Load(nil)
-	if _, err := handleCustomAction(context.Background(), parts, cfg, client, &sel); err != nil {
+	if _, err := handleCustomAction(context.Background(), parts, &cfg, client, &sel); err != nil {
 		t.Fatalf("handleCustomAction: %v", err)
 	}
 	if client.calls != 1 {

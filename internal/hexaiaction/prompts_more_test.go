@@ -42,7 +42,7 @@ func TestReqOptsFrom_Override(t *testing.T) {
 			CodeActionConfigs: []appconfig.SurfaceConfig{{Provider: "anthropic", Model: "override", Temperature: ptrFloat(0.6)}},
 		},
 	}
-	req := reqOptsFrom(cfg)
+	req := reqOptsFrom(&cfg)
 	if req.model != "override" {
 		t.Fatalf("expected override model, got %q", req.model)
 	}
@@ -63,7 +63,7 @@ func TestReqOptsFrom_Gpt5Temp(t *testing.T) {
 		},
 		ProviderConfig: appconfig.ProviderConfig{OpenAIModel: "gpt-5.0"},
 	}
-	req := reqOptsFrom(cfg)
+	req := reqOptsFrom(&cfg)
 	var opts llm.Options
 	for _, o := range req.options {
 		o(&opts)

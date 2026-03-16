@@ -17,7 +17,7 @@ func (simplifyClient) DefaultModel() string { return "m" }
 
 func TestRunSimplify_Smoke(t *testing.T) {
 	cfg := appconfig.Load(nil)
-	out, err := runSimplify(context.Background(), cfg, simplifyClient{}, "code")
+	out, err := runSimplify(context.Background(), &cfg, simplifyClient{}, "code")
 	if err != nil {
 		t.Fatalf("runSimplify: %v", err)
 	}

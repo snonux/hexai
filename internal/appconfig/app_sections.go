@@ -127,7 +127,7 @@ type AppSections struct {
 }
 
 // Sections returns the app configuration split into focused sub-configs.
-func (a App) Sections() AppSections {
+func (a *App) Sections() AppSections {
 	return AppSections{
 		Core:      a.CoreSection(),
 		Providers: a.ProviderSection(),
@@ -146,7 +146,7 @@ func (a *App) ApplySections(sections AppSections) {
 
 // CoreSection returns a deep copy of the core runtime and interaction settings.
 // Slices are cloned to prevent callers from mutating the original.
-func (a App) CoreSection() CoreConfig {
+func (a *App) CoreSection() CoreConfig {
 	c := a.CoreConfig
 	c.TriggerCharacters = slices.Clone(a.TriggerCharacters)
 	c.ChatPrefixes = slices.Clone(a.ChatPrefixes)
@@ -163,7 +163,7 @@ func (a *App) ApplyCoreSection(core CoreConfig) {
 
 // ProviderSection returns a deep copy of provider endpoint/model settings.
 // Surface config slices are cloned to prevent callers from mutating the original.
-func (a App) ProviderSection() ProviderConfig {
+func (a *App) ProviderSection() ProviderConfig {
 	p := a.ProviderConfig
 	p.CompletionConfigs = cloneSurfaceConfigs(a.CompletionConfigs)
 	p.CodeActionConfigs = cloneSurfaceConfigs(a.CodeActionConfigs)
@@ -184,7 +184,7 @@ func (a *App) ApplyProviderSection(providers ProviderConfig) {
 
 // PromptSection returns a deep copy of prompt templates and custom action settings.
 // The CustomActions slice is cloned to prevent callers from mutating the original.
-func (a App) PromptSection() PromptConfig {
+func (a *App) PromptSection() PromptConfig {
 	p := a.PromptConfig
 	p.CustomActions = append([]CustomAction{}, a.CustomActions...)
 	return p
@@ -199,7 +199,7 @@ func (a *App) ApplyPromptSection(prompts PromptConfig) {
 
 // FeatureSection returns a deep copy of non-LLM feature toggles and integrations.
 // Slices are cloned to prevent callers from mutating the original.
-func (a App) FeatureSection() FeatureConfig {
+func (a *App) FeatureSection() FeatureConfig {
 	f := a.FeatureConfig
 	f.IgnoreExtraPatterns = slices.Clone(a.IgnoreExtraPatterns)
 	f.TmuxEditAgents = append([]TmuxEditAgentCfg{}, a.TmuxEditAgents...)

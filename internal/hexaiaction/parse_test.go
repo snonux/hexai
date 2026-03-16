@@ -95,28 +95,28 @@ func TestRuners_Prompts(t *testing.T) {
 	f := &fakeClient{out: "```\nDONE\n```"}
 	ctx := context.Background()
 	// rewrite
-	if out, err := runRewrite(ctx, cfg, f, "instr", "sel"); err != nil || out != "DONE" {
+	if out, err := runRewrite(ctx, &cfg, f, "instr", "sel"); err != nil || out != "DONE" {
 		t.Fatalf("rewrite failed: %q %v", out, err)
 	}
 	if len(f.last) != 2 || f.last[0].Content != "SYS-R" || !strings.Contains(f.last[1].Content, "instr") {
 		t.Fatalf("rewrite prompts wrong: %#v", f.last)
 	}
 	// diagnostics
-	if out, err := runDiagnostics(ctx, cfg, f, []string{"a", "b"}, "sel"); err != nil || out != "DONE" {
+	if out, err := runDiagnostics(ctx, &cfg, f, []string{"a", "b"}, "sel"); err != nil || out != "DONE" {
 		t.Fatalf("diagnostics failed: %q %v", out, err)
 	}
 	if f.last[0].Content != "SYS-D" || !strings.Contains(f.last[1].Content, "a\nb") {
 		t.Fatalf("diagnostics prompts wrong: %#v", f.last)
 	}
 	// document
-	if out, err := runDocument(ctx, cfg, f, "sel"); err != nil || out != "DONE" {
+	if out, err := runDocument(ctx, &cfg, f, "sel"); err != nil || out != "DONE" {
 		t.Fatalf("document failed: %q %v", out, err)
 	}
 	if f.last[0].Content != "SYS-C" || !strings.Contains(f.last[1].Content, "sel") {
 		t.Fatalf("document prompts wrong: %#v", f.last)
 	}
 	// gotest
-	if out, err := runGoTest(ctx, cfg, f, "func A(){}"); err != nil || out != "DONE" {
+	if out, err := runGoTest(ctx, &cfg, f, "func A(){}"); err != nil || out != "DONE" {
 		t.Fatalf("gotest failed: %q %v", out, err)
 	}
 	if f.last[0].Content != "SYS-T" || !strings.Contains(f.last[1].Content, "func A(){") {

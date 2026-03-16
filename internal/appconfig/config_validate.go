@@ -6,7 +6,7 @@ import (
 )
 
 // Validate checks custom actions and tmux settings for duplicates and consistency.
-func (a App) Validate() error {
+func (a *App) Validate() error {
 	if err := validateCustomActions(a.CustomActions); err != nil {
 		return err
 	}

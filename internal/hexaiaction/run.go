@@ -123,7 +123,7 @@ func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Wri
 		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
 		return err
 	}
-	primaryModel := strings.TrimSpace(reqOptsFrom(cfg).model)
+	primaryModel := strings.TrimSpace(reqOptsFrom(&cfg).model)
 	if primaryModel == "" {
 		primaryModel = cli.DefaultModel()
 	}
@@ -141,7 +141,7 @@ func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Wri
 	if err != nil {
 		return err
 	}
-	out, err := executeAction(ctx, choice.kind, parts, cfg, client, stderr, choice.custom)
+	out, err := executeAction(ctx, choice.kind, parts, &cfg, client, stderr, choice.custom)
 	if err != nil {
 		return err
 	}

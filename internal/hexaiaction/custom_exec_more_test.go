@@ -22,7 +22,7 @@ func TestExecuteAction_Custom_DoesNotMutateProvidedSelection(t *testing.T) {
 	cfg := appconfig.Load(nil)
 	parts := InputParts{Selection: "code"}
 	selectedCustom := &appconfig.CustomAction{ID: "x", Title: "X", Instruction: "Do it"}
-	_, _ = executeAction(context.Background(), ActionCustom, parts, cfg, fakeDoer{"OK"}, nil, selectedCustom)
+	_, _ = executeAction(context.Background(), ActionCustom, parts, &cfg, fakeDoer{"OK"}, nil, selectedCustom)
 	if selectedCustom == nil {
 		t.Fatalf("expected provided selectedCustom to remain local state")
 	}
@@ -33,7 +33,7 @@ func TestRunCustom_UserTemplate_InjectsDiagnostics(t *testing.T) {
 	parts := InputParts{Selection: "code", Diagnostics: []string{"L1", "L2"}}
 	ca := appconfig.CustomAction{ID: "y", Title: "Y", User: "{{diagnostics}}\n{{selection}}"}
 	cap := &capDoer{}
-	_, err := runCustom(context.Background(), cfg, cap, ca, parts)
+	_, err := runCustom(context.Background(), &cfg, cap, ca, parts)
 	if err != nil {
 		t.Fatalf("runCustom error: %v", err)
 	}
