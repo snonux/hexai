@@ -550,23 +550,52 @@ func labelForCompletion(cleaned, filter string) string {
 }
 
 // extractRangeText returns the exact text within the given document range.
+// It performs bounds checks on line indices and character offsets, returning
+// an empty string when the range is invalid (e.g. negative lines, out-of-bounds
+// lines, or an empty document).
 func extractRangeText(d *document, r Range) string {
-	if r.Start.Line == r.End.Line {
-		line := d.lines[r.Start.Line]
-		if r.Start.Character < 0 {
-			r.Start.Character = 0
-		}
-		if r.End.Character > len(line) {
-			r.End.Character = len(line)
-		}
-		if r.Start.Character > r.End.Character {
-			return ""
-		}
-		return line[r.Start.Character:r.End.Character]
+	if d == nil || len(d.lines) == 0 {
+		return ""
 	}
+	// Clamp line indices to valid bounds.
+	if r.Start.Line < 0 || r.End.Line < 0 || r.Start.Line >= len(d.lines) {
+		return ""
+	}
+	if r.End.Line >= len(d.lines) {
+		r.End.Line = len(d.lines) - 1
+		r.End.Character = len(d.lines[r.End.Line])
+	}
+	if r.Start.Line > r.End.Line {
+		return ""
+	}
+
+	if r.Start.Line == r.End.Line {
+		return extractSingleLineRange(d.lines[r.Start.Line], r)
+	}
+	return extractMultiLineRange(d.lines, r)
+}
+
+// extractSingleLineRange handles the case where start and end are on the same line.
+// Character offsets are clamped to the line length.
+func extractSingleLineRange(line string, r Range) string {
+	if r.Start.Character < 0 {
+		r.Start.Character = 0
+	}
+	if r.End.Character > len(line) {
+		r.End.Character = len(line)
+	}
+	if r.Start.Character > r.End.Character {
+		return ""
+	}
+	return line[r.Start.Character:r.End.Character]
+}
+
+// extractMultiLineRange handles ranges spanning multiple lines, clamping
+// character offsets on the first and last lines.
+func extractMultiLineRange(lines []string, r Range) string {
 	var b strings.Builder
 	// first line
-	first := d.lines[r.Start.Line]
+	first := lines[r.Start.Line]
 	if r.Start.Character < 0 {
 		r.Start.Character = 0
 	}
@@ -577,13 +606,13 @@ func extractRangeText(d *document, r Range) string {
 	b.WriteString("\n")
 	// middle lines
 	for i := r.Start.Line + 1; i < r.End.Line; i++ {
-		b.WriteString(d.lines[i])
+		b.WriteString(lines[i])
 		if i+1 <= r.End.Line {
 			b.WriteString("\n")
 		}
 	}
 	// last line
-	last := d.lines[r.End.Line]
+	last := lines[r.End.Line]
 	if r.End.Character < 0 {
 		r.End.Character = 0
 	}
