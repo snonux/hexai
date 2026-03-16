@@ -141,7 +141,7 @@ func TestTruncateStatus(t *testing.T) {
 	}
 }
 
-// --- stringsTrim ---
+// --- strings.TrimSpace ---
 
 func TestStringsTrim(t *testing.T) {
 	tests := []struct {
@@ -163,9 +163,9 @@ func TestStringsTrim(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := stringsTrim(tt.s)
+			got := strings.TrimSpace(tt.s)
 			if got != tt.want {
-				t.Errorf("stringsTrim(%q) = %q, want %q", tt.s, got, tt.want)
+				t.Errorf("strings.TrimSpace(%q) = %q, want %q", tt.s, got, tt.want)
 			}
 		})
 	}

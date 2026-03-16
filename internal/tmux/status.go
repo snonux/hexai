@@ -76,7 +76,7 @@ func FormatGlobalStatusColored(globalReqs int64, globalRPM float64, globalIn, gl
 	gout := textutil.HumanBytes(globalOut)
 	head := fmt.Sprintf("%sΣ@%s %s↑%s%s %s↓%s%s %.1frpm", baseFGToken, humanWindow(window), arrowUpToken, baseFGToken, gin, arrowDownToken, baseFGToken, gout, globalRPM)
 	// Narrow modes: only show Σ head
-	if narrowEnabled() || stringsTrim(scopeProvider) == "" || stringsTrim(scopeModel) == "" {
+	if narrowEnabled() || strings.TrimSpace(scopeProvider) == "" || strings.TrimSpace(scopeModel) == "" {
 		return head
 	}
 	tail := fmt.Sprintf(" | %s:%s %.1frpm %dr", scopeProvider, scopeModel, scopeRPM, scopeReqs)
@@ -108,7 +108,7 @@ func humanWindow(d time.Duration) string {
 
 // narrowEnabled returns true when HEXAI_TMUX_STATUS_NARROW is truthy (1/true/yes/on).
 func narrowEnabled() bool {
-	v := strings.ToLower(stringsTrim(os.Getenv("HEXAI_TMUX_STATUS_NARROW")))
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("HEXAI_TMUX_STATUS_NARROW")))
 	if v == "" {
 		return false
 	}
@@ -122,7 +122,7 @@ func narrowEnabled() bool {
 
 // maxStatusLen returns HEXAI_TMUX_STATUS_MAXLEN parsed as int; 0 disables.
 func maxStatusLen() int {
-	v := stringsTrim(os.Getenv("HEXAI_TMUX_STATUS_MAXLEN"))
+	v := strings.TrimSpace(os.Getenv("HEXAI_TMUX_STATUS_MAXLEN"))
 	if v == "" {
 		return 0
 	}
@@ -144,21 +144,6 @@ func truncateStatus(s string, n int) string {
 		return s[:n]
 	}
 	return s[:n-1] + "…"
-}
-
-func stringsTrim(s string) string {
-	i := 0
-	j := len(s)
-	for i < j && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') {
-		i++
-	}
-	for j > i && (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') {
-		j--
-	}
-	if i == 0 && j == len(s) {
-		return s
-	}
-	return s[i:j]
 }
 
 // FormatLLMStartStatus renders a short colored heartbeat at start/initialize time.

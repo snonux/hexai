@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -102,7 +103,7 @@ func TestCacheDir_FallbackHome(t *testing.T) {
 }
 
 // TestCacheDir_WhitespaceXDG covers the branch where XDG_CACHE_HOME contains
-// only whitespace, which stringsTrim reduces to "" so the fallback is used.
+// only whitespace, which strings.TrimSpace reduces to "" so the fallback is used.
 func TestCacheDir_WhitespaceXDG(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", "  \t\n ")
 	got, err := CacheDir()
@@ -140,7 +141,7 @@ func TestSetWindow_ClampHigh(t *testing.T) {
 // has no leading or trailing whitespace, so the original string is returned.
 func TestStringsTrim_NoTrimNeeded(t *testing.T) {
 	in := "hello"
-	got := stringsTrim(in)
+	got := strings.TrimSpace(in)
 	if got != "hello" {
 		t.Fatalf("expected %q, got %q", "hello", got)
 	}
@@ -148,7 +149,7 @@ func TestStringsTrim_NoTrimNeeded(t *testing.T) {
 
 // TestStringsTrim_AllWhitespace covers trimming a string that is entirely whitespace.
 func TestStringsTrim_AllWhitespace(t *testing.T) {
-	got := stringsTrim("  \t\r\n  ")
+	got := strings.TrimSpace("  \t\r\n  ")
 	if got != "" {
 		t.Fatalf("expected empty, got %q", got)
 	}
@@ -156,7 +157,7 @@ func TestStringsTrim_AllWhitespace(t *testing.T) {
 
 // TestStringsTrim_LeadingAndTrailing covers trimming from both ends.
 func TestStringsTrim_LeadingAndTrailing(t *testing.T) {
-	got := stringsTrim("  abc  ")
+	got := strings.TrimSpace("  abc  ")
 	if got != "abc" {
 		t.Fatalf("expected %q, got %q", "abc", got)
 	}
@@ -164,7 +165,7 @@ func TestStringsTrim_LeadingAndTrailing(t *testing.T) {
 
 // TestStringsTrim_Empty covers the empty string edge case.
 func TestStringsTrim_Empty(t *testing.T) {
-	got := stringsTrim("")
+	got := strings.TrimSpace("")
 	if got != "" {
 		t.Fatalf("expected empty, got %q", got)
 	}

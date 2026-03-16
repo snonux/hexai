@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -264,7 +265,7 @@ func TakeSnapshot() (Snapshot, error) {
 
 // CacheDir resolves the cache directory for stats.
 func CacheDir() (string, error) {
-	if x := os.Getenv("XDG_CACHE_HOME"); stringsTrim(x) != "" {
+	if x := os.Getenv("XDG_CACHE_HOME"); strings.TrimSpace(x) != "" {
 		return filepath.Join(x, "hexai"), nil
 	}
 	home, err := os.UserHomeDir()
@@ -272,22 +273,6 @@ func CacheDir() (string, error) {
 		return "", fmt.Errorf("cannot resolve home: %w", err)
 	}
 	return filepath.Join(home, ".local", "hexai", "cache"), nil
-}
-
-// stringsTrim is a tiny helper to avoid importing strings everywhere here.
-func stringsTrim(s string) string {
-	i := 0
-	j := len(s)
-	for i < j && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r') {
-		i++
-	}
-	for j > i && (s[j-1] == ' ' || s[j-1] == '\t' || s[j-1] == '\n' || s[j-1] == '\r') {
-		j--
-	}
-	if i == 0 && j == len(s) {
-		return s
-	}
-	return s[i:j]
 }
 
 // DebugString returns a compact single-line view of a snapshot (useful for logs).
