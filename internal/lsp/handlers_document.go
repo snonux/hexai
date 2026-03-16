@@ -429,9 +429,19 @@ func (s *Server) clientShowDocument(uri string, sel *Range) {
 
 // deferShowDocument schedules a showDocument after a short delay to allow the client
 // time to apply any pending edits (e.g., create the file before focusing it).
+// The goroutine respects s.serverCtx so it won't write after shutdown.
 func (s *Server) deferShowDocument(uri string, sel Range) {
+	ctx := s.serverCtx
 	go func() {
-		time.Sleep(120 * time.Millisecond)
-		s.clientShowDocument(uri, &sel)
+		if ctx == nil {
+			time.Sleep(120 * time.Millisecond)
+			s.clientShowDocument(uri, &sel)
+			return
+		}
+		select {
+		case <-time.After(120 * time.Millisecond):
+			s.clientShowDocument(uri, &sel)
+		case <-ctx.Done():
+		}
 	}()
 }
