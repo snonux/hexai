@@ -64,7 +64,7 @@ func runRewrite(ctx context.Context, cfg actionConfig, client chatDoer, instruct
 	prompts := cfg.PromptSection()
 	sys := prompts.PromptCodeActionRewriteSystem
 	user := Render(prompts.PromptCodeActionRewriteUser, map[string]string{"instruction": instruction, "selection": selection})
-	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	return runOnce(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runDiagnostics(ctx context.Context, cfg actionConfig, client chatDoer, diags []string, selection string) (string, error) {
@@ -81,28 +81,28 @@ func runDiagnostics(ctx context.Context, cfg actionConfig, client chatDoer, diag
 	prompts := cfg.PromptSection()
 	sys := prompts.PromptCodeActionDiagnosticsSystem
 	user := Render(prompts.PromptCodeActionDiagnosticsUser, map[string]string{"diagnostics": b.String(), "selection": selection})
-	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	return runOnce(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runDocument(ctx context.Context, cfg actionConfig, client chatDoer, selection string) (string, error) {
 	prompts := cfg.PromptSection()
 	sys := prompts.PromptCodeActionDocumentSystem
 	user := Render(prompts.PromptCodeActionDocumentUser, map[string]string{"selection": selection})
-	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	return runOnce(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runSimplify(ctx context.Context, cfg actionConfig, client chatDoer, selection string) (string, error) {
 	prompts := cfg.PromptSection()
 	sys := prompts.PromptCodeActionSimplifySystem
 	user := Render(prompts.PromptCodeActionSimplifyUser, map[string]string{"selection": selection})
-	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	return runOnce(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runGoTest(ctx context.Context, cfg actionConfig, client chatDoer, funcCode string) (string, error) {
 	prompts := cfg.PromptSection()
 	sys := prompts.PromptCodeActionGoTestSystem
 	user := Render(prompts.PromptCodeActionGoTestUser, map[string]string{"function": funcCode})
-	return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+	return runOnce(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
 func runCustom(ctx context.Context, cfg actionConfig, client chatDoer, ca appconfig.CustomAction, parts InputParts) (string, error) {
@@ -115,44 +115,16 @@ func runCustom(ctx context.Context, cfg actionConfig, client chatDoer, ca appcon
 		}
 		// Currently only selection is available in tmux path; diagnostics list not wired
 		user := Render(ca.User, map[string]string{"selection": parts.Selection, "diagnostics": strings.Join(parts.Diagnostics, "\n")})
-		return runOnceWithOpts(ctx, client, sys, user, reqOptsFrom(cfg))
+		return runOnce(ctx, client, sys, user, reqOptsFrom(cfg))
 	}
 	// Else, use fixed instruction through rewrite template
 	return runRewrite(ctx, cfg, client, ca.Instruction, parts.Selection)
 }
 
-func runOnce(ctx context.Context, client chatDoer, sys, user string) (string, error) {
-	msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-	txt, err := client.Chat(ctx, msgs)
-	if err != nil {
-		return "", err
-	}
-	out := strings.TrimSpace(StripFences(txt))
-	// Contribute to global stats and update tmux status
-	sent := 0
-	for _, m := range msgs {
-		sent += len(m.Content)
-	}
-	recv := len(out)
-	_ = stats.Update(ctx, providerOf(client), client.DefaultModel(), sent, recv)
-	if snap, err := stats.TakeSnapshot(); err == nil {
-		minsWin := snap.Window.Minutes()
-		if minsWin <= 0 {
-			minsWin = 0.001
-		}
-		scopeReqs := int64(0)
-		if pe, ok := snap.Providers[providerOf(client)]; ok {
-			if mc, ok2 := pe.Models[client.DefaultModel()]; ok2 {
-				scopeReqs = mc.Reqs
-			}
-		}
-		scopeRPM := float64(scopeReqs) / minsWin
-		_ = tmux.SetStatus(tmux.FormatGlobalStatusColored(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, providerOf(client), client.DefaultModel(), scopeRPM, scopeReqs, snap.Window))
-	}
-	return out, nil
-}
-
-func runOnceWithOpts(ctx context.Context, client chatDoer, sys, user string, req requestArgs) (string, error) {
+// runOnce sends a single system+user prompt pair to the LLM, strips code
+// fences from the response, records stats, and updates the tmux status line.
+// Pass a zero-value requestArgs{} when no extra options are needed.
+func runOnce(ctx context.Context, client chatDoer, sys, user string, req requestArgs) (string, error) {
 	msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 	txt, err := client.Chat(ctx, msgs, req.options...)
 	if err != nil {

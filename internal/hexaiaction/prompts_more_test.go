@@ -22,7 +22,7 @@ func ptrFloat(v float64) *float64 {
 }
 
 func TestRunOnce_StripsFences(t *testing.T) {
-	got, err := runOnce(context.Background(), simpleDoer{"```\nok\n```"}, "SYS", "USER")
+	got, err := runOnce(context.Background(), simpleDoer{"```\nok\n```"}, "SYS", "USER", requestArgs{})
 	if err != nil {
 		t.Fatalf("runOnce: %v", err)
 	}
