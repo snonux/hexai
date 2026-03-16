@@ -60,6 +60,13 @@ func TestResolveTemperature_CaseInsensitiveModel(t *testing.T) {
 	}
 }
 
+func TestResolveTemperature_ExplicitZeroEntryTemp(t *testing.T) {
+	temp, ok := ResolveTemperature("openai", "gpt-5.0", floatPtr(0.0), floatPtr(0.2))
+	if !ok || temp != 0.0 {
+		t.Fatalf("expected explicit zero entry temp 0.0, got %v ok=%v", temp, ok)
+	}
+}
+
 func TestIsGPT5(t *testing.T) {
 	tests := []struct {
 		provider, model string

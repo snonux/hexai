@@ -436,7 +436,7 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 	sentBytes := len(prompt) + len(after)
 	modelUsed := spec.effectiveModel(client.DefaultModel())
 	tempVal := 0.0
-	if val, ok := chooseSurfaceTemperature(surfaceCompletion, cfg, spec.entry, provider, modelUsed); ok {
+	if val, ok := chooseSurfaceTemperature(cfg, spec.entry, provider, modelUsed); ok {
 		tempVal = val
 	}
 	suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, "", tempVal)

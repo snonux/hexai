@@ -68,7 +68,7 @@ func (s *Server) buildRequestSpecs(surface surfaceKind) []requestSpec {
 		if entry.Model != "" {
 			opts = append(opts, llm.WithModel(entry.Model))
 		}
-		if temp, ok := chooseSurfaceTemperature(surface, cfg, entry, provider, fallbackModel); ok {
+		if temp, ok := chooseSurfaceTemperature(cfg, entry, provider, fallbackModel); ok {
 			opts = append(opts, llm.WithTemperature(temp))
 		}
 		specs = append(specs, requestSpec{
@@ -117,7 +117,7 @@ func surfaceConfigsFor(cfg appconfig.App, surface surfaceKind) []appconfig.Surfa
 
 // chooseSurfaceTemperature resolves the effective temperature for a surface
 // request, delegating GPT-5 override logic to llmutils.ResolveTemperature.
-func chooseSurfaceTemperature(surface surfaceKind, cfg appconfig.App, entry appconfig.SurfaceConfig, provider string, fallbackModel string) (float64, bool) {
+func chooseSurfaceTemperature(cfg appconfig.App, entry appconfig.SurfaceConfig, provider string, fallbackModel string) (float64, bool) {
 	effectiveModel := strings.TrimSpace(entry.Model)
 	if effectiveModel == "" {
 		effectiveModel = strings.TrimSpace(fallbackModel)
