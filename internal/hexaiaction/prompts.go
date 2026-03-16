@@ -42,22 +42,10 @@ func canonicalProvider(name string) string {
 	return llmutils.CanonicalProvider(name)
 }
 
+// selectActionTemperature resolves the effective temperature for a code action,
+// delegating GPT-5 override logic to llmutils.ResolveTemperature.
 func selectActionTemperature(cfg actionConfig, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {
-	core := cfg.CoreSection()
-	if entry.Temperature != nil {
-		return *entry.Temperature, true
-	}
-	if core.CodingTemperature != nil {
-		temp := *core.CodingTemperature
-		if provider == "openai" && strings.HasPrefix(strings.ToLower(model), "gpt-5") && temp == 0.2 {
-			temp = 1.0
-		}
-		return temp, true
-	}
-	if provider == "openai" && strings.HasPrefix(strings.ToLower(model), "gpt-5") {
-		return 1.0, true
-	}
-	return 0, false
+	return llmutils.ResolveTemperature(provider, model, entry.Temperature, cfg.CoreSection().CodingTemperature)
 }
 
 func runRewrite(ctx context.Context, cfg actionConfig, client chatDoer, instruction, selection string) (string, error) {

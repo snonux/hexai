@@ -86,21 +86,10 @@ func buildCLIRequest(entry appconfig.SurfaceConfig, provider string, cfg appconf
 	return req
 }
 
+// cliTemperatureFromEntry resolves the effective temperature for a CLI request,
+// delegating GPT-5 override logic to llmutils.ResolveTemperature.
 func cliTemperatureFromEntry(cfg appconfig.App, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {
-	if entry.Temperature != nil {
-		return *entry.Temperature, true
-	}
-	if cfg.CodingTemperature != nil {
-		temp := *cfg.CodingTemperature
-		if provider == "openai" && strings.HasPrefix(strings.ToLower(model), "gpt-5") && temp == 0.2 {
-			temp = 1.0
-		}
-		return temp, true
-	}
-	if provider == "openai" && strings.HasPrefix(strings.ToLower(model), "gpt-5") {
-		return 1.0, true
-	}
-	return 0, false
+	return llmutils.ResolveTemperature(provider, model, entry.Temperature, cfg.CodingTemperature)
 }
 
 func canonicalProvider(name string) string {

@@ -115,29 +115,14 @@ func surfaceConfigsFor(cfg appconfig.App, surface surfaceKind) []appconfig.Surfa
 	}
 }
 
+// chooseSurfaceTemperature resolves the effective temperature for a surface
+// request, delegating GPT-5 override logic to llmutils.ResolveTemperature.
 func chooseSurfaceTemperature(surface surfaceKind, cfg appconfig.App, entry appconfig.SurfaceConfig, provider string, fallbackModel string) (float64, bool) {
-	if entry.Temperature != nil {
-		return *entry.Temperature, true
-	}
-	if cfg.CodingTemperature != nil {
-		temp := *cfg.CodingTemperature
-		effectiveModel := strings.TrimSpace(entry.Model)
-		if effectiveModel == "" {
-			effectiveModel = strings.TrimSpace(fallbackModel)
-		}
-		if provider == "openai" && strings.HasPrefix(strings.ToLower(effectiveModel), "gpt-5") && temp == 0.2 {
-			temp = 1.0
-		}
-		return temp, true
-	}
 	effectiveModel := strings.TrimSpace(entry.Model)
 	if effectiveModel == "" {
 		effectiveModel = strings.TrimSpace(fallbackModel)
 	}
-	if provider == "openai" && strings.HasPrefix(strings.ToLower(effectiveModel), "gpt-5") {
-		return 1.0, true
-	}
-	return 0, false
+	return llmutils.ResolveTemperature(provider, effectiveModel, entry.Temperature, cfg.CodingTemperature)
 }
 
 // small helpers for LLM traffic stats
