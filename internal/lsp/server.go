@@ -87,6 +87,7 @@ type ServerOptions struct {
 	StatusSink    StatusSink
 }
 
+// NewServer creates a new LSP server that reads from r and writes to w.
 func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Server{
@@ -330,6 +331,7 @@ func (s *Server) emitGlobalStatus(reqs int64, rpm float64, sent int64, recv int6
 	}
 }
 
+// Run starts the server's main loop, reading and dispatching LSP messages until EOF or exit.
 func (s *Server) Run() error {
 	defer s.cancelRequests()
 	for {

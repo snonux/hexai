@@ -51,6 +51,7 @@ func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) er
 	return RunWithConfig(logPath, "", stdin, stdout, stderr)
 }
 
+// RunWithConfig is like Run but accepts an explicit config file path.
 func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	logger := log.New(stderr, "hexai-lsp-server ", log.LstdFlags|log.Lmsgprefix)
 	if strings.TrimSpace(logPath) != "" {

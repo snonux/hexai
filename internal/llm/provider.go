@@ -56,9 +56,16 @@ type Options struct {
 // RequestOption mutates Options.
 type RequestOption func(*Options)
 
-func WithModel(model string) RequestOption    { return func(o *Options) { o.Model = model } }
+// WithModel sets the model name for a request.
+func WithModel(model string) RequestOption { return func(o *Options) { o.Model = model } }
+
+// WithTemperature sets the sampling temperature for a request.
 func WithTemperature(t float64) RequestOption { return func(o *Options) { o.Temperature = t } }
-func WithMaxTokens(n int) RequestOption       { return func(o *Options) { o.MaxTokens = n } }
+
+// WithMaxTokens sets the maximum number of tokens to generate.
+func WithMaxTokens(n int) RequestOption { return func(o *Options) { o.MaxTokens = n } }
+
+// WithStop sets custom stop sequences for a request.
 func WithStop(stop ...string) RequestOption {
 	return func(o *Options) { o.Stop = append([]string{}, stop...) }
 }
