@@ -26,9 +26,9 @@ func TestWaitForThrottle_WaitsRoughlyInterval(t *testing.T) {
 	cfg := s.cfg
 	cfg.CompletionThrottleMs = 20
 	s.cfg = cfg
-	s.mu.Lock()
+	s.stateMu.Lock()
 	s.lastLLMCall = time.Now()
-	s.mu.Unlock()
+	s.stateMu.Unlock()
 	start := time.Now()
 	if !s.waitForThrottle(context.Background()) {
 		t.Fatalf("waitForThrottle returned false")

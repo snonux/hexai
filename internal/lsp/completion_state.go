@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// completionState manages the LRU completion cache, pending completions, and
+// throttle timing. Its stateMu is independent of Server.mu — the two locks
+// are never held simultaneously, so there is no ordering constraint.
 type completionState struct {
 	stateMu             sync.RWMutex
 	compCache           map[string]string

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-	"time"
 )
 
 // Ensure in-editor chat respects general.context_mode by adding window/full-file context.
@@ -25,10 +24,7 @@ func TestChat_RespectsContextModeWindow(t *testing.T) {
 	s.setDocument(uri, src)
 
 	s.detectAndHandleChat(uri)
-	// Wait briefly for async goroutine to call Chat
-	for i := 0; i < 40 && len(cap.msgs) == 0; i++ {
-		time.Sleep(10 * time.Millisecond)
-	}
+	s.inflight.Wait()
 	if len(cap.msgs) == 0 {
 		t.Fatalf("expected Chat to be called")
 	}
@@ -64,10 +60,8 @@ func TestChat_ContextModeMinimal_NoExtra(t *testing.T) {
 	uri := "file:///ctx2.go"
 	s.setDocument(uri, "package main\nhelp?>\n")
 	s.detectAndHandleChat(uri)
+	s.inflight.Wait()
 
-	for i := 0; i < 40 && len(cap.msgs) == 0; i++ {
-		time.Sleep(10 * time.Millisecond)
-	}
 	if len(cap.msgs) != 2 {
 		t.Fatalf("expected exactly 2 messages (system + user prompt), got %d", len(cap.msgs))
 	}
@@ -88,10 +82,8 @@ func TestChat_ContextModeAlwaysFull_AddsExtra(t *testing.T) {
 	uri := "file:///ctx3.go"
 	s.setDocument(uri, "package main\nline2\nhelp?>\n")
 	s.detectAndHandleChat(uri)
+	s.inflight.Wait()
 
-	for i := 0; i < 40 && len(cap.msgs) == 0; i++ {
-		time.Sleep(10 * time.Millisecond)
-	}
 	if len(cap.msgs) < 3 {
 		t.Fatalf("expected >=3 messages (system, extra, user prompt), got %d", len(cap.msgs))
 	}
@@ -118,10 +110,8 @@ func TestChat_ContextModeFileOnNewFunc_NoExtraWithoutSignature(t *testing.T) {
 	uri := "file:///ctx4.go"
 	s.setDocument(uri, "package main\nhelp?>\n")
 	s.detectAndHandleChat(uri)
+	s.inflight.Wait()
 
-	for i := 0; i < 40 && len(cap.msgs) == 0; i++ {
-		time.Sleep(10 * time.Millisecond)
-	}
 	if len(cap.msgs) != 2 {
 		t.Fatalf("expected exactly 2 messages (system + user prompt), got %d", len(cap.msgs))
 	}
@@ -141,10 +131,8 @@ func TestChat_ContextModeFileOnNewFunc_WithSignature_AddsExtra(t *testing.T) {
 	src := "package main\n\nfunc add(x int) int\nhelp?>\n"
 	s.setDocument(uri, src)
 	s.detectAndHandleChat(uri)
+	s.inflight.Wait()
 
-	for i := 0; i < 40 && len(cap.msgs) == 0; i++ {
-		time.Sleep(10 * time.Millisecond)
-	}
 	if len(cap.msgs) < 3 {
 		t.Fatalf("expected >=3 messages (system, extra, user prompt), got %d", len(cap.msgs))
 	}

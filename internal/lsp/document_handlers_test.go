@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"testing"
-	"time"
 )
 
 func TestDidOpenChangeClose_UpdateDocs(t *testing.T) {
@@ -67,8 +66,8 @@ func TestDeferShowDocument_WritesLater(t *testing.T) {
 	uri := "file:///x.go"
 	out.Reset()
 	s.deferShowDocument(uri, Range{Start: Position{Line: 0}, End: Position{Line: 0}})
-	// wait >120ms per implementation
-	time.Sleep(160 * time.Millisecond)
+	// Wait for the background goroutine to finish.
+	s.inflight.Wait()
 	req := captureRequest(t, &out)
 	if req.Method != "window/showDocument" {
 		t.Fatalf("expected showDocument, got %s", req.Method)

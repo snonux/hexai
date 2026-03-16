@@ -3,7 +3,6 @@ package lsp
 import (
 	"bytes"
 	"testing"
-	"time"
 )
 
 func TestDetectAndHandleChat_UsesConfiguredSystemPrompt(t *testing.T) {
@@ -20,10 +19,8 @@ func TestDetectAndHandleChat_UsesConfiguredSystemPrompt(t *testing.T) {
 	// Line that should trigger chat: ends with '>' and previous char in prefixes
 	s.setDocument(uri, "help?>\n")
 	s.detectAndHandleChat(uri)
-	// Wait briefly for async goroutine to call Chat
-	for i := 0; i < 20 && len(cap.msgs) == 0; i++ {
-		time.Sleep(10 * time.Millisecond)
-	}
+	// Wait for the background chat goroutine to finish.
+	s.inflight.Wait()
 	if len(cap.msgs) == 0 {
 		t.Fatalf("expected Chat to be called")
 	}

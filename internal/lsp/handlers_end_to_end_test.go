@@ -8,7 +8,6 @@ import (
 	"log"
 	"strings"
 	"testing"
-	"time"
 
 	tut "codeberg.org/snonux/hexai/internal/testutil"
 )
@@ -229,10 +228,8 @@ func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
 	s.setDocument(uri, "What time?>\n\n")
 	out.Reset()
 	s.detectAndHandleChat(uri)
-	// Allow async goroutine to write the request
-	for i := 0; i < 100 && out.Len() == 0; i++ {
-		time.Sleep(10 * time.Millisecond)
-	}
+	// Wait for the background chat goroutine to finish writing.
+	s.inflight.Wait()
 	if out.Len() == 0 {
 		t.Fatalf("no output written by detectAndHandleChat")
 	}

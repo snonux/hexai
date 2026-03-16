@@ -32,11 +32,14 @@ type Server struct {
 	statusSink   StatusSink
 	exited       atomic.Bool
 	inflight     sync.WaitGroup // tracks background goroutines (inline prompt, chat, etc.)
-	mu           sync.RWMutex
-	docs         map[string]*document
-	logContext   bool
-	configStore  *runtimeconfig.Store
-	cfg          appconfig.App
+	// mu protects docs, cfg, logContext, configLoadOpts, nextID, and chatSubsystem.lastInput.
+	// It is never held while completionState.stateMu is held, and vice versa,
+	// so there is no lock ordering concern between them.
+	mu          sync.RWMutex
+	docs        map[string]*document
+	logContext  bool
+	configStore *runtimeconfig.Store
+	cfg         appconfig.App
 	codeActionSubsystem
 	chatSubsystem
 	// LLM request stats — atomic to avoid taking the server-wide mu lock.
