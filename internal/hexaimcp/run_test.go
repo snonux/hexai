@@ -62,11 +62,11 @@ func TestFullProtocolFlow(t *testing.T) {
 
 	// Run server in background (it will read from inBuf and write to outBuf)
 	go func() {
-		// Override prompts dir via environment
-		t.Setenv("HEXAI_MCP_PROMPTS_DIR", tmpDir)
+		// Pass prompts dir via overrides instead of environment variable
+		overrides := MCPOverrides{PromptsDir: tmpDir}
 
 		// Note: This will hang waiting for more input, which is expected
-		_ = RunWithFactory("", "", inBuf, outBuf, errBuf, serverFactory)
+		_ = RunWithFactory("", "", overrides, inBuf, outBuf, errBuf, serverFactory)
 	}()
 
 	// Give server time to process
@@ -94,25 +94,16 @@ func writeJSONRPC(t *testing.T, w io.Writer, req map[string]any) {
 func TestGetPromptsDir(t *testing.T) {
 	tests := []struct {
 		name      string
-		envVar    string
 		cfgValue  string
 		wantMatch string
 	}{
 		{
-			name:      "environment variable takes precedence",
-			envVar:    "/custom/prompts",
-			cfgValue:  "/config/prompts",
-			wantMatch: "/custom/prompts",
-		},
-		{
-			name:      "config file used when no env",
-			envVar:    "",
+			name:      "config value used",
 			cfgValue:  "/config/prompts",
 			wantMatch: "/config/prompts",
 		},
 		{
 			name:      "uses default XDG location",
-			envVar:    "",
 			cfgValue:  "",
 			wantMatch: ".local/hexai/data/prompts",
 		},
@@ -120,17 +111,10 @@ func TestGetPromptsDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup environment
-			oldEnv := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
-			defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldEnv)
-			os.Setenv("HEXAI_MCP_PROMPTS_DIR", tt.envVar)
-
-			// Create config
 			cfg := appconfig.App{
 				MCPPromptsDir: tt.cfgValue,
 			}
 
-			// Test
 			result, err := getPromptsDir(cfg)
 			if err != nil {
 				t.Fatalf("getPromptsDir() error = %v", err)
@@ -294,12 +278,10 @@ func TestRun(t *testing.T) {
 	outBuf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
 
-	// Set prompts dir environment variable
-	oldEnv := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
-	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldEnv)
-	os.Setenv("HEXAI_MCP_PROMPTS_DIR", tmpDir)
+	// Pass prompts dir via overrides instead of environment variable
+	overrides := MCPOverrides{PromptsDir: tmpDir}
 
-	err := RunWithFactory(logPath, "", inBuf, outBuf, errBuf, mockFactory)
+	err := RunWithFactory(logPath, "", overrides, inBuf, outBuf, errBuf, mockFactory)
 	if err != nil {
 		t.Fatalf("RunWithFactory() error = %v", err)
 	}
@@ -327,12 +309,10 @@ func TestRunWithFactory_ServerError(t *testing.T) {
 	outBuf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
 
-	// Set prompts dir environment variable
-	oldEnv := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
-	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldEnv)
-	os.Setenv("HEXAI_MCP_PROMPTS_DIR", tmpDir)
+	// Pass prompts dir via overrides instead of environment variable
+	overrides := MCPOverrides{PromptsDir: tmpDir}
 
-	err := RunWithFactory(logPath, "", inBuf, outBuf, errBuf, mockFactory)
+	err := RunWithFactory(logPath, "", overrides, inBuf, outBuf, errBuf, mockFactory)
 	if err == nil {
 		t.Fatal("RunWithFactory() expected error, got nil")
 	}
@@ -351,7 +331,7 @@ func TestRunWithFactory_LoggerError(t *testing.T) {
 		return &mockServerRunner{}
 	}
 
-	err := RunWithFactory(badLogPath, "", &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
+	err := RunWithFactory(badLogPath, "", MCPOverrides{}, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
 	if err == nil {
 		t.Fatal("expected error for invalid log path, got nil")
 	}
@@ -369,12 +349,11 @@ func TestRunWithFactory_StderrLogger(t *testing.T) {
 		return &mockServerRunner{}
 	}
 
-	oldEnv := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
-	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldEnv)
-	os.Setenv("HEXAI_MCP_PROMPTS_DIR", tmpDir)
+	// Pass prompts dir via overrides instead of environment variable
+	overrides := MCPOverrides{PromptsDir: tmpDir}
 
 	// Empty logPath causes logger to write to stderr (no file to close)
-	err := RunWithFactory("", "", &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
+	err := RunWithFactory("", "", overrides, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
 	if err != nil {
 		t.Fatalf("RunWithFactory() error = %v", err)
 	}
@@ -387,13 +366,12 @@ func TestRun_CallsDefaultFactory(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "test.log")
 
-	oldEnv := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
-	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldEnv)
-	os.Setenv("HEXAI_MCP_PROMPTS_DIR", tmpDir)
+	// Pass prompts dir via overrides instead of environment variable
+	overrides := MCPOverrides{PromptsDir: tmpDir}
 
 	// Run with empty stdin — the real server hits EOF and exits cleanly.
 	// This exercises the full Run -> RunWithFactory -> defaultServerFactory path.
-	err := Run(logPath, "", &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{})
+	err := Run(logPath, "", overrides, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{})
 	// The server may return nil or an error depending on how it handles EOF;
 	// the important thing is that Run() itself does not panic.
 	_ = err
@@ -427,10 +405,6 @@ func TestSetupLogger_WhitespacePath(t *testing.T) {
 // TestGetPromptsDir_XDGDataHome verifies getPromptsDir uses XDG_DATA_HOME
 // when set (covers the branch where XDG_DATA_HOME is non-empty).
 func TestGetPromptsDir_XDGDataHome(t *testing.T) {
-	oldPrompts := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
-	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldPrompts)
-	os.Setenv("HEXAI_MCP_PROMPTS_DIR", "")
-
 	oldXDG := os.Getenv("XDG_DATA_HOME")
 	defer os.Setenv("XDG_DATA_HOME", oldXDG)
 	os.Setenv("XDG_DATA_HOME", "/custom/xdg/data")
@@ -449,10 +423,6 @@ func TestGetPromptsDir_XDGDataHome(t *testing.T) {
 
 // TestGetPromptsDir_TildeInConfig verifies tilde expansion for config path.
 func TestGetPromptsDir_TildeInConfig(t *testing.T) {
-	oldPrompts := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
-	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldPrompts)
-	os.Setenv("HEXAI_MCP_PROMPTS_DIR", "")
-
 	cfg := appconfig.App{
 		MCPPromptsDir: "~/my-prompts",
 	}
@@ -538,11 +508,6 @@ func TestRunBackfill_FullHappyPath(t *testing.T) {
 		t.Fatalf("cannot create prompts dir: %v", err)
 	}
 
-	// Set environment to control prompts and slash command directories
-	oldPrompts := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
-	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldPrompts)
-	os.Setenv("HEXAI_MCP_PROMPTS_DIR", promptsDir)
-
 	// Write a config file with [mcp] section that sets the slash command dir
 	cfgContent := fmt.Sprintf("[mcp]\nslashcommand_dir = %q\nslashcommand_sync = true\n", cmdDir)
 	cfgPath := filepath.Join(tmpDir, "config.toml")
@@ -550,9 +515,12 @@ func TestRunBackfill_FullHappyPath(t *testing.T) {
 		t.Fatalf("cannot write config: %v", err)
 	}
 
+	// Pass prompts dir via overrides instead of environment variable
+	overrides := MCPOverrides{PromptsDir: promptsDir}
+
 	// RunBackfill should succeed: config sets MCPSlashCommandDir, prompts
 	// dir exists, and SyncAll on an empty store is a no-op.
-	err := RunBackfill(logPath, cfgPath)
+	err := RunBackfill(logPath, cfgPath, overrides)
 	if err != nil {
 		t.Fatalf("RunBackfill() error = %v", err)
 	}
@@ -578,7 +546,7 @@ func TestRunBackfill_CreateSyncerError(t *testing.T) {
 		t.Fatalf("cannot write config: %v", err)
 	}
 
-	err := RunBackfill(logPath, cfgPath)
+	err := RunBackfill(logPath, cfgPath, MCPOverrides{})
 	if err == nil {
 		t.Fatal("expected error for invalid slash command dir, got nil")
 	}
@@ -598,18 +566,17 @@ func TestRunBackfill_StderrLogger(t *testing.T) {
 		t.Fatalf("cannot create prompts dir: %v", err)
 	}
 
-	oldPrompts := os.Getenv("HEXAI_MCP_PROMPTS_DIR")
-	defer os.Setenv("HEXAI_MCP_PROMPTS_DIR", oldPrompts)
-	os.Setenv("HEXAI_MCP_PROMPTS_DIR", promptsDir)
-
 	cfgContent := fmt.Sprintf("[mcp]\nslashcommand_dir = %q\n", cmdDir)
 	cfgPath := filepath.Join(tmpDir, "config.toml")
 	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0o644); err != nil {
 		t.Fatalf("cannot write config: %v", err)
 	}
 
+	// Pass prompts dir via overrides instead of environment variable
+	overrides := MCPOverrides{PromptsDir: promptsDir}
+
 	// Empty logPath — logger writes to stderr, defer close is a no-op
-	err := RunBackfill("", cfgPath)
+	err := RunBackfill("", cfgPath, overrides)
 	if err != nil {
 		t.Fatalf("RunBackfill() error = %v", err)
 	}
@@ -618,7 +585,7 @@ func TestRunBackfill_StderrLogger(t *testing.T) {
 // TestRunBackfill_LoggerError verifies RunBackfill returns an error when
 // the log path is invalid.
 func TestRunBackfill_LoggerError(t *testing.T) {
-	err := RunBackfill("/dev/null/impossible/test.log", "")
+	err := RunBackfill("/dev/null/impossible/test.log", "", MCPOverrides{})
 	if err == nil {
 		t.Fatal("expected error for invalid log path, got nil")
 	}
@@ -646,11 +613,55 @@ func TestRunBackfill_NoCmdDir(t *testing.T) {
 	defer os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", oldEnv)
 	os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", "")
 
-	err := RunBackfill(logPath, emptyCfgPath)
+	err := RunBackfill(logPath, emptyCfgPath, MCPOverrides{})
 	if err == nil {
 		t.Fatal("expected error for empty slash command dir, got nil")
 	}
 	if !strings.Contains(err.Error(), "commands directory not configured") {
 		t.Errorf("error = %v, want to contain 'commands directory not configured'", err)
 	}
+}
+
+// TestApplyOverrides verifies that MCPOverrides are correctly applied to config.
+func TestApplyOverrides(t *testing.T) {
+	t.Run("applies all overrides", func(t *testing.T) {
+		cfg := appconfig.App{}
+		overrides := MCPOverrides{
+			PromptsDir:       "/custom/prompts",
+			SlashCommandSync: true,
+			SlashCommandDir:  "/custom/cmds",
+		}
+		applyOverrides(&cfg, overrides)
+
+		if cfg.MCPPromptsDir != "/custom/prompts" {
+			t.Errorf("MCPPromptsDir = %q, want /custom/prompts", cfg.MCPPromptsDir)
+		}
+		if !cfg.MCPSlashCommandSync {
+			t.Error("MCPSlashCommandSync = false, want true")
+		}
+		if cfg.MCPSlashCommandDir != "/custom/cmds" {
+			t.Errorf("MCPSlashCommandDir = %q, want /custom/cmds", cfg.MCPSlashCommandDir)
+		}
+	})
+
+	t.Run("does not overwrite with zero values", func(t *testing.T) {
+		cfg := appconfig.App{
+			MCPPromptsDir:       "/existing/prompts",
+			MCPSlashCommandSync: true,
+			MCPSlashCommandDir:  "/existing/cmds",
+		}
+		overrides := MCPOverrides{} // all zero values
+		applyOverrides(&cfg, overrides)
+
+		if cfg.MCPPromptsDir != "/existing/prompts" {
+			t.Errorf("MCPPromptsDir = %q, want /existing/prompts", cfg.MCPPromptsDir)
+		}
+		// SlashCommandSync false doesn't overwrite existing true
+		if !cfg.MCPSlashCommandSync {
+			t.Error("MCPSlashCommandSync should remain true")
+		}
+		if cfg.MCPSlashCommandDir != "/existing/cmds" {
+			t.Errorf("MCPSlashCommandDir = %q, want /existing/cmds", cfg.MCPSlashCommandDir)
+		}
+	})
 }

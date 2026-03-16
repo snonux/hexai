@@ -15,6 +15,15 @@ import (
 	"codeberg.org/snonux/hexai/internal/slashcommands"
 )
 
+// MCPOverrides holds CLI flag values that override config settings.
+// These are passed explicitly from the CLI entrypoint instead of using
+// environment variables, avoiding the code smell of os.Setenv in production code.
+type MCPOverrides struct {
+	PromptsDir       string
+	SlashCommandSync bool
+	SlashCommandDir  string
+}
+
 // ServerRunner interface allows dependency injection for testing.
 type ServerRunner interface {
 	Run() error
@@ -34,16 +43,19 @@ func defaultServerFactory(r io.Reader, w io.Writer, logger *log.Logger, store pr
 	return mcp.NewServer(r, w, logger, store, syncer)
 }
 
-// Run starts the MCP server with the given configuration.
+// Run starts the MCP server with the given configuration and overrides.
 // This is the main entry point called from cmd/hexai-mcp-server/main.go.
-func Run(logPath, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	return RunWithFactory(logPath, configPath, stdin, stdout, stderr, defaultServerFactory)
+func Run(logPath, configPath string, overrides MCPOverrides, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	return RunWithFactory(logPath, configPath, overrides, stdin, stdout, stderr, defaultServerFactory)
 }
 
 // RunWithFactory allows test injection of server factory.
+// Overrides are applied to the loaded config before use, allowing CLI flags
+// to take precedence over config file and environment variable settings.
 func RunWithFactory(
 	logPath string,
 	configPath string,
+	overrides MCPOverrides,
 	stdin io.Reader,
 	stdout io.Writer,
 	stderr io.Writer,
@@ -63,10 +75,16 @@ func RunWithFactory(
 	logger.Printf("hexai-mcp-server starting")
 	logger.Printf("WARNING: hexai-mcp-server is DEPRECATED and experimental - not actively maintained")
 
-	// Load configuration
+	// Load configuration and apply CLI overrides
 	cfg := loadConfig(logger, configPath)
+	applyOverrides(&cfg, overrides)
 
-	// Determine prompts directory
+	return runServer(cfg, logger, stdin, stdout, factory)
+}
+
+// runServer creates the prompt store, syncer, and runs the MCP server.
+func runServer(cfg appconfig.App, logger *log.Logger, stdin io.Reader, stdout io.Writer, factory ServerFactory) error {
+	// Determine prompts directory from config (overrides already applied)
 	promptsDir, err := getPromptsDir(cfg)
 	if err != nil {
 		return fmt.Errorf("cannot determine prompts directory: %w", err)
@@ -127,15 +145,27 @@ func loadConfig(logger *log.Logger, configPath string) appconfig.App {
 	return appconfig.LoadWithOptions(logger, opts)
 }
 
-// getPromptsDir determines the prompts directory from config or environment.
-// Precedence: CLI flag (via config) > env var > config file > default XDG location.
-func getPromptsDir(cfg appconfig.App) (string, error) {
-	// Check environment variable first
-	if envDir := strings.TrimSpace(os.Getenv("HEXAI_MCP_PROMPTS_DIR")); envDir != "" {
-		return expandPath(envDir)
+// applyOverrides applies CLI flag overrides to the loaded config.
+// This replaces the previous approach of using os.Setenv to pass values.
+func applyOverrides(cfg *appconfig.App, overrides MCPOverrides) {
+	if overrides.PromptsDir != "" {
+		cfg.MCPPromptsDir = overrides.PromptsDir
 	}
+	if overrides.SlashCommandSync {
+		cfg.MCPSlashCommandSync = true
+	}
+	if overrides.SlashCommandDir != "" {
+		cfg.MCPSlashCommandDir = overrides.SlashCommandDir
+	}
+}
 
-	// Check config file
+// getPromptsDir determines the prompts directory from config.
+// Precedence: CLI flag (via overrides applied to config) > env var (via
+// applyMCPEnv in config loading) > config file > default XDG location.
+// The env var HEXAI_MCP_PROMPTS_DIR is still supported through the config
+// loading pipeline in appconfig, not read directly here.
+func getPromptsDir(cfg appconfig.App) (string, error) {
+	// Check config (which already includes env var and CLI overrides)
 	if cfgDir := strings.TrimSpace(cfg.MCPPromptsDir); cfgDir != "" {
 		return expandPath(cfgDir)
 	}
@@ -182,7 +212,8 @@ func createSyncer(cfg appconfig.App, logger *log.Logger) (*slashcommands.Syncer,
 }
 
 // RunBackfill performs a one-time sync of all prompts and exits.
-func RunBackfill(logPath, configPath string) error {
+// Overrides are applied to the loaded config before use.
+func RunBackfill(logPath, configPath string, overrides MCPOverrides) error {
 	logger, err := setupLogger(logPath)
 	if err != nil {
 		return fmt.Errorf("cannot setup logger: %w", err)
@@ -195,7 +226,9 @@ func RunBackfill(logPath, configPath string) error {
 
 	logger.Printf("hexai-mcp-server backfill starting")
 
+	// Load configuration and apply CLI overrides
 	cfg := loadConfig(logger, configPath)
+	applyOverrides(&cfg, overrides)
 
 	// Force enable sync for backfill
 	if cfg.MCPSlashCommandDir == "" {
@@ -203,6 +236,11 @@ func RunBackfill(logPath, configPath string) error {
 	}
 	cfg.MCPSlashCommandSync = true
 
+	return executeBackfill(cfg, logger)
+}
+
+// executeBackfill creates the syncer, store, and performs the backfill sync.
+func executeBackfill(cfg appconfig.App, logger *log.Logger) error {
 	syncer, err := createSyncer(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("cannot create syncer: %w", err)

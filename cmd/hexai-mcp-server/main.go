@@ -12,7 +12,17 @@ import (
 	"codeberg.org/snonux/hexai/internal/hexaimcp"
 )
 
+// buildOverrides constructs MCPOverrides from parsed CLI options.
+func buildOverrides(opts mcpOptions) hexaimcp.MCPOverrides {
+	return hexaimcp.MCPOverrides{
+		PromptsDir:       opts.promptsDir,
+		SlashCommandSync: opts.slashCommandSync,
+		SlashCommandDir:  opts.slashCommandDir,
+	}
+}
+
 // Seams for testing: override in tests to avoid launching real MCP server.
+// Signatures match hexaimcp.Run and hexaimcp.RunBackfill respectively.
 var (
 	runMCP      = hexaimcp.Run
 	runBackfill = hexaimcp.RunBackfill
@@ -86,29 +96,21 @@ func main() {
 }
 
 // run executes the MCP server logic with the given options and I/O streams.
+// CLI flag values are passed via MCPOverrides instead of environment variables.
 func run(opts mcpOptions, stdin io.Reader, stdout, stderr io.Writer) error {
-	// Set environment variables for RunWithFactory based on flag values
-	if opts.promptsDir != "" {
-		os.Setenv("HEXAI_MCP_PROMPTS_DIR", opts.promptsDir)
-	}
-	if opts.slashCommandSync {
-		os.Setenv("HEXAI_MCP_SLASHCOMMAND_SYNC", "true")
-	}
-	if opts.slashCommandDir != "" {
-		os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", opts.slashCommandDir)
-	}
-
 	if opts.showVersion {
 		fmt.Fprintln(stdout, internal.Version)
 		return nil
 	}
 
+	overrides := buildOverrides(opts)
+
 	// Handle backfill operation
 	if opts.syncAll {
-		return runBackfill(opts.logPath, opts.configPath)
+		return runBackfill(opts.logPath, opts.configPath, overrides)
 	}
 
-	return runMCP(opts.logPath, opts.configPath, stdin, stdout, stderr)
+	return runMCP(opts.logPath, opts.configPath, overrides, stdin, stdout, stderr)
 }
 
 // defaultLogPath returns the default MCP log file path in the state directory.
