@@ -191,10 +191,10 @@ func reqOptsFrom(cfg actionConfig) requestArgs {
 }
 
 // Timeout helpers to mirror LSP behavior.
-func timeout10s(parent context.Context) (context.Context, context.CancelFunc) {
+func timeout20s(parent context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, 20*time.Second)
 }
 
-func timeout8s(parent context.Context) (context.Context, context.CancelFunc) {
+func timeout18s(parent context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, 18*time.Second)
 }

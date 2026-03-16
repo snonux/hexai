@@ -258,31 +258,31 @@ func handleRewriteAction(ctx context.Context, parts InputParts, cfg actionConfig
 		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: no inline instruction found; echoing input"+logging.AnsiReset)
 		return parts.Selection, nil
 	}
-	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+	return runWithTimeout(ctx, timeout20s, func(cctx context.Context) (string, error) {
 		return runRewrite(cctx, cfg, client, instr, cleaned)
 	})
 }
 
 func handleDiagnosticsAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
-	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+	return runWithTimeout(ctx, timeout20s, func(cctx context.Context) (string, error) {
 		return runDiagnostics(cctx, cfg, client, parts.Diagnostics, parts.Selection)
 	})
 }
 
 func handleDocumentAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
-	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+	return runWithTimeout(ctx, timeout20s, func(cctx context.Context) (string, error) {
 		return runDocument(cctx, cfg, client, parts.Selection)
 	})
 }
 
 func handleGoTestAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
-	return runWithTimeout(ctx, timeout8s, func(cctx context.Context) (string, error) {
+	return runWithTimeout(ctx, timeout18s, func(cctx context.Context) (string, error) {
 		return runGoTest(cctx, cfg, client, parts.Selection)
 	})
 }
 
 func handleSimplifyAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
-	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+	return runWithTimeout(ctx, timeout20s, func(cctx context.Context) (string, error) {
 		return runSimplify(cctx, cfg, client, parts.Selection)
 	})
 }
@@ -292,7 +292,7 @@ func handleCustomAction(ctx context.Context, parts InputParts, cfg actionConfig,
 		return parts.Selection, nil
 	}
 	custom := *selectedCustom
-	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+	return runWithTimeout(ctx, timeout20s, func(cctx context.Context) (string, error) {
 		return runCustom(cctx, cfg, client, custom, parts)
 	})
 }
@@ -303,7 +303,7 @@ func handleCustomPromptAction(ctx context.Context, parts InputParts, cfg actionC
 		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
 		return parts.Selection, nil
 	}
-	return runWithTimeout(ctx, timeout10s, func(cctx context.Context) (string, error) {
+	return runWithTimeout(ctx, timeout20s, func(cctx context.Context) (string, error) {
 		return runRewrite(cctx, cfg, client, prompt, parts.Selection)
 	})
 }
