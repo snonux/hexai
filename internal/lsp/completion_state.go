@@ -66,13 +66,18 @@ func (s *completionState) takePendingCompletion(key string) []CompletionItem {
 	return cpy
 }
 
+// cacheGet returns the cached value for key. A read lock is sufficient for
+// cache misses. On a hit we must promote to a write lock so touchLocked can
+// update the LRU order.
 func (s *completionState) cacheGet(key string) (string, bool) {
-	s.stateMu.Lock()
-	defer s.stateMu.Unlock()
+	s.stateMu.RLock()
 	v, ok := s.compCache[key]
+	s.stateMu.RUnlock()
 	if !ok {
 		return "", false
 	}
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
 	s.touchLocked(key)
 	return v, true
 }
