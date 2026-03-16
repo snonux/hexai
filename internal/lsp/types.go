@@ -186,11 +186,11 @@ type ExecuteCommandParams struct {
 
 // Diagnostic represents a compiler diagnostic such as an error or warning.
 type Diagnostic struct {
-	Range    Range       `json:"range"`
-	Message  string      `json:"message"`
-	Severity int         `json:"severity,omitempty"`
-	Code     interface{} `json:"code,omitempty"`
-	Source   string      `json:"source,omitempty"`
+	Range    Range  `json:"range"`
+	Message  string `json:"message"`
+	Severity int    `json:"severity,omitempty"`
+	Code     any    `json:"code,omitempty"`
+	Source   string `json:"source,omitempty"`
 }
 
 // CodeActionContext carries diagnostics associated with a code action request.
