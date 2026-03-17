@@ -154,11 +154,14 @@ func lockStatsFile(ctx context.Context, dir string) (func() error, error) {
 }
 
 // readStatsFile loads the on-disk stats file, returning a fresh File if it is
-// missing or has an incompatible version.
+// missing, corrupt, or has an incompatible version.
 func readStatsFile(path string) File {
 	var sf File
 	if b, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(b, &sf)
+		if uerr := json.Unmarshal(b, &sf); uerr != nil {
+			fmt.Fprintf(os.Stderr, "stats: corrupt stats file %s: %v, starting fresh\n", path, uerr)
+			return File{Version: fileVersion}
+		}
 	}
 	if sf.Version != fileVersion {
 		sf = File{Version: fileVersion}
@@ -233,7 +236,9 @@ func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) {
 	}
 }
 
-// Snapshot reads and aggregates events within the configured window.
+// TakeSnapshot reads the stats file and aggregates events within the stored
+// window (falling back to the process-level Window() if the file has none).
+// This is a pure read — it does not mutate global state.
 func TakeSnapshot() (Snapshot, error) {
 	dir, err := CacheDir()
 	if err != nil {
@@ -254,8 +259,6 @@ func TakeSnapshot() (Snapshot, error) {
 	win := time.Duration(sf.WindowSeconds) * time.Second
 	if win <= 0 {
 		win = Window()
-	} else {
-		SetWindow(win) // align process with file window if changed elsewhere
 	}
 	cutoff := time.Now().Add(-win)
 	snap := Snapshot{Providers: make(map[string]ProviderEntry), Window: win}

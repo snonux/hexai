@@ -38,10 +38,6 @@ func providerOf(c any) string {
 	return "llm"
 }
 
-func canonicalProvider(name string) string {
-	return llmutils.CanonicalProvider(name)
-}
-
 // selectActionTemperature resolves the effective temperature for a code action,
 // delegating GPT-5 override logic to llmutils.ResolveTemperature.
 func selectActionTemperature(cfg actionConfig, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {
@@ -148,14 +144,14 @@ func reqOptsFrom(cfg actionConfig) requestArgs {
 	if core.MaxTokens > 0 {
 		opts = append(opts, llm.WithMaxTokens(core.MaxTokens))
 	}
-	provider := canonicalProvider(core.Provider)
+	provider := llmutils.CanonicalProvider(core.Provider)
 	entries := providers.CodeActionConfigs
 	if len(entries) == 0 {
 		entries = []appconfig.SurfaceConfig{{Provider: core.Provider, Model: strings.TrimSpace(llmutils.DefaultModelForProvider(fullCfg, provider))}}
 	}
 	primary := entries[0]
 	if strings.TrimSpace(primary.Provider) != "" {
-		provider = canonicalProvider(primary.Provider)
+		provider = llmutils.CanonicalProvider(primary.Provider)
 	}
 	model := strings.TrimSpace(primary.Model)
 	if model == "" {

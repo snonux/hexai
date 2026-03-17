@@ -112,22 +112,23 @@ func loadConfig(configPath string) appconfig.App {
 var debugLog *log.Logger
 
 // initDebugLog creates a debug log file in the state directory
-// (~/.local/state/hexai/hexai-tmux-edit.log). Returns an error if the
-// state directory cannot be resolved. Silently skips logging if the
-// log file itself cannot be opened.
-func initDebugLog() error {
+// (~/.local/state/hexai/hexai-tmux-edit.log). Returns a closer for the
+// log file handle and an error if the state directory cannot be resolved.
+// Silently skips logging (returns a no-op closer) if the log file cannot
+// be opened.
+func initDebugLog() (func(), error) {
 	stateDir, err := appconfig.StateDir()
 	if err != nil {
-		return fmt.Errorf("cannot create state directory: %w", err)
+		return nil, fmt.Errorf("cannot create state directory: %w", err)
 	}
 
 	logPath := filepath.Join(stateDir, "hexai-tmux-edit.log")
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
-		return nil
+		return func() {}, nil
 	}
 	debugLog = log.New(f, "", log.LstdFlags|log.Lmicroseconds)
-	return nil
+	return func() { _ = f.Close() }, nil
 }
 
 func dbg(format string, args ...any) {
@@ -140,9 +141,11 @@ func dbg(format string, args ...any) {
 // It resolves the agent (by name or auto-detect), extracts the current
 // prompt, opens the editor popup, then clears and sends the result.
 func runWithConfig(opts Options, cfg appconfig.App) error {
-	if err := initDebugLog(); err != nil {
+	closeLog, err := initDebugLog()
+	if err != nil {
 		return fmt.Errorf("init debug log: %w", err)
 	}
+	defer closeLog()
 	dbg("=== hexai-tmux-edit start ===")
 	dbg("opts: pane=%q agent=%q config=%q", opts.Pane, opts.Agent, opts.ConfigPath)
 

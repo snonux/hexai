@@ -36,8 +36,11 @@ func (tmuxStatusSink) SetLLMStart(provider, model string) error {
 	return tmx.SetStatus(tmx.FormatLLMStartStatus(provider, model))
 }
 
-func (tmuxStatusSink) SetGlobal(reqs int64, rpm float64, sent int64, recv int64, provider, model string, scopeRPM float64, scopeReqs int64, window time.Duration) error {
-	status := tmx.FormatGlobalStatusColored(reqs, rpm, sent, recv, provider, model, scopeRPM, scopeReqs, window)
+func (tmuxStatusSink) SetGlobal(gs lsp.GlobalStatus) error {
+	status := tmx.FormatGlobalStatusColored(
+		gs.Reqs, gs.RPM, gs.Sent, gs.Recv,
+		gs.Provider, gs.Model, gs.ScopeRPM, gs.ScopeReqs, gs.Window,
+	)
 	return tmx.SetStatus(status)
 }
 

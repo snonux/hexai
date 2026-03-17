@@ -1,6 +1,30 @@
 package textutil
 
-import "strings"
+import (
+	"strings"
+)
+
+// SplitLinesBytes splits data into lines, handling both \n and \r\n endings.
+// The returned slices share the underlying data array.
+func SplitLinesBytes(data []byte) [][]byte {
+	var lines [][]byte
+	start := 0
+	for i := 0; i < len(data); i++ {
+		if data[i] == '\n' {
+			end := i
+			if end > start && data[end-1] == '\r' {
+				end--
+			}
+			lines = append(lines, data[start:end])
+			start = i + 1
+		}
+	}
+	// Handle last line if it doesn't end with newline
+	if start < len(data) {
+		lines = append(lines, data[start:])
+	}
+	return lines
+}
 
 // RenderTemplate performs simple {{var}} replacement in a template string.
 func RenderTemplate(t string, vars map[string]string) string {

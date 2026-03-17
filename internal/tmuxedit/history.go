@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/textutil"
 )
 
 // HistoryEntry represents a single submission to the AI agent via tmux popup.
@@ -52,14 +53,15 @@ func AppendHistory(text, agent, cwd string) error {
 	if err != nil {
 		return fmt.Errorf("cannot open history file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() // best-effort on error paths
 
 	// Write entry
 	if _, err := f.Write(data); err != nil {
 		return fmt.Errorf("cannot write history entry: %w", err)
 	}
 
-	return nil
+	// Check Close error to catch deferred-write failures (e.g. disk full).
+	return f.Close()
 }
 
 // GetHistory retrieves the most recent history entries (up to limit).
@@ -84,7 +86,7 @@ func GetHistory(limit int) ([]HistoryEntry, error) {
 
 	// Parse JSONL line by line
 	var entries []HistoryEntry
-	lines := splitLines(data)
+	lines := textutil.SplitLinesBytes(data)
 	for i, line := range lines {
 		if len(line) == 0 {
 			continue // Skip empty lines
@@ -106,26 +108,4 @@ func GetHistory(limit int) ([]HistoryEntry, error) {
 	}
 
 	return entries, nil
-}
-
-// splitLines splits data into lines (handles both \n and \r\n)
-func splitLines(data []byte) [][]byte {
-	var lines [][]byte
-	start := 0
-	for i := 0; i < len(data); i++ {
-		if data[i] == '\n' {
-			// Include everything before the newline (excluding \r if present)
-			end := i
-			if end > start && data[end-1] == '\r' {
-				end--
-			}
-			lines = append(lines, data[start:end])
-			start = i + 1
-		}
-	}
-	// Handle last line if it doesn't end with newline
-	if start < len(data) {
-		lines = append(lines, data[start:])
-	}
-	return lines
 }

@@ -16,6 +16,38 @@ import (
 	"codeberg.org/snonux/hexai/internal/tmux"
 )
 
+// tmuxActionError formats an error with the hexai-tmux-action prefix for stderr output.
+type tmuxActionError struct {
+	inner error
+}
+
+func (e tmuxActionError) Error() string {
+	return logging.AnsiBase + "hexai-tmux-action: " + e.inner.Error() + logging.AnsiReset
+}
+
+func (e tmuxActionError) Unwrap() error {
+	return e.inner
+}
+
+// logTmuxActionError logs an error to stderr with the hexai-tmux-action prefix.
+func logTmuxActionError(stderr io.Writer, err error) error {
+	_, _ = fmt.Fprintf(stderr, "%v\n", tmuxActionError{err})
+	return err
+}
+
+// requireInput validates that input selection is not empty.
+func requireInput(sel string) error {
+	if strings.TrimSpace(sel) == "" {
+		return fmt.Errorf("no input provided on stdin")
+	}
+	return nil
+}
+
+// logAndReturnError logs an error to stderr and returns it (hexaiaction pattern).
+func logAndReturnError(stderr io.Writer, err error) error {
+	return logTmuxActionError(stderr, err)
+}
+
 type configPathKey struct{}
 
 type actionChoice struct {

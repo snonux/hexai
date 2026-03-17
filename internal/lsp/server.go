@@ -77,10 +77,24 @@ type llmStatsSubsystem struct {
 	startTime         time.Time
 }
 
+// GlobalStatus bundles the fields for a global status update,
+// replacing a long parameter list.
+type GlobalStatus struct {
+	Reqs      int64
+	RPM       float64
+	Sent      int64
+	Recv      int64
+	Provider  string
+	Model     string
+	ScopeRPM  float64
+	ScopeReqs int64
+	Window    time.Duration
+}
+
 // StatusSink receives status updates from the LSP server.
 type StatusSink interface {
 	SetLLMStart(provider, model string) error
-	SetGlobal(reqs int64, rpm float64, sent int64, recv int64, provider, model string, scopeRPM float64, scopeReqs int64, window time.Duration) error
+	SetGlobal(gs GlobalStatus) error
 }
 
 // ServerOptions collects configuration for NewServer to avoid long parameter lists.
@@ -334,9 +348,9 @@ func (s *Server) emitLLMStartStatus(provider, model string) {
 	}
 }
 
-func (s *Server) emitGlobalStatus(reqs int64, rpm float64, sent int64, recv int64, provider, model string, scopeRPM float64, scopeReqs int64, window time.Duration) {
+func (s *Server) emitGlobalStatus(gs GlobalStatus) {
 	if s.statusSink != nil {
-		_ = s.statusSink.SetGlobal(reqs, rpm, sent, recv, provider, model, scopeRPM, scopeReqs, window)
+		_ = s.statusSink.SetGlobal(gs)
 	}
 }
 

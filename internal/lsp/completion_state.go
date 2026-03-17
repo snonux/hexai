@@ -69,18 +69,16 @@ func (s *completionState) takePendingCompletion(key string) []CompletionItem {
 	return cpy
 }
 
-// cacheGet returns the cached value for key. A read lock is sufficient for
-// cache misses. On a hit we must promote to a write lock so touchLocked can
-// update the LRU order.
+// cacheGet returns the cached value for key. Uses a single write lock to
+// avoid a TOCTOU race between the lookup and the LRU touch — the key could
+// be evicted between an RUnlock and a subsequent Lock promotion.
 func (s *completionState) cacheGet(key string) (string, bool) {
-	s.stateMu.RLock()
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
 	v, ok := s.compCache[key]
-	s.stateMu.RUnlock()
 	if !ok {
 		return "", false
 	}
-	s.stateMu.Lock()
-	defer s.stateMu.Unlock()
 	s.touchLocked(key)
 	return v, true
 }
@@ -105,16 +103,14 @@ func (s *completionState) cachePut(key, value string) {
 	s.touchLocked(key)
 }
 
+// touchLocked moves key to the end of the LRU order list.
+// Uses delete-and-append: remove the existing entry in-place, then append.
 func (s *completionState) touchLocked(key string) {
-	idx := -1
 	for i, k := range s.compCacheOrder {
 		if k == key {
-			idx = i
+			s.compCacheOrder = append(s.compCacheOrder[:i], s.compCacheOrder[i+1:]...)
 			break
 		}
-	}
-	if idx >= 0 {
-		s.compCacheOrder = append(append([]string{}, s.compCacheOrder[:idx]...), s.compCacheOrder[idx+1:]...)
 	}
 	s.compCacheOrder = append(s.compCacheOrder, key)
 }

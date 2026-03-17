@@ -6,6 +6,7 @@ import (
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
 )
 
@@ -25,9 +26,9 @@ func newLLMClientRegistry() llmClientRegistry {
 }
 
 func (r *llmClientRegistry) applyOptions(client llm.Client, configuredProvider string) {
-	provider := canonicalProvider(configuredProvider)
+	provider := llmutils.CanonicalProvider(configuredProvider)
 	if client != nil {
-		if name := canonicalProvider(client.Name()); name != "" {
+		if name := llmutils.CanonicalProvider(client.Name()); name != "" {
 			provider = name
 		}
 	}
@@ -45,13 +46,13 @@ func (r *llmClientRegistry) current() llm.Client {
 }
 
 func (r *llmClientRegistry) clientFor(spec requestSpec, cfg appconfig.App, build llmClientBuilder) llm.Client {
-	provider := canonicalProvider(spec.provider)
+	provider := llmutils.CanonicalProvider(spec.provider)
 
 	r.clientsMu.RLock()
 	baseProvider := r.llmProvider
 	baseClient := r.llmClient
 	if baseClient != nil && strings.TrimSpace(baseProvider) == "" {
-		baseProvider = canonicalProvider(baseClient.Name())
+		baseProvider = llmutils.CanonicalProvider(baseClient.Name())
 	}
 	if provider == "" {
 		provider = baseProvider

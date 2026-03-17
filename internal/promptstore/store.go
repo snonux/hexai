@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"codeberg.org/snonux/hexai/internal/textutil"
 )
 
 // PromptStore defines the interface for prompt storage operations.
@@ -182,13 +184,14 @@ func (s *JSONLStore) Create(prompt *Prompt) error {
 	if err != nil {
 		return fmt.Errorf("open user.jsonl: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() // best-effort on error paths
 
 	if _, err := f.Write(data); err != nil {
 		return fmt.Errorf("write user.jsonl: %w", err)
 	}
 
-	return nil
+	// Check Close error to catch deferred-write failures (e.g. disk full).
+	return f.Close()
 }
 
 // Update modifies an existing prompt in user.jsonl.
@@ -377,7 +380,7 @@ func (s *JSONLStore) loadPromptsFromFile(filename string) ([]Prompt, error) {
 	}
 
 	var prompts []Prompt
-	lines := splitLines(data)
+	lines := textutil.SplitLinesBytes(data)
 	for i, line := range lines {
 		if len(line) == 0 {
 			continue
@@ -414,27 +417,6 @@ func (s *JSONLStore) writePromptsToFile(filename string, prompts []Prompt) error
 	}
 
 	return nil
-}
-
-// splitLines splits data into lines (handles both \n and \r\n).
-// Copied from tmuxedit/history.go pattern.
-func splitLines(data []byte) [][]byte {
-	var lines [][]byte
-	start := 0
-	for i := 0; i < len(data); i++ {
-		if data[i] == '\n' {
-			end := i
-			if end > start && data[end-1] == '\r' {
-				end--
-			}
-			lines = append(lines, data[start:end])
-			start = i + 1
-		}
-	}
-	if start < len(data) {
-		lines = append(lines, data[start:])
-	}
-	return lines
 }
 
 // backupUserPrompts creates a timestamped backup of user.jsonl before any write operation.

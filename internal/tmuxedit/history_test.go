@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"codeberg.org/snonux/hexai/internal/textutil"
 )
 
 func TestAppendHistory(t *testing.T) {
@@ -164,7 +166,7 @@ func TestSplitLines(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := splitLines([]byte(tt.input))
+			got := textutil.SplitLinesBytes([]byte(tt.input))
 			gotStr := make([]string, len(got))
 			for i, b := range got {
 				gotStr[i] = string(b)

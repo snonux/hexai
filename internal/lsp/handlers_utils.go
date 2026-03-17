@@ -4,6 +4,7 @@ package lsp
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -60,7 +61,7 @@ func (s *Server) buildRequestSpecs(surface surfaceKind) []requestSpec {
 		if provider == "" {
 			provider = cfg.Provider
 		}
-		provider = canonicalProvider(provider)
+		provider = llmutils.CanonicalProvider(provider)
 		fallbackModel := entry.Model
 		if fallbackModel == "" {
 			fallbackModel = strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))
@@ -87,7 +88,7 @@ func (s *Server) primaryRequestSpec(surface surfaceKind) requestSpec {
 	specs := s.buildRequestSpecs(surface)
 	if len(specs) == 0 {
 		cfg := s.currentConfig()
-		provider := canonicalProvider(cfg.Provider)
+		provider := llmutils.CanonicalProvider(cfg.Provider)
 		fallback := strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))
 		return requestSpec{provider: provider, fallbackModel: fallback, options: []llm.RequestOption{llm.WithMaxTokens(s.maxTokens())}}
 	}
@@ -97,10 +98,6 @@ func (s *Server) primaryRequestSpec(surface surfaceKind) requestSpec {
 // buildRequestSpec is retained for consumers expecting a single-entry helper.
 func (s *Server) buildRequestSpec(surface surfaceKind) requestSpec {
 	return s.primaryRequestSpec(surface)
-}
-
-func canonicalProvider(name string) string {
-	return llmutils.CanonicalProvider(name)
 }
 
 func surfaceConfigsFor(cfg appconfig.App, surface surfaceKind) []appconfig.SurfaceConfig {
@@ -173,7 +170,17 @@ func (s *Server) logLLMStats(model string) {
 			}
 			scopeReqs := snap.ScopeReqs(provider, modelName)
 			scopeRPM := snap.ScopeRPM(provider, modelName)
-			s.emitGlobalStatus(snap.Global.Reqs, snap.RPM, snap.Global.Sent, snap.Global.Recv, provider, modelName, scopeRPM, scopeReqs, snap.Window)
+			s.emitGlobalStatus(GlobalStatus{
+				Reqs:      snap.Global.Reqs,
+				RPM:       snap.RPM,
+				Sent:      snap.Global.Sent,
+				Recv:      snap.Global.Recv,
+				Provider:  provider,
+				Model:     modelName,
+				ScopeRPM:  scopeRPM,
+				ScopeReqs: scopeReqs,
+				Window:    snap.Window,
+			})
 		}
 	}
 }
@@ -342,17 +349,8 @@ func applyIndent(indent, suggestion string) string {
 // opening marker and no space immediately before the closing marker. Returns the
 // text between markers, the start index, the end index just after closing, and ok.
 func findStrictInlineTag(line string, openStr string, open, close byte) (string, int, int, bool) {
-	if openStr == "" {
-		openStr = string(open)
-	}
-	if openStr == "" {
-		return "", 0, 0, false
-	}
-	openChar := open
-	if openChar == 0 {
-		openChar = openStr[0]
-	}
-	doubleSeqs := doubleOpenSequences(openStr, openChar, close)
+	openChar, doubleSeqs := prepareInlineTagParsing(openStr, open, close)
+
 	pos := 0
 	for pos < len(line) {
 		j := strings.IndexByte(line[pos:], openChar)
@@ -364,10 +362,12 @@ func findStrictInlineTag(line string, openStr string, open, close byte) (string,
 			pos = j + 1
 			continue
 		}
+
 		contentStart := j + len(openStr)
 		if contentStart >= len(line) {
 			return "", 0, 0, false
 		}
+
 		doubleHit := false
 		for _, seq := range doubleSeqs {
 			if strings.HasPrefix(line[j:], seq) {
@@ -379,6 +379,7 @@ func findStrictInlineTag(line string, openStr string, open, close byte) (string,
 				break
 			}
 		}
+
 		next := line[contentStart]
 		if next == ' ' {
 			pos = contentStart + 1
@@ -388,24 +389,53 @@ func findStrictInlineTag(line string, openStr string, open, close byte) (string,
 			pos = contentStart + 1
 			continue
 		}
+
 		k := strings.IndexByte(line[contentStart:], close)
 		if k < 0 {
 			return "", 0, 0, false
 		}
 		closeIdx := contentStart + k
-		if closeIdx-1 >= contentStart && line[closeIdx-1] == ' ' {
+
+		if closeIdx > contentStart && line[closeIdx-1] == ' ' {
 			pos = closeIdx + 1
 			continue
 		}
+
 		inner := strings.TrimSpace(line[contentStart:closeIdx])
 		if inner == "" {
 			pos = closeIdx + 1
 			continue
 		}
-		end := closeIdx + 1
-		return inner, j, end, true
+
+		return inner, j, closeIdx + 1, true
 	}
 	return "", 0, 0, false
+}
+
+// prepareInlineTagParsing initializes parsing state. Returns openChar and doubleSeqs.
+func prepareInlineTagParsing(openStr string, open, close byte) (byte, []string) {
+	if openStr == "" {
+		openStr = string(open)
+	}
+	if openStr == "" {
+		return 0, nil
+	}
+	openChar := open
+	if openChar == 0 {
+		openChar = openStr[0]
+	}
+	return openChar, doubleOpenSequences(openStr, openChar, close)
+}
+
+// handleDoubleSequence checks for and handles double-open sequences.
+// Returns (doubleHit, adjustedContentStart).
+func handleDoubleSequence(line string, markerPos int, doubleSeqs []string, contentStart int, openStr string) (bool, int) {
+	for _, seq := range doubleSeqs {
+		if strings.HasPrefix(line[markerPos:], seq) {
+			return true, contentStart + len(seq) - len(openStr)
+		}
+	}
+	return false, contentStart
 }
 
 // isBareDoubleSemicolon reports whether the line contains a standalone
@@ -622,60 +652,84 @@ func promptRemovalEditsForLine(line string, lineNum int, openStr string, open, c
 	return collectSemicolonMarkers(line, lineNum, openStr, open, close)
 }
 
+// hasDoubleOpenTrigger reports whether line contains a valid double-open trigger.
 func hasDoubleOpenTrigger(line string, openStr string, open, close byte) bool {
-	if openStr == "" {
-		openStr = string(open)
-	}
-	if openStr == "" {
-		return false
-	}
-	seqs := doubleOpenSequences(openStr, open, close)
+	seqs := validDoubleOpenSequences(openStr, open, close)
 	if len(seqs) == 0 {
 		return false
 	}
+
 	pos := 0
 	for pos < len(line) {
-		found := -1
-		var seq string
-		for _, cand := range seqs {
-			if cand == "" {
-				continue
-			}
-			if idx := strings.Index(line[pos:], cand); idx >= 0 {
-				abs := pos + idx
-				if found < 0 || abs < found {
-					found = abs
-					seq = cand
-				}
-			}
-		}
-		if found < 0 {
+		foundAt, seq := findEarliestSequence(line, pos, seqs)
+		if foundAt < 0 {
 			return false
 		}
-		contentStart := found + len(seq)
+
+		contentStart := foundAt + len(seq)
 		if contentStart >= len(line) {
 			return false
 		}
+
 		first := line[contentStart]
 		if first == ' ' || first == close || first == open {
 			pos = contentStart + 1
 			continue
 		}
+
 		if contentStart+1 >= len(line) {
 			return false
 		}
+
 		k := strings.IndexByte(line[contentStart+1:], close)
 		if k < 0 {
 			return false
 		}
+
 		closeIdx := contentStart + 1 + k
-		if closeIdx-1 >= 0 && line[closeIdx-1] == ' ' {
+		if closeIdx > 0 && line[closeIdx-1] == ' ' {
 			pos = closeIdx + 1
 			continue
 		}
+
 		return true
 	}
+
 	return false
+}
+
+// validDoubleOpenSequences returns non-empty double-open sequences.
+func validDoubleOpenSequences(openStr string, open, close byte) []string {
+	seqs := doubleOpenSequences(openStr, open, close)
+	var result []string
+	for _, s := range seqs {
+		if s != "" {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+// findEarliestSequence finds the earliest sequence in line starting at pos.
+// Returns (position, sequence) or (-1, "") if none found.
+func findEarliestSequence(line string, pos int, seqs []string) (int, string) {
+	foundAt := -1
+	var foundSeq string
+
+	for _, cand := range seqs {
+		if idx := strings.Index(line[pos:], cand); idx >= 0 {
+			abs := pos + idx
+			if foundAt < 0 || abs < foundAt {
+				foundAt = abs
+				foundSeq = cand
+			}
+		}
+	}
+
+	if foundAt < 0 {
+		return -1, ""
+	}
+	return foundAt, foundSeq
 }
 
 func collectSemicolonMarkers(line string, lineNum int, openStr string, open, close byte) []TextEdit {
@@ -754,4 +808,31 @@ func utf16OffsetToByteOffset(s string, utf16Offset int) int {
 		}
 	}
 	return byteIdx
+}
+
+// --- Error handling helpers ---
+
+// fileOpenError formats an error for file opening failures.
+// Wraps the original error with path context.
+func fileOpenError(path string, err error) error {
+	return fmt.Errorf("cannot open %s: %w", path, err)
+}
+
+// ensureDirectory creates a directory if it doesn't exist.
+// Returns an error if directory creation fails.
+func ensureDirectory(path string) error {
+	return os.MkdirAll(path, 0o755)
+}
+
+// directoryCreateError formats an error for directory creation failures.
+func directoryCreateError(path string, err error) error {
+	return fmt.Errorf("cannot create %s: %w", path, err)
+}
+
+// requireLLMClient checks if LLM client is available, returning an error if not.
+func requireLLMClient(client llm.Client) error {
+	if client == nil {
+		return fmt.Errorf("llm client unavailable")
+	}
+	return nil
 }

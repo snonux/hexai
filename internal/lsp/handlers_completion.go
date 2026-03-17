@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"codeberg.org/snonux/hexai/internal/llm"
+	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/stats"
 )
@@ -88,10 +89,14 @@ func extractTriggerInfo(p CompletionParams) (kind int, ch string) {
 		TriggerCharacter string `json:"triggerCharacter,omitempty"`
 	}
 	if raw, ok := p.Context.(json.RawMessage); ok {
-		_ = json.Unmarshal(raw, &ctx)
+		if err := json.Unmarshal(raw, &ctx); err != nil {
+			logging.Logf("lsp ", "extractTriggerInfo: unmarshal raw context: %v", err)
+		}
 	} else {
 		b, _ := json.Marshal(p.Context)
-		_ = json.Unmarshal(b, &ctx)
+		if err := json.Unmarshal(b, &ctx); err != nil {
+			logging.Logf("lsp ", "extractTriggerInfo: unmarshal context: %v", err)
+		}
 	}
 	return ctx.TriggerKind, ctx.TriggerCharacter
 }
@@ -283,7 +288,7 @@ func (s *Server) runCompletionForSpec(ctx context.Context, plan completionPlan, 
 	modelKey := spec.effectiveModel(client.DefaultModel())
 	providerKey := spec.provider
 	if providerKey == "" {
-		providerKey = canonicalProvider(client.Name())
+		providerKey = llmutils.CanonicalProvider(client.Name())
 	}
 	cacheKey := plan.cacheKey + "|" + providerKey + ":" + modelKey
 	if cached, ok := s.completionCacheGet(cacheKey); ok && strings.TrimSpace(cached) != "" {
@@ -326,7 +331,7 @@ func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan,
 	detail := fmt.Sprintf("Hexai %s:%s", client.Name(), modelUsed)
 	providerKey := spec.provider
 	if providerKey == "" {
-		providerKey = canonicalProvider(client.Name())
+		providerKey = llmutils.CanonicalProvider(client.Name())
 	}
 	cacheKey := plan.cacheKey + "|" + providerKey + ":" + modelUsed
 	s.completionCachePut(cacheKey, cleaned)
@@ -343,10 +348,14 @@ func parseManualInvoke(ctx any) bool {
 		TriggerKind int `json:"triggerKind"`
 	}
 	if raw, ok := ctx.(json.RawMessage); ok {
-		_ = json.Unmarshal(raw, &c)
+		if err := json.Unmarshal(raw, &c); err != nil {
+			logging.Logf("lsp ", "parseManualInvoke: unmarshal raw context: %v", err)
+		}
 	} else {
 		b, _ := json.Marshal(ctx)
-		_ = json.Unmarshal(b, &c)
+		if err := json.Unmarshal(b, &c); err != nil {
+			logging.Logf("lsp ", "parseManualInvoke: unmarshal context: %v", err)
+		}
 	}
 	return c.TriggerKind == 1
 }
@@ -429,7 +438,7 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 	})
 	provider := spec.provider
 	if provider == "" {
-		provider = canonicalProvider(cfg.Provider)
+		provider = llmutils.CanonicalProvider(cfg.Provider)
 	}
 	logging.Logf("lsp ", "completion path=codex provider=%s uri=%s", provider, path)
 	ctx2, cancel2 := context.WithTimeout(ctx, 15*time.Second)
@@ -476,7 +485,7 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 	detail := fmt.Sprintf("Hexai %s:%s", client.Name(), modelUsed)
 	providerKey := provider
 	if providerKey == "" {
-		providerKey = canonicalProvider(client.Name())
+		providerKey = llmutils.CanonicalProvider(client.Name())
 	}
 	cacheKey := plan.cacheKey + "|" + providerKey + ":" + modelUsed
 	s.completionCachePut(cacheKey, cleaned)

@@ -25,6 +25,15 @@ type codeActionPayload struct {
 	Diagnostics []Diagnostic `json:"diagnostics,omitempty"`
 }
 
+type customActionPayload struct {
+	Type        string       `json:"type"`
+	ID          string       `json:"id"`
+	URI         string       `json:"uri"`
+	Range       Range        `json:"range"`
+	Selection   string       `json:"selection"`
+	Diagnostics []Diagnostic `json:"diagnostics,omitempty"`
+}
+
 // CodeActionHandler builds and resolves code actions for a specific action type.
 type CodeActionHandler interface {
 	Build(s *Server, p CodeActionParams, selection string) []CodeAction
@@ -103,56 +112,62 @@ func (s *Server) appendCustomActions(actions *[]CodeAction, p CodeActionParams, 
 		return
 	}
 	diags := s.diagnosticsInRange(p.Context, p.Range)
+
 	for _, ca := range customs {
 		title := strings.TrimSpace(ca.Title)
 		if title == "" {
 			continue
 		}
+
 		scope := strings.TrimSpace(strings.ToLower(ca.Scope))
 		if scope == "diagnostics" {
-			if len(diags) == 0 {
-				continue
-			}
-			payload := struct {
-				Type        string       `json:"type"`
-				ID          string       `json:"id"`
-				URI         string       `json:"uri"`
-				Range       Range        `json:"range"`
-				Selection   string       `json:"selection"`
-				Diagnostics []Diagnostic `json:"diagnostics"`
-			}{Type: "custom", ID: ca.ID, URI: p.TextDocument.URI, Range: p.Range, Selection: sel, Diagnostics: diags}
-			raw, ok := s.marshalCodeActionData(payload)
-			if !ok {
-				continue
-			}
-			kind := ca.Kind
-			if strings.TrimSpace(kind) == "" {
-				kind = "quickfix"
-			}
-			*actions = append(*actions, CodeAction{Title: "Hexai: " + title, Kind: kind, Data: raw})
-			continue
+			s.appendCustomActionForDiagnostics(actions, p, sel, diags, ca, title)
+		} else {
+			s.appendCustomActionForSelection(actions, p, sel, ca, title)
 		}
-		// default: selection
-		if strings.TrimSpace(sel) == "" {
-			continue
-		}
-		payload := struct {
-			Type      string `json:"type"`
-			ID        string `json:"id"`
-			URI       string `json:"uri"`
-			Range     Range  `json:"range"`
-			Selection string `json:"selection"`
-		}{Type: "custom", ID: ca.ID, URI: p.TextDocument.URI, Range: p.Range, Selection: sel}
-		raw, ok := s.marshalCodeActionData(payload)
-		if !ok {
-			continue
-		}
-		kind := ca.Kind
-		if strings.TrimSpace(kind) == "" {
-			kind = "refactor"
-		}
+	}
+}
+
+func (s *Server) appendCustomActionForDiagnostics(actions *[]CodeAction, p CodeActionParams, sel string, diags []Diagnostic, ca appconfig.CustomAction, title string) {
+	if len(diags) == 0 {
+		return
+	}
+	payload := customActionPayload{
+		Type:        "custom",
+		ID:          ca.ID,
+		URI:         p.TextDocument.URI,
+		Range:       p.Range,
+		Selection:   sel,
+		Diagnostics: diags,
+	}
+	if raw, ok := s.marshalCodeActionData(payload); ok {
+		kind := s.resolveCodeActionKind(ca.Kind, "quickfix")
 		*actions = append(*actions, CodeAction{Title: "Hexai: " + title, Kind: kind, Data: raw})
 	}
+}
+
+func (s *Server) appendCustomActionForSelection(actions *[]CodeAction, p CodeActionParams, sel string, ca appconfig.CustomAction, title string) {
+	if strings.TrimSpace(sel) == "" {
+		return
+	}
+	payload := customActionPayload{
+		Type:      "custom",
+		ID:        ca.ID,
+		URI:       p.TextDocument.URI,
+		Range:     p.Range,
+		Selection: sel,
+	}
+	if raw, ok := s.marshalCodeActionData(payload); ok {
+		kind := s.resolveCodeActionKind(ca.Kind, "refactor")
+		*actions = append(*actions, CodeAction{Title: "Hexai: " + title, Kind: kind, Data: raw})
+	}
+}
+
+func (s *Server) resolveCodeActionKind(kind, fallback string) string {
+	if strings.TrimSpace(kind) == "" {
+		return fallback
+	}
+	return kind
 }
 
 func (s *Server) codeActionHandlers() map[string]CodeActionHandler {

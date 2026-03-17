@@ -55,7 +55,7 @@ func buildCLIJobs(cfg appconfig.App) ([]cliJob, error) {
 		if provider == "" {
 			provider = cfg.Provider
 		}
-		provider = canonicalProvider(provider)
+		provider = llmutils.CanonicalProvider(provider)
 		derived := llmutils.ConfigForProvider(cfg, provider, entry.Model)
 		req := buildCLIRequest(entry, provider, derived)
 		jobs = append(jobs, cliJob{index: i, provider: provider, entry: entry, cfg: derived, req: req})
@@ -90,10 +90,6 @@ func buildCLIRequest(entry appconfig.SurfaceConfig, provider string, cfg appconf
 // delegating GPT-5 override logic to llmutils.ResolveTemperature.
 func cliTemperatureFromEntry(cfg appconfig.App, provider string, entry appconfig.SurfaceConfig, model string) (float64, bool) {
 	return llmutils.ResolveTemperature(provider, model, entry.Temperature, cfg.CodingTemperature)
-}
-
-func canonicalProvider(name string) string {
-	return llmutils.CanonicalProvider(name)
 }
 
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
@@ -461,10 +457,29 @@ func filterJobsBySelection(jobs []cliJob, indices []int) ([]cliJob, error) {
 	return filtered, nil
 }
 
+// stater is the subset of *os.File needed to detect piped vs terminal input.
+type stater interface {
+	Stat() (os.FileInfo, error)
+}
+
+// isPipedInput reports whether stdin is a pipe or file (not a terminal).
+// For *os.File it checks the file mode; for any other io.Reader it
+// optimistically returns true since non-file readers are typically
+// in-memory buffers used in tests.
+func isPipedInput(stdin io.Reader) bool {
+	if f, ok := stdin.(stater); ok {
+		fi, err := f.Stat()
+		return err == nil && (fi.Mode()&os.ModeCharDevice) == 0
+	}
+	// Non-file readers (e.g. strings.NewReader in tests) always have data.
+	return true
+}
+
 // readInput reads from stdin and args, then combines them per CLI rules.
+// It uses the passed stdin reader (not os.Stdin) to detect piped input.
 func readInput(stdin io.Reader, args []string) (string, error) {
 	var stdinData string
-	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeCharDevice) == 0 {
+	if isPipedInput(stdin) {
 		data, readErr := io.ReadAll(stdin)
 		if readErr != nil {
 			return "", fmt.Errorf("hexai: failed to read stdin: %w", readErr)

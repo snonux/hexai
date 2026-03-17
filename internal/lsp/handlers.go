@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"codeberg.org/snonux/hexai/internal/logging"
 )
 
 func (s *Server) handle(req Request) {
@@ -17,10 +19,6 @@ func (s *Server) handle(req Request) {
 		s.reply(req.ID, nil, &RespError{Code: -32601, Message: fmt.Sprintf("method not found: %s", req.Method)})
 	}
 }
-
-// handleInitialize moved to handlers_init.go
-
-// llmRequestOpts moved to handlers_utils.go
 
 // instructionFromSelection extracts the first instruction from selection text.
 // Preference order on each line: strict ;text; marker (no inner spaces), then
@@ -95,98 +93,10 @@ func (s *Server) findFirstInstructionInLine(line string) (instr string, cleaned 
 	return best.text, cleaned, true
 }
 
-// diagnosticsInRange parses the CodeAction context and returns diagnostics
-// that overlap the given selection range. If the context is missing or does
-// not contain diagnostics, returns an empty slice.
-// CodeAction-related handlers and helpers moved to handlers_codeaction.go
-
-// extractRangeText moved to handlers_utils.go
-
-// handleInitialized moved to handlers_init.go
-
-// handleShutdown moved to handlers_init.go
-
-// handleExit moved to handlers_init.go
-
-// handleDidOpen moved to handlers_document.go
-
-// handleDidChange moved to handlers_document.go
-
-// handleDidClose moved to handlers_document.go
-
-// handleCompletion moved to handlers_completion.go
-
 func (s *Server) reply(id json.RawMessage, result any, err *RespError) {
 	resp := Response{JSONRPC: "2.0", ID: id, Result: result, Error: err}
 	s.writeMessage(resp)
 }
-
-// docBeforeAfter returns the full document text split at the given position.
-// The returned strings are the text before the cursor (inclusive of anything
-// left of the position) and the text after the cursor.
-// docBeforeAfter moved to handlers_document.go
-
-// extractTriggerInfo returns the LSP completion TriggerKind and TriggerCharacter
-// if provided by the client; when absent it returns zeros.
-// extractTriggerInfo moved to handlers_completion.go
-
-// --- in-editor chat (";C ...") ---
-
-// detectAndHandleChat scans the current document for any line that starts with
-// ";C" and appears to be awaiting a response (i.e., followed by a blank line
-// and no non-empty answer line yet). If found, it asks the LLM and inserts the
-// answer below the blank line, leaving exactly one empty line between prompt
-// and response.
-// detectAndHandleChat moved to handlers_document.go
-
-// applyChatEdits removes the triggering punctuation at end of the line and
-// inserts two newlines followed by a new line with the response prefixed.
-// applyChatEdits moved to handlers_document.go
-
-// buildChatHistory walks upwards from the current line to collect the most recent
-// Q/A pairs in the in-editor transcript. It returns messages in chronological order
-// ending with the current user prompt. Limits to a small number of pairs to control tokens.
-// buildChatHistory moved to handlers_document.go
-
-// stripTrailingTrigger removes a single trailing punctuation from the set
-// [?,!,:] or both semicolons if present at end, mirroring the inline trigger rules.
-// stripTrailingTrigger moved to handlers_document.go
-
-// clientApplyEdit sends a workspace/applyEdit request to the client.
-// clientApplyEdit moved to handlers_document.go
-
-// nextReqID returns a unique json.RawMessage id for server-initiated requests.
-// nextReqID moved to handlers_document.go
-
-// --- completion helpers ---
-
-// buildDocString moved to handlers_completion.go
-
-// logCompletionContext moved to handlers_completion.go
-
-// tryLLMCompletion moved to handlers_completion.go
-
-// parseManualInvoke inspects the LSP completion context and reports whether the user manually invoked completion.
-// parseManualInvoke moved to handlers_completion.go
-
-// shouldSuppressForChatTriggerEOL returns true when a chat trigger like ">" follows ?, !, :, or ; at EOL.
-// shouldSuppressForChatTriggerEOL moved to handlers_completion.go
-
-// prefixHeuristicAllows applies minimal prefix rules unless inlinePrompt or structural triggers apply.
-// prefixHeuristicAllows moved to handlers_completion.go
-
-// tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
-// tryProviderNativeCompletion moved to handlers_completion.go
-
-// buildCompletionMessages constructs the LLM messages for completion.
-// buildCompletionMessages moved to handlers_completion.go
-
-// postProcessCompletion normalizes and deduplicates completion text and applies indentation rules.
-// postProcessCompletion moved to handlers_completion.go
-
-// busyCompletionItem builds a visible, non-inserting completion item indicating
-// that an LLM request is already in flight.
-// removed: previous single in-flight LLM busy gate and busy item
 
 func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string {
 	// Normalize left-of-cursor by trimming trailing spaces/tabs
@@ -246,10 +156,14 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 			TriggerCharacter string `json:"triggerCharacter,omitempty"`
 		}
 		if raw, ok := p.Context.(json.RawMessage); ok {
-			_ = json.Unmarshal(raw, &ctx)
+			if err := json.Unmarshal(raw, &ctx); err != nil {
+				logging.Logf("lsp ", "handleCompletion: unmarshal raw context: %v", err)
+			}
 		} else {
 			b, _ := json.Marshal(p.Context)
-			_ = json.Unmarshal(b, &ctx)
+			if err := json.Unmarshal(b, &ctx); err != nil {
+				logging.Logf("lsp ", "handleCompletion: unmarshal context: %v", err)
+			}
 		}
 		// If configured and the line contains a bare double-open marker (e.g., '>>!' with no '>>!text>'),
 		// do not treat as a trigger source.
@@ -329,78 +243,6 @@ func containsAny(haystack string, seqs []string) bool {
 	}
 	return false
 }
-
-// small helpers to keep tryLLMCompletion short
-// LLM stats helpers moved to handlers_utils.go
-
-// collectPromptRemovalEdits returns edits to remove all inline prompt markers.
-// Supported form (inclusive):
-//   - ";...;" where there is no space immediately after the first ';'
-//     and no space immediately before the last ';'. An optional single space
-//     after the trailing ';' is also removed for cleanliness.
-//
-// Multiple markers per line are supported.
-// Inline prompt removal helpers moved to handlers_utils.go
-
-// inParamList moved to handlers_utils.go
-
-// buildPrompts moved to handlers_utils.go
-
-// computeTextEditAndFilter moved to handlers_utils.go
-
-// computeWordStart moved to handlers_utils.go
-
-// isIdentChar moved to handlers_utils.go
-
-// lineHasInlinePrompt returns true if the line contains an inline strict
-// semicolon marker ;text; (no spaces at boundaries) or a double-semicolon
-// pattern recognized by hasDoubleSemicolonTrigger.
-// lineHasInlinePrompt moved to handlers_utils.go
-
-// leadingIndent returns the run of leading spaces/tabs from the provided line.
-// leadingIndent moved to handlers_utils.go
-
-// applyIndent prefixes each non-empty line of suggestion with the given indent
-// unless it already starts with that indent.
-// applyIndent moved to handlers_utils.go
-
-// isBareDoubleSemicolon reports whether the line contains a standalone
-// double-semicolon marker with no inline content (";;" possibly with only
-// whitespace after it). It explicitly excludes the valid form ";;text;".
-// isBareDoubleSemicolon moved to handlers_utils.go
-
-// stripDuplicateAssignmentPrefix removes a duplicated assignment prefix (e.g.,
-// "name :=") from the beginning of the model suggestion when that same prefix
-// already appears immediately to the left of the cursor on the current line.
-// Also handles simple '=' assignments.
-// stripDuplicateAssignmentPrefix moved to handlers_utils.go
-
-// stripDuplicateGeneralPrefix removes any already-typed prefix that the model repeated
-// at the beginning of its suggestion. It compares the entire text to the left of the
-// cursor (prefixBeforeCursor) against the suggestion, trimming whitespace appropriately,
-// and strips the longest sensible overlap. This prevents cases like:
-//
-//	prefix:    "func New "
-//	suggestion:"func New() *Type"
-//
-// resulting in duplicates like "func New func New() *Type".
-// stripDuplicateGeneralPrefix moved to handlers_utils.go
-
-// isIdentBoundary moved to handlers_utils.go
-
-// stripCodeFences removes surrounding Markdown code fences from a model
-// response when the entire output is wrapped, e.g. starting with "```go" or
-// "```" and ending with "```". It returns the inner content unchanged.
-// stripCodeFences moved to handlers_utils.go
-
-// stripInlineCodeSpan returns only the contents of the first inline backtick
-// code span if present, e.g., "some text `x := y()` more" -> "x := y()".
-// If no matching pair of backticks exists, it returns the input unchanged.
-// This is intended for code completion responses where the model may wrap a
-// small snippet in single backticks among prose.
-// stripInlineCodeSpan moved to handlers_utils.go
-
-// labelForCompletion moved to handlers_utils.go
 
 func (s *Server) fallbackCompletionItems(docStr string) []CompletionItem {
 	return []CompletionItem{{
