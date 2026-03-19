@@ -24,72 +24,81 @@ var (
 
 // Build builds binaries.
 func Build() error {
-	mg.Deps(BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit, BuildHexaiMCPServer)
+	mg.Deps(BuildAsk, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit, BuildHexaiMCPServer)
 	printCoverage()
 	return nil
+}
+
+// BuildAsk builds the Taskwarrior proxy wrapper.
+func BuildAsk() error {
+	printCoverage()
+	return sh.RunV("go", "build", "-o", "ask", "./cmd/ask")
 }
 
 // BuildHexaiLSP builds the LSP server binary.
 func BuildHexaiLSP() error {
 	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai-lsp-server", "cmd/hexai-lsp-server/main.go")
+	return sh.RunV("go", "build", "-o", "hexai-lsp-server", "./cmd/hexai-lsp-server")
 }
 
 // BuildHexaiCLI builds the CLI binary.
 func BuildHexaiCLI() error {
 	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai", "cmd/hexai/main.go")
+	return sh.RunV("go", "build", "-o", "hexai", "./cmd/hexai")
 }
 
 // BuildHexaiTmuxAction builds the hexai-tmux-action TUI binary.
 func BuildHexaiTmuxAction() error {
 	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai-tmux-action", "cmd/hexai-tmux-action/main.go")
+	return sh.RunV("go", "build", "-o", "hexai-tmux-action", "./cmd/hexai-tmux-action")
 }
 
 // BuildHexaiTmuxEdit builds the hexai-tmux-edit popup editor binary.
 func BuildHexaiTmuxEdit() error {
 	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai-tmux-edit", "cmd/hexai-tmux-edit/main.go")
+	return sh.RunV("go", "build", "-o", "hexai-tmux-edit", "./cmd/hexai-tmux-edit")
 }
 
 // BuildHexaiMCPServer builds the MCP server binary (DEPRECATED - experimental, not actively maintained).
 func BuildHexaiMCPServer() error {
 	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai-mcp-server", "cmd/hexai-mcp-server/main.go")
+	return sh.RunV("go", "build", "-o", "hexai-mcp-server", "./cmd/hexai-mcp-server")
 }
 
 // Dev runs tests, vet, lint, then builds with race for all binaries.
 func Dev() error {
 	printCoverage()
 	mg.Deps(Test, Vet, Lint)
-	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp-server", "cmd/hexai-lsp-server/main.go"); err != nil {
+	if err := sh.RunV("go", "build", "-race", "-o", "ask", "./cmd/ask"); err != nil {
 		return err
 	}
-	if err := sh.RunV("go", "build", "-race", "-o", "hexai", "cmd/hexai/main.go"); err != nil {
+	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp-server", "./cmd/hexai-lsp-server"); err != nil {
 		return err
 	}
-	if err := sh.RunV("go", "build", "-race", "-o", "hexai-tmux-action", "cmd/hexai-tmux-action/main.go"); err != nil {
+	if err := sh.RunV("go", "build", "-race", "-o", "hexai", "./cmd/hexai"); err != nil {
 		return err
 	}
-	if err := sh.RunV("go", "build", "-race", "-o", "hexai-tmux-edit", "cmd/hexai-tmux-edit/main.go"); err != nil {
+	if err := sh.RunV("go", "build", "-race", "-o", "hexai-tmux-action", "./cmd/hexai-tmux-action"); err != nil {
 		return err
 	}
-	return sh.RunV("go", "build", "-race", "-o", "hexai-mcp-server", "cmd/hexai-mcp-server/main.go")
+	if err := sh.RunV("go", "build", "-race", "-o", "hexai-tmux-edit", "./cmd/hexai-tmux-edit"); err != nil {
+		return err
+	}
+	return sh.RunV("go", "build", "-race", "-o", "hexai-mcp-server", "./cmd/hexai-mcp-server")
 }
 
 // Run launches the LSP server via go run (useful during development).
 func Run() error {
 	printCoverage()
 	mg.Deps(Dev)
-	return sh.RunV("go", "run", "cmd/hexai-lsp-server/main.go")
+	return sh.RunV("go", "run", "./cmd/hexai-lsp-server")
 }
 
 // RunCLI runs the CLI with a small test input.
 func RunCLI() error {
 	printCoverage()
 	mg.Deps(Dev)
-	cmd := "echo 'test' | go run cmd/hexai/main.go"
+	cmd := "echo 'test' | go run ./cmd/hexai"
 	return sh.RunV("bash", "-lc", cmd)
 }
 
@@ -107,6 +116,9 @@ func Install() error {
 	}
 	bin := filepath.Join(gopath, "bin")
 	if err := os.MkdirAll(bin, 0o755); err != nil {
+		return err
+	}
+	if err := sh.RunV("cp", "-v", "./ask", bin+"/"); err != nil {
 		return err
 	}
 	if err := sh.RunV("cp", "-v", "./hexai-lsp-server", bin+"/"); err != nil {
@@ -128,7 +140,7 @@ func Install() error {
 func RunTmuxAction() error {
 	printCoverage()
 	mg.Deps(Dev)
-	return sh.RunV("go", "run", "cmd/hexai-tmux-action/main.go")
+	return sh.RunV("go", "run", "./cmd/hexai-tmux-action")
 }
 
 // printCoverage prints a warning if an existing coverage profile shows total < coverateThreshold.

@@ -13,6 +13,10 @@ It has got improved capabilities for Go code understanding (for example, create 
 * LSP in-editor chat with the LLM
 * Stand-alone command line tool for LLM interaction
   - Includes `--tps-simulation` to preview how fast a model would feel by streaming placeholder text or piped stdin at a chosen token-per-second rate
+* Taskwarrior proxy for agent-managed project work
+  - Preferred entrypoint: `ask`
+  - Compatibility alias: `hexai task`
+  - Automatically scopes Taskwarrior commands to `project:<repo> +agent`
 * Parallel completions and CLI responses from multiple providers/models for side-by-side comparison
 * **MCP server for prompt/runbook management** (`hexai-mcp-server`) - **⚠️ DEPRECATED/EXPERIMENTAL**
   - Create, update, delete, and retrieve prompts via MCP protocol
