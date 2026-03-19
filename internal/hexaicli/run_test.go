@@ -229,7 +229,7 @@ func TestExecuteCLIJobs_MultiProviderHeaderUsesStderr(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	results, printer := executeCLIJobs(context.Background(), jobs, buildMessages("hello"), "hello", &stdout, &stderr, false)
+	results, printer := executeCLIJobs(context.Background(), jobs, buildMessages("hello"), "hello", &stdout, &stderr, false, newClientFromApp, nil)
 	if printer == nil {
 		t.Fatalf("expected column printer for multi-provider run")
 	}

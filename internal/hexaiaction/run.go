@@ -64,10 +64,18 @@ type actionClient interface {
 
 type actionClientFactory func(cfg appconfig.App) (actionClient, error)
 
+type actionConfigLoader func(context.Context, *log.Logger) appconfig.App
+
+type actionStatusSink interface {
+	SetLLMStart(provider, model string) error
+}
+
 // Runner executes action requests with injectable dependencies for testability.
 type Runner struct {
 	chooseAction actionChooser
 	newClient    actionClientFactory
+	loadConfig   actionConfigLoader
+	statusSink   actionStatusSink
 }
 
 // NewRunner builds a Runner with production dependencies.
@@ -75,6 +83,8 @@ func NewRunner() *Runner {
 	return &Runner{
 		chooseAction: chooseActionFromConfig,
 		newClient:    defaultActionClientFactory,
+		loadConfig:   loadActionConfig,
+		statusSink:   tmuxActionStatusSink{},
 	}
 }
 
@@ -89,6 +99,16 @@ func chooseActionFromConfig(cfg appconfig.App) (actionChoice, error) {
 
 func defaultActionClientFactory(cfg appconfig.App) (actionClient, error) {
 	return llmutils.NewClientFromApp(cfg)
+}
+
+type tmuxActionStatusSink struct{}
+
+func (tmuxActionStatusSink) SetLLMStart(provider, model string) error {
+	return tmux.SetStatus(tmux.FormatLLMStartStatus(provider, model))
+}
+
+func loadActionConfig(ctx context.Context, logger *log.Logger) appconfig.App {
+	return appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
 }
 
 type actionPlan struct {
@@ -127,6 +147,8 @@ func Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	chooser := chooseActionFromConfig
 	newClient := defaultActionClientFactory
+	loadConfig := loadActionConfig
+	statusSink := actionStatusSink(tmuxActionStatusSink{})
 	if r != nil {
 		if r.chooseAction != nil {
 			chooser = r.chooseAction
@@ -134,10 +156,16 @@ func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Wri
 		if r.newClient != nil {
 			newClient = r.newClient
 		}
+		if r.loadConfig != nil {
+			loadConfig = r.loadConfig
+		}
+		if r.statusSink != nil {
+			statusSink = r.statusSink
+		}
 	}
 
 	logger := log.New(stderr, "hexai-tmux-action ", log.LstdFlags|log.Lmsgprefix)
-	cfg := appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
+	cfg := loadConfig(ctx, logger)
 	if cfg.StatsWindowMinutes > 0 {
 		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
 	}
@@ -159,7 +187,9 @@ func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Wri
 	if primaryModel == "" {
 		primaryModel = cli.DefaultModel()
 	}
-	_ = tmux.SetStatus(tmux.FormatLLMStartStatus(cli.Name(), primaryModel))
+	if statusSink != nil {
+		_ = statusSink.SetLLMStart(cli.Name(), primaryModel)
+	}
 	var client chatDoer = cli
 	parts, err := ParseInput(stdin)
 	if err != nil {

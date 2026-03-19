@@ -13,10 +13,8 @@ import (
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/ignore"
 	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
 	"codeberg.org/snonux/hexai/internal/lsp"
-	"codeberg.org/snonux/hexai/internal/runtimeconfig"
 	"codeberg.org/snonux/hexai/internal/stats"
 	tmx "codeberg.org/snonux/hexai/internal/tmux"
 )
@@ -56,6 +54,11 @@ func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) er
 
 // RunWithConfig is like Run but accepts an explicit config file path.
 func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	return runWithConfigDependencies(logPath, configPath, stdin, stdout, stderr, defaultRunDependencies())
+}
+
+func runWithConfigDependencies(logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer, deps runDependencies) error {
+	deps = normalizeRunDependencies(deps)
 	logger := log.New(stderr, "hexai-lsp-server ", log.LstdFlags|log.Lmsgprefix)
 	if strings.TrimSpace(logPath) != "" {
 		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
@@ -71,35 +74,36 @@ func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io
 	}
 	logging.Bind(logger)
 	loadOpts := appconfig.LoadOptions{ConfigPath: configPath}
-	cfg := appconfig.LoadWithOptions(logger, loadOpts)
+	cfg := deps.loadConfig(logger, loadOpts)
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 	if cfg.StatsWindowMinutes > 0 {
 		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
 	}
-	return RunWithFactory(logPath, configPath, stdin, stdout, logger, cfg, nil, nil)
+	return runWithDependencies(logPath, configPath, stdin, stdout, logger, cfg, nil, nil, deps)
 }
 
 // RunWithFactory is the testable entrypoint. When client is nil, it is built from cfg+env.
 // When factory is nil, lsp.NewServer is used.
 func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory) error {
+	return runWithDependencies(logPath, configPath, stdin, stdout, logger, cfg, client, factory, defaultRunDependencies())
+}
+
+func runWithDependencies(logPath string, configPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory, deps runDependencies) error {
+	deps = normalizeRunDependencies(deps)
 	normalizeLoggingConfig(&cfg)
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
 	}
-	client = buildClientIfNil(cfg, client)
+	client = deps.buildClient(cfg, client)
 	factory = ensureFactory(factory)
 
-	// Create gitignore-aware file checker for LSP filtering
-	gitRoot := appconfig.FindGitRoot()
-	useGI := cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore
-	ignoreChecker := ignore.New(gitRoot, useGI, cfg.IgnoreExtraPatterns)
-
-	store := runtimeconfig.New(cfg)
+	ignoreChecker := deps.newIgnoreChecker(cfg)
+	store := deps.newConfigStore(cfg)
 	logContext := strings.TrimSpace(logPath) != ""
 	loadOpts := appconfig.LoadOptions{ConfigPath: strings.TrimSpace(configPath)}
-	opts := makeServerOptions(cfg, logContext, client, loadOpts, ignoreChecker)
+	opts := makeServerOptions(cfg, logContext, client, loadOpts, ignoreChecker, deps.statusSink)
 	opts.ConfigLoadOptions = loadOpts
 	opts.ConfigStore = store
 	server := factory(stdin, stdout, logger, opts)
@@ -110,13 +114,13 @@ func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout i
 			if updated.StatsWindowMinutes > 0 {
 				stats.SetWindow(time.Duration(updated.StatsWindowMinutes) * time.Minute)
 			}
-			if newClient := buildClientIfNil(updated, nil); newClient != nil {
+			if newClient := deps.buildClient(updated, nil); newClient != nil {
 				client = newClient
 			}
 			// Update ignore checker patterns on config hot-reload
 			useGI := updated.IgnoreGitignore == nil || *updated.IgnoreGitignore
 			ignoreChecker.Update(useGI, updated.IgnoreExtraPatterns)
-			opts := makeServerOptions(updated, logContext, client, loadOpts, ignoreChecker)
+			opts := makeServerOptions(updated, logContext, client, loadOpts, ignoreChecker, deps.statusSink)
 			opts.ConfigStore = store
 			configurable.ApplyOptions(opts)
 		})
@@ -136,19 +140,6 @@ func normalizeLoggingConfig(cfg *appconfig.App) {
 	}
 }
 
-func buildClientIfNil(cfg appconfig.App, client llm.Client) llm.Client {
-	if client != nil {
-		return client
-	}
-	c, err := llmutils.NewClientFromApp(cfg)
-	if err != nil {
-		logging.Logf("lsp ", "llm disabled: %v", err)
-		return nil
-	}
-	logging.Logf("lsp ", "llm enabled provider=%s model=%s", c.Name(), c.DefaultModel())
-	return c
-}
-
 func ensureFactory(factory ServerFactory) ServerFactory {
 	if factory != nil {
 		return factory
@@ -158,7 +149,7 @@ func ensureFactory(factory ServerFactory) ServerFactory {
 	}
 }
 
-func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, loadOpts appconfig.LoadOptions, ignoreChecker *ignore.Checker) lsp.ServerOptions {
+func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, loadOpts appconfig.LoadOptions, ignoreChecker *ignore.Checker, statusSink lsp.StatusSink) lsp.ServerOptions {
 	return lsp.ServerOptions{
 		ConfigLoadOptions: loadOpts,
 		LogContext:        logContext,
@@ -166,6 +157,6 @@ func makeServerOptions(cfg appconfig.App, logContext bool, client llm.Client, lo
 		Config:            &cfg,
 		Client:            client,
 		IgnoreChecker:     ignoreChecker,
-		StatusSink:        tmuxStatusSink{},
+		StatusSink:        statusSink,
 	}
 }

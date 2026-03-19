@@ -400,7 +400,7 @@ func TestRunCLIJobs_MultiJob_WritesOutputs(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if err := runCLIJobs(context.Background(), singleJobs, msgs, "hello", &stdout, &stderr); err != nil {
+	if err := runCLIJobs(context.Background(), singleJobs, msgs, "hello", &stdout, &stderr, newClientFromApp, nil); err != nil {
 		t.Fatalf("runCLIJobs single: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "out-a") {

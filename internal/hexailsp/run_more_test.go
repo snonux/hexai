@@ -30,6 +30,11 @@ func (stubClient) Chat(context.Context, []llm.Message, ...llm.RequestOption) (st
 func (stubClient) Name() string         { return "stub" }
 func (stubClient) DefaultModel() string { return "stub-model" }
 
+type recordingStatusSink struct{}
+
+func (recordingStatusSink) SetLLMStart(string, string) error { return nil }
+func (recordingStatusSink) SetGlobal(lsp.GlobalStatus) error { return nil }
+
 func TestRunWithFactory_BuildsOptionsAndClient(t *testing.T) {
 	var captured lsp.ServerOptions
 	factory := func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.ServerOptions) ServerRunner {
@@ -99,5 +104,36 @@ func TestRunWithFactory_SubscriptionAppliesUpdates(t *testing.T) {
 	}
 	if latest.Config.ContextMode != "always-full" {
 		t.Fatalf("expected normalized context mode, got %+v", latest)
+	}
+}
+
+func TestRunWithDependencies_UsesInjectedClientBuilderAndStatusSink(t *testing.T) {
+	var captured lsp.ServerOptions
+	sink := &recordingStatusSink{}
+	buildCalls := 0
+	factory := func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.ServerOptions) ServerRunner {
+		captured = opts
+		return &recRunner{}
+	}
+	cfg := appconfig.Load(nil)
+	if err := runWithDependencies("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), log.New(io.Discard, "", 0), cfg, nil, factory, runDependencies{
+		buildClient: func(appconfig.App, llm.Client) llm.Client {
+			buildCalls++
+			return stubClient{}
+		},
+		newConfigStore:   runtimeconfig.New,
+		newIgnoreChecker: defaultIgnoreCheckerFactory,
+		statusSink:       sink,
+	}); err != nil {
+		t.Fatalf("runWithDependencies error: %v", err)
+	}
+	if buildCalls != 1 {
+		t.Fatalf("expected one client build, got %d", buildCalls)
+	}
+	if captured.Client == nil {
+		t.Fatal("expected injected client to be passed through")
+	}
+	if captured.StatusSink != sink {
+		t.Fatal("expected injected status sink to be passed through")
 	}
 }
