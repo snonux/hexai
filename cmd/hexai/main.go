@@ -58,6 +58,15 @@ func main() {
 	if finalPath == "" {
 		finalPath = configPath
 	}
+	if handled, exitCode, err := runTaskSubcommandIfRequested(fs.Args(), os.Stdin, os.Stdout, os.Stderr); handled {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+		return
+	}
 	ctx := context.Background()
 	if finalPath != "" {
 		ctx = hexaicli.WithCLIConfigPath(ctx, finalPath)
