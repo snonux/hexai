@@ -83,3 +83,60 @@ func TestTaskRunnerRun_PreservesTaskwarriorExitCode(t *testing.T) {
 		t.Fatalf("exitCode = %d, want 7", exitCode)
 	}
 }
+
+func TestTaskRunnerRun_PreservesStdoutAndStderr(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	runner := taskRunner{
+		findTaskBinary: func() (string, error) { return "/usr/bin/task", nil },
+		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
+		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, out, errOut io.Writer) error {
+			_, _ = io.WriteString(out, "task stdout")
+			_, _ = io.WriteString(errOut, "task stderr")
+			return nil
+		},
+	}
+
+	exitCode, err := runner.run(context.Background(), []string{"list"}, strings.NewReader(""), &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run returned error: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("exitCode = %d, want 0", exitCode)
+	}
+	if stdout.String() != "task stdout" {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), "task stdout")
+	}
+	if stderr.String() != "task stderr" {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), "task stderr")
+	}
+}
+
+func TestTaskRunnerRun_TaskLookupFailure_IsActionable(t *testing.T) {
+	runner := taskRunner{
+		findTaskBinary: func() (string, error) { return "", errors.New("not found") },
+	}
+
+	exitCode, err := runner.run(context.Background(), []string{"list"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{})
+	if exitCode != 1 {
+		t.Fatalf("exitCode = %d, want 1", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), "Taskwarrior binary lookup failed") {
+		t.Fatalf("expected actionable task lookup error, got %v", err)
+	}
+}
+
+func TestTaskRunnerRun_EmptyRepoName_IsActionable(t *testing.T) {
+	runner := taskRunner{
+		findTaskBinary: func() (string, error) { return "/usr/bin/task", nil },
+		detectRepoRoot: func(context.Context) (string, error) { return "/", nil },
+	}
+
+	exitCode, err := runner.run(context.Background(), []string{"list"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{})
+	if exitCode != 1 {
+		t.Fatalf("exitCode = %d, want 1", exitCode)
+	}
+	if err == nil || !strings.Contains(err.Error(), "could not derive project name") {
+		t.Fatalf("expected actionable project-name error, got %v", err)
+	}
+}
