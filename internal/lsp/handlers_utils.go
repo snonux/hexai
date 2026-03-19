@@ -262,7 +262,14 @@ func (s *Server) chatWithStats(ctx context.Context, surface surfaceKind, spec re
 	// Perform request
 	client := s.clientFor(spec)
 	if client == nil {
-		return "", fmt.Errorf("llm client unavailable")
+		provider := strings.TrimSpace(spec.provider)
+		if provider == "" {
+			provider = strings.TrimSpace(s.currentConfig().Provider)
+		}
+		if provider == "" {
+			return "", fmt.Errorf("llm client unavailable; check the configured provider and required API key")
+		}
+		return "", fmt.Errorf("llm client unavailable for provider %q; check the configured provider and required API key", provider)
 	}
 	modelUsed := spec.effectiveModel(client.DefaultModel())
 	txt, err := client.Chat(ctx, msgs, spec.options...)

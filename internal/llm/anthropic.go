@@ -91,7 +91,7 @@ func init() {
 
 func anthropicProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	if strings.TrimSpace(keys.AnthropicAPIKey) == "" {
-		return nil, errors.New("missing ANTHROPIC_API_KEY for provider anthropic")
+		return nil, missingAPIKeyError("anthropic", "ANTHROPIC_API_KEY", "HEXAI_ANTHROPIC_API_KEY")
 	}
 	return newAnthropicWithTimeout(
 		cfg.AnthropicBaseURL,
@@ -132,7 +132,7 @@ func newAnthropicWithTimeout(baseURL, model, apiKey string, defaultTemp *float64
 // Chat sends a request to Anthropic and returns the response.
 func (c anthropicClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	if c.apiKey == "" {
-		return nilStringErr("missing Anthropic API key")
+		return "", missingAPIKeyError("anthropic", "ANTHROPIC_API_KEY", "HEXAI_ANTHROPIC_API_KEY")
 	}
 	o := c.resolveOptions(opts)
 	start := time.Now()
@@ -167,7 +167,7 @@ func (c anthropicClient) DefaultModel() string { return c.defaultModel }
 // ChatStream sends a streaming request and invokes onDelta for each text chunk.
 func (c anthropicClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
 	if c.apiKey == "" {
-		return errors.New("missing Anthropic API key")
+		return missingAPIKeyError("anthropic", "ANTHROPIC_API_KEY", "HEXAI_ANTHROPIC_API_KEY")
 	}
 	o := c.resolveOptions(opts)
 	start := time.Now()

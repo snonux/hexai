@@ -27,7 +27,7 @@ func init() {
 
 func openRouterProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	if strings.TrimSpace(keys.OpenRouterAPIKey) == "" {
-		return nil, errors.New("missing OPENROUTER_API_KEY for provider openrouter")
+		return nil, missingAPIKeyError("openrouter", "OPENROUTER_API_KEY", "HEXAI_OPENROUTER_API_KEY")
 	}
 	return newOpenRouterWithTimeout(
 		cfg.OpenRouterBaseURL,
@@ -64,7 +64,7 @@ func newOpenRouterWithTimeout(baseURL, model, apiKey string, defaultTemp *float6
 
 func (c openRouterClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	if strings.TrimSpace(c.apiKey) == "" {
-		return nilStringErr("missing OpenRouter API key")
+		return "", missingAPIKeyError("openrouter", "OPENROUTER_API_KEY", "HEXAI_OPENROUTER_API_KEY")
 	}
 	o := Options{Model: c.defaultModel}
 	for _, opt := range opts {
@@ -114,7 +114,7 @@ func (c openRouterClient) DefaultModel() string { return c.defaultModel }
 
 func (c openRouterClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
 	if strings.TrimSpace(c.apiKey) == "" {
-		return errors.New("missing OpenRouter API key")
+		return missingAPIKeyError("openrouter", "OPENROUTER_API_KEY", "HEXAI_OPENROUTER_API_KEY")
 	}
 	o := Options{Model: c.defaultModel}
 	for _, opt := range opts {

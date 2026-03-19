@@ -42,6 +42,17 @@ func TestOpenAIChatSuccess(t *testing.T) {
 	}
 }
 
+func TestOpenAIChat_MissingKey_IsActionable(t *testing.T) {
+	client := openAIClient{defaultModel: "gpt-test"}
+	_, err := client.Chat(context.Background(), []Message{{Role: "user", Content: "hello"}})
+	if err == nil {
+		t.Fatal("expected missing key error")
+	}
+	if !strings.Contains(err.Error(), "OPENAI_API_KEY") || !strings.Contains(err.Error(), "HEXAI_OPENAI_API_KEY") {
+		t.Fatalf("expected actionable API key hint, got %q", err.Error())
+	}
+}
+
 func TestOpenAIChatStreamDeliversChunks(t *testing.T) {
 	client := openAIClient{
 		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {

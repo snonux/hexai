@@ -3,6 +3,7 @@ package hexaiaction
 import (
 	"bytes"
 	"context"
+	"log"
 	"os"
 	"strings"
 	"testing"
@@ -26,6 +27,22 @@ func TestRun_MissingAPIKey(t *testing.T) {
 		t.Fatal("expected error when API key is missing")
 	}
 	_ = os.Stderr
+}
+
+func TestRun_NoInput_IsActionable(t *testing.T) {
+	runner := NewRunner()
+	runner.loadConfig = func(context.Context, *log.Logger) appconfig.App { return appconfig.Load(nil) }
+	runner.newClient = func(appconfig.App) (actionClient, error) { return llmFake{}, nil }
+	runner.chooseAction = func(appconfig.App) (actionChoice, error) {
+		return actionChoice{kind: ActionSkip}, nil
+	}
+	err := runner.Run(context.Background(), bytes.NewBufferString(""), &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("expected actionable no-input error")
+	}
+	if !strings.Contains(err.Error(), "pipe the selected text or pane contents into hexai-tmux-action") {
+		t.Fatalf("expected actionable guidance, got %q", err.Error())
+	}
 }
 
 type stubChatDoer struct {

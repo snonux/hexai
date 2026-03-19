@@ -78,7 +78,7 @@ func init() {
 
 func openAIProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	if strings.TrimSpace(keys.OpenAIAPIKey) == "" {
-		return nil, errors.New("missing OPENAI_API_KEY for provider openai")
+		return nil, missingAPIKeyError("openai", "OPENAI_API_KEY", "HEXAI_OPENAI_API_KEY")
 	}
 	return newOpenAIWithTimeout(
 		cfg.OpenAIBaseURL,
@@ -134,7 +134,7 @@ func newOpenAIWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, t
 
 func (c openAIClient) Chat(ctx context.Context, messages []Message, opts ...RequestOption) (string, error) {
 	if c.apiKey == "" {
-		return nilStringErr("missing OpenAI API key")
+		return "", missingAPIKeyError("openai", "OPENAI_API_KEY", "HEXAI_OPENAI_API_KEY")
 	}
 	o := Options{Model: c.defaultModel}
 	for _, opt := range opts {
@@ -189,7 +189,7 @@ func (c openAIClient) DefaultModel() string { return c.defaultModel }
 
 func (c openAIClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string), opts ...RequestOption) error {
 	if c.apiKey == "" {
-		return errors.New("missing OpenAI API key")
+		return missingAPIKeyError("openai", "OPENAI_API_KEY", "HEXAI_OPENAI_API_KEY")
 	}
 	o := Options{Model: c.defaultModel}
 	for _, opt := range opts {

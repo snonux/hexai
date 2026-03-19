@@ -38,7 +38,7 @@ func logTmuxActionError(stderr io.Writer, err error) error {
 // requireInput validates that input selection is not empty.
 func requireInput(sel string) error {
 	if strings.TrimSpace(sel) == "" {
-		return fmt.Errorf("no input provided on stdin")
+		return fmt.Errorf("no input provided on stdin; pipe the selected text or pane contents into hexai-tmux-action")
 	}
 	return nil
 }
@@ -193,11 +193,10 @@ func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Wri
 	var client chatDoer = cli
 	parts, err := ParseInput(stdin)
 	if err != nil {
-		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: failed to read input"+logging.AnsiReset)
-		return err
+		return fmt.Errorf("hexai-tmux-action: failed to read action input from stdin (pipe the selected text or pane contents into hexai-tmux-action): %w", err)
 	}
-	if strings.TrimSpace(parts.Selection) == "" {
-		return fmt.Errorf("hexai-tmux-action: no input provided on stdin")
+	if err := requireInput(parts.Selection); err != nil {
+		return fmt.Errorf("hexai-tmux-action: %w", err)
 	}
 	choice, err := chooser(cfg)
 	if err != nil {

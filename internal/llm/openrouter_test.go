@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"codeberg.org/snonux/hexai/internal/logging"
@@ -102,6 +103,8 @@ func TestOpenRouter_Chat_MissingKey(t *testing.T) {
 	c := newOpenRouter("http://example", "anthropic/claude-test", "", f64p(0.2)).(openRouterClient)
 	if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "ping"}}); err == nil {
 		t.Fatalf("expected error for missing api key")
+	} else if !strings.Contains(err.Error(), "OPENROUTER_API_KEY") || !strings.Contains(err.Error(), "HEXAI_OPENROUTER_API_KEY") {
+		t.Fatalf("expected actionable API key hint, got %q", err.Error())
 	}
 }
 

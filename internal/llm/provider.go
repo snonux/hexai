@@ -3,7 +3,8 @@ package llm
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -135,7 +136,7 @@ func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, anthropicAPIKey s
 
 	factory, ok := lookupProviderFactory(provider)
 	if !ok {
-		return nil, errors.New("unknown LLM provider: " + provider)
+		return nil, unknownProviderError(provider)
 	}
 
 	return factory(cfg, ProviderKeys{
@@ -162,4 +163,53 @@ func withDefaultTemperature(configured *float64, fallback float64) *float64 {
 	}
 	v := fallback
 	return &v
+}
+
+func missingAPIKeyError(provider string, envVars ...string) error {
+	name := providerDisplayName(provider)
+	if len(envVars) == 0 {
+		return fmt.Errorf("missing %s API key", name)
+	}
+	return fmt.Errorf("missing %s API key for provider %s; set %s", name, normalizeProvider(provider), joinEnvVars(envVars))
+}
+
+func unknownProviderError(provider string) error {
+	return fmt.Errorf("unknown LLM provider %q; supported providers: %s", provider, strings.Join(supportedProviders(), ", "))
+}
+
+func providerDisplayName(provider string) string {
+	switch normalizeProvider(provider) {
+	case "openai":
+		return "OpenAI"
+	case "openrouter":
+		return "OpenRouter"
+	case "anthropic":
+		return "Anthropic"
+	default:
+		return provider
+	}
+}
+
+func joinEnvVars(envVars []string) string {
+	switch len(envVars) {
+	case 0:
+		return ""
+	case 1:
+		return envVars[0]
+	case 2:
+		return envVars[0] + " or " + envVars[1]
+	default:
+		return strings.Join(envVars[:len(envVars)-1], ", ") + ", or " + envVars[len(envVars)-1]
+	}
+}
+
+func supportedProviders() []string {
+	providerRegistryMu.RLock()
+	defer providerRegistryMu.RUnlock()
+	names := make([]string, 0, len(providerRegistry))
+	for name := range providerRegistry {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

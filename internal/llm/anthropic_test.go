@@ -79,8 +79,8 @@ func TestAnthropicChat_NoAPIKey(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for missing API key")
 	}
-	if !strings.Contains(err.Error(), "missing Anthropic API key") {
-		t.Fatalf("expected 'missing Anthropic API key', got '%s'", err.Error())
+	if !strings.Contains(err.Error(), "missing Anthropic API key") || !strings.Contains(err.Error(), "ANTHROPIC_API_KEY") || !strings.Contains(err.Error(), "HEXAI_ANTHROPIC_API_KEY") {
+		t.Fatalf("expected actionable Anthropic API key hint, got '%s'", err.Error())
 	}
 }
 
@@ -224,8 +224,8 @@ func TestAnthropicStream_NoAPIKey(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for missing API key")
 	}
-	if !strings.Contains(err.Error(), "missing Anthropic API key") {
-		t.Fatalf("expected 'missing Anthropic API key', got '%s'", err.Error())
+	if !strings.Contains(err.Error(), "missing Anthropic API key") || !strings.Contains(err.Error(), "ANTHROPIC_API_KEY") || !strings.Contains(err.Error(), "HEXAI_ANTHROPIC_API_KEY") {
+		t.Fatalf("expected actionable Anthropic API key hint, got '%s'", err.Error())
 	}
 }
 
