@@ -134,11 +134,6 @@ Use `ask` when you want Taskwarrior automatically scoped to the current git repo
 
 `ask` pre-sets `project:<repo> +agent` and then forwards the remaining arguments to Taskwarrior unchanged, so normal reports, filters, UUID selectors, and commands still work. It must be run inside a git repository so the project name can be derived from the repo root.
 
-Compatibility note: `hexai task ...` still works and behaves the same way, but `ask ...` is the shorter preferred entrypoint for agent-managed project tasks.
-
-- `hexai task list`
-- `hexai task uuid:1234 annotate "Delivered Y"`
-
 ## Hexai Action (TUI)
 
 `hexai-tmux-action` runs code actions over a selection or diagnostics+selection piped from stdin, or read from a file.
