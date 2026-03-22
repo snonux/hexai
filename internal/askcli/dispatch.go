@@ -28,8 +28,6 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 	}
 	subcommand := args[0]
 	switch subcommand {
-	case "export":
-		return d.runner.Run(ctx, args, stdin, stdout, stderr)
 	case "info":
 		return d.handleInfo(ctx, args, stdout, stderr)
 	case "add":
@@ -61,7 +59,7 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 	case "denotate":
 		return d.handleDenotate(ctx, args, stdout, stderr)
 	case "delete":
-		return d.handleDelete(ctx, args, stdout, stderr)
+		return d.handleDelete(ctx, args, stdin, stdout, stderr)
 	case "help":
 		return d.help(stdout)
 	default:
@@ -90,9 +88,6 @@ func (d Dispatcher) help(w io.Writer) (int, error) {
 	io.WriteString(w, "  ask modify <uuid> <args...>   Modify task fields\n")
 	io.WriteString(w, "  ask denotate <uuid> \"text\"     Remove annotation\n")
 	io.WriteString(w, "  ask delete <uuid>             Delete task\n")
-	io.WriteString(w, "  ask export                    Raw JSON export\n")
-	io.WriteString(w, "\nFilters:\n")
-	io.WriteString(w, "  +READY +BLOCKED +<tag> started limit:N sort:priority-,urgency-\n")
 	return 0, nil
 }
 

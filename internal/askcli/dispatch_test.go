@@ -28,9 +28,6 @@ func TestDispatcher_Help(t *testing.T) {
 	if !strings.Contains(output, "ask all") {
 		t.Fatalf("help missing all subcommand: %s", output)
 	}
-	if !strings.Contains(output, "Filters:") {
-		t.Fatalf("help missing Filters section: %s", output)
-	}
 }
 
 func TestDispatcher_UnknownSubcommand(t *testing.T) {
@@ -54,7 +51,7 @@ func TestDispatcher_LongHelp(t *testing.T) {
 	var stdout bytes.Buffer
 	d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard)
 	output := stdout.String()
-	for _, sub := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "export"} {
+	for _, sub := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete"} {
 		if !strings.Contains(output, "ask "+sub) {
 			t.Errorf("help missing subcommand: ask %s", sub)
 		}
@@ -62,7 +59,7 @@ func TestDispatcher_LongHelp(t *testing.T) {
 }
 
 func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
-	subcommands := []string{"export"}
+	subcommands := []string{}
 	subcommandArgs := map[string][]string{
 		"delete":   {"delete", "test-uuid"},
 		"denotate": {"denotate", "test-uuid", "text"},

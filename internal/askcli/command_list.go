@@ -38,7 +38,7 @@ func (d Dispatcher) handleList(ctx context.Context, args []string, stdout, stder
 }
 
 func (d Dispatcher) handleAll(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	filterArgs := []string{"export", "status:any"}
+	filterArgs := []string{"export"}
 	for _, arg := range args[1:] {
 		if strings.HasPrefix(arg, "limit:") || strings.HasPrefix(arg, "sort:") ||
 			strings.HasPrefix(arg, "+") || arg == "started" {
@@ -67,7 +67,7 @@ func (d Dispatcher) handleAll(ctx context.Context, args []string, stdout, stderr
 }
 
 func (d Dispatcher) handleReady(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	filterArgs := []string{"export", "+READY"}
+	filterArgs := []string{"+READY", "export"}
 	for _, arg := range args[1:] {
 		if strings.HasPrefix(arg, "limit:") || strings.HasPrefix(arg, "sort:") ||
 			strings.HasPrefix(arg, "+") || arg == "started" {

@@ -67,7 +67,7 @@ func (d Dispatcher) handleDepList(ctx context.Context, args []string, stdout, st
 		return 1, nil
 	}
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"info", uuid}, nil, &outBuf, stderr)
+	code, err := d.runner.Run(ctx, []string{"uuid", uuid, "export"}, nil, &outBuf, stderr)
 	if code != 0 {
 		return code, err
 	}

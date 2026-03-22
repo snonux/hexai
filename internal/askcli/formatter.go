@@ -8,7 +8,7 @@ import (
 
 func FormatTaskList(tasks []TaskExport) string {
 	var b strings.Builder
-	io.WriteString(&b, "UUID | Priority | Status | Tags | Description | Urgency\n")
+	io.WriteString(&b, "Urgency | Priority | UUID | Status | Tags | Description\n")
 	io.WriteString(&b, strings.Repeat("-", 120)+"\n")
 	for _, t := range tasks {
 		tags := strings.Join(t.Tags, ",")
@@ -19,7 +19,7 @@ func FormatTaskList(tasks []TaskExport) string {
 		if len(desc) > 50 {
 			desc = desc[:47] + "..."
 		}
-		fmt.Fprintf(&b, "%s | %s | %s | %s | %s | %.1f\n", t.UUID, t.Priority, t.Status, tags, desc, t.Urgency)
+		fmt.Fprintf(&b, "%.1f | %s | %s | %s | %s | %s\n", t.Urgency, t.Priority, t.UUID, t.Status, tags, desc)
 	}
 	return b.String()
 }

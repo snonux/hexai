@@ -36,9 +36,7 @@ func TestHandleDep_RmSuccess(t *testing.T) {
 func TestHandleDep_ListSuccess(t *testing.T) {
 	jsonData := `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":["dep-1","dep-2"]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		if args[0] == "info" {
-			io.WriteString(stdout, jsonData)
-		}
+		io.WriteString(stdout, jsonData)
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer

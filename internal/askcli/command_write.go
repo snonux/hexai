@@ -19,7 +19,7 @@ func (d Dispatcher) handleDenotate(ctx context.Context, args []string, stdout, s
 	}
 	text := args[2]
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"denotate", uuid, text}, nil, &outBuf, io.Discard)
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "denotate", text}, nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}
@@ -136,7 +136,7 @@ func (d Dispatcher) handlePriority(ctx context.Context, args []string, stdout, s
 	}
 	priority := args[2]
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"priority", uuid, priority}, nil, &outBuf, io.Discard)
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "modify", "priority:" + priority}, nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}
@@ -156,7 +156,7 @@ func (d Dispatcher) handleTag(ctx context.Context, args []string, stdout, stderr
 	}
 	tag := args[2]
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"tag", uuid, tag}, nil, &outBuf, io.Discard)
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "modify", tag}, nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}

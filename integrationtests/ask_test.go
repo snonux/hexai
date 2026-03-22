@@ -1,0 +1,736 @@
+package integrationtests
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"codeberg.org/snonux/hexai/internal/askcli"
+)
+
+var repoRoot string
+
+func findRepoRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ""
+}
+
+func init() {
+	repoRoot = findRepoRoot()
+}
+
+func askBinaryPath() string {
+	return filepath.Join(repoRoot, "cmd", "ask", "ask")
+}
+
+func runAsk(ctx context.Context, args []string) (stdout, stderr bytes.Buffer, exitCode int) {
+	cmd := exec.CommandContext(ctx, askBinaryPath(), args...)
+	cmd.Dir = repoRoot
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		return
+	}
+	ee, ok := err.(*exec.ExitError)
+	if !ok {
+		return bytes.Buffer{}, stderr, -1
+	}
+	return stdout, stderr, ee.ExitCode()
+}
+
+func runAskWithStdin(ctx context.Context, args []string, stdin string) (stdout, stderr bytes.Buffer, exitCode int) {
+	cmd := exec.CommandContext(ctx, askBinaryPath(), args...)
+	cmd.Dir = repoRoot
+	cmd.Stdin = strings.NewReader(stdin)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		return
+	}
+	ee, ok := err.(*exec.ExitError)
+	if !ok {
+		return bytes.Buffer{}, stderr, -1
+	}
+	return stdout, stderr, ee.ExitCode()
+}
+
+func runTask(ctx context.Context, args []string) (stdout, stderr bytes.Buffer, exitCode int) {
+	cmd := exec.CommandContext(ctx, "task", args...)
+	cmd.Dir = repoRoot
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		return
+	}
+	ee, ok := err.(*exec.ExitError)
+	if !ok {
+		return bytes.Buffer{}, stderr, -1
+	}
+	return stdout, stderr, ee.ExitCode()
+}
+
+func runTaskWithStdin(ctx context.Context, args []string, stdin string) (stdout, stderr bytes.Buffer, exitCode int) {
+	cmd := exec.CommandContext(ctx, "task", args...)
+	cmd.Dir = repoRoot
+	cmd.Stdin = strings.NewReader(stdin)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		return
+	}
+	ee, ok := err.(*exec.ExitError)
+	if !ok {
+		return bytes.Buffer{}, stderr, -1
+	}
+	return stdout, stderr, ee.ExitCode()
+}
+
+func createTask(ctx context.Context, desc string) (string, error) {
+	stdout, _, code := runAskWithStdin(ctx, []string{"add", "+integrationtest", desc}, "yes\n")
+	if code != 0 {
+		return "", fmt.Errorf("create task failed (code %d): %s", code, stdout.String())
+	}
+
+	taskID := extractTaskID(stdout.String())
+	if taskID == "" {
+		return "", fmt.Errorf("could not extract task ID from output: %s", stdout.String())
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	infoOut, _, _ := runTask(ctx, []string{taskID, "info"})
+	uuid := extractUUIDFromTaskInfo(infoOut.String())
+	if uuid == "" {
+		return "", fmt.Errorf("could not extract UUID from task info")
+	}
+	return uuid, nil
+}
+
+var taskUUIDRx = regexp.MustCompile(`UUID\s+(.+)`)
+
+func extractUUIDFromTaskInfo(output string) string {
+	if m := taskUUIDRx.FindStringSubmatch(output); len(m) > 1 {
+		return strings.TrimSpace(m[1])
+	}
+	return ""
+}
+
+func extractTaskID(output string) string {
+	output = strings.TrimSpace(output)
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "Created task") {
+			fields := strings.Fields(line)
+			for i, f := range fields {
+				if f == "task" && i+1 < len(fields) {
+					return strings.TrimSuffix(fields[i+1], ".")
+				}
+			}
+		}
+	}
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if _, err := strconv.Atoi(line); err == nil {
+			return line
+		}
+	}
+	return ""
+}
+
+func deleteTask(ctx context.Context, uuid string) {
+	runTaskWithStdin(ctx, []string{"uuid:" + uuid, "delete"}, "yes\n")
+}
+
+func listTasksWithTag(ctx context.Context, tag string) []askcli.TaskExport {
+	stdout, _, _ := runTask(ctx, []string{"export", "project:hexai", "+agent"})
+	var tasks []askcli.TaskExport
+	if err := json.Unmarshal(stdout.Bytes(), &tasks); err != nil {
+		return nil
+	}
+	var filtered []askcli.TaskExport
+	for _, t := range tasks {
+		if t.Status == "deleted" || t.Status == "completed" {
+			continue
+		}
+		for _, t2 := range t.Tags {
+			if t2 == tag {
+				filtered = append(filtered, t)
+				break
+			}
+		}
+	}
+	return filtered
+}
+
+type taskInfo struct {
+	UUID        string
+	Description string
+	Status      string
+	Priority    string
+	Tags        []string
+	Start       string
+}
+
+var uuidFieldRx = regexp.MustCompile(`UUID:\s+(.+)`)
+var descFieldRx = regexp.MustCompile(`Description:\s+(.+)`)
+var statusFieldRx = regexp.MustCompile(`Status:\s+(.+)`)
+var priorityFieldRx = regexp.MustCompile(`Priority:\s+(.+)`)
+var tagsFieldRx = regexp.MustCompile(`Tags:\s+(.+)`)
+var startFieldRx = regexp.MustCompile(`Started:\s+(.+)`)
+
+func parseTaskInfoText(output string, uuid string) taskInfo {
+	ti := taskInfo{UUID: uuid}
+	if m := uuidFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		ti.UUID = strings.TrimSpace(m[1])
+	}
+	if m := descFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		ti.Description = strings.TrimSpace(m[1])
+	}
+	if m := statusFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		ti.Status = strings.TrimSpace(m[1])
+	}
+	if m := priorityFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		ti.Priority = strings.TrimSpace(m[1])
+	}
+	if m := tagsFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		tagStr := strings.TrimSpace(m[1])
+		ti.Tags = strings.Split(tagStr, ", ")
+	}
+	if m := startFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		ti.Start = strings.TrimSpace(m[1])
+	}
+	return ti
+}
+
+func getTaskInfoFast(ctx context.Context, uuid string) (taskInfo, bool) {
+	stdout, _, code := runAsk(ctx, []string{"info", uuid})
+	if code != 0 {
+		return taskInfo{}, false
+	}
+	return parseTaskInfoText(stdout.String(), uuid), true
+}
+
+func TestMain(m *testing.M) {
+	if repoRoot == "" {
+		os.Exit(1)
+	}
+	askBin := askBinaryPath()
+	if _, err := os.Stat(askBin); os.IsNotExist(err) {
+		cmd := exec.Command("go", "build", "-o", askBin, "./cmd/ask/")
+		cmd.Dir = repoRoot
+		if out, err := cmd.CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to build ask binary: %v\n%s\n", err, out)
+			os.Exit(1)
+		}
+	}
+	os.Exit(m.Run())
+}
+
+func TestAdd(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for add")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	tasks := listTasksWithTag(ctx, "integrationtest")
+	found := false
+	for _, task := range tasks {
+		if task.UUID == uuid {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("task %s not found in export", uuid)
+	}
+}
+
+func TestList(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for list")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, _, code := runAsk(ctx, []string{"list"})
+	if code != 0 {
+		t.Fatalf("list failed with code %d: %s", code, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "integration test task for list") {
+		t.Errorf("list output does not contain expected task description")
+	}
+}
+
+func TestAll(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for all")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, _, code := runAsk(ctx, []string{"all"})
+	if code != 0 {
+		t.Fatalf("all failed with code %d: %s", code, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "integration test task for all") {
+		t.Errorf("all output does not contain expected task description")
+	}
+}
+
+func TestReady(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for ready")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, _, code := runAsk(ctx, []string{"ready"})
+	if code != 0 {
+		t.Fatalf("ready failed with code %d: %s", code, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "integration test task for ready") {
+		t.Errorf("ready output does not contain expected task description")
+	}
+}
+
+func TestInfo(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for info")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("info failed or returned no output")
+	}
+	if ti.UUID != uuid {
+		t.Errorf("info uuid mismatch: got %s, want %s", ti.UUID, uuid)
+	}
+	if !strings.Contains(ti.Description, "integration test task for info") {
+		t.Errorf("info description mismatch: %s", ti.Description)
+	}
+}
+
+func TestAnnotate(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for annotate")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	note := "this is a test annotation"
+	stdout, _, code := runAskWithStdin(ctx, []string{"annotate", uuid, note}, "yes\n")
+	if code != 0 {
+		t.Fatalf("annotate failed with code %d: %s", code, stdout.String())
+	}
+
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("could not get task info after annotate")
+	}
+	_ = ti
+}
+
+func TestStart(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for start")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, _, code := runAskWithStdin(ctx, []string{"start", uuid}, "yes\n")
+	if code != 0 {
+		t.Fatalf("start failed with code %d: %s", code, stdout.String())
+	}
+
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("could not get task info after start")
+	}
+	if ti.Start == "" {
+		t.Errorf("task start field is empty after start")
+	}
+}
+
+func TestStop(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for stop")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	runAskWithStdin(ctx, []string{"start", uuid}, "yes\n")
+
+	stdout, _, code := runAskWithStdin(ctx, []string{"stop", uuid}, "yes\n")
+	if code != 0 {
+		t.Fatalf("stop failed with code %d: %s", code, stdout.String())
+	}
+
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("could not get task info after stop")
+	}
+	if ti.Start != "" {
+		t.Errorf("task start field is not empty after stop: %s", ti.Start)
+	}
+}
+
+func TestDone(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for done")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+
+	stdout, _, code := runAskWithStdin(ctx, []string{"done", uuid}, "yes\n")
+	if code != 0 {
+		t.Fatalf("done failed with code %d: %s", code, stdout.String())
+	}
+
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("could not get task info after done")
+	}
+	if strings.ToLower(ti.Status) != "completed" {
+		t.Errorf("task status = %s, want completed", ti.Status)
+	}
+
+	deleteTask(ctx, uuid)
+}
+
+func TestPriority(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for priority")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, _, code := runAskWithStdin(ctx, []string{"priority", uuid, "H"}, "yes\n")
+	if code != 0 {
+		t.Fatalf("priority failed with code %d: %s", code, stdout.String())
+	}
+
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("could not get task info after priority")
+	}
+	if ti.Priority != "H" {
+		t.Errorf("task priority = %s, want H", ti.Priority)
+	}
+}
+
+func TestTag(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for tag")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, _, code := runAskWithStdin(ctx, []string{"tag", uuid, "+cli"}, "yes\n")
+	if code != 0 {
+		t.Fatalf("tag add failed with code %d: %s", code, stdout.String())
+	}
+
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("could not get task info after tag")
+	}
+	found := false
+	for _, tg := range ti.Tags {
+		if tg == "cli" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("tag cli not found on task: %+v", ti.Tags)
+	}
+
+	runAskWithStdin(ctx, []string{"tag", uuid, "-cli"}, "yes\n")
+
+	ti2, _ := getTaskInfoFast(ctx, uuid)
+	for _, tg := range ti2.Tags {
+		if tg == "cli" {
+			t.Errorf("tag cli should have been removed")
+			break
+		}
+	}
+}
+
+func TestDepAdd(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid1, err := createTask(ctx, "integration test dep target")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid1)
+
+	uuid2, err := createTask(ctx, "integration test dep dependent")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid2)
+
+	stdout, _, code := runAskWithStdin(ctx, []string{"dep", "add", uuid2, uuid1}, "yes\n")
+	if code != 0 {
+		t.Fatalf("dep add failed with code %d: %s", code, stdout.String())
+	}
+
+	tasks := listTasksWithTag(ctx, "integrationtest")
+	for _, task := range tasks {
+		if task.UUID == uuid2 {
+			found := false
+			for _, dep := range task.Depends {
+				if dep == uuid1 {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("dependency %s not found on task", uuid1)
+			}
+			break
+		}
+	}
+}
+
+func TestDepList(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid1, err := createTask(ctx, "integration test dep list target")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid1)
+
+	uuid2, err := createTask(ctx, "integration test dep list dependent")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid2)
+
+	runAskWithStdin(ctx, []string{"dep", "add", uuid2, uuid1}, "yes\n")
+
+	stdout, _, code := runAsk(ctx, []string{"dep", "list", uuid2})
+	if code != 0 {
+		t.Fatalf("dep list failed with code %d: %s", code, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), uuid1) {
+		t.Errorf("dep list output does not contain target uuid: %s", stdout.String())
+	}
+}
+
+func TestDepRm(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid1, err := createTask(ctx, "integration test dep rm target")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid1)
+
+	uuid2, err := createTask(ctx, "integration test dep rm dependent")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid2)
+
+	runAskWithStdin(ctx, []string{"dep", "add", uuid2, uuid1}, "yes\n")
+
+	stdout, _, code := runAskWithStdin(ctx, []string{"dep", "rm", uuid2, uuid1}, "yes\n")
+	if code != 0 {
+		t.Fatalf("dep rm failed with code %d: %s", code, stdout.String())
+	}
+
+	tasks := listTasksWithTag(ctx, "integrationtest")
+	for _, task := range tasks {
+		if task.UUID == uuid2 {
+			for _, dep := range task.Depends {
+				if dep == uuid1 {
+					t.Errorf("dependency should have been removed")
+					break
+				}
+			}
+			break
+		}
+	}
+}
+
+func TestModify(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for modify")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, _, code := runAskWithStdin(ctx, []string{"modify", uuid, "priority:H"}, "yes\n")
+	if code != 0 {
+		t.Fatalf("modify failed with code %d: %s", code, stdout.String())
+	}
+
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("could not get task info after modify")
+	}
+	if ti.Priority != "H" {
+		t.Errorf("task priority = %s, want H", ti.Priority)
+	}
+}
+
+func TestDenotate(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for denotate")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	runAskWithStdin(ctx, []string{"annotate", uuid, "annotation to remove"}, "yes\n")
+
+	tiBefore, _ := getTaskInfoFast(ctx, uuid)
+	descBefore := tiBefore.Description
+
+	_, _, code := runAskWithStdin(ctx, []string{"denotate", uuid, "annotation to remove"}, "yes\n")
+	if code != 0 {
+		t.Fatalf("denotate returned non-zero code: %d", code)
+	}
+
+	tiAfter, _ := getTaskInfoFast(ctx, uuid)
+	if tiAfter.Description != descBefore {
+		t.Errorf("denotate changed description unexpectedly: %s -> %s", descBefore, tiAfter.Description)
+	}
+}
+
+func TestDelete(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for delete")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+
+	stdout, _, code := runAskWithStdin(ctx, []string{"delete", uuid}, "yes\n")
+	if code != 0 {
+		t.Fatalf("delete failed with code %d: %s", code, stdout.String())
+	}
+
+	tasks := listTasksWithTag(ctx, "integrationtest")
+	for _, task := range tasks {
+		if task.UUID == uuid {
+			t.Errorf("task should have been deleted but still exists")
+			break
+		}
+	}
+}
+
+func TestUrgency(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for urgency")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, _, code := runAsk(ctx, []string{"urgency"})
+	if code != 0 {
+		t.Fatalf("urgency failed with code %d: %s", code, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "integration test task for urgency") {
+		t.Errorf("urgency output does not contain expected task description")
+	}
+}
+
+func TestDefaultCommand(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test for default command")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, _, code := runAsk(ctx, []string{})
+	if code != 0 {
+		t.Fatalf("default command (list) failed with code %d: %s", code, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "integration test for default command") {
+		t.Errorf("default command output does not contain expected task description")
+	}
+}

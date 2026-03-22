@@ -201,14 +201,14 @@ func TestAllWriteHandlers_PassCorrectArgs(t *testing.T) {
 		args       []string
 		wantArgs   []string
 	}{
-		{"denotate", []string{"denotate", "my-uuid", "text"}, []string{"denotate", "my-uuid", "text"}},
+		{"denotate", []string{"denotate", "my-uuid", "text"}, []string{"uuid:my-uuid", "denotate", "text"}},
 		{"modify", []string{"modify", "my-uuid", "priority:H"}, []string{"modify", "my-uuid", "priority:H"}},
 		{"annotate", []string{"annotate", "my-uuid", "note"}, []string{"annotate", "my-uuid", "note"}},
 		{"start", []string{"start", "my-uuid"}, []string{"start", "my-uuid"}},
 		{"stop", []string{"stop", "my-uuid"}, []string{"stop", "my-uuid"}},
 		{"done", []string{"done", "my-uuid"}, []string{"done", "my-uuid"}},
-		{"priority", []string{"priority", "my-uuid", "H"}, []string{"priority", "my-uuid", "H"}},
-		{"tag", []string{"tag", "my-uuid", "+cli"}, []string{"tag", "my-uuid", "+cli"}},
+		{"priority", []string{"priority", "my-uuid", "H"}, []string{"uuid:my-uuid", "modify", "priority:H"}},
+		{"tag", []string{"tag", "my-uuid", "+cli"}, []string{"uuid:my-uuid", "modify", "+cli"}},
 	}
 
 	for _, tc := range testCases {
