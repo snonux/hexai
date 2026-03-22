@@ -9,13 +9,14 @@ import (
 )
 
 func (d Dispatcher) handleList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	filterArgs := []string{"status:pending", "export"}
+	filterArgs := []string{"status:pending"}
 	for _, arg := range args[1:] {
 		if strings.HasPrefix(arg, "limit:") || strings.HasPrefix(arg, "sort:") ||
 			strings.HasPrefix(arg, "+") || arg == "started" {
 			filterArgs = append(filterArgs, arg)
 		}
 	}
+	filterArgs = append(filterArgs, "export")
 	var outBuf bytes.Buffer
 	code, err := d.runner.Run(ctx, filterArgs, nil, &outBuf, stderr)
 	if code != 0 {
@@ -38,13 +39,14 @@ func (d Dispatcher) handleList(ctx context.Context, args []string, stdout, stder
 }
 
 func (d Dispatcher) handleAll(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	filterArgs := []string{"export"}
+	filterArgs := []string{}
 	for _, arg := range args[1:] {
 		if strings.HasPrefix(arg, "limit:") || strings.HasPrefix(arg, "sort:") ||
 			strings.HasPrefix(arg, "+") || arg == "started" {
 			filterArgs = append(filterArgs, arg)
 		}
 	}
+	filterArgs = append(filterArgs, "export")
 	var outBuf bytes.Buffer
 	code, err := d.runner.Run(ctx, filterArgs, nil, &outBuf, stderr)
 	if code != 0 {
@@ -67,13 +69,14 @@ func (d Dispatcher) handleAll(ctx context.Context, args []string, stdout, stderr
 }
 
 func (d Dispatcher) handleReady(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	filterArgs := []string{"+READY", "export"}
+	filterArgs := []string{"+READY"}
 	for _, arg := range args[1:] {
 		if strings.HasPrefix(arg, "limit:") || strings.HasPrefix(arg, "sort:") ||
 			strings.HasPrefix(arg, "+") || arg == "started" {
 			filterArgs = append(filterArgs, arg)
 		}
 	}
+	filterArgs = append(filterArgs, "export")
 	var outBuf bytes.Buffer
 	code, err := d.runner.Run(ctx, filterArgs, nil, &outBuf, stderr)
 	if code != 0 {
