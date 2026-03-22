@@ -54,7 +54,7 @@ func TestDispatcher_LongHelp(t *testing.T) {
 	var stdout bytes.Buffer
 	d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard)
 	output := stdout.String()
-	for _, sub := range []string{"add", "list", "all", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "export"} {
+	for _, sub := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "export"} {
 		if !strings.Contains(output, "ask "+sub) {
 			t.Errorf("help missing subcommand: ask %s", sub)
 		}
@@ -76,6 +76,7 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 		"dep":      {"dep", "list", "test-uuid"},
 		"list":     {"list"},
 		"all":      {"all"},
+		"ready":    {"ready"},
 		"urgency":  {"urgency"},
 		"info":     {"info", "test-uuid"},
 		"add":      {"add", "new task description"},

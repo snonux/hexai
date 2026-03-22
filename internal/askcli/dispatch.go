@@ -38,6 +38,8 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 		return d.handleList(ctx, args, stdout, stderr)
 	case "all":
 		return d.handleAll(ctx, args, stdout, stderr)
+	case "ready":
+		return d.handleReady(ctx, args, stdout, stderr)
 	case "dep":
 		return d.handleDep(ctx, args, stdout, stderr)
 	case "urgency":
@@ -72,6 +74,7 @@ func (d Dispatcher) help(w io.Writer) (int, error) {
 	io.WriteString(w, "\nSubcommands:\n")
 	io.WriteString(w, "  ask add \"description\"          Create a new task\n")
 	io.WriteString(w, "  ask list [filters]           List active tasks (default)\n")
+	io.WriteString(w, "  ask ready                   List READY tasks (not blocked)\n")
 	io.WriteString(w, "  ask all [filters]            List all tasks including completed/deleted\n")
 	io.WriteString(w, "  ask info <uuid>               Show task details\n")
 	io.WriteString(w, "  ask annotate <uuid> \"note\"    Add annotation to task\n")
