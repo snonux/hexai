@@ -25,6 +25,8 @@ The existing `project:<repo> +agent` auto-injection is preserved.
 | `ask dep rm <uuid> <dep-uuid>` | remove dependency | `task uuid:<uuid> modify depends:-<dep-uuid>` |
 | `ask dep list <uuid>` | show dependencies | `task uuid:<uuid> export` → `depends` field |
 | `ask urgency` | list by urgency | `task project:P +agent export` → sort by urgency |
+| `ask modify <uuid> <args...>` | general modify | `task uuid:<uuid> modify <args...>` (priority, tags, depends, /old/new/) |
+| `ask denotate <uuid> "text"` | remove annotation | `task uuid:<uuid> denotate "text"` |
 | `ask delete <uuid>` | delete task | `task uuid:<uuid> delete` |
 | `ask export` | raw JSON dump | `task project:P +agent export` → pass through |
 
@@ -55,6 +57,7 @@ type TaskExport struct {
     Status      string   `json:"status"`
     Priority    string   `json:"priority"`
     Tags        []string `json:"tags"`
+    Start       string   `json:"start,omitempty"`
     Urgency     float64  `json:"urgency"`
     Depends     []string `json:"depends"`
     Annotations []struct {
@@ -95,6 +98,8 @@ internal/askcli/             — NEW package
   ├── command_tag.go         — add/remove tags
   ├── command_dep.go         — dep add/rm/list
   ├── command_urgency.go     — urgency-sorted list
+  ├── command_modify.go      — general-purpose modify
+  ├── command_denotate.go    — remove annotation
   ├── command_delete.go      — delete task
   └── command_export.go      — raw JSON export
 ```
@@ -119,8 +124,10 @@ Each `command_*.go` file gets a corresponding `command_*_test.go`.
 9. Implement `ask tag <uuid> +/-tag`
 10. Implement `ask dep add/rm/list`
 11. Implement `ask urgency`
-12. Implement `ask delete <uuid>`
-13. Implement `ask export` (raw JSON)
-14. Add filter/sort/limit support to `ask list` (+READY, +BLOCKED, +tag, started, limit:N)
-15. Wire `cmd/ask/main.go` to `askcli.Dispatch`, remove old pass-through
-16. Update docs and README
+12. Implement `ask modify <uuid> <args...>` (general-purpose modify)
+13. Implement `ask denotate <uuid> "text"` (remove annotation)
+14. Implement `ask delete <uuid>`
+15. Implement `ask export` (raw JSON)
+16. Add filter/sort/limit support to `ask list` (+READY, +BLOCKED, +tag, started, limit:N)
+17. Wire `cmd/ask/main.go` to `askcli.Dispatch`, remove old pass-through
+18. Update docs and README
