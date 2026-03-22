@@ -76,6 +76,9 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 		calls := 0
 		d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout_, stderr_ io.Writer) (int, error) {
 			calls++
+			if args[0] == "export" {
+				io.WriteString(stdout_, "[]")
+			}
 			return 0, nil
 		}})
 		args := []string{sub}
