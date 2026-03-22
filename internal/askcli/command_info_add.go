@@ -36,9 +36,12 @@ func (d Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr
 		io.WriteString(stderr, "error: ask add requires a description\n")
 		return 1, nil
 	}
-	description := strings.Join(args[1:], " ")
+	modifiers, description := parseAddArgs(args[1:])
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"add", description}, nil, &outBuf, stderr)
+	taskArgs := []string{"add"}
+	taskArgs = append(taskArgs, modifiers...)
+	taskArgs = append(taskArgs, description)
+	code, err := d.runner.Run(ctx, taskArgs, nil, &outBuf, stderr)
 	if code != 0 {
 		return code, err
 	}
@@ -49,4 +52,17 @@ func (d Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr
 	}
 	io.WriteString(stdout, createdUUID+"\n")
 	return 0, nil
+}
+
+func parseAddArgs(args []string) (modifiers []string, description string) {
+	for i, arg := range args {
+		if strings.HasPrefix(arg, "priority:") || strings.HasPrefix(arg, "+") || strings.HasPrefix(arg, "-") {
+			modifiers = append(modifiers, arg)
+		} else {
+			description = strings.Join(args[i:], " ")
+			return
+		}
+	}
+	description = strings.Join(args, " ")
+	return
 }

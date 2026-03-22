@@ -92,3 +92,77 @@ func TestHandleAdd_MultipleWords(t *testing.T) {
 		t.Fatalf("capturedArgs = %v, want [add, Multi word description]", capturedArgs)
 	}
 }
+
+func TestHandleAdd_WithPriority(t *testing.T) {
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		capturedArgs = args
+		io.WriteString(stdout, "Created task 123.\nUUID: uuid-priority")
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"add", "priority:H", "Fix critical bug"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("add code = %d, want 0", code)
+	}
+	if len(capturedArgs) < 3 {
+		t.Fatalf("capturedArgs = %v, want at least [add, priority:H, Fix critical bug]", capturedArgs)
+	}
+	if capturedArgs[1] != "priority:H" {
+		t.Errorf("capturedArgs[1] = %s, want priority:H", capturedArgs[1])
+	}
+	if capturedArgs[len(capturedArgs)-1] != "Fix critical bug" {
+		t.Errorf("last arg = %s, want 'Fix critical bug'", capturedArgs[len(capturedArgs)-1])
+	}
+}
+
+func TestHandleAdd_WithTag(t *testing.T) {
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		capturedArgs = args
+		io.WriteString(stdout, "Created task 123.\nUUID: uuid-tag")
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"add", "+cli", "New feature"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("add code = %d, want 0", code)
+	}
+	if capturedArgs[1] != "+cli" {
+		t.Errorf("capturedArgs[1] = %s, want +cli", capturedArgs[1])
+	}
+}
+
+func TestHandleAdd_WithPriorityAndTag(t *testing.T) {
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		capturedArgs = args
+		io.WriteString(stdout, "Created task 123.\nUUID: uuid-combined")
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"add", "priority:H", "+cli", "Complex task"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("add code = %d, want 0", code)
+	}
+	if capturedArgs[1] != "priority:H" || capturedArgs[2] != "+cli" {
+		t.Errorf("capturedArgs = %v, want [add, priority:H, +cli, Complex task]", capturedArgs)
+	}
+}
+
+func TestParseAddArgs(t *testing.T) {
+	mods, desc := parseAddArgs([]string{"priority:H", "+cli", "Fix bug"})
+	if desc != "Fix bug" || len(mods) != 2 {
+		t.Fatalf("parseAddArgs([\"priority:H\", \"+cli\", \"Fix bug\"]) = mods=%v, desc=%q, want mods=[priority:H, +cli], desc=\"Fix bug\"", mods, desc)
+	}
+
+	mods, desc = parseAddArgs([]string{"Multi", "word", "description"})
+	if desc != "Multi word description" || len(mods) != 0 {
+		t.Fatalf("parseAddArgs([\"Multi\", \"word\", \"description\"]) = mods=%v, desc=%q, want mods=[], desc=\"Multi word description\"", mods, desc)
+	}
+
+	mods, desc = parseAddArgs([]string{"-deprecated", "Old task"})
+	if desc != "Old task" || len(mods) != 1 || mods[0] != "-deprecated" {
+		t.Fatalf("parseAddArgs([\"-deprecated\", \"Old task\"]) = mods=%v, desc=%q", mods, desc)
+	}
+}
