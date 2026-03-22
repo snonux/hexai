@@ -29,8 +29,10 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 	subcommand := args[0]
 	switch subcommand {
 	case "add", "list", "info", "annotate", "start", "stop", "done",
-		"priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "export":
+		"priority", "tag", "dep", "urgency", "modify", "denotate", "export":
 		return d.runner.Run(ctx, args, stdin, stdout, stderr)
+	case "delete":
+		return d.handleDelete(ctx, args, stdout, stderr)
 	default:
 		return d.unknownCommand(stderr, subcommand)
 	}

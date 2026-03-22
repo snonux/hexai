@@ -59,7 +59,10 @@ func TestDispatcher_LongHelp(t *testing.T) {
 }
 
 func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
-	subcommands := []string{"add", "list", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "export"}
+	subcommands := []string{"add", "list", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "export"}
+	subcommandArgs := map[string][]string{
+		"delete": {"delete", "test-uuid"},
+	}
 	for _, sub := range subcommands {
 		var stdout, stderr bytes.Buffer
 		calls := 0
@@ -67,7 +70,11 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 			calls++
 			return 0, nil
 		}})
-		code, _ := d.Dispatch(context.Background(), []string{sub}, nil, &stdout, &stderr)
+		args := []string{sub}
+		if extra, ok := subcommandArgs[sub]; ok {
+			args = extra
+		}
+		code, _ := d.Dispatch(context.Background(), args, nil, &stdout, &stderr)
 		if code != 0 {
 			t.Errorf("subcommand %q code = %d, want 0", sub, code)
 		}
