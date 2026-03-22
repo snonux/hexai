@@ -9,7 +9,7 @@ import (
 )
 
 func (d Dispatcher) handleList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	filterArgs := []string{"export"}
+	filterArgs := []string{"status:pending", "export"}
 	for _, arg := range args[1:] {
 		if strings.HasPrefix(arg, "limit:") || strings.HasPrefix(arg, "sort:") ||
 			strings.HasPrefix(arg, "+") || arg == "started" {

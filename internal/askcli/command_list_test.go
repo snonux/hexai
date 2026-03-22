@@ -11,8 +11,11 @@ import (
 func TestHandleList_Success(t *testing.T) {
 	jsonData := `[{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]},{"uuid":"uuid-2","description":"Task 2","status":"completed","priority":"M","tags":["agent"],"urgency":10.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		if args[0] == "export" {
-			io.WriteString(stdout, jsonData)
+		for _, arg := range args {
+			if arg == "export" {
+				io.WriteString(stdout, jsonData)
+				return 0, nil
+			}
 		}
 		return 0, nil
 	}})
@@ -30,8 +33,11 @@ func TestHandleList_Success(t *testing.T) {
 func TestHandleList_SortedByPriority(t *testing.T) {
 	jsonData := `[{"uuid":"uuid-2","description":"Task 2","status":"pending","priority":"M","tags":[],"urgency":10.0,"depends":[]},{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":[],"urgency":5.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		if args[0] == "export" {
-			io.WriteString(stdout, jsonData)
+		for _, arg := range args {
+			if arg == "export" {
+				io.WriteString(stdout, jsonData)
+				return 0, nil
+			}
 		}
 		return 0, nil
 	}})
@@ -47,8 +53,11 @@ func TestHandleList_SortedByPriority(t *testing.T) {
 
 func TestHandleList_EmptyList(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		if args[0] == "export" {
-			io.WriteString(stdout, "[]")
+		for _, arg := range args {
+			if arg == "export" {
+				io.WriteString(stdout, "[]")
+				return 0, nil
+			}
 		}
 		return 0, nil
 	}})
@@ -71,7 +80,14 @@ func TestHandleList_PassesFilters(t *testing.T) {
 	if len(capturedArgs) < 2 {
 		t.Fatalf("expected export args, got %v", capturedArgs)
 	}
-	if capturedArgs[0] != "export" {
-		t.Fatalf("first arg should be export, got %s", capturedArgs[0])
+	hasExport := false
+	for _, arg := range capturedArgs {
+		if arg == "export" {
+			hasExport = true
+			break
+		}
+	}
+	if !hasExport {
+		t.Fatalf("expected export in args, got %v", capturedArgs)
 	}
 }
