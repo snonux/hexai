@@ -28,9 +28,24 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 	}
 	subcommand := args[0]
 	switch subcommand {
-	case "add", "list", "info", "annotate", "start", "stop", "done",
-		"priority", "tag", "dep", "urgency", "modify", "denotate", "export":
+	case "add", "list", "info", "dep", "urgency", "export":
 		return d.runner.Run(ctx, args, stdin, stdout, stderr)
+	case "annotate":
+		return d.handleAnnotate(ctx, args, stdout, stderr)
+	case "start":
+		return d.handleStart(ctx, args, stdout, stderr)
+	case "stop":
+		return d.handleStop(ctx, args, stdout, stderr)
+	case "done":
+		return d.handleDone(ctx, args, stdout, stderr)
+	case "priority":
+		return d.handlePriority(ctx, args, stdout, stderr)
+	case "tag":
+		return d.handleTag(ctx, args, stdout, stderr)
+	case "modify":
+		return d.handleModify(ctx, args, stdout, stderr)
+	case "denotate":
+		return d.handleDenotate(ctx, args, stdout, stderr)
 	case "delete":
 		return d.handleDelete(ctx, args, stdout, stderr)
 	default:

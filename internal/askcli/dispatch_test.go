@@ -59,9 +59,17 @@ func TestDispatcher_LongHelp(t *testing.T) {
 }
 
 func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
-	subcommands := []string{"add", "list", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "export"}
+	subcommands := []string{"add", "list", "info", "dep", "urgency", "export"}
 	subcommandArgs := map[string][]string{
-		"delete": {"delete", "test-uuid"},
+		"delete":   {"delete", "test-uuid"},
+		"denotate": {"denotate", "test-uuid", "text"},
+		"modify":   {"modify", "test-uuid", "priority:H"},
+		"annotate": {"annotate", "test-uuid", "note"},
+		"start":    {"start", "test-uuid"},
+		"stop":     {"stop", "test-uuid"},
+		"done":     {"done", "test-uuid"},
+		"priority": {"priority", "test-uuid", "H"},
+		"tag":      {"tag", "test-uuid", "+cli"},
 	}
 	for _, sub := range subcommands {
 		var stdout, stderr bytes.Buffer
