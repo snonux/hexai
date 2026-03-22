@@ -70,6 +70,7 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 		"done":     {"done", "test-uuid"},
 		"priority": {"priority", "test-uuid", "H"},
 		"tag":      {"tag", "test-uuid", "+cli"},
+		"dep":      {"dep", "list", "test-uuid"},
 	}
 	for _, sub := range subcommands {
 		var stdout, stderr bytes.Buffer
@@ -77,6 +78,9 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 		d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout_, stderr_ io.Writer) (int, error) {
 			calls++
 			if args[0] == "export" {
+				io.WriteString(stdout_, "[]")
+			}
+			if args[0] == "info" {
 				io.WriteString(stdout_, "[]")
 			}
 			return 0, nil

@@ -28,8 +28,10 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 	}
 	subcommand := args[0]
 	switch subcommand {
-	case "add", "list", "info", "dep", "export":
+	case "add", "list", "info", "export":
 		return d.runner.Run(ctx, args, stdin, stdout, stderr)
+	case "dep":
+		return d.handleDep(ctx, args, stdout, stderr)
 	case "urgency":
 		return d.handleUrgency(ctx, stdout, stderr)
 	case "annotate":
