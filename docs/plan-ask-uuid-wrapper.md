@@ -131,3 +131,22 @@ Each `command_*.go` file gets a corresponding `command_*_test.go`.
 16. Add filter/sort/limit support to `ask list` (+READY, +BLOCKED, +tag, started, limit:N)
 17. Wire `cmd/ask/main.go` to `askcli.Dispatch`, remove old pass-through
 18. Update docs and README
+19. Create `agent-task-management` skill (replacement for `taskwarrior-task-management`) — uses only `ask` subcommands, no Taskwarrior references
+20. Update Pi coding agent: rename `taskwarrior-plan-mode` extension → `agent-plan-mode`, rewrite to use `ask` subcommands only
+21. Audit `agent-task-management` skill and `agent-plan-mode` extension: ensure zero Taskwarrior leakage — agents must see `ask` as the native task system, not a wrapper
+
+## Skill & Extension Migration
+
+After the `ask` CLI is complete and documented, three follow-up tasks abstract away the Taskwarrior implementation detail:
+
+### 19. `agent-task-management` skill
+
+Create a new skill at `~/.agents/skills/agent-task-management/` by copying the structure from `taskwarrior-task-management` (SKILL.md + references/00-context.md through 5-review-overview-tasks.md). Rewrite all content to use `ask` subcommands (`ask add`, `ask list`, `ask info`, `ask start`, `ask stop`, `ask done`, `ask annotate`, `ask denotate`, `ask modify`, `ask priority`, `ask tag`, `ask dep`, `ask urgency`, `ask delete`, `ask export`). Remove all mentions of Taskwarrior, raw `task` command, numeric IDs, and `_uuid` lookups.
+
+### 20. `agent-plan-mode` Pi extension
+
+Rename `~/git/hyperstack/pi/agent/extensions/taskwarrior-plan-mode/` → `agent-plan-mode/`. Update `index.ts`, `utils.ts`, `README.md` to use new `ask` subcommands instead of raw pass-through calls. Rename `TaskwarriorTask` type, update state keys, command names, descriptions, and UI messages.
+
+### 21. Taskwarrior leakage audit
+
+Grep all files in the new skill and extension for `taskwarrior` (any casing), `task warrior`, raw `task ` command patterns, numeric task ID usage, `_uuid` lookups, and any hint that `ask` wraps another tool. **Agents must believe `ask` IS the task management system — not a proxy.** This prevents agents from attempting raw Taskwarrior commands or mentioning Taskwarrior in annotations/descriptions.
