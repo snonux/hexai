@@ -25,6 +25,22 @@ The existing `project:<repo> +agent` auto-injection is preserved.
 | `ask dep rm <uuid> <dep-uuid>` | remove dependency | `task uuid:<uuid> modify depends:-<dep-uuid>` |
 | `ask dep list <uuid>` | show dependencies | `task uuid:<uuid> export` → `depends` field |
 | `ask urgency` | list by urgency | `task project:P +agent export` → sort by urgency |
+| `ask delete <uuid>` | delete task | `task uuid:<uuid> delete` |
+| `ask export` | raw JSON dump | `task project:P +agent export` → pass through |
+
+### List filters, sort, and limit
+
+`ask list` accepts optional filters, sort, and limit arguments:
+
+| Example | Taskwarrior equivalent |
+|---|---|
+| `ask list` | `task project:P +agent status:pending export` (default sort: priority-, urgency-) |
+| `ask list +READY` | `task project:P +agent +READY export` |
+| `ask list +BLOCKED` | `task project:P +agent +BLOCKED export` |
+| `ask list +frontend` | `task project:P +agent +frontend export` |
+| `ask list started` | `task project:P +agent start.any: export` |
+| `ask list limit:3` | show only first 3 results |
+| `ask list +READY limit:1` | next ready task |
 
 ## Data Retrieval: `task export`
 
@@ -78,7 +94,9 @@ internal/askcli/             — NEW package
   ├── command_priority.go    — set priority
   ├── command_tag.go         — add/remove tags
   ├── command_dep.go         — dep add/rm/list
-  └── command_urgency.go     — urgency-sorted list
+  ├── command_urgency.go     — urgency-sorted list
+  ├── command_delete.go      — delete task
+  └── command_export.go      — raw JSON export
 ```
 
 Each `command_*.go` file gets a corresponding `command_*_test.go`.
@@ -101,5 +119,8 @@ Each `command_*.go` file gets a corresponding `command_*_test.go`.
 9. Implement `ask tag <uuid> +/-tag`
 10. Implement `ask dep add/rm/list`
 11. Implement `ask urgency`
-12. Wire `cmd/ask/main.go` to `askcli.Dispatch`, remove old pass-through
-13. Update docs and README
+12. Implement `ask delete <uuid>`
+13. Implement `ask export` (raw JSON)
+14. Add filter/sort/limit support to `ask list` (+READY, +BLOCKED, +tag, started, limit:N)
+15. Wire `cmd/ask/main.go` to `askcli.Dispatch`, remove old pass-through
+16. Update docs and README
