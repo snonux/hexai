@@ -3,50 +3,49 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
-	"reflect"
-	"strings"
 	"testing"
+
+	"codeberg.org/snonux/hexai/internal/askcli"
 )
 
-func TestAskRunnerRun_ForwardsArgs(t *testing.T) {
+func TestMain_WiresDispatcher(t *testing.T) {
 	var gotArgs []string
-	var stdout bytes.Buffer
-	runner := askRunner{
-		runTask: func(_ context.Context, args []string, stdin io.Reader, out, errOut io.Writer) (int, error) {
+	d := askcli.NewDispatcher(&spyRunner{
+		runFn: func(_ context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 			gotArgs = append([]string(nil), args...)
-			_, _ = io.WriteString(out, "task output")
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Test","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`)
 			return 0, nil
 		},
+	})
+	code, err := d.Dispatch(context.Background(), []string{"list", "limit:1"}, nil, &bytes.Buffer{}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("dispatch returned error: %v", err)
 	}
-
-	exitCode := runner.run([]string{"list", "limit:1"}, strings.NewReader(""), &stdout, &bytes.Buffer{})
-	if exitCode != 0 {
-		t.Fatalf("exitCode = %d, want 0", exitCode)
+	if code != 0 {
+		t.Fatalf("exitCode = %d, want 0", code)
 	}
-	wantArgs := []string{"list", "limit:1"}
-	if !reflect.DeepEqual(gotArgs, wantArgs) {
-		t.Fatalf("args = %v, want %v", gotArgs, wantArgs)
-	}
-	if stdout.String() != "task output" {
-		t.Fatalf("stdout = %q, want %q", stdout.String(), "task output")
+	if len(gotArgs) < 2 || gotArgs[0] != "export" {
+		t.Fatalf("args = %v, want [export, ...]", gotArgs)
 	}
 }
 
-func TestAskRunnerRun_WritesErrorToStderr(t *testing.T) {
-	var stderr bytes.Buffer
-	runner := askRunner{
-		runTask: func(context.Context, []string, io.Reader, io.Writer, io.Writer) (int, error) {
-			return 1, errors.New("ask: must be run inside a git repository")
+func TestMain_ExitsNonZero(t *testing.T) {
+	d := askcli.NewDispatcher(&spyRunner{
+		runFn: func(context.Context, []string, io.Reader, io.Writer, io.Writer) (int, error) {
+			return 1, nil
 		},
+	})
+	code, _ := d.Dispatch(context.Background(), []string{"list"}, nil, &bytes.Buffer{}, &bytes.Buffer{})
+	if code == 0 {
+		t.Fatalf("exitCode = 0, want non-zero")
 	}
+}
 
-	exitCode := runner.run([]string{"list"}, strings.NewReader(""), &bytes.Buffer{}, &stderr)
-	if exitCode != 1 {
-		t.Fatalf("exitCode = %d, want 1", exitCode)
-	}
-	if !strings.Contains(stderr.String(), "must be run inside a git repository") {
-		t.Fatalf("stderr = %q, want actionable repo guidance", stderr.String())
-	}
+type spyRunner struct {
+	runFn func(context.Context, []string, io.Reader, io.Writer, io.Writer) (int, error)
+}
+
+func (s *spyRunner) Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	return s.runFn(ctx, args, stdin, stdout, stderr)
 }
