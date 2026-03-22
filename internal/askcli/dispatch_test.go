@@ -11,7 +11,7 @@ import (
 func TestDispatcher_Help(t *testing.T) {
 	d := NewDispatcher(nil)
 	var stdout bytes.Buffer
-	code, err := d.Dispatch(context.Background(), []string{}, nil, &stdout, io.Discard)
+	code, err := d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard)
 	if code != 0 {
 		t.Fatalf("help exit code = %d, want 0", code)
 	}
@@ -24,6 +24,9 @@ func TestDispatcher_Help(t *testing.T) {
 	}
 	if !strings.Contains(output, "ask list") {
 		t.Fatalf("help missing list subcommand: %s", output)
+	}
+	if !strings.Contains(output, "ask all") {
+		t.Fatalf("help missing all subcommand: %s", output)
 	}
 	if !strings.Contains(output, "Filters:") {
 		t.Fatalf("help missing Filters section: %s", output)
@@ -49,9 +52,9 @@ func TestDispatcher_UnknownSubcommand(t *testing.T) {
 func TestDispatcher_LongHelp(t *testing.T) {
 	d := NewDispatcher(nil)
 	var stdout bytes.Buffer
-	d.Dispatch(context.Background(), []string{}, nil, &stdout, io.Discard)
+	d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard)
 	output := stdout.String()
-	for _, sub := range []string{"add", "list", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "export"} {
+	for _, sub := range []string{"add", "list", "all", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "export"} {
 		if !strings.Contains(output, "ask "+sub) {
 			t.Errorf("help missing subcommand: ask %s", sub)
 		}
@@ -72,6 +75,7 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 		"tag":      {"tag", "test-uuid", "+cli"},
 		"dep":      {"dep", "list", "test-uuid"},
 		"list":     {"list"},
+		"all":      {"all"},
 		"urgency":  {"urgency"},
 		"info":     {"info", "test-uuid"},
 		"add":      {"add", "new task description"},

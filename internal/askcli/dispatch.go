@@ -24,7 +24,7 @@ func NewDispatcher(runner Runner) *Dispatcher {
 
 func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if len(args) == 0 {
-		return d.help(stdout)
+		return d.handleList(ctx, []string{"list"}, stdout, stderr)
 	}
 	subcommand := args[0]
 	switch subcommand {
@@ -36,6 +36,8 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 		return d.handleAdd(ctx, args, stdout, stderr)
 	case "list":
 		return d.handleList(ctx, args, stdout, stderr)
+	case "all":
+		return d.handleAll(ctx, args, stdout, stderr)
 	case "dep":
 		return d.handleDep(ctx, args, stdout, stderr)
 	case "urgency":
@@ -58,6 +60,8 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 		return d.handleDenotate(ctx, args, stdout, stderr)
 	case "delete":
 		return d.handleDelete(ctx, args, stdout, stderr)
+	case "help":
+		return d.help(stdout)
 	default:
 		return d.unknownCommand(stderr, subcommand)
 	}
@@ -67,7 +71,8 @@ func (d Dispatcher) help(w io.Writer) (int, error) {
 	io.WriteString(w, "ask - task management CLI\n")
 	io.WriteString(w, "\nSubcommands:\n")
 	io.WriteString(w, "  ask add \"description\"          Create a new task\n")
-	io.WriteString(w, "  ask list [filters]           List tasks (UUID-only output)\n")
+	io.WriteString(w, "  ask list [filters]           List active tasks (default)\n")
+	io.WriteString(w, "  ask all [filters]            List all tasks including completed/deleted\n")
 	io.WriteString(w, "  ask info <uuid>               Show task details\n")
 	io.WriteString(w, "  ask annotate <uuid> \"note\"    Add annotation to task\n")
 	io.WriteString(w, "  ask start <uuid>              Start working on task\n")
