@@ -123,16 +123,60 @@ hexai --tps-simulation 12-18
 cat SOMEFILE.txt | hexai --tps-simulation 20
 ```
 
-## Taskwarrior proxy
+## Task management
 
-Use `ask` when you want Taskwarrior automatically scoped to the current git repo and the `+agent` tag.
+`ask` is a task management CLI for the current git project. It auto-scopes to `project:<repo> +agent` so all operations are confined to the current project.
 
-- `ask list`
-- `ask add priority:H "Implement X"`
-- `ask uuid:1234 annotate "Delivered Y"`
-- `ask 42 done`
+`ask` never exposes numeric task IDs — it uses UUIDs for all task references. Output is machine-friendly: UUID-only tables, suppressed decorative text, and structured formats.
 
-`ask` pre-sets `project:<repo> +agent` and then forwards the remaining arguments to Taskwarrior unchanged, so normal reports, filters, UUID selectors, and commands still work. It must be run inside a git repository so the project name can be derived from the repo root.
+`ask` must be run inside a git repository so the project name can be derived from the repo root.
+
+### Subcommands
+
+| Subcommand | Description |
+|---|---|
+| `ask add "description"` | Create a new task |
+| `ask add priority:H "description"` | Create task with priority |
+| `ask add +tag "description"` | Create task with tag |
+| `ask list` | List pending tasks (UUID-only table) |
+| `ask list +READY` | List only ready tasks |
+| `ask list +BLOCKED` | List blocked tasks |
+| `ask list +tag` | Filter by tag |
+| `ask list started` | List started tasks |
+| `ask list limit:N` | Limit results |
+| `ask list sort:priority-,urgency-` | Sort by priority then urgency |
+| `ask info <uuid>` | Show task details |
+| `ask annotate <uuid> "note"` | Add annotation |
+| `ask start <uuid>` | Start working on a task |
+| `ask stop <uuid>` | Stop work on a task |
+| `ask done <uuid>` | Mark task complete |
+| `ask priority <uuid> H\|M\|L` | Set priority |
+| `ask tag <uuid> +tag` | Add tag |
+| `ask tag <uuid> -tag` | Remove tag |
+| `ask dep add <uuid> <dep-uuid>` | Add dependency |
+| `ask dep rm <uuid> <dep-uuid>` | Remove dependency |
+| `ask dep list <uuid>` | List dependencies |
+| `ask urgency` | List tasks by urgency |
+| `ask modify <uuid> <args...>` | General-purpose modify |
+| `ask denotate <uuid> "text"` | Remove annotation |
+| `ask delete <uuid>` | Delete a task |
+| `ask export` | Raw JSON export |
+
+### Examples
+
+```sh
+# Create a task
+ask add priority:H "Implement new feature"
+
+# List tasks
+ask list +READY limit:5
+
+# Start working
+ask start 9a3cfcb4-742e-4a38-ac91-e9b36594bff0
+
+# Done
+ask done 9a3cfcb4-742e-4a38-ac91-e9b36594bff0
+```
 
 ## Hexai Action (TUI)
 
