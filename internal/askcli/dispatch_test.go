@@ -59,7 +59,7 @@ func TestDispatcher_LongHelp(t *testing.T) {
 }
 
 func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
-	subcommands := []string{"add", "list", "info", "dep", "urgency", "export"}
+	subcommands := []string{"export"}
 	subcommandArgs := map[string][]string{
 		"delete":   {"delete", "test-uuid"},
 		"denotate": {"denotate", "test-uuid", "text"},
@@ -71,17 +71,21 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 		"priority": {"priority", "test-uuid", "H"},
 		"tag":      {"tag", "test-uuid", "+cli"},
 		"dep":      {"dep", "list", "test-uuid"},
+		"list":     {"list"},
+		"urgency":  {"urgency"},
+		"info":     {"info", "test-uuid"},
+		"add":      {"add", "new task description"},
 	}
 	for _, sub := range subcommands {
 		var stdout, stderr bytes.Buffer
 		calls := 0
 		d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout_, stderr_ io.Writer) (int, error) {
 			calls++
-			if args[0] == "export" {
-				io.WriteString(stdout_, "[]")
+			if args[0] == "export" || args[0] == "uuid" {
+				io.WriteString(stdout_, `[{"uuid":"test-uuid","description":"Test","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
 			}
-			if args[0] == "info" {
-				io.WriteString(stdout_, "[]")
+			if args[0] == "add" {
+				io.WriteString(stdout_, "Created task 123.\nUUID: test-uuid-abc")
 			}
 			return 0, nil
 		}})

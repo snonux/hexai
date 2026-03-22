@@ -45,6 +45,14 @@ func MustParseTaskExport(data []byte) []TaskExport {
 func ExtractUUIDFromOutput(output string) string {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	for _, line := range lines {
+		if strings.HasPrefix(line, "UUID:") {
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				return parts[1]
+			}
+		}
+	}
+	for _, line := range lines {
 		if strings.HasPrefix(line, "Created task ") {
 			parts := strings.Fields(line)
 			if len(parts) >= 3 {

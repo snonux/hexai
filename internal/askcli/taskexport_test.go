@@ -54,6 +54,14 @@ func TestMustParseTaskExport_ValidJSON(t *testing.T) {
 func TestExtractUUIDFromOutput_CreatedTask(t *testing.T) {
 	output := "Created task 123.\nUUID: abc-123-def"
 	uuid := ExtractUUIDFromOutput(output)
+	if uuid != "abc-123-def" {
+		t.Fatalf("ExtractUUIDFromOutput = %q, want %q", uuid, "abc-123-def")
+	}
+}
+
+func TestExtractUUIDFromOutput_CreatedTaskOnly(t *testing.T) {
+	output := "Created task 123."
+	uuid := ExtractUUIDFromOutput(output)
 	if uuid != "123" {
 		t.Fatalf("ExtractUUIDFromOutput = %q, want %q", uuid, "123")
 	}
