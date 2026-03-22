@@ -18,12 +18,9 @@ type configLoader func(string) appconfig.App
 
 type cliRunner func(context.Context, []string, io.Reader, io.Writer, io.Writer) error
 
-type taskSubcommandRunner func([]string, io.Reader, io.Writer, io.Writer) (bool, int, error)
-
 type appRunner struct {
-	loadConfig        configLoader
-	runCLI            cliRunner
-	runTaskSubcommand taskSubcommandRunner
+	loadConfig configLoader
+	runCLI     cliRunner
 }
 
 type parsedAppArgs struct {
@@ -36,9 +33,8 @@ type parsedAppArgs struct {
 
 func newAppRunner() appRunner {
 	return appRunner{
-		loadConfig:        loadAppConfig,
-		runCLI:            hexaicli.Run,
-		runTaskSubcommand: runTaskSubcommandIfRequested,
+		loadConfig: loadAppConfig,
+		runCLI:     hexaicli.Run,
 	}
 }
 
@@ -54,12 +50,6 @@ func (r appRunner) run(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		fmt.Fprintln(stdout, internal.Version)
 		return 0
 	}
-	if handled, exitCode, err := runner.runTaskSubcommand(parsed.args, stdin, stdout, stderr); handled {
-		if err != nil {
-			fmt.Fprintln(stderr, err)
-		}
-		return exitCode
-	}
 	ctx := buildCLIContext(parsed)
 	if err := runner.runCLI(ctx, parsed.args, stdin, stdout, stderr); err != nil {
 		return 1
@@ -73,9 +63,6 @@ func normalizeAppRunner(r appRunner) appRunner {
 	}
 	if r.runCLI == nil {
 		r.runCLI = hexaicli.Run
-	}
-	if r.runTaskSubcommand == nil {
-		r.runTaskSubcommand = runTaskSubcommandIfRequested
 	}
 	return r
 }
