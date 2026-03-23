@@ -185,4 +185,26 @@ func TestParseAddArgs(t *testing.T) {
 	if desc != "Old task" || len(mods) != 1 || mods[0] != "-deprecated" {
 		t.Fatalf("parseAddArgs([\"-deprecated\", \"Old task\"]) = mods=%v, desc=%q", mods, desc)
 	}
+
+	// An arg starting with "+" but containing spaces is NOT a modifier — it is
+	// the start of the description. This prevents agents from quoting tag+desc
+	// together (e.g. "+code-quality Fix foo") and having them land in the wrong
+	// place.
+	mods, desc = parseAddArgs([]string{"+code-quality Fix foo bar"})
+	if desc != "+code-quality Fix foo bar" || len(mods) != 0 {
+		t.Fatalf("space-containing +arg should be description, got mods=%v, desc=%q", mods, desc)
+	}
+
+	// Same issue when mixed: a proper tag precedes a space-containing arg.
+	mods, desc = parseAddArgs([]string{"+cli", "+code-quality Fix foo bar"})
+	if desc != "+code-quality Fix foo bar" || len(mods) != 1 || mods[0] != "+cli" {
+		t.Fatalf("mixed case: mods=%v, desc=%q", mods, desc)
+	}
+
+	// All-modifier args (no description) should return empty description, not a
+	// duplicate of the modifiers.
+	mods, desc = parseAddArgs([]string{"+cli", "+agent"})
+	if desc != "" || len(mods) != 2 {
+		t.Fatalf("all-modifier case: mods=%v, desc=%q, want empty desc", mods, desc)
+	}
 }

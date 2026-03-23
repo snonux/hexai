@@ -70,15 +70,22 @@ func extractUUIDFromAddOutput(output string) string {
 	return ""
 }
 
+// parseAddArgs splits args into taskwarrior modifier tokens and the description.
+// Modifier tokens are args that start with "priority:", "+", or "-" AND contain
+// no spaces (tags and priority flags cannot have spaces). The first arg that is
+// not a modifier begins the description; all remaining args are joined with spaces.
+// If all args are modifiers the description is empty.
 func parseAddArgs(args []string) (modifiers []string, description string) {
 	for i, arg := range args {
-		if strings.HasPrefix(arg, "priority:") || strings.HasPrefix(arg, "+") || strings.HasPrefix(arg, "-") {
+		isModifier := !strings.Contains(arg, " ") &&
+			(strings.HasPrefix(arg, "priority:") || strings.HasPrefix(arg, "+") || strings.HasPrefix(arg, "-"))
+		if isModifier {
 			modifiers = append(modifiers, arg)
 		} else {
 			description = strings.Join(args[i:], " ")
 			return
 		}
 	}
-	description = strings.Join(args, " ")
+	// All args were modifiers; no description provided.
 	return
 }
