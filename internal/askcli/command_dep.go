@@ -30,12 +30,12 @@ func (d Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, s
 		io.WriteString(stderr, "error: ask dep add/rm requires <uuid> <dep-uuid>\n")
 		return 1, nil
 	}
-	uuid := args[2]
+	uuid := NormalizeUUID(args[2])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
 	}
-	depUUID := args[3]
+	depUUID := NormalizeUUID(args[3])
 	if IsNumericID(depUUID) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
@@ -62,7 +62,7 @@ func (d Dispatcher) handleDepList(ctx context.Context, args []string, stdout, st
 		io.WriteString(stderr, "error: ask dep list requires <uuid>\n")
 		return 1, nil
 	}
-	uuid := args[2]
+	uuid := NormalizeUUID(args[2])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil

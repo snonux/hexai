@@ -233,3 +233,43 @@ func TestAllWriteHandlers_PassCorrectArgs(t *testing.T) {
 		})
 	}
 }
+
+// TestAllWriteHandlers_AcceptUUIDPrefix verifies that commands accept a
+// "uuid:" prefixed argument (e.g. "uuid:my-uuid") and strip the prefix
+// before building the taskwarrior filter, so the filter is never doubled.
+func TestAllWriteHandlers_AcceptUUIDPrefix(t *testing.T) {
+	testCases := []struct {
+		subcommand string
+		args       []string
+		wantArgs   []string
+	}{
+		{"denotate", []string{"denotate", "uuid:my-uuid", "text"}, []string{"uuid:my-uuid", "denotate", "text"}},
+		{"modify", []string{"modify", "uuid:my-uuid", "priority:H"}, []string{"uuid:my-uuid", "modify", "priority:H"}},
+		{"annotate", []string{"annotate", "uuid:my-uuid", "note"}, []string{"uuid:my-uuid", "annotate", "note"}},
+		{"start", []string{"start", "uuid:my-uuid"}, []string{"uuid:my-uuid", "start"}},
+		{"stop", []string{"stop", "uuid:my-uuid"}, []string{"uuid:my-uuid", "stop"}},
+		{"done", []string{"done", "uuid:my-uuid"}, []string{"uuid:my-uuid", "done"}},
+		{"priority", []string{"priority", "uuid:my-uuid", "H"}, []string{"uuid:my-uuid", "modify", "priority:H"}},
+		{"tag", []string{"tag", "uuid:my-uuid", "+cli"}, []string{"uuid:my-uuid", "modify", "+cli"}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.subcommand, func(t *testing.T) {
+			var capturedArgs []string
+			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+				capturedArgs = args
+				return 0, nil
+			}})
+			var stdout, stderr bytes.Buffer
+			d.Dispatch(context.Background(), tc.args, &bytes.Buffer{}, &stdout, &stderr)
+			if len(capturedArgs) != len(tc.wantArgs) {
+				t.Fatalf("capturedArgs = %v, want %v", capturedArgs, tc.wantArgs)
+			}
+			for i, want := range tc.wantArgs {
+				if capturedArgs[i] != want {
+					t.Fatalf("capturedArgs[%d] = %q, want %q", i, capturedArgs[i], want)
+				}
+			}
+		})
+	}
+}

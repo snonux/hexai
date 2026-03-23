@@ -60,6 +60,14 @@ func FormatError(err error, uuid string) string {
 	return fmt.Sprintf("error: %v\n", err)
 }
 
+// NormalizeUUID strips any leading "uuid:" prefix so callers can accept
+// both "uuid:<value>" and bare UUID strings interchangeably. The returned
+// value is always a plain UUID ready to be prefixed again when building
+// taskwarrior filter arguments.
+func NormalizeUUID(s string) string {
+	return strings.TrimPrefix(s, "uuid:")
+}
+
 func IsNumericID(s string) bool {
 	if s == "" {
 		return false

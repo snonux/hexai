@@ -106,6 +106,25 @@ func TestIsNumericID(t *testing.T) {
 	}
 }
 
+func TestNormalizeUUID(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"fc390139-cc08-413f-a411-f2feae4875a3", "fc390139-cc08-413f-a411-f2feae4875a3"},
+		{"uuid:fc390139-cc08-413f-a411-f2feae4875a3", "fc390139-cc08-413f-a411-f2feae4875a3"},
+		{"fc390139", "fc390139"},
+		{"uuid:fc390139", "fc390139"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		got := NormalizeUUID(c.input)
+		if got != c.want {
+			t.Errorf("NormalizeUUID(%q) = %q, want %q", c.input, got, c.want)
+		}
+	}
+}
+
 func TestRejectNumericID(t *testing.T) {
 	output := RejectNumericID()
 	if !strings.Contains(output, "use UUID") {

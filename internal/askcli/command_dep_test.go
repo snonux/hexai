@@ -67,6 +67,39 @@ func TestHandleDep_UnknownOp(t *testing.T) {
 	}
 }
 
+// TestHandleDep_AcceptUUIDPrefix verifies that dep add/rm/list accept the
+// "uuid:" prefix on both UUID arguments and strip it before building the filter.
+func TestHandleDep_AcceptUUIDPrefix(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		wantArg0 string
+	}{
+		{"add with prefix", []string{"dep", "add", "uuid:uuid-1", "uuid:uuid-2"}, "uuid:uuid-1"},
+		{"rm with prefix", []string{"dep", "rm", "uuid:uuid-1", "uuid:uuid-2"}, "uuid:uuid-1"},
+		{"list with prefix", []string{"dep", "list", "uuid:uuid-1"}, "uuid:uuid-1"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedArgs []string
+			export := `[{"uuid":"uuid-1","description":"T","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`
+			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+				capturedArgs = args
+				io.WriteString(stdout, export)
+				return 0, nil
+			}})
+			var stdout, stderr bytes.Buffer
+			code, _ := d.Dispatch(context.Background(), tc.args, nil, &stdout, &stderr)
+			if code != 0 {
+				t.Fatalf("%s code = %d stderr = %s", tc.name, code, stderr.String())
+			}
+			if len(capturedArgs) == 0 || capturedArgs[0] != tc.wantArg0 {
+				t.Fatalf("%s capturedArgs[0] = %q, want %q (full: %v)", tc.name, capturedArgs[0], tc.wantArg0, capturedArgs)
+			}
+		})
+	}
+}
+
 func TestHandleDep_NumericUUID(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		return 0, nil

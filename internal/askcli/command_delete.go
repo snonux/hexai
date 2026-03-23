@@ -11,7 +11,7 @@ func (d Dispatcher) handleDelete(ctx context.Context, args []string, stdin io.Re
 		io.WriteString(stderr, "error: ask delete requires a UUID argument\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil

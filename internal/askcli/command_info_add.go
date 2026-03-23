@@ -12,7 +12,7 @@ func (d Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stder
 		io.WriteString(stderr, "error: ask info requires a UUID argument\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil

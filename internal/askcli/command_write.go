@@ -12,7 +12,7 @@ func (d Dispatcher) handleDenotate(ctx context.Context, args []string, stdout, s
 		io.WriteString(stderr, "error: ask denotate requires a UUID and text argument\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
@@ -32,7 +32,7 @@ func (d Dispatcher) handleModify(ctx context.Context, args []string, stdout, std
 		io.WriteString(stderr, "error: ask modify requires a UUID and modification args\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
@@ -52,7 +52,7 @@ func (d Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, s
 		io.WriteString(stderr, "error: ask annotate requires a UUID and note argument\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
@@ -72,7 +72,7 @@ func (d Dispatcher) handleStart(ctx context.Context, args []string, stdout, stde
 		io.WriteString(stderr, "error: ask start requires a UUID argument\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
@@ -93,7 +93,7 @@ func (d Dispatcher) handleStop(ctx context.Context, args []string, stdout, stder
 		io.WriteString(stderr, "error: ask stop requires a UUID argument\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
@@ -112,7 +112,7 @@ func (d Dispatcher) handleDone(ctx context.Context, args []string, stdout, stder
 		io.WriteString(stderr, "error: ask done requires a UUID argument\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
@@ -131,7 +131,7 @@ func (d Dispatcher) handlePriority(ctx context.Context, args []string, stdout, s
 		io.WriteString(stderr, "error: ask priority requires a UUID and priority (H/M/L)\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
@@ -151,7 +151,7 @@ func (d Dispatcher) handleTag(ctx context.Context, args []string, stdout, stderr
 		io.WriteString(stderr, "error: ask tag requires a UUID and +/-tag\n")
 		return 1, nil
 	}
-	uuid := args[1]
+	uuid := NormalizeUUID(args[1])
 	if IsNumericID(uuid) {
 		io.WriteString(stderr, RejectNumericID())
 		return 1, nil
