@@ -51,38 +51,6 @@ func TestMustParseTaskExport_ValidJSON(t *testing.T) {
 	}
 }
 
-func TestExtractUUIDFromOutput_CreatedTask(t *testing.T) {
-	output := "Created task 123.\nUUID: abc-123-def"
-	uuid := ExtractUUIDFromOutput(output)
-	if uuid != "abc-123-def" {
-		t.Fatalf("ExtractUUIDFromOutput = %q, want %q", uuid, "abc-123-def")
-	}
-}
-
-func TestExtractUUIDFromOutput_CreatedTaskOnly(t *testing.T) {
-	output := "Created task 123."
-	uuid := ExtractUUIDFromOutput(output)
-	if uuid != "123" {
-		t.Fatalf("ExtractUUIDFromOutput = %q, want %q", uuid, "123")
-	}
-}
-
-func TestExtractUUIDFromOutput_UUIDField(t *testing.T) {
-	output := "Some text\nuuid abc-123-def\nmore text"
-	uuid := ExtractUUIDFromOutput(output)
-	if uuid != "abc-123-def" {
-		t.Fatalf("ExtractUUIDFromOutput = %q, want %q", uuid, "abc-123-def")
-	}
-}
-
-func TestExtractUUIDFromOutput_PlainText(t *testing.T) {
-	output := "abc-456-xyz"
-	uuid := ExtractUUIDFromOutput(output)
-	if uuid != output {
-		t.Fatalf("ExtractUUIDFromOutput = %q, want %q", uuid, output)
-	}
-}
-
 func TestTaskExport_JSONRoundTrip(t *testing.T) {
 	original := TaskExport{
 		UUID:        "test-uuid",
@@ -130,13 +98,6 @@ func TestParseTaskExport_MultipleTasks(t *testing.T) {
 	}
 	if tasks[0].UUID != "a1" || tasks[1].UUID != "b2" {
 		t.Fatalf("unexpected task order or UUIDs: %v", tasks)
-	}
-}
-
-func TestExtractUUIDFromOutput_NilOutput(t *testing.T) {
-	uuid := ExtractUUIDFromOutput("")
-	if uuid != "" {
-		t.Fatalf("ExtractUUIDFromOutput = %q, want empty string", uuid)
 	}
 }
 

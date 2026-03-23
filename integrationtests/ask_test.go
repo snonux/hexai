@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -114,57 +113,18 @@ func runTaskWithStdin(ctx context.Context, args []string, stdin string) (stdout,
 	return stdout, stderr, ee.ExitCode()
 }
 
+// createTask creates a new task via ask add and returns its UUID.
+// ask add now outputs the UUID directly, so no follow-up lookup is needed.
 func createTask(ctx context.Context, desc string) (string, error) {
-	stdout, _, code := runAskWithStdin(ctx, []string{"add", "+integrationtest", desc}, "yes\n")
+	stdout, stderr, code := runAsk(ctx, []string{"add", "+integrationtest", desc})
 	if code != 0 {
-		return "", fmt.Errorf("create task failed (code %d): %s", code, stdout.String())
+		return "", fmt.Errorf("create task failed (code %d): stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
-
-	taskID := extractTaskID(stdout.String())
-	if taskID == "" {
-		return "", fmt.Errorf("could not extract task ID from output: %s", stdout.String())
-	}
-
-	time.Sleep(100 * time.Millisecond)
-
-	infoOut, _, _ := runTask(ctx, []string{taskID, "info"})
-	uuid := extractUUIDFromTaskInfo(infoOut.String())
+	uuid := strings.TrimSpace(stdout.String())
 	if uuid == "" {
-		return "", fmt.Errorf("could not extract UUID from task info")
+		return "", fmt.Errorf("could not extract UUID from ask add output: %s", stdout.String())
 	}
 	return uuid, nil
-}
-
-var taskUUIDRx = regexp.MustCompile(`UUID\s+(.+)`)
-
-func extractUUIDFromTaskInfo(output string) string {
-	if m := taskUUIDRx.FindStringSubmatch(output); len(m) > 1 {
-		return strings.TrimSpace(m[1])
-	}
-	return ""
-}
-
-func extractTaskID(output string) string {
-	output = strings.TrimSpace(output)
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.Contains(line, "Created task") {
-			fields := strings.Fields(line)
-			for i, f := range fields {
-				if f == "task" && i+1 < len(fields) {
-					return strings.TrimSuffix(fields[i+1], ".")
-				}
-			}
-		}
-	}
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if _, err := strconv.Atoi(line); err == nil {
-			return line
-		}
-	}
-	return ""
 }
 
 func deleteTask(ctx context.Context, uuid string) {
@@ -201,12 +161,14 @@ type taskInfo struct {
 	Start       string
 }
 
-var uuidFieldRx = regexp.MustCompile(`UUID:\s+(.+)`)
-var descFieldRx = regexp.MustCompile(`Description:\s+(.+)`)
-var statusFieldRx = regexp.MustCompile(`Status:\s+(.+)`)
-var priorityFieldRx = regexp.MustCompile(`Priority:\s+(.+)`)
-var tagsFieldRx = regexp.MustCompile(`Tags:\s+(.+)`)
-var startFieldRx = regexp.MustCompile(`Started:\s+(.+)`)
+var (
+	uuidFieldRx     = regexp.MustCompile(`UUID:\s+(.+)`)
+	descFieldRx     = regexp.MustCompile(`Description:\s+(.+)`)
+	statusFieldRx   = regexp.MustCompile(`Status:\s+(.+)`)
+	priorityFieldRx = regexp.MustCompile(`Priority:\s+(.+)`)
+	tagsFieldRx     = regexp.MustCompile(`Tags:\s+(.+)`)
+	startFieldRx    = regexp.MustCompile(`Started:\s+(.+)`)
+)
 
 func parseTaskInfoText(output string, uuid string) taskInfo {
 	ti := taskInfo{UUID: uuid}

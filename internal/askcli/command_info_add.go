@@ -38,20 +38,36 @@ func (d Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr
 	}
 	modifiers, description := parseAddArgs(args[1:])
 	var outBuf bytes.Buffer
-	taskArgs := []string{"add"}
+	// rc.verbose=new-uuid instructs taskwarrior to emit "Created task <uuid>."
+	// so we get the UUID directly from the add output without a follow-up export.
+	taskArgs := []string{"add", "rc.verbose=new-uuid"}
 	taskArgs = append(taskArgs, modifiers...)
 	taskArgs = append(taskArgs, description)
 	code, err := d.runner.Run(ctx, taskArgs, nil, &outBuf, stderr)
 	if code != 0 {
 		return code, err
 	}
-	createdUUID := ExtractUUIDFromOutput(outBuf.String())
-	if createdUUID == "" {
-		io.WriteString(stderr, "error: could not extract UUID from task creation output\n")
+	uuid := extractUUIDFromAddOutput(outBuf.String())
+	if uuid == "" {
+		io.WriteString(stderr, "error: could not parse UUID from task creation output\n")
 		return 1, nil
 	}
-	io.WriteString(stdout, createdUUID+"\n")
+	io.WriteString(stdout, uuid+"\n")
 	return 0, nil
+}
+
+// extractUUIDFromAddOutput parses the UUID from taskwarrior's
+// "Created task <uuid>." output (produced when rc.verbose=new-uuid is set).
+func extractUUIDFromAddOutput(output string) string {
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		if strings.HasPrefix(line, "Created task ") {
+			parts := strings.Fields(line)
+			if len(parts) >= 3 {
+				return strings.TrimSuffix(parts[2], ".")
+			}
+		}
+	}
+	return ""
 }
 
 func parseAddArgs(args []string) (modifiers []string, description string) {

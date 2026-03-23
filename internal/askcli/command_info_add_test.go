@@ -53,8 +53,9 @@ func TestHandleInfo_MissingUUID(t *testing.T) {
 }
 
 func TestHandleAdd_Success(t *testing.T) {
+	// With rc.verbose=new-uuid, task add outputs "Created task <uuid>." directly.
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		io.WriteString(stdout, "Created task 123.\nUUID: abc-123-def")
+		io.WriteString(stdout, "Created task abc-123-def.")
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -62,9 +63,8 @@ func TestHandleAdd_Success(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0", code)
 	}
-	output := stdout.String()
-	if !strings.Contains(output, "abc-123-def") {
-		t.Fatalf("output missing UUID: %s", output)
+	if !strings.Contains(stdout.String(), "abc-123-def") {
+		t.Fatalf("output missing UUID: %s", stdout.String())
 	}
 }
 
@@ -79,37 +79,44 @@ func TestHandleAdd_MissingDescription(t *testing.T) {
 	}
 }
 
+func makeAddRunner(onAdd func(args []string, stdout io.Writer)) *spyRunner {
+	return &spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		onAdd(args, stdout)
+		return 0, nil
+	}}
+}
+
 func TestHandleAdd_MultipleWords(t *testing.T) {
 	var capturedArgs []string
-	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	d := NewDispatcher(makeAddRunner(func(args []string, stdout io.Writer) {
 		capturedArgs = args
-		io.WriteString(stdout, "Created task 123.\nUUID: xyz-789")
-		return 0, nil
-	}})
+		io.WriteString(stdout, "Created task test-uuid.")
+	}))
 	var stdout, stderr bytes.Buffer
 	d.Dispatch(context.Background(), []string{"add", "Multi", "word", "description"}, nil, &stdout, &stderr)
-	if len(capturedArgs) < 2 || capturedArgs[0] != "add" {
-		t.Fatalf("capturedArgs = %v, want [add, Multi word description]", capturedArgs)
+	// args[0]="add", args[1]="rc.verbose=new-uuid", then description
+	if len(capturedArgs) < 3 || capturedArgs[0] != "add" || capturedArgs[1] != "rc.verbose=new-uuid" {
+		t.Fatalf("capturedArgs = %v, want [add, rc.verbose=new-uuid, ...]", capturedArgs)
 	}
 }
 
 func TestHandleAdd_WithPriority(t *testing.T) {
 	var capturedArgs []string
-	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	d := NewDispatcher(makeAddRunner(func(args []string, stdout io.Writer) {
 		capturedArgs = args
-		io.WriteString(stdout, "Created task 123.\nUUID: uuid-priority")
-		return 0, nil
-	}})
+		io.WriteString(stdout, "Created task test-uuid.")
+	}))
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"add", "priority:H", "Fix critical bug"}, nil, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0", code)
 	}
-	if len(capturedArgs) < 3 {
-		t.Fatalf("capturedArgs = %v, want at least [add, priority:H, Fix critical bug]", capturedArgs)
+	// args: [add, rc.verbose=new-uuid, priority:H, Fix critical bug]
+	if len(capturedArgs) < 4 {
+		t.Fatalf("capturedArgs = %v, want at least 4 elements", capturedArgs)
 	}
-	if capturedArgs[1] != "priority:H" {
-		t.Errorf("capturedArgs[1] = %s, want priority:H", capturedArgs[1])
+	if capturedArgs[2] != "priority:H" {
+		t.Errorf("capturedArgs[2] = %s, want priority:H", capturedArgs[2])
 	}
 	if capturedArgs[len(capturedArgs)-1] != "Fix critical bug" {
 		t.Errorf("last arg = %s, want 'Fix critical bug'", capturedArgs[len(capturedArgs)-1])
@@ -118,35 +125,47 @@ func TestHandleAdd_WithPriority(t *testing.T) {
 
 func TestHandleAdd_WithTag(t *testing.T) {
 	var capturedArgs []string
-	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	d := NewDispatcher(makeAddRunner(func(args []string, stdout io.Writer) {
 		capturedArgs = args
-		io.WriteString(stdout, "Created task 123.\nUUID: uuid-tag")
-		return 0, nil
-	}})
+		io.WriteString(stdout, "Created task test-uuid.")
+	}))
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"add", "+cli", "New feature"}, nil, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0", code)
 	}
-	if capturedArgs[1] != "+cli" {
-		t.Errorf("capturedArgs[1] = %s, want +cli", capturedArgs[1])
+	// args: [add, rc.verbose=new-uuid, +cli, New feature]
+	if capturedArgs[2] != "+cli" {
+		t.Errorf("capturedArgs[2] = %s, want +cli", capturedArgs[2])
 	}
 }
 
 func TestHandleAdd_WithPriorityAndTag(t *testing.T) {
 	var capturedArgs []string
-	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	d := NewDispatcher(makeAddRunner(func(args []string, stdout io.Writer) {
 		capturedArgs = args
-		io.WriteString(stdout, "Created task 123.\nUUID: uuid-combined")
-		return 0, nil
-	}})
+		io.WriteString(stdout, "Created task test-uuid.")
+	}))
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"add", "priority:H", "+cli", "Complex task"}, nil, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0", code)
 	}
-	if capturedArgs[1] != "priority:H" || capturedArgs[2] != "+cli" {
-		t.Errorf("capturedArgs = %v, want [add, priority:H, +cli, Complex task]", capturedArgs)
+	// args: [add, rc.verbose=new-uuid, priority:H, +cli, Complex task]
+	if capturedArgs[2] != "priority:H" || capturedArgs[3] != "+cli" {
+		t.Errorf("capturedArgs = %v, want [add, rc.verbose=new-uuid, priority:H, +cli, Complex task]", capturedArgs)
+	}
+}
+
+func TestExtractUUIDFromAddOutput(t *testing.T) {
+	if uuid := extractUUIDFromAddOutput("Created task abc-123-def."); uuid != "abc-123-def" {
+		t.Fatalf("got %q, want abc-123-def", uuid)
+	}
+	if uuid := extractUUIDFromAddOutput("Created task abc-123-def.\nsome other line"); uuid != "abc-123-def" {
+		t.Fatalf("got %q, want abc-123-def", uuid)
+	}
+	if uuid := extractUUIDFromAddOutput("no match here"); uuid != "" {
+		t.Fatalf("got %q, want empty", uuid)
 	}
 }
 

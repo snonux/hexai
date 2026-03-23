@@ -25,8 +25,8 @@ func TestMain_WiresDispatcher(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exitCode = %d, want 0", code)
 	}
-	if len(gotArgs) < 2 || gotArgs[0] != "export" {
-		t.Fatalf("args = %v, want [export, ...]", gotArgs)
+	if len(gotArgs) < 1 || gotArgs[len(gotArgs)-1] != "export" {
+		t.Fatalf("args = %v, want [..., export]", gotArgs)
 	}
 }
 
