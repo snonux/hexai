@@ -24,6 +24,12 @@ type openAIClient struct {
 	defaultTemperature *float64
 }
 
+// Ensure openAIClient implements Client and Streamer.
+var (
+	_ Client   = openAIClient{}
+	_ Streamer = openAIClient{}
+)
+
 type oaChatRequest struct {
 	Model               string      `json:"model"`
 	Messages            []oaMessage `json:"messages"`

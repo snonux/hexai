@@ -378,7 +378,13 @@ func (s *Server) Run() error {
 			// A response from client; ignore
 			continue
 		}
-		go s.handle(req)
+		// Track every request goroutine so Run's deferred inflight.Wait()
+		// catches them all and prevents use-after-close writes to s.out.
+		s.inflight.Add(1)
+		go func(r Request) {
+			defer s.inflight.Done()
+			s.handle(r)
+		}(req)
 		if s.exited.Load() {
 			return nil
 		}

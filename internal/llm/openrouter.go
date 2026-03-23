@@ -21,6 +21,12 @@ type openRouterClient struct {
 	defaultTemperature *float64
 }
 
+// Ensure openRouterClient implements Client and Streamer.
+var (
+	_ Client   = openRouterClient{}
+	_ Streamer = openRouterClient{}
+)
+
 func init() {
 	RegisterProvider("openrouter", openRouterProviderFactory)
 }

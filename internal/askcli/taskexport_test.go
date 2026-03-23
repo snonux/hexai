@@ -2,10 +2,20 @@ package askcli
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
 )
+
+// mustParseTaskExport is a test-only helper that panics on parse failure.
+func mustParseTaskExport(data []byte) []TaskExport {
+	var tasks []TaskExport
+	if err := json.Unmarshal(data, &tasks); err != nil {
+		panic(fmt.Sprintf("failed to parse task export JSON: %v", err))
+	}
+	return tasks
+}
 
 func TestParseTaskExport_ValidJSON(t *testing.T) {
 	data := `[{"uuid":"abc123","description":"Test task","status":"pending","priority":"M","tags":["cli"],"urgency":10.5,"depends":[]}]`
@@ -31,18 +41,18 @@ func TestParseTaskExport_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestMustParseTaskExport_Panics(t *testing.T) {
+func TestMustParseTaskExportHelper_Panics(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
-			t.Fatal("MustParseTaskExport should panic on invalid JSON")
+			t.Fatal("mustParseTaskExport should panic on invalid JSON")
 		}
 	}()
-	MustParseTaskExport([]byte("not json"))
+	mustParseTaskExport([]byte("not json"))
 }
 
-func TestMustParseTaskExport_ValidJSON(t *testing.T) {
+func TestMustParseTaskExportHelper_ValidJSON(t *testing.T) {
 	data := []byte(`[{"uuid":"xyz789","description":"Another task","status":"completed","priority":"H","tags":["agent"],"urgency":15.0,"depends":["dep1"]}]`)
-	tasks := MustParseTaskExport(data)
+	tasks := mustParseTaskExport(data)
 	if len(tasks) != 1 {
 		t.Fatalf("len(tasks) = %d, want 1", len(tasks))
 	}

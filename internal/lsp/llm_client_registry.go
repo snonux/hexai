@@ -71,26 +71,34 @@ func (r *llmClientRegistry) clientFor(spec requestSpec, cfg appconfig.App, build
 	if modelOverride == "" {
 		modelOverride = strings.TrimSpace(spec.fallbackModel)
 	}
+
+	// Acquire write lock before calling build to prevent concurrent goroutines
+	// from all passing the read-lock cache-miss check and issuing duplicate
+	// build calls for the same provider (TOCTOU race).
+	r.clientsMu.Lock()
+	defer r.clientsMu.Unlock()
+
+	// Re-check under the write lock; another goroutine may have populated the
+	// cache between our RUnlock and this Lock.
+	if provider == r.llmProvider && r.llmClient != nil {
+		return r.llmClient
+	}
+	if existing, ok := r.altClients[provider]; ok {
+		return existing
+	}
+
 	client, err := build(cfg, provider, modelOverride)
 	if err != nil {
 		logging.Logf("lsp ", "failed to build client for provider=%s: %v", provider, err)
-		if baseClient != nil {
-			return baseClient
-		}
-		return nil
+		return baseClient // may be nil; callers must handle nil
 	}
 
-	r.clientsMu.Lock()
-	defer r.clientsMu.Unlock()
 	if provider == r.llmProvider {
 		if r.llmClient == nil {
 			r.llmClient = client
 			r.llmProvider = provider
 		}
 		return r.llmClient
-	}
-	if existing, ok := r.altClients[provider]; ok {
-		return existing
 	}
 	if r.altClients == nil {
 		r.altClients = make(map[string]llm.Client)

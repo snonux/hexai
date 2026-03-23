@@ -32,11 +32,3 @@ func ParseTaskExport(r io.Reader) ([]TaskExport, error) {
 	}
 	return tasks, nil
 }
-
-func MustParseTaskExport(data []byte) []TaskExport {
-	var tasks []TaskExport
-	if err := json.Unmarshal(data, &tasks); err != nil {
-		panic(fmt.Sprintf("failed to parse task export JSON: %v", err))
-	}
-	return tasks
-}

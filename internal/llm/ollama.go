@@ -23,6 +23,12 @@ type ollamaClient struct {
 	defaultTemperature *float64
 }
 
+// Ensure ollamaClient implements Client and Streamer.
+var (
+	_ Client   = ollamaClient{}
+	_ Streamer = ollamaClient{}
+)
+
 type ollamaChatRequest struct {
 	Model    string      `json:"model"`
 	Messages []oaMessage `json:"messages"`

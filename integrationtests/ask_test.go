@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -56,8 +57,8 @@ func runAsk(ctx context.Context, args []string) (stdout, stderr bytes.Buffer, ex
 	if err == nil {
 		return
 	}
-	ee, ok := err.(*exec.ExitError)
-	if !ok {
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) {
 		return bytes.Buffer{}, stderr, -1
 	}
 	return stdout, stderr, ee.ExitCode()
@@ -75,8 +76,8 @@ func runAskWithStdin(ctx context.Context, args []string, stdin string) (stdout, 
 	if err == nil {
 		return
 	}
-	ee, ok := err.(*exec.ExitError)
-	if !ok {
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) {
 		return bytes.Buffer{}, stderr, -1
 	}
 	return stdout, stderr, ee.ExitCode()
@@ -91,8 +92,8 @@ func runTask(ctx context.Context, args []string) (stdout, stderr bytes.Buffer, e
 	if err == nil {
 		return
 	}
-	ee, ok := err.(*exec.ExitError)
-	if !ok {
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) {
 		return bytes.Buffer{}, stderr, -1
 	}
 	return stdout, stderr, ee.ExitCode()
@@ -108,8 +109,8 @@ func runTaskWithStdin(ctx context.Context, args []string, stdin string) (stdout,
 	if err == nil {
 		return
 	}
-	ee, ok := err.(*exec.ExitError)
-	if !ok {
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) {
 		return bytes.Buffer{}, stderr, -1
 	}
 	return stdout, stderr, ee.ExitCode()

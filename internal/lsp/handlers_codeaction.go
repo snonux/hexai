@@ -266,10 +266,10 @@ func resolveGoTestCodeAction(s *Server, action CodeAction, payload codeActionPay
 
 func resolveSimplifyCodeAction(s *Server, action CodeAction, payload codeActionPayload) (CodeAction, bool) {
 	cfg := s.currentConfig()
-	sys := cfg.PromptCodeActionRewriteSystem
-	user := renderTemplate(cfg.PromptCodeActionRewriteUser, map[string]string{
-		"instruction": "Simplify and improve the code while preserving behavior. Return only the improved code.",
-		"selection":   payload.Selection,
+	// Use the simplify-specific prompts, not the rewrite prompts.
+	sys := cfg.PromptCodeActionSimplifySystem
+	user := renderTemplate(cfg.PromptCodeActionSimplifyUser, map[string]string{
+		"selection": payload.Selection,
 	})
 	return s.completeCodeAction(action, payload.URI, payload.Range, sys, user, 20*time.Second)
 }
