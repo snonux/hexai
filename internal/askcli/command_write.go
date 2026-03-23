@@ -39,7 +39,7 @@ func (d Dispatcher) handleModify(ctx context.Context, args []string, stdout, std
 	}
 	modArgs := args[2:]
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, append([]string{"modify", uuid}, modArgs...), nil, &outBuf, io.Discard)
+	code, err := d.runner.Run(ctx, append([]string{"uuid:" + uuid, "modify"}, modArgs...), nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}
@@ -59,7 +59,7 @@ func (d Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, s
 	}
 	note := strings.Join(args[2:], " ")
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"annotate", uuid, note}, nil, &outBuf, io.Discard)
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "annotate", note}, nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}
@@ -78,7 +78,9 @@ func (d Dispatcher) handleStart(ctx context.Context, args []string, stdout, stde
 		return 1, nil
 	}
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"start", uuid}, nil, &outBuf, io.Discard)
+	// uuid:<uuid> is used as the filter so taskwarrior selects the exact task;
+	// the action verb follows the filter.
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "start"}, nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}
@@ -97,7 +99,7 @@ func (d Dispatcher) handleStop(ctx context.Context, args []string, stdout, stder
 		return 1, nil
 	}
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"stop", uuid}, nil, &outBuf, io.Discard)
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "stop"}, nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}
@@ -116,7 +118,7 @@ func (d Dispatcher) handleDone(ctx context.Context, args []string, stdout, stder
 		return 1, nil
 	}
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"done", uuid}, nil, &outBuf, io.Discard)
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "done"}, nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}
