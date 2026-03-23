@@ -63,6 +63,8 @@ func runAsk(ctx context.Context, args []string) (stdout, stderr bytes.Buffer, ex
 	return stdout, stderr, ee.ExitCode()
 }
 
+// runAskWithStdin runs ask with the given stdin. Only use this for commands
+// that actually forward stdin to taskwarrior (currently only: delete).
 func runAskWithStdin(ctx context.Context, args []string, stdin string) (stdout, stderr bytes.Buffer, exitCode int) {
 	cmd := exec.CommandContext(ctx, askBinaryPath(), args...)
 	cmd.Dir = repoRoot
@@ -114,7 +116,7 @@ func runTaskWithStdin(ctx context.Context, args []string, stdin string) (stdout,
 }
 
 // createTask creates a new task via ask add and returns its UUID.
-// ask add now outputs the UUID directly, so no follow-up lookup is needed.
+// ask add outputs the UUID directly (via rc.verbose=new-uuid), so no follow-up lookup is needed.
 func createTask(ctx context.Context, desc string) (string, error) {
 	stdout, stderr, code := runAsk(ctx, []string{"add", "+integrationtest", desc})
 	if code != 0 {
@@ -168,6 +170,7 @@ var (
 	priorityFieldRx = regexp.MustCompile(`Priority:\s+(.+)`)
 	tagsFieldRx     = regexp.MustCompile(`Tags:\s+(.+)`)
 	startFieldRx    = regexp.MustCompile(`Started:\s+(.+)`)
+	uuidFormatRx    = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
 
 func parseTaskInfoText(output string, uuid string) taskInfo {
@@ -202,18 +205,26 @@ func getTaskInfoFast(ctx context.Context, uuid string) (taskInfo, bool) {
 	return parseTaskInfoText(stdout.String(), uuid), true
 }
 
+// getTaskInfoRaw returns the raw text output of ask info for a given UUID.
+func getTaskInfoRaw(ctx context.Context, uuid string) (string, bool) {
+	stdout, _, code := runAsk(ctx, []string{"info", uuid})
+	if code != 0 {
+		return "", false
+	}
+	return stdout.String(), true
+}
+
 func TestMain(m *testing.M) {
 	if repoRoot == "" {
 		os.Exit(1)
 	}
+	// Always rebuild the binary so tests reflect the current source.
 	askBin := askBinaryPath()
-	if _, err := os.Stat(askBin); os.IsNotExist(err) {
-		cmd := exec.Command("go", "build", "-o", askBin, "./cmd/ask/")
-		cmd.Dir = repoRoot
-		if out, err := cmd.CombinedOutput(); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to build ask binary: %v\n%s\n", err, out)
-			os.Exit(1)
-		}
+	cmd := exec.Command("go", "build", "-o", askBin, "./cmd/ask/")
+	cmd.Dir = repoRoot
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to build ask binary: %v\n%s\n", err, out)
+		os.Exit(1)
 	}
 	os.Exit(m.Run())
 }
@@ -238,6 +249,23 @@ func TestAdd(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("task %s not found in export", uuid)
+	}
+}
+
+// TestAddReturnsUUID verifies that ask add outputs a UUID, never a numeric task ID.
+func TestAddReturnsUUID(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	stdout, _, code := runAsk(ctx, []string{"add", "+integrationtest", "uuid format check"})
+	if code != 0 {
+		t.Fatalf("ask add failed with code %d", code)
+	}
+	uuid := strings.TrimSpace(stdout.String())
+	defer deleteTask(ctx, uuid)
+
+	if !uuidFormatRx.MatchString(uuid) {
+		t.Errorf("ask add output %q is not a valid UUID", uuid)
 	}
 }
 
@@ -331,16 +359,18 @@ func TestAnnotate(t *testing.T) {
 	defer deleteTask(ctx, uuid)
 
 	note := "this is a test annotation"
-	stdout, _, code := runAskWithStdin(ctx, []string{"annotate", uuid, note}, "yes\n")
+	stdout, _, code := runAsk(ctx, []string{"annotate", uuid, note})
 	if code != 0 {
 		t.Fatalf("annotate failed with code %d: %s", code, stdout.String())
 	}
 
-	ti, ok := getTaskInfoFast(ctx, uuid)
+	raw, ok := getTaskInfoRaw(ctx, uuid)
 	if !ok {
 		t.Fatalf("could not get task info after annotate")
 	}
-	_ = ti
+	if !strings.Contains(raw, note) {
+		t.Errorf("annotation text %q not found in task info output:\n%s", note, raw)
+	}
 }
 
 func TestStart(t *testing.T) {
@@ -353,7 +383,7 @@ func TestStart(t *testing.T) {
 	}
 	defer deleteTask(ctx, uuid)
 
-	stdout, _, code := runAskWithStdin(ctx, []string{"start", uuid}, "yes\n")
+	stdout, _, code := runAsk(ctx, []string{"start", uuid})
 	if code != 0 {
 		t.Fatalf("start failed with code %d: %s", code, stdout.String())
 	}
@@ -377,9 +407,9 @@ func TestStop(t *testing.T) {
 	}
 	defer deleteTask(ctx, uuid)
 
-	runAskWithStdin(ctx, []string{"start", uuid}, "yes\n")
+	runAsk(ctx, []string{"start", uuid})
 
-	stdout, _, code := runAskWithStdin(ctx, []string{"stop", uuid}, "yes\n")
+	stdout, _, code := runAsk(ctx, []string{"stop", uuid})
 	if code != 0 {
 		t.Fatalf("stop failed with code %d: %s", code, stdout.String())
 	}
@@ -402,7 +432,7 @@ func TestDone(t *testing.T) {
 		t.Fatalf("failed to create task: %v", err)
 	}
 
-	stdout, _, code := runAskWithStdin(ctx, []string{"done", uuid}, "yes\n")
+	stdout, _, code := runAsk(ctx, []string{"done", uuid})
 	if code != 0 {
 		t.Fatalf("done failed with code %d: %s", code, stdout.String())
 	}
@@ -428,7 +458,7 @@ func TestPriority(t *testing.T) {
 	}
 	defer deleteTask(ctx, uuid)
 
-	stdout, _, code := runAskWithStdin(ctx, []string{"priority", uuid, "H"}, "yes\n")
+	stdout, _, code := runAsk(ctx, []string{"priority", uuid, "H"})
 	if code != 0 {
 		t.Fatalf("priority failed with code %d: %s", code, stdout.String())
 	}
@@ -452,7 +482,7 @@ func TestTag(t *testing.T) {
 	}
 	defer deleteTask(ctx, uuid)
 
-	stdout, _, code := runAskWithStdin(ctx, []string{"tag", uuid, "+cli"}, "yes\n")
+	stdout, _, code := runAsk(ctx, []string{"tag", uuid, "+cli"})
 	if code != 0 {
 		t.Fatalf("tag add failed with code %d: %s", code, stdout.String())
 	}
@@ -472,7 +502,7 @@ func TestTag(t *testing.T) {
 		t.Errorf("tag cli not found on task: %+v", ti.Tags)
 	}
 
-	runAskWithStdin(ctx, []string{"tag", uuid, "-cli"}, "yes\n")
+	runAsk(ctx, []string{"tag", uuid, "-cli"})
 
 	ti2, _ := getTaskInfoFast(ctx, uuid)
 	for _, tg := range ti2.Tags {
@@ -499,7 +529,7 @@ func TestDepAdd(t *testing.T) {
 	}
 	defer deleteTask(ctx, uuid2)
 
-	stdout, _, code := runAskWithStdin(ctx, []string{"dep", "add", uuid2, uuid1}, "yes\n")
+	stdout, _, code := runAsk(ctx, []string{"dep", "add", uuid2, uuid1})
 	if code != 0 {
 		t.Fatalf("dep add failed with code %d: %s", code, stdout.String())
 	}
@@ -538,7 +568,7 @@ func TestDepList(t *testing.T) {
 	}
 	defer deleteTask(ctx, uuid2)
 
-	runAskWithStdin(ctx, []string{"dep", "add", uuid2, uuid1}, "yes\n")
+	runAsk(ctx, []string{"dep", "add", uuid2, uuid1})
 
 	stdout, _, code := runAsk(ctx, []string{"dep", "list", uuid2})
 	if code != 0 {
@@ -565,9 +595,9 @@ func TestDepRm(t *testing.T) {
 	}
 	defer deleteTask(ctx, uuid2)
 
-	runAskWithStdin(ctx, []string{"dep", "add", uuid2, uuid1}, "yes\n")
+	runAsk(ctx, []string{"dep", "add", uuid2, uuid1})
 
-	stdout, _, code := runAskWithStdin(ctx, []string{"dep", "rm", uuid2, uuid1}, "yes\n")
+	stdout, _, code := runAsk(ctx, []string{"dep", "rm", uuid2, uuid1})
 	if code != 0 {
 		t.Fatalf("dep rm failed with code %d: %s", code, stdout.String())
 	}
@@ -596,7 +626,7 @@ func TestModify(t *testing.T) {
 	}
 	defer deleteTask(ctx, uuid)
 
-	stdout, _, code := runAskWithStdin(ctx, []string{"modify", uuid, "priority:H"}, "yes\n")
+	stdout, _, code := runAsk(ctx, []string{"modify", uuid, "priority:H"})
 	if code != 0 {
 		t.Fatalf("modify failed with code %d: %s", code, stdout.String())
 	}
@@ -620,19 +650,24 @@ func TestDenotate(t *testing.T) {
 	}
 	defer deleteTask(ctx, uuid)
 
-	runAskWithStdin(ctx, []string{"annotate", uuid, "annotation to remove"}, "yes\n")
+	note := "annotation to remove"
+	runAsk(ctx, []string{"annotate", uuid, note})
 
-	tiBefore, _ := getTaskInfoFast(ctx, uuid)
-	descBefore := tiBefore.Description
+	// Verify the annotation is present before denotating.
+	rawBefore, _ := getTaskInfoRaw(ctx, uuid)
+	if !strings.Contains(rawBefore, note) {
+		t.Fatalf("annotation %q not found before denotate", note)
+	}
 
-	_, _, code := runAskWithStdin(ctx, []string{"denotate", uuid, "annotation to remove"}, "yes\n")
+	_, _, code := runAsk(ctx, []string{"denotate", uuid, note})
 	if code != 0 {
 		t.Fatalf("denotate returned non-zero code: %d", code)
 	}
 
-	tiAfter, _ := getTaskInfoFast(ctx, uuid)
-	if tiAfter.Description != descBefore {
-		t.Errorf("denotate changed description unexpectedly: %s -> %s", descBefore, tiAfter.Description)
+	// Verify the annotation is gone after denotating.
+	rawAfter, _ := getTaskInfoRaw(ctx, uuid)
+	if strings.Contains(rawAfter, note) {
+		t.Errorf("annotation %q still present after denotate", note)
 	}
 }
 
@@ -645,6 +680,7 @@ func TestDelete(t *testing.T) {
 		t.Fatalf("failed to create task: %v", err)
 	}
 
+	// delete forwards stdin to taskwarrior for confirmation.
 	stdout, _, code := runAskWithStdin(ctx, []string{"delete", uuid}, "yes\n")
 	if code != 0 {
 		t.Fatalf("delete failed with code %d: %s", code, stdout.String())
@@ -694,5 +730,34 @@ func TestDefaultCommand(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "integration test for default command") {
 		t.Errorf("default command output does not contain expected task description")
+	}
+}
+
+func TestHelp(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	stdout, _, code := runAsk(ctx, []string{"help"})
+	if code != 0 {
+		t.Fatalf("help returned non-zero exit code %d", code)
+	}
+	out := stdout.String()
+	for _, sub := range []string{"add", "list", "info", "start", "done", "delete", "annotate", "dep"} {
+		if !strings.Contains(out, sub) {
+			t.Errorf("help output missing subcommand %q", sub)
+		}
+	}
+}
+
+func TestUnknownCommand(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, stderr, code := runAsk(ctx, []string{"notacommand"})
+	if code == 0 {
+		t.Fatalf("expected non-zero exit code for unknown command, got 0")
+	}
+	if !strings.Contains(stderr.String(), "notacommand") {
+		t.Errorf("error output does not mention unknown command: %s", stderr.String())
 	}
 }
