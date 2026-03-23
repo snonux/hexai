@@ -138,7 +138,8 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 | `ask add "description"` | Create a new task |
 | `ask add priority:H "description"` | Create task with priority |
 | `ask add +tag "description"` | Create task with tag |
-| `ask list` | List pending tasks (UUID-only table) |
+| `ask list` | List pending tasks only (UUID-only table) |
+| `ask all` | List all tasks including completed/deleted |
 | `ask list +READY` | List only ready tasks |
 | `ask list +BLOCKED` | List blocked tasks |
 | `ask list +tag` | Filter by tag |
@@ -160,7 +161,6 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 | `ask modify <uuid> <args...>` | General-purpose modify |
 | `ask denotate <uuid> "text"` | Remove annotation |
 | `ask delete <uuid>` | Delete a task |
-| `ask export` | Raw JSON export |
 
 ### Examples
 
