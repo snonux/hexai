@@ -9,7 +9,9 @@ import (
 )
 
 func TestHandleDep_AddSuccess(t *testing.T) {
+	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		capturedArgs = args
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -19,6 +21,10 @@ func TestHandleDep_AddSuccess(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "ok") || !strings.Contains(stdout.String(), "uuid-1") {
 		t.Fatalf("stdout = %q, want ok + uuid", stdout.String())
+	}
+	// Verify uuid:<uuid> is the filter (not a modification argument).
+	if len(capturedArgs) < 3 || capturedArgs[0] != "uuid:uuid-1" || capturedArgs[1] != "modify" {
+		t.Fatalf("capturedArgs = %v, want [uuid:uuid-1, modify, depends:uuid-2]", capturedArgs)
 	}
 }
 

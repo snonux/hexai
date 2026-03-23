@@ -18,7 +18,7 @@ func (d Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stder
 		return 1, nil
 	}
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"uuid", uuid, "export"}, nil, &outBuf, stderr)
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "export"}, nil, &outBuf, stderr)
 	if code != 0 {
 		return code, err
 	}

@@ -48,7 +48,8 @@ func (d Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, s
 		modArg = "depends:-" + depUUID
 	}
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"modify", uuid, modArg}, nil, &outBuf, io.Discard)
+	// uuid:<uuid> scopes the modify to exactly one task; modArg sets the dependency.
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "modify", modArg}, nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}
@@ -67,7 +68,7 @@ func (d Dispatcher) handleDepList(ctx context.Context, args []string, stdout, st
 		return 1, nil
 	}
 	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"uuid", uuid, "export"}, nil, &outBuf, stderr)
+	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "export"}, nil, &outBuf, stderr)
 	if code != 0 {
 		return code, err
 	}

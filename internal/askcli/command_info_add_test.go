@@ -11,7 +11,8 @@ import (
 func TestHandleInfo_Success(t *testing.T) {
 	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli","agent"],"urgency":15.0,"depends":["dep-1"],"annotations":[{"description":"Note 1","entry":"2026-03-22T10:00:00Z"}]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		if args[0] == "uuid" {
+		// args[0] is "uuid:<uuid>" (the filter); emit data for any export call
+		if len(args) > 0 && strings.HasPrefix(args[0], "uuid:") {
 			io.WriteString(stdout, jsonData)
 		}
 		return 0, nil
