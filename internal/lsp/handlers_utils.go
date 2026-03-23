@@ -278,8 +278,10 @@ func (s *Server) chatWithStats(ctx context.Context, surface surfaceKind, spec re
 		return "", err
 	}
 	s.incRecvCounters(len(txt))
-	// Update global stats cache
-	_ = stats.Update(ctx, client.Name(), modelUsed, sent, len(txt))
+	// Update global stats cache; log but don't fail on stats errors
+	if err := stats.Update(ctx, client.Name(), modelUsed, sent, len(txt)); err != nil {
+		logging.Logf("lsp ", "stats update error: %v", err)
+	}
 	s.logLLMStats(modelUsed)
 	return txt, nil
 }

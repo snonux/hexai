@@ -344,13 +344,17 @@ func (s *Server) cancelRequests() {
 
 func (s *Server) emitLLMStartStatus(provider, model string) {
 	if s.statusSink != nil {
-		_ = s.statusSink.SetLLMStart(provider, model)
+		if err := s.statusSink.SetLLMStart(provider, model); err != nil {
+			logging.Logf("lsp ", "status sink SetLLMStart error: %v", err)
+		}
 	}
 }
 
 func (s *Server) emitGlobalStatus(gs GlobalStatus) {
 	if s.statusSink != nil {
-		_ = s.statusSink.SetGlobal(gs)
+		if err := s.statusSink.SetGlobal(gs); err != nil {
+			logging.Logf("lsp ", "status sink SetGlobal error: %v", err)
+		}
 	}
 }
 

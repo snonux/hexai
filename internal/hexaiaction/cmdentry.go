@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/tmux"
 	"golang.org/x/term"
 )
@@ -25,11 +26,12 @@ type Options struct {
 // RunCommand is the CLI orchestrator used by cmd/hexai-tmux-action. It runs in tmux
 // split-pane mode by default, or child mode when -ui-child is set.
 func RunCommand(ctx context.Context, opts Options, stdin io.Reader, stdout, stderr io.Writer) error {
+	llm.RegisterAllProviders()
 	if opts.UIChild {
 		return runChild(ctx, opts.Infile, opts.Outfile, stdout, stderr)
 	}
 	// Always use tmux path
-	return runInTmuxParent(stdin, stdout, opts.TmuxTarget, opts.TmuxSplit, opts.TmuxPercent)
+	return runInTmuxParent(ctx, stdin, stdout, opts.TmuxTarget, opts.TmuxSplit, opts.TmuxPercent)
 }
 
 // seams for unit tests
@@ -97,7 +99,7 @@ func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Wri
 	return os.Rename(tmp, outfile)
 }
 
-func runInTmuxParent(stdin io.Reader, stdout io.Writer, target, split string, percent int) error {
+func runInTmuxParent(ctx context.Context, stdin io.Reader, stdout io.Writer, target, split string, percent int) error {
 	dir, err := os.MkdirTemp("", "hexai-tmux-action-")
 	if err != nil {
 		return err
@@ -117,7 +119,7 @@ func runInTmuxParent(stdin io.Reader, stdout io.Writer, target, split string, pe
 	if err := splitRunFn(opts, argv); err != nil {
 		return err
 	}
-	if err := waitForFile(outPath, 60*time.Second); err != nil {
+	if err := waitForFile(ctx, outPath, 60*time.Second); err != nil {
 		return err
 	}
 	return catFileTo(stdout, outPath)
@@ -135,8 +137,13 @@ func persistStdin(path string, stdin io.Reader) error {
 	return f.Sync()
 }
 
-func waitForFile(path string, timeout time.Duration) error {
+// waitForFile polls for the existence of path until it appears, the deadline
+// expires, or ctx is cancelled. Uses a ticker instead of time.Sleep so the
+// context is honoured without blocking the full poll interval.
+func waitForFile(ctx context.Context, path string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
 	for {
 		if _, err := os.Stat(path); err == nil {
 			return nil
@@ -144,7 +151,11 @@ func waitForFile(path string, timeout time.Duration) error {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("hexai-tmux-action: timeout waiting for reply file")
 		}
-		time.Sleep(200 * time.Millisecond)
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 

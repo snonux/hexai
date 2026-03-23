@@ -32,6 +32,7 @@ type Server struct {
 	syncer      SlashCommandSyncer
 	initialized bool
 	mu          sync.RWMutex
+	inflight    sync.WaitGroup // tracks handler goroutines; Run waits before returning
 
 	// Dispatch table for JSON-RPC methods
 	handlers map[string]func(Request)
@@ -66,14 +67,16 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.P
 }
 
 // Run starts the server main loop, reading and dispatching requests.
-// Returns on EOF or fatal error.
+// Returns on EOF or fatal error, after waiting for all in-flight handlers.
 func (s *Server) Run() error {
 	for {
 		body, err := s.readMessage()
 		if errors.Is(err, io.EOF) {
+			s.inflight.Wait() // drain handlers before signalling callers
 			return nil
 		}
 		if err != nil {
+			s.inflight.Wait()
 			return fmt.Errorf("read message: %w", err)
 		}
 
@@ -89,8 +92,12 @@ func (s *Server) Run() error {
 			continue
 		}
 
-		// Dispatch request
-		go s.handle(req)
+		// Dispatch request in a goroutine, tracked so Run can wait on completion.
+		s.inflight.Add(1)
+		go func(r Request) {
+			defer s.inflight.Done()
+			s.handle(r)
+		}(req)
 	}
 }
 

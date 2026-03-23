@@ -158,8 +158,10 @@ func (s *Server) checkTriggerFromContext(p CompletionParams, current string, ope
 			logging.Logf("lsp ", "handleCompletion: unmarshal raw context: %v", err)
 		}
 	} else {
-		b, _ := json.Marshal(p.Context)
-		if err := json.Unmarshal(b, &ctx); err != nil {
+		b, err := json.Marshal(p.Context)
+		if err != nil {
+			logging.Logf("lsp ", "handleCompletion: marshal context: %v", err)
+		} else if err := json.Unmarshal(b, &ctx); err != nil {
 			logging.Logf("lsp ", "handleCompletion: unmarshal context: %v", err)
 		}
 	}

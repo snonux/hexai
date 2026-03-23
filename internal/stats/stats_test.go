@@ -33,10 +33,17 @@ func TestUpdate_PrunesOld_ByWindow(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	SetWindow(2 * time.Second)
 	ctx := context.Background()
+
+	// Inject a fake clock so we can advance time without sleeping.
+	fakeNow := time.Now()
+	nowFunc = func() time.Time { return fakeNow }
+	defer func() { nowFunc = time.Now }()
+
 	if err := Update(ctx, "p", "m", 1, 1); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(2200 * time.Millisecond)
+	// Advance fake time past the 2-second window so the first event is pruned.
+	fakeNow = fakeNow.Add(3 * time.Second)
 	if err := Update(ctx, "p", "m", 2, 2); err != nil {
 		t.Fatal(err)
 	}

@@ -2,6 +2,7 @@
 package lsp
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"time"
@@ -400,9 +401,13 @@ func (s *Server) buildChatMessages(uri string, pos Position, prompt string) []ll
 // clientApplyEdit sends a workspace/applyEdit request to the client.
 func (s *Server) clientApplyEdit(label string, edit WorkspaceEdit) {
 	params := ApplyWorkspaceEditParams{Label: label, Edit: edit}
+	b, err := json.Marshal(params)
+	if err != nil {
+		logging.Logf("lsp ", "clientApplyEdit: marshal error: %v", err)
+		return
+	}
 	id := s.nextReqID()
 	req := Request{JSONRPC: "2.0", ID: id, Method: "workspace/applyEdit"}
-	b, _ := json.Marshal(params)
 	req.Params = b
 	s.writeMessage(req)
 }
@@ -428,9 +433,13 @@ func (s *Server) clientShowDocument(uri string, sel *Range) {
 	params.URI = uri
 	params.TakeFocus = true
 	params.Selection = sel
+	b, err := json.Marshal(params)
+	if err != nil {
+		logging.Logf("lsp ", "clientShowDocument: marshal error: %v", err)
+		return
+	}
 	id := s.nextReqID()
 	req := Request{JSONRPC: "2.0", ID: id, Method: "window/showDocument"}
-	b, _ := json.Marshal(params)
 	req.Params = b
 	s.writeMessage(req)
 }
@@ -440,14 +449,13 @@ func (s *Server) clientShowDocument(uri string, sel *Range) {
 // The goroutine respects s.serverCtx so it won't write after shutdown.
 func (s *Server) deferShowDocument(uri string, sel Range) {
 	ctx := s.serverCtx
+	if ctx == nil {
+		// Fallback for tests that don't set a server context.
+		ctx = context.Background()
+	}
 	s.inflight.Add(1)
 	go func() {
 		defer s.inflight.Done()
-		if ctx == nil {
-			time.Sleep(120 * time.Millisecond)
-			s.clientShowDocument(uri, &sel)
-			return
-		}
 		select {
 		case <-time.After(120 * time.Millisecond):
 			s.clientShowDocument(uri, &sel)

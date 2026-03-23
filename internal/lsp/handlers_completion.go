@@ -93,8 +93,10 @@ func extractTriggerInfo(p CompletionParams) (kind int, ch string) {
 			logging.Logf("lsp ", "extractTriggerInfo: unmarshal raw context: %v", err)
 		}
 	} else {
-		b, _ := json.Marshal(p.Context)
-		if err := json.Unmarshal(b, &ctx); err != nil {
+		b, err := json.Marshal(p.Context)
+		if err != nil {
+			logging.Logf("lsp ", "extractTriggerInfo: marshal context: %v", err)
+		} else if err := json.Unmarshal(b, &ctx); err != nil {
 			logging.Logf("lsp ", "extractTriggerInfo: unmarshal context: %v", err)
 		}
 	}
@@ -325,7 +327,10 @@ func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan,
 	}
 	s.incRecvCounters(len(text))
 	modelUsed := spec.effectiveModel(client.DefaultModel())
-	_ = stats.Update(ctx, client.Name(), modelUsed, sentSize, len(text))
+	// Update global stats cache; log but don't fail on stats errors
+	if err := stats.Update(ctx, client.Name(), modelUsed, sentSize, len(text)); err != nil {
+		logging.Logf("lsp ", "stats update error: %v", err)
+	}
 	s.logLLMStats(modelUsed)
 	trimmed := strings.TrimSpace(text)
 	cursorByte := utf16OffsetToByteOffset(plan.current, plan.params.Position.Character)
@@ -357,8 +362,10 @@ func parseManualInvoke(ctx any) bool {
 			logging.Logf("lsp ", "parseManualInvoke: unmarshal raw context: %v", err)
 		}
 	} else {
-		b, _ := json.Marshal(ctx)
-		if err := json.Unmarshal(b, &c); err != nil {
+		b, err := json.Marshal(ctx)
+		if err != nil {
+			logging.Logf("lsp ", "parseManualInvoke: marshal context: %v", err)
+		} else if err := json.Unmarshal(b, &c); err != nil {
 			logging.Logf("lsp ", "parseManualInvoke: unmarshal context: %v", err)
 		}
 	}
@@ -501,7 +508,10 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 	}
 	s.incSentCounters(sentBytes)
 	s.incRecvCounters(len(suggestions[0]))
-	_ = stats.Update(ctx2, client.Name(), modelUsed, sentBytes, len(suggestions[0]))
+	// Update global stats cache; log but don't fail on stats errors
+	if err := stats.Update(ctx2, client.Name(), modelUsed, sentBytes, len(suggestions[0])); err != nil {
+		logging.Logf("lsp ", "stats update error: %v", err)
+	}
 	s.logLLMStats(modelUsed)
 	cleaned := s.postProcessNativeCompletion(suggestions[0], current, p.Position.Character)
 	if cleaned == "" {

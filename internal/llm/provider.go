@@ -103,20 +103,17 @@ type ProviderKeys struct {
 // ProviderFactory builds an LLM client for a named provider.
 type ProviderFactory func(cfg Config, keys ProviderKeys) (Client, error)
 
-// providerRegistry is a package-level singleton populated by init() calls in
-// each provider file (anthropic.go, openai.go, etc.). It must be a
-// package-level var — rather than a constructor argument — because Go's
-// init() mechanism runs before any application code, and the alternative
-// (an explicit RegisterAll() in main) would require every binary that uses
-// the llm package to manually enumerate all providers. The RWMutex makes the
-// map safe for the rare case where RegisterProvider is called from a test
-// goroutine after init() has completed.
+// providerRegistry is a package-level singleton populated via RegisterAllProviders.
+// Callers (binaries and tests) must call RegisterAllProviders before creating any
+// clients. The RWMutex makes the map safe for concurrent reads once populated.
 var (
-	providerRegistryMu sync.RWMutex
-	providerRegistry   = map[string]ProviderFactory{}
+	providerRegistryMu    sync.RWMutex
+	providerRegistry      = map[string]ProviderFactory{}
+	registerProvidersOnce sync.Once
 )
 
 // RegisterProvider registers a provider factory by normalized name.
+// Panics on empty name, nil factory, or duplicate registration.
 func RegisterProvider(name string, factory ProviderFactory) {
 	normalized := normalizeProvider(name)
 	if normalized == "" {
@@ -131,6 +128,18 @@ func RegisterProvider(name string, factory ProviderFactory) {
 		panic("llm: provider already registered: " + normalized)
 	}
 	providerRegistry[normalized] = factory
+}
+
+// RegisterAllProviders registers all built-in LLM providers (anthropic, openai,
+// openrouter, ollama). It is safe to call from multiple entry points because the
+// actual registration runs only once via sync.Once.
+func RegisterAllProviders() {
+	registerProvidersOnce.Do(func() {
+		RegisterProvider("anthropic", anthropicProviderFactory)
+		RegisterProvider("openai", openAIProviderFactory)
+		RegisterProvider("openrouter", openRouterProviderFactory)
+		RegisterProvider("ollama", ollamaProviderFactory)
+	})
 }
 
 // NewFromConfig creates an LLM client using only the supplied configuration.

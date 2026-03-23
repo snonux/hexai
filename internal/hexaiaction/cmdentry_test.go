@@ -90,7 +90,7 @@ func TestRunInTmuxParent_Stubbed(t *testing.T) {
 		return nil
 	}
 	t.Cleanup(func() { osExecutableFn = oldExec; splitRunFn = oldSplit })
-	if err := runInTmuxParent(r, wout, "", "v", 33); err != nil {
+	if err := runInTmuxParent(context.Background(), r, wout, "", "v", 33); err != nil {
 		t.Fatalf("runInTmuxParent: %v", err)
 	}
 	_ = wout.Close()
@@ -108,7 +108,7 @@ func TestRunInTmuxParent_ExecutableError(t *testing.T) {
 	r, w, _ := os.Pipe()
 	_, _ = w.Write([]byte("x"))
 	_ = w.Close()
-	if err := runInTmuxParent(r, io.Discard, "", "v", 33); err == nil {
+	if err := runInTmuxParent(context.Background(), r, io.Discard, "", "v", 33); err == nil {
 		t.Fatal("expected error from missing executable")
 	}
 }
@@ -122,7 +122,7 @@ func TestRunInTmuxParent_SplitError(t *testing.T) {
 	r, w, _ := os.Pipe()
 	_, _ = w.Write([]byte("x"))
 	_ = w.Close()
-	if err := runInTmuxParent(r, io.Discard, "", "v", 33); err == nil {
+	if err := runInTmuxParent(context.Background(), r, io.Discard, "", "v", 33); err == nil {
 		t.Fatal("expected split error")
 	}
 }
@@ -161,7 +161,7 @@ func TestRunChild_StdoutAndOutfile(t *testing.T) {
 func TestWaitForFile_Timeout(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "nope")
-	if err := waitForFile(p, 10*time.Millisecond); err == nil {
+	if err := waitForFile(context.Background(), p, 10*time.Millisecond); err == nil {
 		t.Fatal("expected timeout error")
 	}
 }

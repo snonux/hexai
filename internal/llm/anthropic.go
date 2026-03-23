@@ -85,10 +85,6 @@ var (
 	_ Streamer = (*anthropicClient)(nil)
 )
 
-func init() {
-	RegisterProvider("anthropic", anthropicProviderFactory)
-}
-
 func anthropicProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	if strings.TrimSpace(keys.AnthropicAPIKey) == "" {
 		return nil, missingAPIKeyError("anthropic", "ANTHROPIC_API_KEY", "HEXAI_ANTHROPIC_API_KEY")

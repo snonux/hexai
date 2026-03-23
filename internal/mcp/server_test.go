@@ -430,14 +430,17 @@ func TestServer_Run(t *testing.T) {
 			t.Fatalf("sendRequest() error = %v", err)
 		}
 
-		// Run in background
+		// Run in background; bytes.Buffer returns EOF after the single request,
+		// so Run() will complete naturally once it has written the response.
 		done := make(chan error, 1)
 		go func() {
 			done <- server.Run()
 		}()
 
-		// Give time for processing (server will block waiting for more input)
-		time.Sleep(50 * time.Millisecond)
+		// Wait for Run() to return (signalled by EOF on the input buffer).
+		if err := <-done; err != nil {
+			t.Fatalf("Run() error = %v", err)
+		}
 
 		// Read response
 		resp, err := readResponse(outBuf)

@@ -45,10 +45,6 @@ type ollamaChatResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
-func init() {
-	RegisterProvider("ollama", ollamaProviderFactory)
-}
-
 func ollamaProviderFactory(cfg Config, _ ProviderKeys) (Client, error) {
 	return newOllamaWithTimeout(
 		cfg.OllamaBaseURL,

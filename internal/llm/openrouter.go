@@ -27,10 +27,6 @@ var (
 	_ Streamer = openRouterClient{}
 )
 
-func init() {
-	RegisterProvider("openrouter", openRouterProviderFactory)
-}
-
 func openRouterProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	if strings.TrimSpace(keys.OpenRouterAPIKey) == "" {
 		return nil, missingAPIKeyError("openrouter", "OPENROUTER_API_KEY", "HEXAI_OPENROUTER_API_KEY")

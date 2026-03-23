@@ -29,6 +29,10 @@ var windowSeconds int64 = int64(defaultWindow.Seconds())
 
 var errLockWouldBlock = errors.New("stats: lock would block")
 
+// nowFunc is the clock source for event timestamps and pruning cutoffs.
+// Replaced in tests to control time without sleeping.
+var nowFunc = time.Now
+
 // SetWindow sets the sliding window used for pruning and aggregation.
 func SetWindow(d time.Duration) {
 	if d < time.Second {
@@ -117,7 +121,7 @@ func Update(ctx context.Context, provider, model string, sentBytes, recvBytes in
 
 	path := filepath.Join(dir, fileName)
 	sf := readStatsFile(path)
-	now := time.Now()
+	now := nowFunc()
 	win := Window()
 	sf.WindowSeconds = int(win.Seconds())
 	sf.Events = append(sf.Events, Event{
@@ -260,7 +264,7 @@ func TakeSnapshot() (Snapshot, error) {
 	if win <= 0 {
 		win = Window()
 	}
-	cutoff := time.Now().Add(-win)
+	cutoff := nowFunc().Add(-win)
 	snap := Snapshot{Providers: make(map[string]ProviderEntry), Window: win}
 	for _, ev := range sf.Events {
 		if ev.TS.Before(cutoff) {

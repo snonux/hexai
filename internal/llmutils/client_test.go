@@ -5,7 +5,14 @@ import (
 	"testing"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/llm"
 )
+
+// TestMain registers all built-in LLM providers before tests run.
+func TestMain(m *testing.M) {
+	llm.RegisterAllProviders()
+	os.Exit(m.Run())
+}
 
 func TestNewClientFromApp_Ollama(t *testing.T) {
 	cfg := appconfig.App{CoreConfig: appconfig.CoreConfig{Provider: "ollama"}}

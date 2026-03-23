@@ -78,10 +78,6 @@ type oaStreamChunk struct {
 	} `json:"error,omitempty"`
 }
 
-func init() {
-	RegisterProvider("openai", openAIProviderFactory)
-}
-
 func openAIProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	if strings.TrimSpace(keys.OpenAIAPIKey) == "" {
 		return nil, missingAPIKeyError("openai", "OPENAI_API_KEY", "HEXAI_OPENAI_API_KEY")
