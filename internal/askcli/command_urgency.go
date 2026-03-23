@@ -3,6 +3,7 @@ package askcli
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"sort"
 )
@@ -15,6 +16,7 @@ func (d Dispatcher) handleUrgency(ctx context.Context, stdout, stderr io.Writer)
 	}
 	tasks, err := ParseTaskExport(&outBuf)
 	if err != nil {
+		fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
 		return 1, nil
 	}
 	sort.Slice(tasks, func(i, j int) bool {

@@ -216,7 +216,13 @@ func collectCompletionResults(results <-chan completionJobResult) []CompletionIt
 
 func (s *Server) firstCompletionAndStore(results <-chan completionJobResult, cacheKey string, end func()) ([]CompletionItem, bool) {
 	firstCh := make(chan []CompletionItem, 1)
-	go s.collectFirstCompletion(results, cacheKey, firstCh, end)
+	// Track this goroutine in inflight so Run's deferred Wait() catches it
+	// and prevents use-after-close writes on shutdown.
+	s.inflight.Add(1)
+	go func() {
+		defer s.inflight.Done()
+		s.collectFirstCompletion(results, cacheKey, firstCh, end)
+	}()
 	firstItems, ok := <-firstCh
 	if !ok || len(firstItems) == 0 {
 		return nil, false

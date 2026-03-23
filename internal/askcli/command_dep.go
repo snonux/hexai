@@ -74,6 +74,7 @@ func (d Dispatcher) handleDepList(ctx context.Context, args []string, stdout, st
 	}
 	tasks, err := ParseTaskExport(&outBuf)
 	if err != nil {
+		fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
 		return 1, nil
 	}
 	if len(tasks) == 0 {

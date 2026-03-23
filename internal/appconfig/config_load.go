@@ -570,7 +570,7 @@ func parseSurfaceModels(raw map[string]any, logger *log.Logger) *App {
 		*dest = append(*dest, entries...)
 		return true
 	}
-	any := appendEntries(&out.CompletionConfigs, "models.completion", table["completion"])
+	found := appendEntries(&out.CompletionConfigs, "models.completion", table["completion"])
 	if ok := appendEntries(&out.CodeActionConfigs, "models.code_action", table["code_action"]); ok {
 		if len(out.CodeActionConfigs) > 1 {
 			if logger != nil {
@@ -578,11 +578,11 @@ func parseSurfaceModels(raw map[string]any, logger *log.Logger) *App {
 			}
 			out.CodeActionConfigs = out.CodeActionConfigs[:1]
 		}
-		any = true
+		found = true
 	}
-	any = appendEntries(&out.ChatConfigs, "models.chat", table["chat"]) || any
-	any = appendEntries(&out.CLIConfigs, "models.cli", table["cli"]) || any
-	if !any {
+	found = appendEntries(&out.ChatConfigs, "models.chat", table["chat"]) || found
+	found = appendEntries(&out.CLIConfigs, "models.cli", table["cli"]) || found
+	if !found {
 		return nil
 	}
 	return &out

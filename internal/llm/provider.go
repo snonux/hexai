@@ -103,6 +103,14 @@ type ProviderKeys struct {
 // ProviderFactory builds an LLM client for a named provider.
 type ProviderFactory func(cfg Config, keys ProviderKeys) (Client, error)
 
+// providerRegistry is a package-level singleton populated by init() calls in
+// each provider file (anthropic.go, openai.go, etc.). It must be a
+// package-level var — rather than a constructor argument — because Go's
+// init() mechanism runs before any application code, and the alternative
+// (an explicit RegisterAll() in main) would require every binary that uses
+// the llm package to manually enumerate all providers. The RWMutex makes the
+// map safe for the rare case where RegisterProvider is called from a test
+// goroutine after init() has completed.
 var (
 	providerRegistryMu sync.RWMutex
 	providerRegistry   = map[string]ProviderFactory{}

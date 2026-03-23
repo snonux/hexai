@@ -33,7 +33,7 @@ func (s *Server) readMessage() ([]byte, error) {
 		case "content-length":
 			n, err := strconv.Atoi(val)
 			if err != nil {
-				return nil, fmt.Errorf("invalid Content-Length: %v", err)
+				return nil, fmt.Errorf("invalid Content-Length: %w", err)
 			}
 			contentLength = n
 		}

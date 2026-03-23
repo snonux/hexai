@@ -1,3 +1,5 @@
+//go:build integration
+
 package integrationtests
 
 import (
@@ -17,6 +19,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/askcli"
 )
 
+// repoRoot is set in TestMain before any test runs.
 var repoRoot string
 
 func findRepoRoot() string {
@@ -38,10 +41,6 @@ func findRepoRoot() string {
 		dir = parent
 	}
 	return ""
-}
-
-func init() {
-	repoRoot = findRepoRoot()
 }
 
 func askBinaryPath() string {
@@ -216,7 +215,9 @@ func getTaskInfoRaw(ctx context.Context, uuid string) (string, bool) {
 }
 
 func TestMain(m *testing.M) {
+	repoRoot = findRepoRoot()
 	if repoRoot == "" {
+		fmt.Fprintln(os.Stderr, "integration tests: cannot find repo root (go.mod or .git)")
 		os.Exit(1)
 	}
 	// Always rebuild the binary so tests reflect the current source.
