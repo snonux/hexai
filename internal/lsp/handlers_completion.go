@@ -321,7 +321,6 @@ func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan,
 	text, err := client.Chat(ctx, messages, spec.options...)
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
-		s.logLLMStats("")
 		return nil, false
 	}
 	s.incRecvCounters(len(text))
@@ -426,6 +425,45 @@ func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p Comp
 	return j-start >= min
 }
 
+// buildNativeCompletionCacheKey constructs the per-provider cache key for native completions.
+func buildNativeCompletionCacheKey(planCacheKey, provider, modelUsed string, clientName string) string {
+	providerKey := provider
+	if providerKey == "" {
+		providerKey = llmutils.CanonicalProvider(clientName)
+	}
+	return planCacheKey + "|" + providerKey + ":" + modelUsed
+}
+
+// postProcessNativeCompletion strips duplicates and applies indentation to the raw suggestion.
+// Returns the cleaned text, or an empty string when the suggestion should be discarded.
+func (s *Server) postProcessNativeCompletion(raw, current string, charOffset int) string {
+	cleaned := strings.TrimSpace(raw)
+	if cleaned == "" {
+		return ""
+	}
+	openStr, _, openChar, closeChar := s.inlineMarkers()
+	cByte := utf16OffsetToByteOffset(current, charOffset)
+	leftOfCursor := current[:cByte]
+	cleaned = stripDuplicateAssignmentPrefix(leftOfCursor, cleaned)
+	if cleaned == "" {
+		return ""
+	}
+	cleaned = stripDuplicateGeneralPrefix(leftOfCursor, cleaned)
+	if cleaned == "" {
+		return ""
+	}
+	if strings.TrimSpace(cleaned) != "" && hasDoubleOpenTrigger(current, openStr, openChar, closeChar) {
+		if indent := leadingIndent(current); indent != "" {
+			cleaned = applyIndent(indent, cleaned)
+		}
+	}
+	// Guard against all-whitespace result without stripping intentional indentation.
+	if strings.TrimSpace(cleaned) == "" {
+		return ""
+	}
+	return cleaned
+}
+
 // tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
 func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
 	cc, ok := client.(llm.CodeCompleter)
@@ -437,7 +475,6 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 	before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
 	path := strings.TrimPrefix(p.TextDocument.URI, "file://")
 	cfg := s.currentConfig()
-	openStr, _, openChar, closeChar := s.inlineMarkers()
 	prompt := renderTemplate(cfg.PromptNativeCompletion, map[string]string{
 		"path":   path,
 		"before": before,
@@ -466,34 +503,12 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 	s.incRecvCounters(len(suggestions[0]))
 	_ = stats.Update(ctx2, client.Name(), modelUsed, sentBytes, len(suggestions[0]))
 	s.logLLMStats(modelUsed)
-	cleaned := strings.TrimSpace(suggestions[0])
+	cleaned := s.postProcessNativeCompletion(suggestions[0], current, p.Position.Character)
 	if cleaned == "" {
-		return nil, false
-	}
-	cByte := utf16OffsetToByteOffset(current, p.Position.Character)
-	cleaned = stripDuplicateAssignmentPrefix(current[:cByte], cleaned)
-	if cleaned == "" {
-		return nil, false
-	}
-	cleaned = stripDuplicateGeneralPrefix(current[:cByte], cleaned)
-	if cleaned == "" {
-		return nil, false
-	}
-	if strings.TrimSpace(cleaned) != "" && hasDoubleOpenTrigger(current, openStr, openChar, closeChar) {
-		indent := leadingIndent(current)
-		if indent != "" {
-			cleaned = applyIndent(indent, cleaned)
-		}
-	}
-	if strings.TrimSpace(cleaned) == "" {
 		return nil, false
 	}
 	detail := fmt.Sprintf("Hexai %s:%s", client.Name(), modelUsed)
-	providerKey := provider
-	if providerKey == "" {
-		providerKey = llmutils.CanonicalProvider(client.Name())
-	}
-	cacheKey := plan.cacheKey + "|" + providerKey + ":" + modelUsed
+	cacheKey := buildNativeCompletionCacheKey(plan.cacheKey, provider, modelUsed, client.Name())
 	s.completionCachePut(cacheKey, cleaned)
 	items := s.makeCompletionItems(cleaned, plan.inParams, current, p, plan.docStr, detail, sortPrefix)
 	return items, true

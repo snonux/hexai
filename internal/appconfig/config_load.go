@@ -610,6 +610,47 @@ func parseSurfaceEntries(raw any, path string, logger *log.Logger) ([]SurfaceCon
 	}
 }
 
+// decodeModelEntryFromMap decodes a map[string]any entry into a SurfaceConfig.
+// It validates that model, provider, and temperature fields have the correct types.
+func decodeModelEntryFromMap(v map[string]any, path string, logger *log.Logger) (*SurfaceConfig, bool) {
+	model := ""
+	provider := ""
+	if m, ok := v["model"]; ok {
+		s, ok := m.(string)
+		if !ok {
+			if logger != nil {
+				logger.Printf("config: %s.model must be a string", path)
+			}
+			return nil, false
+		}
+		model = strings.TrimSpace(s)
+	}
+	if pRaw, ok := v["provider"]; ok {
+		ps, ok := pRaw.(string)
+		if !ok {
+			if logger != nil {
+				logger.Printf("config: %s.provider must be a string", path)
+			}
+			return nil, false
+		}
+		provider = strings.TrimSpace(ps)
+	}
+	var tempPtr *float64
+	if tRaw, ok := v["temperature"]; ok {
+		parsed, ok := parseTemperatureValue(tRaw, path, logger)
+		if !ok {
+			return nil, false
+		}
+		tempPtr = parsed
+	}
+	if model == "" && tempPtr == nil && provider == "" {
+		return nil, false
+	}
+	return &SurfaceConfig{Provider: provider, Model: model, Temperature: tempPtr}, true
+}
+
+// decodeModelEntry converts a raw TOML value (string or table) into a SurfaceConfig.
+// A plain string is treated as a model name; a table may carry model, provider and temperature.
 func decodeModelEntry(raw any, path string, logger *log.Logger) (*SurfaceConfig, bool) {
 	if raw == nil {
 		return nil, false
@@ -622,40 +663,7 @@ func decodeModelEntry(raw any, path string, logger *log.Logger) (*SurfaceConfig,
 		}
 		return &SurfaceConfig{Model: model}, true
 	case map[string]any:
-		model := ""
-		provider := ""
-		if m, ok := v["model"]; ok {
-			s, ok := m.(string)
-			if !ok {
-				if logger != nil {
-					logger.Printf("config: %s.model must be a string", path)
-				}
-				return nil, false
-			}
-			model = strings.TrimSpace(s)
-		}
-		if pRaw, ok := v["provider"]; ok {
-			ps, ok := pRaw.(string)
-			if !ok {
-				if logger != nil {
-					logger.Printf("config: %s.provider must be a string", path)
-				}
-				return nil, false
-			}
-			provider = strings.TrimSpace(ps)
-		}
-		var tempPtr *float64
-		if tRaw, ok := v["temperature"]; ok {
-			parsed, ok := parseTemperatureValue(tRaw, path, logger)
-			if !ok {
-				return nil, false
-			}
-			tempPtr = parsed
-		}
-		if model == "" && tempPtr == nil && provider == "" {
-			return nil, false
-		}
-		return &SurfaceConfig{Provider: provider, Model: model, Temperature: tempPtr}, true
+		return decodeModelEntryFromMap(v, path, logger)
 	default:
 		if logger != nil {
 			logger.Printf("config: %s must be a string or table, got %T", path, raw)

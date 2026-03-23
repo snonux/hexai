@@ -141,61 +141,63 @@ func (s *Server) completionCacheKey(p CompletionParams, above, current, below, f
 	}, "\x1f") // use unit separator to avoid collisions
 }
 
-// isTriggerEvent returns true when the completion request appears to be caused
-// by typing one of our configured trigger characters. It checks the LSP
-// CompletionContext if provided and also falls back to inspecting the character
-// immediately to the left of the cursor.
-func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
-	open, _, openChar, closeChar := s.inlineMarkers()
-	doubleSeqs := doubleOpenSequences(open, openChar, closeChar)
-	triggerChars := s.triggerCharacters()
-	// 1) Inspect LSP completion context if present
-	if p.Context != nil {
-		var ctx struct {
-			TriggerKind      int    `json:"triggerKind"`
-			TriggerCharacter string `json:"triggerCharacter,omitempty"`
-		}
-		if raw, ok := p.Context.(json.RawMessage); ok {
-			if err := json.Unmarshal(raw, &ctx); err != nil {
-				logging.Logf("lsp ", "handleCompletion: unmarshal raw context: %v", err)
-			}
-		} else {
-			b, _ := json.Marshal(p.Context)
-			if err := json.Unmarshal(b, &ctx); err != nil {
-				logging.Logf("lsp ", "handleCompletion: unmarshal context: %v", err)
-			}
-		}
-		// If configured and the line contains a bare double-open marker (e.g., '>>!' with no '>>!text>'),
-		// do not treat as a trigger source.
-		if containsAny(current, doubleSeqs) && !hasDoubleOpenTrigger(current, open, openChar, closeChar) {
-			return false
-		}
-		// TriggerKind 1 = Invoked (manual). Always allow manual invoke.
-		if ctx.TriggerKind == 1 {
-			return true
-		}
-		// TriggerKind 2 is TriggerCharacter per LSP spec
-		if ctx.TriggerKind == 2 {
-			if ctx.TriggerCharacter != "" {
-				for _, c := range triggerChars {
-					if c == ctx.TriggerCharacter {
-						return true
-					}
-				}
-				return false
-			}
-			// No character provided but reported as TriggerCharacter; be conservative
-			return false
-		}
-		// For TriggerForIncomplete (3), require manual char check below
+// checkTriggerFromContext inspects the LSP CompletionContext (if present) to decide if
+// the completion was triggered by one of our configured trigger characters or by a manual
+// invoke. Returns (result, decided): decided=true means the caller should use result
+// directly; decided=false means the context was absent or inconclusive (TriggerKind 3).
+func (s *Server) checkTriggerFromContext(p CompletionParams, current string, open string, openChar, closeChar byte, doubleSeqs, triggerChars []string) (result bool, decided bool) {
+	if p.Context == nil {
+		return false, false
 	}
-	// 2) Fallback: check the character immediately prior to cursor.
+	var ctx struct {
+		TriggerKind      int    `json:"triggerKind"`
+		TriggerCharacter string `json:"triggerCharacter,omitempty"`
+	}
+	if raw, ok := p.Context.(json.RawMessage); ok {
+		if err := json.Unmarshal(raw, &ctx); err != nil {
+			logging.Logf("lsp ", "handleCompletion: unmarshal raw context: %v", err)
+		}
+	} else {
+		b, _ := json.Marshal(p.Context)
+		if err := json.Unmarshal(b, &ctx); err != nil {
+			logging.Logf("lsp ", "handleCompletion: unmarshal context: %v", err)
+		}
+	}
+	// Bare double-open markers must not be treated as a trigger source.
+	if containsAny(current, doubleSeqs) && !hasDoubleOpenTrigger(current, open, openChar, closeChar) {
+		return false, true
+	}
+	// TriggerKind 1 = Invoked (manual). Always allow.
+	if ctx.TriggerKind == 1 {
+		return true, true
+	}
+	// TriggerKind 2 = TriggerCharacter per LSP spec.
+	if ctx.TriggerKind == 2 {
+		if ctx.TriggerCharacter != "" {
+			for _, c := range triggerChars {
+				if c == ctx.TriggerCharacter {
+					return true, true
+				}
+			}
+			return false, true
+		}
+		// No character provided but reported as TriggerCharacter; be conservative.
+		return false, true
+	}
+	// TriggerKind 3 (TriggerForIncomplete): fall through to cursor-char check.
+	return false, false
+}
+
+// checkTriggerFromCursorChar is the fallback check that looks at the character
+// immediately to the left of the cursor position to decide whether it matches a
+// configured trigger character.
+func (s *Server) checkTriggerFromCursorChar(p CompletionParams, current string, open string, openChar, closeChar byte, doubleSeqs, triggerChars []string) bool {
 	// Convert UTF-16 offset to byte offset for correct multi-byte handling.
 	byteIdx := utf16OffsetToByteOffset(current, p.Position.Character)
 	if byteIdx <= 0 || byteIdx > len(current) {
 		return false
 	}
-	// Bare double-open should not trigger via fallback char either (only when configured)
+	// Bare double-open should not trigger via fallback char check either.
 	if containsAny(current, doubleSeqs) && !hasDoubleOpenTrigger(current, open, openChar, closeChar) {
 		return false
 	}
@@ -207,6 +209,22 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 		}
 	}
 	return false
+}
+
+// isTriggerEvent returns true when the completion request appears to be caused
+// by typing one of our configured trigger characters. It checks the LSP
+// CompletionContext if provided and also falls back to inspecting the character
+// immediately to the left of the cursor.
+func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
+	open, _, openChar, closeChar := s.inlineMarkers()
+	doubleSeqs := doubleOpenSequences(open, openChar, closeChar)
+	triggerChars := s.triggerCharacters()
+	// 1) Inspect LSP completion context if present.
+	if result, decided := s.checkTriggerFromContext(p, current, open, openChar, closeChar, doubleSeqs, triggerChars); decided {
+		return result
+	}
+	// 2) Fallback: check the character immediately prior to cursor.
+	return s.checkTriggerFromCursorChar(p, current, open, openChar, closeChar, doubleSeqs, triggerChars)
 }
 
 func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string, detail string, sortPrefix string) []CompletionItem {
