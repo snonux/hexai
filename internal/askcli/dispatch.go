@@ -11,7 +11,8 @@ type Runner interface {
 }
 
 type Dispatcher struct {
-	runner Runner
+	runner     Runner
+	jsonOutput bool
 }
 
 func NewDispatcher(runner Runner) *Dispatcher {
@@ -23,6 +24,19 @@ func NewDispatcher(runner Runner) *Dispatcher {
 }
 
 func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	// Extract --json flag before dispatching.
+	var jsonOutput bool
+	var filtered []string
+	for _, a := range args {
+		if a == "--json" {
+			jsonOutput = true
+		} else {
+			filtered = append(filtered, a)
+		}
+	}
+	args = filtered
+	d.jsonOutput = jsonOutput
+
 	if len(args) == 0 {
 		return d.handleList(ctx, []string{"list"}, stdout, stderr)
 	}

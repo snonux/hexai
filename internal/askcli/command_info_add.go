@@ -3,6 +3,8 @@ package askcli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -27,7 +29,17 @@ func (d Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stder
 		io.WriteString(stderr, "error: task not found\n")
 		return 1, nil
 	}
-	io.WriteString(stdout, FormatTaskInfo(tasks[0]))
+	if d.jsonOutput {
+		data, err := json.Marshal(tasks)
+		if err != nil {
+			fmt.Fprintf(stderr, "error: failed to marshal JSON: %v\n", err)
+			return 1, nil
+		}
+		stdout.Write(data)
+		io.WriteString(stdout, "\n")
+	} else {
+		io.WriteString(stdout, FormatTaskInfo(tasks[0]))
+	}
 	return 0, nil
 }
 
