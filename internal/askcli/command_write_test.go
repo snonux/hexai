@@ -4,12 +4,56 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestHandleStart_AliasSelector(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
+		capturedArgs = args
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"start", "0"}, &bytes.Buffer{}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("start code = %d stderr = %q", code, stderr.String())
+	}
+	if len(capturedArgs) != 2 || capturedArgs[0] != "uuid:test-uuid" || capturedArgs[1] != "start" {
+		t.Fatalf("capturedArgs = %v, want [uuid:test-uuid start]", capturedArgs)
+	}
+}
 
 func TestHandleDenotate_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -51,6 +95,10 @@ func TestHandleDenotate_MissingArgs(t *testing.T) {
 
 func TestHandleModify_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -77,6 +125,10 @@ func TestHandleModify_NumericID(t *testing.T) {
 
 func TestHandleAnnotate_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -103,6 +155,10 @@ func TestHandleAnnotate_MissingArgs(t *testing.T) {
 
 func TestHandleStart_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -129,6 +185,10 @@ func TestHandleStart_MissingUUID(t *testing.T) {
 
 func TestHandleStop_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -140,6 +200,10 @@ func TestHandleStop_Success(t *testing.T) {
 
 func TestHandleDone_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -151,6 +215,10 @@ func TestHandleDone_Success(t *testing.T) {
 
 func TestHandlePriority_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -174,6 +242,10 @@ func TestHandlePriority_MissingArgs(t *testing.T) {
 
 func TestHandleTag_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -217,6 +289,10 @@ func TestAllWriteHandlers_PassCorrectArgs(t *testing.T) {
 		t.Run(tc.subcommand, func(t *testing.T) {
 			var capturedArgs []string
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+				if len(args) == 2 && args[1] == "export" {
+					io.WriteString(stdout, `[{"uuid":"my-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+					return 0, nil
+				}
 				capturedArgs = args
 				return 0, nil
 			}})
@@ -257,6 +333,10 @@ func TestAllWriteHandlers_AcceptUUIDPrefix(t *testing.T) {
 		t.Run(tc.subcommand, func(t *testing.T) {
 			var capturedArgs []string
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+				if len(args) == 2 && args[1] == "export" {
+					io.WriteString(stdout, `[{"uuid":"my-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+					return 0, nil
+				}
 				capturedArgs = args
 				return 0, nil
 			}})

@@ -4,13 +4,24 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHandleDep_AddSuccess(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[1] == "export" {
+			switch args[0] {
+			case "uuid:uuid-1":
+				io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
+			case "uuid:uuid-2":
+				io.WriteString(stdout, `[{"uuid":"uuid-2","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
+			}
+			return 0, nil
+		}
 		capturedArgs = args
 		return 0, nil
 	}})
@@ -30,6 +41,15 @@ func TestHandleDep_AddSuccess(t *testing.T) {
 
 func TestHandleDep_RmSuccess(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[1] == "export" {
+			switch args[0] {
+			case "uuid:uuid-1":
+				io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
+			case "uuid:uuid-2":
+				io.WriteString(stdout, `[{"uuid":"uuid-2","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
+			}
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -84,8 +104,12 @@ func TestHandleDep_AcceptUUIDPrefix(t *testing.T) {
 			var capturedArgs []string
 			export := `[{"uuid":"uuid-1","description":"T","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+				if len(args) == 2 && args[1] == "export" {
+					capturedArgs = args
+					io.WriteString(stdout, export)
+					return 0, nil
+				}
 				capturedArgs = args
-				io.WriteString(stdout, export)
 				return 0, nil
 			}})
 			var stdout, stderr bytes.Buffer
@@ -97,6 +121,50 @@ func TestHandleDep_AcceptUUIDPrefix(t *testing.T) {
 				t.Fatalf("%s capturedArgs[0] = %q, want %q (full: %v)", tc.name, capturedArgs[0], tc.wantArg0, capturedArgs)
 			}
 		})
+	}
+}
+
+func TestHandleDep_AliasSelectors(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 2,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[1] == "export" {
+			switch args[0] {
+			case "uuid:uuid-1":
+				io.WriteString(stdout, `[{"uuid":"uuid-1","description":"T1","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			case "uuid:uuid-2":
+				io.WriteString(stdout, `[{"uuid":"uuid-2","description":"T2","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			}
+			return 0, nil
+		}
+		capturedArgs = args
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"dep", "add", "0", "1"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("dep add code = %d stderr = %q", code, stderr.String())
+	}
+	if len(capturedArgs) < 3 || capturedArgs[0] != "uuid:uuid-1" || capturedArgs[2] != "depends:uuid-2" {
+		t.Fatalf("capturedArgs = %v, want resolved alias UUIDs", capturedArgs)
 	}
 }
 

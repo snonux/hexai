@@ -168,6 +168,30 @@ func (c *taskAliasCache) ensureAlias(uuid string, now time.Time) (string, bool) 
 	return alias, true
 }
 
+func (c *taskAliasCache) lookupUUIDByAlias(alias string, now time.Time) (string, bool, bool) {
+	for i := range c.Entries {
+		if c.Entries[i].Alias != alias {
+			continue
+		}
+		changed := !c.Entries[i].LastAccessedAt.Equal(now)
+		c.Entries[i].LastAccessedAt = now
+		return c.Entries[i].UUID, true, changed
+	}
+	return "", false, false
+}
+
+func (c *taskAliasCache) lookupAliasByUUID(uuid string, now time.Time) (string, bool, bool) {
+	for i := range c.Entries {
+		if c.Entries[i].UUID != uuid {
+			continue
+		}
+		changed := !c.Entries[i].LastAccessedAt.Equal(now)
+		c.Entries[i].LastAccessedAt = now
+		return c.Entries[i].Alias, true, changed
+	}
+	return "", false, false
+}
+
 func (c taskAliasCache) save(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create task alias cache dir: %w", err)

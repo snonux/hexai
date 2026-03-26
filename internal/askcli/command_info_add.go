@@ -31,11 +31,8 @@ func (d Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stder
 
 func (d Dispatcher) infoTasks(ctx context.Context, args []string, stderr io.Writer) ([]TaskExport, int, error) {
 	if len(args) >= 2 {
-		uuid := NormalizeUUID(args[1])
-		if IsNumericID(uuid) {
-			return nil, 1, fmt.Errorf(strings.TrimSpace(RejectNumericID()))
-		}
-		return d.exportTasks(ctx, []string{"uuid:" + uuid, "export"}, stderr)
+		_, tasks, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
+		return tasks, code, err
 	}
 	return d.startedInfoTasks(ctx, stderr)
 }

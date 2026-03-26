@@ -4,12 +4,18 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHandleDelete_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid-123" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid-123","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -81,6 +87,10 @@ func TestHandleDelete_CommandFails(t *testing.T) {
 func TestHandleDelete_PassesCorrectArgs(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"my-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
 		capturedArgs = args
 		return 0, nil
 	}})
@@ -88,5 +98,43 @@ func TestHandleDelete_PassesCorrectArgs(t *testing.T) {
 	d.Dispatch(context.Background(), []string{"delete", "my-uuid"}, &bytes.Buffer{}, &stdout, &stderr)
 	if len(capturedArgs) != 2 || capturedArgs[0] != "uuid:my-uuid" || capturedArgs[1] != "delete" {
 		t.Fatalf("capturedArgs = %v, want [uuid:my-uuid, delete]", capturedArgs)
+	}
+}
+
+func TestHandleDelete_AliasSelector(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "test-uuid-123", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid-123" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid-123","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
+		capturedArgs = args
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"delete", "0"}, &bytes.Buffer{}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("delete code = %d stderr = %q", code, stderr.String())
+	}
+	if len(capturedArgs) != 2 || capturedArgs[0] != "uuid:test-uuid-123" || capturedArgs[1] != "delete" {
+		t.Fatalf("capturedArgs = %v, want [uuid:test-uuid-123 delete]", capturedArgs)
 	}
 }

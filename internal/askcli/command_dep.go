@@ -30,30 +30,30 @@ func (d Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, s
 		io.WriteString(stderr, "error: ask dep add/rm requires <uuid> <dep-uuid>\n")
 		return 1, nil
 	}
-	uuid := NormalizeUUID(args[2])
-	if IsNumericID(uuid) {
-		io.WriteString(stderr, RejectNumericID())
-		return 1, nil
+	resolved, _, code, err := d.resolveTaskSelector(ctx, args[2], stderr)
+	if err != nil {
+		writeInfoError(stderr, err)
+		return code, nil
 	}
-	depUUID := NormalizeUUID(args[3])
-	if IsNumericID(depUUID) {
-		io.WriteString(stderr, RejectNumericID())
-		return 1, nil
+	dependency, _, code, err := d.resolveTaskSelector(ctx, args[3], stderr)
+	if err != nil {
+		writeInfoError(stderr, err)
+		return code, nil
 	}
 	op := args[1]
 	var modArg string
 	if op == "add" {
-		modArg = "depends:" + depUUID
+		modArg = "depends:" + dependency.UUID
 	} else {
-		modArg = "depends:-" + depUUID
+		modArg = "depends:-" + dependency.UUID
 	}
 	var outBuf bytes.Buffer
 	// uuid:<uuid> scopes the modify to exactly one task; modArg sets the dependency.
-	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "modify", modArg}, nil, &outBuf, io.Discard)
+	code, err = d.runner.Run(ctx, []string{"uuid:" + resolved.UUID, "modify", modArg}, nil, &outBuf, io.Discard)
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(uuid))
+	io.WriteString(stdout, FormatSuccess(resolved.UUID))
 	return 0, nil
 }
 
@@ -62,20 +62,10 @@ func (d Dispatcher) handleDepList(ctx context.Context, args []string, stdout, st
 		io.WriteString(stderr, "error: ask dep list requires <uuid>\n")
 		return 1, nil
 	}
-	uuid := NormalizeUUID(args[2])
-	if IsNumericID(uuid) {
-		io.WriteString(stderr, RejectNumericID())
-		return 1, nil
-	}
-	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "export"}, nil, &outBuf, stderr)
-	if code != 0 {
-		return code, err
-	}
-	tasks, err := ParseTaskExport(&outBuf)
+	_, tasks, code, err := d.resolveTaskSelector(ctx, args[2], stderr)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
-		return 1, nil
+		writeInfoError(stderr, err)
+		return code, nil
 	}
 	if len(tasks) == 0 {
 		io.WriteString(stdout, "no dependencies\n")
