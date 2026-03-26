@@ -37,6 +37,64 @@ function __ask_in_dep_context
     test $seen_dep -eq 1
 end
 
+function __ask_in_uuid_context
+    set -l tokens (commandline -opc)
+    set -l positional
+    for token in $tokens[2..-1]
+        if string match -qr '^-' -- $token
+            continue
+        end
+        set -a positional $token
+    end
+    if test (count $positional) -eq 0
+        return 1
+    end
+    if test (count $positional) -gt 2
+        return 1
+    end
+    switch $positional[1]
+        case info annotate start stop done priority tag modify denotate delete
+            return 0
+        case '*'
+            return 1
+    end
+    return 1
+end
+
+function __ask_in_dep_uuid_context
+    set -l tokens (commandline -opc)
+    set -l positional
+    for token in $tokens[2..-1]
+        if string match -qr '^-' -- $token
+            continue
+        end
+        set -a positional $token
+    end
+    if test (count $positional) -lt 2
+        return 1
+    end
+    if test $positional[1] != dep
+        return 1
+    end
+    switch $positional[2]
+        case add rm
+            if test (count $positional) -le 4
+                return 0
+            end
+        case list
+            if test (count $positional) -le 3
+                return 0
+            end
+        case '*'
+            return 1
+    end
+    return 1
+end
+
+function __ask_task_uuids
+    command ask all --json 2>/dev/null | string match -r -a -g '"uuid":"([^"]+)"'
+end
+
 complete -c ask -f
 complete -c ask -s j -l json -d 'Emit JSON output'
 complete -c ask -n '__ask_needs_root_completion' -a 'add' -d 'Create a new task'
@@ -59,3 +117,16 @@ complete -c ask -n '__ask_needs_root_completion' -a 'help' -d 'Show help'
 complete -c ask -n '__ask_in_dep_context' -a 'add' -d 'Add a dependency'
 complete -c ask -n '__ask_in_dep_context' -a 'rm' -d 'Remove a dependency'
 complete -c ask -n '__ask_in_dep_context' -a 'list' -d 'List dependencies'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Show task details'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Add an annotation'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Start a task'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Stop a task'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Mark a task complete'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Set priority'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Add or remove a tag'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Modify task fields'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Remove an annotation'
+complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Delete a task'
+complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_uuids)' -d 'Add a dependency'
+complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_uuids)' -d 'Remove a dependency'
+complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_uuids)' -d 'List dependencies'
