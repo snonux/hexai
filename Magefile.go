@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -118,22 +119,19 @@ func Install() error {
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		return err
 	}
-	if err := sh.RunV("cp", "-v", "./ask", bin+"/"); err != nil {
-		return err
+	for _, name := range []string{
+		"ask",
+		"hexai-lsp-server",
+		"hexai",
+		"hexai-tmux-action",
+		"hexai-tmux-edit",
+		"hexai-mcp-server",
+	} {
+		if err := atomicInstallBinary(filepath.Join(".", name), bin); err != nil {
+			return err
+		}
 	}
-	if err := sh.RunV("cp", "-v", "./hexai-lsp-server", bin+"/"); err != nil {
-		return err
-	}
-	if err := sh.RunV("cp", "-v", "./hexai", bin+"/"); err != nil {
-		return err
-	}
-	if err := sh.RunV("cp", "-v", "./hexai-tmux-action", bin+"/"); err != nil {
-		return err
-	}
-	if err := sh.RunV("cp", "-v", "./hexai-tmux-edit", bin+"/"); err != nil {
-		return err
-	}
-	return sh.RunV("cp", "-v", "./hexai-mcp-server", bin+"/")
+	return nil
 }
 
 // RunTmuxAction runs the hexai-tmux-action TUI via go run (reads stdin).
@@ -217,6 +215,43 @@ func totalCoveragePercent(profile string) (float64, bool) {
 		return 0, false
 	}
 	return f, true
+}
+
+func atomicInstallBinary(src, dstDir string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	info, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dstDir, filepath.Base(src)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := io.Copy(tmp, in); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(info.Mode() & os.ModePerm); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	dst := filepath.Join(dstDir, filepath.Base(src))
+	if err := os.Rename(tmpPath, dst); err != nil {
+		return err
+	}
+	fmt.Printf("installed %s -> %s\n", src, dst)
+	return nil
 }
 
 // Test runs the test suite.

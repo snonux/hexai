@@ -1,21 +1,31 @@
 # Fish Completion
 
-Hexai ships a Fish completion file for the `ask` task-management CLI at [`assets/ask.fish`](../assets/ask.fish).
+The `ask` task-management CLI embeds its Fish completion script in the binary and prints it with `ask fish`.
 
 It completes the top-level `ask` subcommands and the nested `ask dep` operations.
 It also completes task UUIDs for UUID-taking commands by reading the current project from `ask all --json` and filtering out completed and deleted tasks.
 The script preserves the global `--json` flag.
 
-Install it into Fish's completion directory:
+Load it into the current Fish session:
 
 ```sh
-install -Dm644 assets/ask.fish ~/.config/fish/completions/ask.fish
+ask fish | source
 ```
 
-If you use a custom XDG config directory, copy it to:
+If you installed with `mage install` and `~/go/bin` is not on your `PATH` yet, use:
 
 ```sh
-$XDG_CONFIG_HOME/fish/completions/ask.fish
+~/go/bin/ask fish | source
 ```
 
-The completion file is static and ships with the repository, so it does not require a build step.
+To enable it automatically for new Fish sessions, add this to your Fish config or a file in `~/.config/fish/conf.d/`:
+
+```fish
+set -l ask_bin ~/go/bin/ask
+
+if test -x $ask_bin
+    $ask_bin fish | source
+end
+```
+
+No external `ask.fish` file is required.

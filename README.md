@@ -18,8 +18,8 @@ It has got improved capabilities for Go code understanding (for example, create 
   - Auto-scopes to `project:<repo> +agent` (derived from git repo root)
   - Never exposes numeric task IDs — uses UUIDs only
   - Machine-friendly output: UUID-only tables, suppressed decorative text
-  - Subcommands: `ask add`, `ask list`, `ask info`, `ask annotate`, `ask start`, `ask stop`, `ask done`, `ask priority`, `ask tag`, `ask dep`, `ask urgency`, `ask modify`, `ask denotate`, `ask delete`, `ask help`
-  - Fish completion asset: [`assets/ask.fish`](assets/ask.fish)
+  - Subcommands: `ask add`, `ask list`, `ask info`, `ask annotate`, `ask start`, `ask stop`, `ask done`, `ask priority`, `ask tag`, `ask dep`, `ask urgency`, `ask modify`, `ask denotate`, `ask delete`, `ask fish`, `ask help`
+  - Fish completion generator: `ask fish`
 * Parallel completions and CLI responses from multiple providers/models for side-by-side comparison
 * **MCP server for prompt/runbook management** (`hexai-mcp-server`) - **⚠️ DEPRECATED/EXPERIMENTAL**
   - Create, update, delete, and retrieve prompts via MCP protocol

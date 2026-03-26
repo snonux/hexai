@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -27,6 +28,9 @@ func TestDispatcher_Help(t *testing.T) {
 	}
 	if !strings.Contains(output, "ask all") {
 		t.Fatalf("help missing all subcommand: %s", output)
+	}
+	if !strings.Contains(output, "ask fish") {
+		t.Fatalf("help missing fish subcommand: %s", output)
 	}
 }
 
@@ -72,10 +76,50 @@ func TestDispatcher_LongHelp(t *testing.T) {
 	var stdout bytes.Buffer
 	d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard)
 	output := stdout.String()
-	for _, sub := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete"} {
+	for _, sub := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "fish"} {
 		if !strings.Contains(output, "ask "+sub) {
 			t.Errorf("help missing subcommand: ask %s", sub)
 		}
+	}
+}
+
+func TestDispatcher_FishSubcommand(t *testing.T) {
+	d := NewDispatcher(nil)
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(context.Background(), []string{"fish"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("fish returned error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("fish code = %d, want 0", code)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatalf("os.Executable: %v", err)
+	}
+	if got := stdout.String(); got != FishCompletionFor(exe) {
+		t.Fatalf("fish output mismatch\n--- got ---\n%s\n--- want ---\n%s", got, FishCompletionFor(exe))
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("fish wrote unexpected stderr: %q", stderr.String())
+	}
+}
+
+func TestDispatcher_FishSubcommandRejectsExtraArgs(t *testing.T) {
+	d := NewDispatcher(nil)
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(context.Background(), []string{"fish", "extra"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("fish extra args returned error: %v", err)
+	}
+	if code != 1 {
+		t.Fatalf("fish extra args code = %d, want 1", code)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("fish extra args wrote unexpected stdout: %q", stdout.String())
+	}
+	if got := stderr.String(); !strings.Contains(got, "usage: ask fish") {
+		t.Fatalf("fish extra args stderr = %q, want usage", got)
 	}
 }
 

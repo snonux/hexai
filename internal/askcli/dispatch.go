@@ -74,6 +74,8 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 		return d.handleDenotate(ctx, args, stdout, stderr)
 	case "delete":
 		return d.handleDelete(ctx, args, stdin, stdout, stderr)
+	case "fish":
+		return d.handleFish(args, stdout, stderr)
 	case "help":
 		return d.help(stdout)
 	case "complete-uuids":
@@ -104,6 +106,7 @@ func (d Dispatcher) help(w io.Writer) (int, error) {
 	io.WriteString(w, "  ask modify <uuid> <args...>   Modify task fields\n")
 	io.WriteString(w, "  ask denotate <uuid> \"text\"     Remove annotation\n")
 	io.WriteString(w, "  ask delete <uuid>             Delete task\n")
+	io.WriteString(w, "  ask fish                      Emit Fish shell completion script\n")
 	return 0, nil
 }
 

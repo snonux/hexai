@@ -26,6 +26,7 @@ var askRootCompletionItems = []fishCompletionItem{
 	{name: "modify", description: "Modify task fields"},
 	{name: "denotate", description: "Remove an annotation"},
 	{name: "delete", description: "Delete a task"},
+	{name: "fish", description: "Emit Fish shell completion script"},
 	{name: "help", description: "Show help"},
 }
 
@@ -49,10 +50,14 @@ var askUUIDCompletionItems = []fishCompletionItem{
 }
 
 func FishCompletion() string {
+	return FishCompletionFor("ask")
+}
+
+func FishCompletionFor(binaryPath string) string {
 	var b strings.Builder
 	writeFishPreamble(&b)
 	writeFishContextFunctions(&b)
-	writeFishTaskUUIDFunction(&b)
+	writeFishTaskUUIDFunction(&b, binaryPath)
 	b.WriteString("complete -c ask -f\n")
 	b.WriteString("complete -c ask -s j -l json -d 'Emit JSON output'\n")
 	for _, item := range askRootCompletionItems {
@@ -68,8 +73,7 @@ func FishCompletion() string {
 
 func writeFishPreamble(b *strings.Builder) {
 	b.WriteString("# Fish completion for ask.\n")
-	b.WriteString("# Install as ~/.config/fish/completions/ask.fish or")
-	b.WriteString(" $XDG_CONFIG_HOME/fish/completions/ask.fish.\n\n")
+	b.WriteString("# Source with: ask fish | source\n\n")
 }
 
 func writeFishContextFunctions(b *strings.Builder) {
@@ -177,14 +181,17 @@ func writeFishDepUUIDContextFunction(b *strings.Builder) {
 	b.WriteString("end\n\n")
 }
 
-func writeFishTaskUUIDFunction(b *strings.Builder) {
+func writeFishTaskUUIDFunction(b *strings.Builder, binaryPath string) {
 	b.WriteString("function __ask_task_uuids\n")
+	b.WriteString("    set -l ask_bin ")
+	b.WriteString(quoteFishString(binaryPath))
+	b.WriteString("\n")
 	b.WriteString("    set -l now (date +%s)\n")
 	b.WriteString("    if set -q __ask_task_uuid_cache_until; and test $__ask_task_uuid_cache_until -ge $now\n")
 	b.WriteString("        printf '%s\\n' $__ask_task_uuid_cache\n")
 	b.WriteString("        return 0\n")
 	b.WriteString("    end\n")
-	b.WriteString("    set -l uuids (command ask complete-uuids 2>/dev/null)\n")
+	b.WriteString("    set -l uuids (command $ask_bin complete-uuids 2>/dev/null)\n")
 	b.WriteString("    if test $status -ne 0\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
@@ -210,4 +217,13 @@ func writeFishUUIDCompletionLine(b *strings.Builder, condition, description stri
 	b.WriteString("' -a '(__ask_task_uuids)' -d '")
 	b.WriteString(strings.ReplaceAll(description, "'", "\\'"))
 	b.WriteString("'\n")
+}
+
+func quoteFishString(value string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\",
+		"\"", "\\\"",
+		"$", "\\$",
+	)
+	return `"` + replacer.Replace(value) + `"`
 }
