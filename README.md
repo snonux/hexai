@@ -18,7 +18,8 @@ It has got improved capabilities for Go code understanding (for example, create 
   - Auto-scopes to `project:<repo> +agent` (derived from git repo root)
   - Never exposes numeric task IDs — uses UUIDs only
   - Machine-friendly output: UUID-only tables, suppressed decorative text
-  - Subcommands: `ask add`, `ask list`, `ask info`, `ask annotate`, `ask start`, `ask stop`, `ask done`, `ask priority`, `ask tag`, `ask dep`, `ask urgency`, `ask modify`, `ask denotate`, `ask delete`, `ask export`
+  - Subcommands: `ask add`, `ask list`, `ask info`, `ask annotate`, `ask start`, `ask stop`, `ask done`, `ask priority`, `ask tag`, `ask dep`, `ask urgency`, `ask modify`, `ask denotate`, `ask delete`, `ask help`
+  - Fish completion asset: [`assets/ask.fish`](assets/ask.fish)
 * Parallel completions and CLI responses from multiple providers/models for side-by-side comparison
 * **MCP server for prompt/runbook management** (`hexai-mcp-server`) - **⚠️ DEPRECATED/EXPERIMENTAL**
   - Create, update, delete, and retrieve prompts via MCP protocol
@@ -43,6 +44,7 @@ It has got improved capabilities for Go code understanding (for example, create 
 * [Configuration guide](docs/configuration.md)
 * [Usage examples](docs/usage.md)
 * [Helix + tmux quickstart](docs/tmux.md)
+* [Fish shell completion](docs/fish-completion.md)
 * [MCP server setup guide](docs/mcp-setup.md) *(deprecated - reference only)*
 * [Creating custom prompts](docs/mcp-prompts.md) *(deprecated - reference only)*
 
