@@ -18,6 +18,9 @@ func (d Dispatcher) handleCompleteUUIDs(ctx context.Context, stdout, stderr io.W
 		fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
 		return 1, nil
 	}
+	if _, err := ensureTaskAliases(tasks); err != nil {
+		fmt.Fprintf(stderr, "warning: failed to update task alias cache: %v\n", err)
+	}
 	for _, task := range tasks {
 		if task.UUID == "" {
 			continue
