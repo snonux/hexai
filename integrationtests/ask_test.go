@@ -158,19 +158,21 @@ type taskInfo struct {
 	UUID        string
 	Description string
 	Status      string
+	Started     string
+	StartTime   string
 	Priority    string
 	Tags        []string
-	Start       string
 }
 
 var (
-	uuidFieldRx     = regexp.MustCompile(`UUID:\s+(.+)`)
-	descFieldRx     = regexp.MustCompile(`Description:\s+(.+)`)
-	statusFieldRx   = regexp.MustCompile(`Status:\s+(.+)`)
-	priorityFieldRx = regexp.MustCompile(`Priority:\s+(.+)`)
-	tagsFieldRx     = regexp.MustCompile(`Tags:\s+(.+)`)
-	startFieldRx    = regexp.MustCompile(`Started:\s+(.+)`)
-	uuidFormatRx    = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	uuidFieldRx      = regexp.MustCompile(`UUID:\s+(.+)`)
+	descFieldRx      = regexp.MustCompile(`Description:\s+(.+)`)
+	statusFieldRx    = regexp.MustCompile(`Status:\s+(.+)`)
+	startedFieldRx   = regexp.MustCompile(`Started:\s+(.+)`)
+	startTimeFieldRx = regexp.MustCompile(`Start time:\s+(.+)`)
+	priorityFieldRx  = regexp.MustCompile(`Priority:\s+(.+)`)
+	tagsFieldRx      = regexp.MustCompile(`Tags:\s+(.+)`)
+	uuidFormatRx     = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
 
 func parseTaskInfoText(output string, uuid string) taskInfo {
@@ -184,15 +186,18 @@ func parseTaskInfoText(output string, uuid string) taskInfo {
 	if m := statusFieldRx.FindStringSubmatch(output); len(m) > 1 {
 		ti.Status = strings.TrimSpace(m[1])
 	}
+	if m := startedFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		ti.Started = strings.TrimSpace(m[1])
+	}
+	if m := startTimeFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		ti.StartTime = strings.TrimSpace(m[1])
+	}
 	if m := priorityFieldRx.FindStringSubmatch(output); len(m) > 1 {
 		ti.Priority = strings.TrimSpace(m[1])
 	}
 	if m := tagsFieldRx.FindStringSubmatch(output); len(m) > 1 {
 		tagStr := strings.TrimSpace(m[1])
 		ti.Tags = strings.Split(tagStr, ", ")
-	}
-	if m := startFieldRx.FindStringSubmatch(output); len(m) > 1 {
-		ti.Start = strings.TrimSpace(m[1])
 	}
 	return ti
 }
@@ -394,8 +399,11 @@ func TestStart(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not get task info after start")
 	}
-	if ti.Start == "" {
-		t.Errorf("task start field is empty after start")
+	if ti.Started != "yes" {
+		t.Errorf("task started state = %q, want yes", ti.Started)
+	}
+	if ti.StartTime == "" {
+		t.Errorf("task start time is empty after start")
 	}
 }
 
@@ -420,8 +428,11 @@ func TestStop(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not get task info after stop")
 	}
-	if ti.Start != "" {
-		t.Errorf("task start field is not empty after stop: %s", ti.Start)
+	if ti.Started != "no" {
+		t.Errorf("task started state = %q, want no", ti.Started)
+	}
+	if ti.StartTime != "" {
+		t.Errorf("task start time should be empty after stop: %s", ti.StartTime)
 	}
 }
 
@@ -748,6 +759,66 @@ func TestHelp(t *testing.T) {
 		if !strings.Contains(out, sub) {
 			t.Errorf("help output missing subcommand %q", sub)
 		}
+	}
+}
+
+func TestFish(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	stdout, stderr, code := runAsk(ctx, []string{"fish"})
+	if code != 0 {
+		t.Fatalf("fish returned non-zero exit code %d: stderr=%s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, fragment := range []string{
+		"# Source with: ask fish | source",
+		"complete -c",
+		"complete-uuids",
+		"annotate",
+		"delete",
+	} {
+		if !strings.Contains(out, fragment) {
+			t.Errorf("fish output missing %q", fragment)
+		}
+	}
+	if stderr.Len() != 0 {
+		t.Errorf("fish wrote unexpected stderr: %s", stderr.String())
+	}
+}
+
+func TestFishRejectsExtraArgs(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	stdout, stderr, code := runAsk(ctx, []string{"fish", "extra"})
+	if code == 0 {
+		t.Fatalf("expected non-zero exit code for fish extra args, got 0")
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("fish with extra args wrote unexpected stdout: %s", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "usage: ask fish") {
+		t.Errorf("fish with extra args stderr missing usage text: %s", stderr.String())
+	}
+}
+
+func TestCompleteUUIDs(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uuid, err := createTask(ctx, "integration test task for complete-uuids")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	stdout, stderr, code := runAsk(ctx, []string{"complete-uuids"})
+	if code != 0 {
+		t.Fatalf("complete-uuids returned non-zero exit code %d: stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), uuid) {
+		t.Errorf("complete-uuids output does not contain created task UUID %s", uuid)
 	}
 }
 
