@@ -257,6 +257,13 @@ func Coverage() error {
 		return err
 	}
 	fmt.Println("HTML coverage report written to " + html + " (cross-package)")
+	total, ok := totalCoveragePercent(prof)
+	if !ok {
+		return fmt.Errorf("parse total coverage from %s", prof)
+	}
+	if total < coverageThreshold {
+		return fmt.Errorf("total coverage %.1f%% is below threshold %.1f%%", total, coverageThreshold)
+	}
 	return nil
 }
 
