@@ -7,21 +7,91 @@ import (
 )
 
 func FormatTaskList(tasks []TaskExport) string {
+	widths := taskListWidthsFor(tasks)
 	var b strings.Builder
-	io.WriteString(&b, "Urgency | Priority | UUID | Status | Tags | Description\n")
-	io.WriteString(&b, strings.Repeat("-", 120)+"\n")
+	writeTaskListHeader(&b, widths)
+	writeTaskListSeparator(&b, widths)
 	for _, t := range tasks {
-		tags := strings.Join(t.Tags, ",")
-		if tags == "" {
-			tags = "-"
-		}
-		desc := t.Description
-		if len(desc) > 50 {
-			desc = desc[:47] + "..."
-		}
-		fmt.Fprintf(&b, "%.1f | %s | %s | %s | %s | %s\n", t.Urgency, t.Priority, t.UUID, t.Status, tags, desc)
+		writeTaskListRow(&b, widths, t)
 	}
 	return b.String()
+}
+
+type taskListWidths struct {
+	Urgency     int
+	Priority    int
+	UUID        int
+	Status      int
+	Tags        int
+	Description int
+}
+
+func taskListWidthsFor(tasks []TaskExport) taskListWidths {
+	widths := taskListWidths{
+		Urgency:     len("Urgency"),
+		Priority:    len("Priority"),
+		UUID:        len("UUID"),
+		Status:      len("Status"),
+		Tags:        len("Tags"),
+		Description: len("Description"),
+	}
+	for _, t := range tasks {
+		widths.Urgency = maxInt(widths.Urgency, len(fmt.Sprintf("%.1f", t.Urgency)))
+		widths.Priority = maxInt(widths.Priority, len(t.Priority))
+		widths.UUID = maxInt(widths.UUID, len(t.UUID))
+		widths.Status = maxInt(widths.Status, len(t.Status))
+		widths.Tags = maxInt(widths.Tags, len(formatTaskTags(t.Tags)))
+		widths.Description = maxInt(widths.Description, len(formatTaskDescription(t.Description)))
+	}
+	return widths
+}
+
+func writeTaskListHeader(b *strings.Builder, widths taskListWidths) {
+	fmt.Fprintf(b, "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n",
+		widths.Urgency, "Urgency",
+		widths.Priority, "Priority",
+		widths.UUID, "UUID",
+		widths.Status, "Status",
+		widths.Tags, "Tags",
+		widths.Description, "Description",
+	)
+}
+
+func writeTaskListSeparator(b *strings.Builder, widths taskListWidths) {
+	total := widths.Urgency + widths.Priority + widths.UUID + widths.Status + widths.Tags + widths.Description + 15
+	io.WriteString(b, strings.Repeat("-", total)+"\n")
+}
+
+func writeTaskListRow(b *strings.Builder, widths taskListWidths, t TaskExport) {
+	fmt.Fprintf(b, "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n",
+		widths.Urgency, fmt.Sprintf("%.1f", t.Urgency),
+		widths.Priority, t.Priority,
+		widths.UUID, t.UUID,
+		widths.Status, t.Status,
+		widths.Tags, formatTaskTags(t.Tags),
+		widths.Description, formatTaskDescription(t.Description),
+	)
+}
+
+func formatTaskTags(tags []string) string {
+	if len(tags) == 0 {
+		return "-"
+	}
+	return strings.Join(tags, ",")
+}
+
+func formatTaskDescription(desc string) string {
+	if len(desc) > 50 {
+		return desc[:47] + "..."
+	}
+	return desc
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func FormatTaskInfo(t TaskExport) string {

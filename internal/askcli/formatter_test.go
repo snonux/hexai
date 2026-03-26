@@ -1,6 +1,7 @@
 package askcli
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -24,6 +25,49 @@ func TestFormatTaskList(t *testing.T) {
 	}
 	if strings.Contains(lines[2], "...") {
 		t.Fatalf("long description should be truncated with ...: %s", lines[2])
+	}
+}
+
+func TestFormatTaskList_AlignsHeaderAndSeparator(t *testing.T) {
+	tasks := []TaskExport{
+		{
+			UUID:        "uuid-short",
+			Description: "Short task",
+			Status:      "pending",
+			Priority:    "H",
+			Tags:        []string{"cli"},
+			Urgency:     1.0,
+		},
+		{
+			UUID:        "uuid-with-a-longer-value",
+			Description: strings.Repeat("x", 60),
+			Status:      "completed",
+			Priority:    "M",
+			Tags:        []string{"agent", "cli"},
+			Urgency:     12.3,
+		},
+	}
+
+	output := FormatTaskList(tasks)
+	lines := strings.Split(strings.TrimSuffix(output, "\n"), "\n")
+	if len(lines) != 4 {
+		t.Fatalf("FormatTaskList produced %d lines, want 4: %q", len(lines), output)
+	}
+
+	widths := taskListWidthsFor(tasks)
+	wantHeader := fmt.Sprintf("%-*s | %-*s | %-*s | %-*s | %-*s | %-*s",
+		widths.Urgency, "Urgency",
+		widths.Priority, "Priority",
+		widths.UUID, "UUID",
+		widths.Status, "Status",
+		widths.Tags, "Tags",
+		widths.Description, "Description",
+	)
+	if lines[0] != wantHeader {
+		t.Fatalf("header = %q, want %q", lines[0], wantHeader)
+	}
+	if len(lines[1]) != len(wantHeader) {
+		t.Fatalf("separator length = %d, want %d", len(lines[1]), len(wantHeader))
 	}
 }
 
