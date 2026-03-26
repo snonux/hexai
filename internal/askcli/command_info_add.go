@@ -10,24 +10,10 @@ import (
 )
 
 func (d Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	if len(args) < 2 {
-		io.WriteString(stderr, "error: ask info requires a UUID argument\n")
-		return 1, nil
-	}
-	uuid := NormalizeUUID(args[1])
-	if IsNumericID(uuid) {
-		io.WriteString(stderr, RejectNumericID())
-		return 1, nil
-	}
-	var outBuf bytes.Buffer
-	code, err := d.runner.Run(ctx, []string{"uuid:" + uuid, "export"}, nil, &outBuf, stderr)
-	if code != 0 {
-		return code, err
-	}
-	tasks, err := ParseTaskExport(&outBuf)
-	if err != nil || len(tasks) == 0 {
-		io.WriteString(stderr, "error: task not found\n")
-		return 1, nil
+	tasks, code, err := d.infoTasks(ctx, args, stderr)
+	if err != nil {
+		writeInfoError(stderr, err)
+		return code, nil
 	}
 	if d.jsonOutput {
 		data, err := json.Marshal(tasks)
@@ -41,6 +27,57 @@ func (d Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stder
 		io.WriteString(stdout, FormatTaskInfo(tasks[0]))
 	}
 	return 0, nil
+}
+
+func (d Dispatcher) infoTasks(ctx context.Context, args []string, stderr io.Writer) ([]TaskExport, int, error) {
+	if len(args) >= 2 {
+		uuid := NormalizeUUID(args[1])
+		if IsNumericID(uuid) {
+			return nil, 1, fmt.Errorf(strings.TrimSpace(RejectNumericID()))
+		}
+		return d.exportTasks(ctx, []string{"uuid:" + uuid, "export"}, stderr)
+	}
+	return d.startedInfoTasks(ctx, stderr)
+}
+
+func (d Dispatcher) startedInfoTasks(ctx context.Context, stderr io.Writer) ([]TaskExport, int, error) {
+	tasks, code, err := d.exportTasks(ctx, []string{"started", "export"}, stderr)
+	if err != nil {
+		return nil, code, err
+	}
+	switch len(tasks) {
+	case 0:
+		return nil, 1, fmt.Errorf("no started task found")
+	case 1:
+		return tasks, 0, nil
+	default:
+		return nil, 1, fmt.Errorf("multiple started tasks found; pass a UUID explicitly")
+	}
+}
+
+func (d Dispatcher) exportTasks(ctx context.Context, args []string, stderr io.Writer) ([]TaskExport, int, error) {
+	var outBuf bytes.Buffer
+	code, err := d.runner.Run(ctx, args, nil, &outBuf, stderr)
+	if code != 0 {
+		return nil, code, err
+	}
+	tasks, err := ParseTaskExport(&outBuf)
+	if err != nil {
+		return nil, 1, err
+	}
+	if len(tasks) == 0 && len(args) > 0 && strings.HasPrefix(args[0], "uuid:") {
+		return nil, 1, fmt.Errorf("task not found")
+	}
+	return tasks, 0, nil
+}
+
+func writeInfoError(stderr io.Writer, err error) {
+	msg := err.Error()
+	if strings.HasPrefix(msg, "error:") {
+		io.WriteString(stderr, msg+"\n")
+		return
+	}
+	fmt.Fprintf(stderr, "error: %v\n", err)
 }
 
 func (d Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {

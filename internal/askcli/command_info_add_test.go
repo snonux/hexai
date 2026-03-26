@@ -29,6 +29,9 @@ func TestHandleInfo_Success(t *testing.T) {
 	if !strings.Contains(output, "H") {
 		t.Fatalf("output missing priority: %s", output)
 	}
+	if !strings.Contains(output, "Started:     no") {
+		t.Fatalf("output missing explicit started state: %s", output)
+	}
 }
 
 func TestHandleInfo_NumericID(t *testing.T) {
@@ -43,13 +46,55 @@ func TestHandleInfo_NumericID(t *testing.T) {
 }
 
 func TestHandleInfo_MissingUUID(t *testing.T) {
+	jsonData := `[{"uuid":"started-uuid","description":"Started task","status":"pending","priority":"M","start":"2026-03-26T10:00:00Z","urgency":5.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
+			io.WriteString(stdout, jsonData)
+		}
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"info"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("info code = %d, want 0 for implicit started task", code)
+	}
+	if !strings.Contains(stdout.String(), "started-uuid") {
+		t.Fatalf("output missing started task UUID: %s", stdout.String())
+	}
+}
+
+func TestHandleInfo_MissingUUID_NoStartedTask(t *testing.T) {
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
+			io.WriteString(stdout, "[]")
+		}
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"info"}, nil, &stdout, &stderr)
 	if code != 1 {
-		t.Fatalf("info code = %d, want 1 for missing UUID", code)
+		t.Fatalf("info code = %d, want 1 when no started task exists", code)
+	}
+	if !strings.Contains(stderr.String(), "no started task found") {
+		t.Fatalf("stderr = %q, want no-started-task error", stderr.String())
+	}
+}
+
+func TestHandleInfo_MissingUUID_MultipleStartedTasks(t *testing.T) {
+	jsonData := `[{"uuid":"started-1","description":"Started task 1","status":"pending","priority":"M","start":"2026-03-26T10:00:00Z","urgency":5.0,"depends":[]},{"uuid":"started-2","description":"Started task 2","status":"pending","priority":"H","start":"2026-03-26T11:00:00Z","urgency":8.0,"depends":[]}]`
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
+			io.WriteString(stdout, jsonData)
+		}
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"info"}, nil, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("info code = %d, want 1 when multiple started tasks exist", code)
+	}
+	if !strings.Contains(stderr.String(), "multiple started tasks found") {
+		t.Fatalf("stderr = %q, want multiple-started-tasks error", stderr.String())
 	}
 }
 

@@ -92,7 +92,7 @@ func (d Dispatcher) help(w io.Writer) (int, error) {
 	io.WriteString(w, "  ask list [filters]           List active tasks (default)\n")
 	io.WriteString(w, "  ask ready                   List READY tasks (not blocked)\n")
 	io.WriteString(w, "  ask all [filters]            List all tasks including completed/deleted\n")
-	io.WriteString(w, "  ask info <uuid>               Show task details\n")
+	io.WriteString(w, "  ask info [uuid]               Show task details or current started task\n")
 	io.WriteString(w, "  ask annotate <uuid> \"note\"    Add annotation to task\n")
 	io.WriteString(w, "  ask start <uuid>              Start working on task\n")
 	io.WriteString(w, "  ask stop <uuid>               Stop working on task\n")

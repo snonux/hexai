@@ -20,6 +20,9 @@ func TestFormatTaskList(t *testing.T) {
 	if !strings.Contains(lines[0], "UUID") || !strings.Contains(lines[0], "Priority") {
 		t.Fatalf("header missing UUID or Priority column: %s", lines[0])
 	}
+	if !strings.Contains(lines[0], "Started") {
+		t.Fatalf("header missing Started column: %s", lines[0])
+	}
 	if !strings.Contains(lines[2], "uuid-1") {
 		t.Fatalf("first task line missing uuid-1: %s", lines[2])
 	}
@@ -55,11 +58,12 @@ func TestFormatTaskList_AlignsHeaderAndSeparator(t *testing.T) {
 	}
 
 	widths := taskListWidthsFor(tasks)
-	wantHeader := fmt.Sprintf("%-*s | %-*s | %-*s | %-*s | %-*s | %-*s",
+	wantHeader := fmt.Sprintf("%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s",
 		widths.Urgency, "Urgency",
 		widths.Priority, "Priority",
 		widths.UUID, "UUID",
 		widths.Status, "Status",
+		widths.Started, "Started",
 		widths.Tags, "Tags",
 		widths.Description, "Description",
 	)
@@ -94,6 +98,12 @@ func TestFormatTaskInfo(t *testing.T) {
 	}
 	if !strings.Contains(output, "H") {
 		t.Fatalf("FormatTaskInfo missing priority H: %s", output)
+	}
+	if !strings.Contains(output, "Started:     yes") {
+		t.Fatalf("FormatTaskInfo missing explicit started state: %s", output)
+	}
+	if !strings.Contains(output, "Start time:  2026-03-22T10:00:00Z") {
+		t.Fatalf("FormatTaskInfo missing start timestamp: %s", output)
 	}
 	if !strings.Contains(output, "cli, agent") {
 		t.Fatalf("FormatTaskInfo missing tags: %s", output)
@@ -188,6 +198,9 @@ func TestFormatTaskInfo_NoOptionalFields(t *testing.T) {
 	output := FormatTaskInfo(task)
 	if !strings.Contains(output, "simple-uuid") {
 		t.Fatalf("FormatTaskInfo missing UUID: %s", output)
+	}
+	if !strings.Contains(output, "Started:     no") {
+		t.Fatalf("FormatTaskInfo should show Started: no when not started: %s", output)
 	}
 	if strings.Contains(output, "Tags:") {
 		t.Fatalf("FormatTaskInfo should not contain Tags: for empty tags: %s", output)

@@ -146,7 +146,7 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 | `ask list started` | List started tasks |
 | `ask list limit:N` | Limit results |
 | `ask list sort:priority-,urgency-` | Sort by priority then urgency |
-| `ask info <uuid>` | Show task details |
+| `ask info [uuid]` | Show task details, or the current started task if UUID is omitted |
 | `ask annotate <uuid> "note"` | Add annotation |
 | `ask start <uuid>` | Start working on a task |
 | `ask stop <uuid>` | Stop work on a task |

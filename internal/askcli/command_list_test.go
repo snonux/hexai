@@ -9,7 +9,7 @@ import (
 )
 
 func TestHandleList_Success(t *testing.T) {
-	jsonData := `[{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]},{"uuid":"uuid-2","description":"Task 2","status":"completed","priority":"M","tags":["agent"],"urgency":10.0,"depends":[]}]`
+	jsonData := `[{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":["cli"],"start":"2026-03-26T10:00:00Z","urgency":15.0,"depends":[]},{"uuid":"uuid-2","description":"Task 2","status":"completed","priority":"M","tags":["agent"],"urgency":10.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
 			if arg == "export" {
@@ -27,6 +27,9 @@ func TestHandleList_Success(t *testing.T) {
 	output := stdout.String()
 	if !strings.Contains(output, "uuid-1") || !strings.Contains(output, "uuid-2") {
 		t.Fatalf("output missing UUIDs: %s", output)
+	}
+	if !strings.Contains(output, "Started") || !strings.Contains(output, "yes") || !strings.Contains(output, "no") {
+		t.Fatalf("output missing explicit started state: %s", output)
 	}
 }
 
