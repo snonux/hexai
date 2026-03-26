@@ -3,7 +3,7 @@
 Hexai ships a Fish completion file for the `ask` task-management CLI at [`assets/ask.fish`](../assets/ask.fish).
 
 It completes the top-level `ask` subcommands and the nested `ask dep` operations.
-It also completes task UUIDs for UUID-taking commands by reading the current project from `ask all --json`.
+It also completes task UUIDs for UUID-taking commands by reading the current project from `ask all --json` and filtering out completed and deleted tasks.
 The script preserves the global `--json` flag.
 
 Install it into Fish's completion directory:

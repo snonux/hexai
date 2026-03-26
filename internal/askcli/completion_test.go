@@ -36,7 +36,7 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 		"complete -c ask -n '__ask_in_dep_context' -a 'rm' -d 'Remove a dependency'",
 		"complete -c ask -n '__ask_in_dep_context' -a 'list' -d 'List dependencies'",
 		"function __ask_task_uuids",
-		"command ask all --json 2>/dev/null",
+		"command ask all --json 2>/dev/null | jq -r '.[] | select(.status != \"completed\" and .status != \"deleted\") | .uuid' 2>/dev/null",
 		"complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Show task details'",
 		"complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_uuids)' -d 'Add a dependency'",
 		"complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_uuids)' -d 'Remove a dependency'",

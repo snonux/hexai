@@ -189,7 +189,7 @@ func writeFishDepUUIDContextFunction(b *strings.Builder) {
 
 func writeFishTaskUUIDFunction(b *strings.Builder) {
 	b.WriteString("function __ask_task_uuids\n")
-	b.WriteString("    command ask all --json 2>/dev/null | string match -r -a -g '\"uuid\":\"([^\"]+)\"'\n")
+	b.WriteString("    command ask all --json 2>/dev/null | jq -r '.[] | select(.status != \"completed\" and .status != \"deleted\") | .uuid' 2>/dev/null\n")
 	b.WriteString("end\n\n")
 }
 

@@ -92,7 +92,7 @@ function __ask_in_dep_uuid_context
 end
 
 function __ask_task_uuids
-    command ask all --json 2>/dev/null | string match -r -a -g '"uuid":"([^"]+)"'
+    command ask all --json 2>/dev/null | jq -r '.[] | select(.status != "completed" and .status != "deleted") | .uuid' 2>/dev/null
 end
 
 complete -c ask -f
