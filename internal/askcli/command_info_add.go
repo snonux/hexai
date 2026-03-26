@@ -50,9 +50,9 @@ func (d Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr
 	}
 	modifiers, description := parseAddArgs(args[1:])
 	var outBuf bytes.Buffer
-	// rc.verbose=new-uuid instructs taskwarrior to emit "Created task <uuid>."
-	// so we get the UUID directly from the add output without a follow-up export.
-	taskArgs := []string{"add", "rc.verbose=new-uuid"}
+	// rc.verbose=nothing keeps Taskwarrior quiet by default. rc.verbose=new-uuid
+	// then re-enables the UUID-only confirmation we parse below.
+	taskArgs := []string{"add", "rc.verbose=nothing", "rc.verbose=new-uuid"}
 	taskArgs = append(taskArgs, modifiers...)
 	taskArgs = append(taskArgs, description)
 	code, err := d.runner.Run(ctx, taskArgs, nil, &outBuf, stderr)

@@ -95,9 +95,9 @@ func TestHandleAdd_MultipleWords(t *testing.T) {
 	}))
 	var stdout, stderr bytes.Buffer
 	d.Dispatch(context.Background(), []string{"add", "Multi", "word", "description"}, nil, &stdout, &stderr)
-	// args[0]="add", args[1]="rc.verbose=new-uuid", then description
-	if len(capturedArgs) < 3 || capturedArgs[0] != "add" || capturedArgs[1] != "rc.verbose=new-uuid" {
-		t.Fatalf("capturedArgs = %v, want [add, rc.verbose=new-uuid, ...]", capturedArgs)
+	// args[0]="add", args[1]="rc.verbose=nothing", args[2]="rc.verbose=new-uuid"
+	if len(capturedArgs) < 4 || capturedArgs[0] != "add" || capturedArgs[1] != "rc.verbose=nothing" || capturedArgs[2] != "rc.verbose=new-uuid" {
+		t.Fatalf("capturedArgs = %v, want [add, rc.verbose=nothing, rc.verbose=new-uuid, ...]", capturedArgs)
 	}
 }
 
@@ -112,12 +112,12 @@ func TestHandleAdd_WithPriority(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0", code)
 	}
-	// args: [add, rc.verbose=new-uuid, priority:H, Fix critical bug]
-	if len(capturedArgs) < 4 {
-		t.Fatalf("capturedArgs = %v, want at least 4 elements", capturedArgs)
+	// args: [add, rc.verbose=nothing, rc.verbose=new-uuid, priority:H, Fix critical bug]
+	if len(capturedArgs) < 5 {
+		t.Fatalf("capturedArgs = %v, want at least 5 elements", capturedArgs)
 	}
-	if capturedArgs[2] != "priority:H" {
-		t.Errorf("capturedArgs[2] = %s, want priority:H", capturedArgs[2])
+	if capturedArgs[3] != "priority:H" {
+		t.Errorf("capturedArgs[3] = %s, want priority:H", capturedArgs[3])
 	}
 	if capturedArgs[len(capturedArgs)-1] != "Fix critical bug" {
 		t.Errorf("last arg = %s, want 'Fix critical bug'", capturedArgs[len(capturedArgs)-1])
@@ -135,9 +135,9 @@ func TestHandleAdd_WithTag(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0", code)
 	}
-	// args: [add, rc.verbose=new-uuid, +cli, New feature]
-	if capturedArgs[2] != "+cli" {
-		t.Errorf("capturedArgs[2] = %s, want +cli", capturedArgs[2])
+	// args: [add, rc.verbose=nothing, rc.verbose=new-uuid, +cli, New feature]
+	if capturedArgs[3] != "+cli" {
+		t.Errorf("capturedArgs[3] = %s, want +cli", capturedArgs[3])
 	}
 }
 
@@ -152,9 +152,9 @@ func TestHandleAdd_WithPriorityAndTag(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0", code)
 	}
-	// args: [add, rc.verbose=new-uuid, priority:H, +cli, Complex task]
-	if capturedArgs[2] != "priority:H" || capturedArgs[3] != "+cli" {
-		t.Errorf("capturedArgs = %v, want [add, rc.verbose=new-uuid, priority:H, +cli, Complex task]", capturedArgs)
+	// args: [add, rc.verbose=nothing, rc.verbose=new-uuid, priority:H, +cli, Complex task]
+	if capturedArgs[3] != "priority:H" || capturedArgs[4] != "+cli" {
+		t.Errorf("capturedArgs = %v, want [add, rc.verbose=nothing, rc.verbose=new-uuid, priority:H, +cli, Complex task]", capturedArgs)
 	}
 }
 

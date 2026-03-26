@@ -17,7 +17,7 @@ func TestExecutorTaskArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("taskArgs returned error: %v", err)
 	}
-	want := []string{"rc.confirmation=off", "project:hexai", "+agent", "list", "limit:1"}
+	want := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:hexai", "+agent", "list", "limit:1"}
 	if !reflect.DeepEqual(args, want) {
 		t.Fatalf("task args = %v, want %v", args, want)
 	}
@@ -47,7 +47,7 @@ func TestExecutorRun_InjectsProjectFilterAndAgentTag(t *testing.T) {
 	if gotName != "/usr/bin/task" {
 		t.Fatalf("task binary = %q, want /usr/bin/task", gotName)
 	}
-	wantArgs := []string{"rc.confirmation=off", "project:hexai", "+agent", "list", "limit:1"}
+	wantArgs := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:hexai", "+agent", "list", "limit:1"}
 	if !reflect.DeepEqual(gotArgs, wantArgs) {
 		t.Fatalf("task args = %v, want %v", gotArgs, wantArgs)
 	}

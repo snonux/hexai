@@ -37,9 +37,10 @@ func (e Executor) taskArgs(repoRoot string, args []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	// rc.confirmation=off suppresses interactive prompts so the CLI works
-	// non-interactively (stdin is never available when called from an agent).
-	return append([]string{"rc.confirmation=off", "project:" + projectName, "+agent"}, args...), nil
+	// rc.verbose=nothing suppresses Taskwarrior's configuration override
+	// banner, while rc.confirmation=off keeps non-interactive commands from
+	// prompting when stdin is unavailable.
+	return append([]string{"rc.verbose=nothing", "rc.confirmation=off", "project:" + projectName, "+agent"}, args...), nil
 }
 
 func (e Executor) Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
