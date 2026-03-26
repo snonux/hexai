@@ -46,6 +46,27 @@ func TestDispatcher_UnknownSubcommand(t *testing.T) {
 	}
 }
 
+func TestDispatcher_CompleteUUIDsSubcommand(t *testing.T) {
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if strings.Join(args, " ") != "status:pending export" {
+			t.Fatalf("args = %v, want pending export", args)
+		}
+		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1"}]`)
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(context.Background(), []string{"complete-uuids"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("complete-uuids returned error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("complete-uuids code = %d, want 0", code)
+	}
+	if got := stdout.String(); got != "uuid-1\n" {
+		t.Fatalf("stdout = %q, want UUID list", got)
+	}
+}
+
 func TestDispatcher_LongHelp(t *testing.T) {
 	d := NewDispatcher(nil)
 	var stdout bytes.Buffer

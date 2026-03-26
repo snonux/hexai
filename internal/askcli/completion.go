@@ -48,12 +48,6 @@ var askUUIDCompletionItems = []fishCompletionItem{
 	{name: "delete", description: "Delete a task"},
 }
 
-var askDepUUIDCompletionItems = []fishCompletionItem{
-	{name: "add", description: "Add a dependency"},
-	{name: "rm", description: "Remove a dependency"},
-	{name: "list", description: "List dependencies"},
-}
-
 func FishCompletion() string {
 	var b strings.Builder
 	writeFishPreamble(&b)
@@ -67,12 +61,8 @@ func FishCompletion() string {
 	for _, item := range askDepCompletionItems {
 		writeFishCompletionLine(&b, "__ask_in_dep_context", item)
 	}
-	for _, item := range askUUIDCompletionItems {
-		writeFishUUIDCompletionLine(&b, "__ask_in_uuid_context", item.description)
-	}
-	for _, item := range askDepUUIDCompletionItems {
-		writeFishUUIDCompletionLine(&b, "__ask_in_dep_uuid_context", item.description)
-	}
+	writeFishUUIDCompletionLine(&b, "__ask_in_uuid_context", "Task UUID")
+	writeFishUUIDCompletionLine(&b, "__ask_in_dep_uuid_context", "Task UUID")
 	return b.String()
 }
 
@@ -189,7 +179,18 @@ func writeFishDepUUIDContextFunction(b *strings.Builder) {
 
 func writeFishTaskUUIDFunction(b *strings.Builder) {
 	b.WriteString("function __ask_task_uuids\n")
-	b.WriteString("    command ask all --json 2>/dev/null | jq -r '.[] | select(.status != \"completed\" and .status != \"deleted\") | .uuid' 2>/dev/null\n")
+	b.WriteString("    set -l now (date +%s)\n")
+	b.WriteString("    if set -q __ask_task_uuid_cache_until; and test $__ask_task_uuid_cache_until -ge $now\n")
+	b.WriteString("        printf '%s\\n' $__ask_task_uuid_cache\n")
+	b.WriteString("        return 0\n")
+	b.WriteString("    end\n")
+	b.WriteString("    set -l uuids (command ask complete-uuids 2>/dev/null)\n")
+	b.WriteString("    if test $status -ne 0\n")
+	b.WriteString("        return 1\n")
+	b.WriteString("    end\n")
+	b.WriteString("    set -g __ask_task_uuid_cache $uuids\n")
+	b.WriteString("    set -g __ask_task_uuid_cache_until (math $now + 2)\n")
+	b.WriteString("    printf '%s\\n' $uuids\n")
 	b.WriteString("end\n\n")
 }
 

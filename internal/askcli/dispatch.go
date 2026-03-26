@@ -76,6 +76,8 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 		return d.handleDelete(ctx, args, stdin, stdout, stderr)
 	case "help":
 		return d.help(stdout)
+	case "complete-uuids":
+		return d.handleCompleteUUIDs(ctx, stdout, stderr)
 	default:
 		return d.unknownCommand(stderr, subcommand)
 	}
