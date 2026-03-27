@@ -4,11 +4,31 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHandleUrgency_Success(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 2,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
 	jsonData := `[{"uuid":"uuid-2","description":"Task 2","status":"pending","priority":"M","tags":["agent"],"urgency":10.0,"depends":[]},{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		io.WriteString(stdout, jsonData)
@@ -26,11 +46,11 @@ func TestHandleUrgency_Success(t *testing.T) {
 	}
 	taskLine1 := lines[2]
 	taskLine2 := lines[3]
-	if !strings.Contains(taskLine1, "uuid-1") {
-		t.Fatalf("first task line should contain uuid-1 (urgency 15.0), got: %s", taskLine1)
+	if !strings.Contains(taskLine1, "0") || strings.Contains(taskLine1, "uuid-1") {
+		t.Fatalf("first task line should contain alias 0 (urgency 15.0), got: %s", taskLine1)
 	}
-	if !strings.Contains(taskLine2, "uuid-2") {
-		t.Fatalf("second task line should contain uuid-2 (urgency 10.0), got: %s", taskLine2)
+	if !strings.Contains(taskLine2, "1") || strings.Contains(taskLine2, "uuid-2") {
+		t.Fatalf("second task line should contain alias 1 (urgency 10.0), got: %s", taskLine2)
 	}
 }
 

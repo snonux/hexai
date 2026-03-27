@@ -127,7 +127,7 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 
 `ask` is a task management CLI for the current git project. It auto-scopes to `project:<repo> +agent` so all operations are confined to the current project.
 
-`ask` never exposes numeric task IDs — it uses UUIDs for all task references. Output is machine-friendly: UUID-only tables, suppressed decorative text, and structured formats.
+`ask` never exposes Taskwarrior numeric task IDs. Human-facing output uses stable local alias IDs where practical, while `ask info` shows both the alias ID and the UUID. Commands that accept a task selector support either the alias ID or the UUID.
 
 `ask` must be run inside a git repository so the project name can be derived from the repo root.
 
@@ -138,7 +138,7 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 | `ask add "description"` | Create a new task |
 | `ask add priority:H "description"` | Create task with priority |
 | `ask add +tag "description"` | Create task with tag |
-| `ask list` | List pending tasks only (UUID-only table) |
+| `ask list` | List pending tasks only (alias-ID table) |
 | `ask all` | List all tasks including completed/deleted |
 | `ask list +READY` | List only ready tasks |
 | `ask list +BLOCKED` | List blocked tasks |
@@ -146,21 +146,21 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 | `ask list started` | List started tasks |
 | `ask list limit:N` | Limit results |
 | `ask list sort:priority-,urgency-` | Sort by priority then urgency |
-| `ask info [uuid]` | Show task details, or the current started task if UUID is omitted |
-| `ask annotate <uuid> "note"` | Add annotation |
-| `ask start <uuid>` | Start working on a task |
-| `ask stop <uuid>` | Stop work on a task |
-| `ask done <uuid>` | Mark task complete |
-| `ask priority <uuid> H\|M\|L` | Set priority |
-| `ask tag <uuid> +tag` | Add tag |
-| `ask tag <uuid> -tag` | Remove tag |
-| `ask dep add <uuid> <dep-uuid>` | Add dependency |
-| `ask dep rm <uuid> <dep-uuid>` | Remove dependency |
-| `ask dep list <uuid>` | List dependencies |
+| `ask info [id\|uuid]` | Show task details, or the current started task if no selector is provided |
+| `ask annotate <id\|uuid> "note"` | Add annotation |
+| `ask start <id\|uuid>` | Start working on a task |
+| `ask stop <id\|uuid>` | Stop work on a task |
+| `ask done <id\|uuid>` | Mark task complete |
+| `ask priority <id\|uuid> H\|M\|L` | Set priority |
+| `ask tag <id\|uuid> +tag` | Add tag |
+| `ask tag <id\|uuid> -tag` | Remove tag |
+| `ask dep add <id\|uuid> <dep-id\|dep-uuid>` | Add dependency |
+| `ask dep rm <id\|uuid> <dep-id\|dep-uuid>` | Remove dependency |
+| `ask dep list <id\|uuid>` | List dependencies |
 | `ask urgency` | List tasks by urgency |
-| `ask modify <uuid> <args...>` | General-purpose modify |
-| `ask denotate <uuid> "text"` | Remove annotation |
-| `ask delete <uuid>` | Delete a task |
+| `ask modify <id\|uuid> <args...>` | General-purpose modify |
+| `ask denotate <id\|uuid> "text"` | Remove annotation |
+| `ask delete <id\|uuid>` | Delete a task |
 
 ### Examples
 
@@ -171,11 +171,14 @@ ask add priority:H "Implement new feature"
 # List tasks
 ask list +READY limit:5
 
+# Show alias and UUID for a task
+ask info 0
+
 # Start working
-ask start 9a3cfcb4-742e-4a38-ac91-e9b36594bff0
+ask start 0
 
 # Done
-ask done 9a3cfcb4-742e-4a38-ac91-e9b36594bff0
+ask done 0
 ```
 
 ## Hexai Action (TUI)

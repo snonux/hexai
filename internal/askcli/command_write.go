@@ -23,7 +23,7 @@ func (d Dispatcher) handleDenotate(ctx context.Context, args []string, stdout, s
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
 
@@ -43,7 +43,7 @@ func (d Dispatcher) handleModify(ctx context.Context, args []string, stdout, std
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
 
@@ -63,7 +63,7 @@ func (d Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, s
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
 
@@ -84,7 +84,7 @@ func (d Dispatcher) handleStart(ctx context.Context, args []string, stdout, stde
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
 
@@ -103,7 +103,7 @@ func (d Dispatcher) handleStop(ctx context.Context, args []string, stdout, stder
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
 
@@ -122,7 +122,7 @@ func (d Dispatcher) handleDone(ctx context.Context, args []string, stdout, stder
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
 
@@ -142,7 +142,7 @@ func (d Dispatcher) handlePriority(ctx context.Context, args []string, stdout, s
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
 
@@ -162,6 +162,6 @@ func (d Dispatcher) handleTag(ctx context.Context, args []string, stdout, stderr
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }

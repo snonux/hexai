@@ -32,7 +32,12 @@ func (d Dispatcher) handleUrgency(ctx context.Context, stdout, stderr io.Writer)
 		stdout.Write(data)
 		io.WriteString(stdout, "\n")
 	} else {
-		io.WriteString(stdout, FormatTaskList(tasks))
+		aliases, err := ensureTaskAliases(tasks)
+		if err != nil {
+			fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
+			return 1, nil
+		}
+		io.WriteString(stdout, FormatTaskList(tasks, aliases))
 	}
 	return 0, nil
 }

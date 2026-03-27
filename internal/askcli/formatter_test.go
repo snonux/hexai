@@ -12,22 +12,23 @@ func TestFormatTaskList(t *testing.T) {
 		{UUID: "uuid-2", Description: strings.Repeat("a", 100), Status: "completed", Priority: "M", Tags: []string{"agent", "test"}, Urgency: 5.0},
 		{UUID: "uuid-3", Description: "No tags task", Status: "waiting", Priority: "L", Tags: []string{}, Urgency: 8.0},
 	}
-	output := FormatTaskList(tasks)
+	aliases := map[string]string{"uuid-1": "0", "uuid-2": "1", "uuid-3": "2"}
+	output := FormatTaskList(tasks, aliases)
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) < 3 {
 		t.Fatalf("FormatTaskList produced too few lines: %d", len(lines))
 	}
-	if !strings.Contains(lines[0], "UUID") || !strings.Contains(lines[0], "Priority") {
-		t.Fatalf("header missing UUID or Priority column: %s", lines[0])
+	if !strings.Contains(lines[0], "ID") || !strings.Contains(lines[0], "Priority") {
+		t.Fatalf("header missing ID or Priority column: %s", lines[0])
 	}
 	if !strings.Contains(lines[0], "Started") {
 		t.Fatalf("header missing Started column: %s", lines[0])
 	}
-	if !strings.Contains(lines[2], "uuid-1") {
-		t.Fatalf("first task line missing uuid-1: %s", lines[2])
+	if !strings.Contains(lines[2], "0") || strings.Contains(lines[2], "uuid-1") {
+		t.Fatalf("first task line should show alias only: %s", lines[2])
 	}
-	if strings.Contains(lines[2], "...") {
-		t.Fatalf("long description should be truncated with ...: %s", lines[2])
+	if !strings.Contains(lines[3], "...") {
+		t.Fatalf("long description should be truncated with ...: %s", lines[3])
 	}
 }
 
@@ -51,17 +52,18 @@ func TestFormatTaskList_AlignsHeaderAndSeparator(t *testing.T) {
 		},
 	}
 
-	output := FormatTaskList(tasks)
+	aliases := map[string]string{"uuid-short": "0", "uuid-with-a-longer-value": "00"}
+	output := FormatTaskList(tasks, aliases)
 	lines := strings.Split(strings.TrimSuffix(output, "\n"), "\n")
 	if len(lines) != 4 {
 		t.Fatalf("FormatTaskList produced %d lines, want 4: %q", len(lines), output)
 	}
 
-	widths := taskListWidthsFor(tasks)
+	widths := taskListWidthsFor(tasks, aliases)
 	wantHeader := fmt.Sprintf("%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s",
 		widths.Urgency, "Urgency",
 		widths.Priority, "Priority",
-		widths.UUID, "UUID",
+		widths.ID, "ID",
 		widths.Status, "Status",
 		widths.Started, "Started",
 		widths.Tags, "Tags",
@@ -72,6 +74,15 @@ func TestFormatTaskList_AlignsHeaderAndSeparator(t *testing.T) {
 	}
 	if len(lines[1]) != len(wantHeader) {
 		t.Fatalf("separator length = %d, want %d", len(lines[1]), len(wantHeader))
+	}
+}
+
+func TestFormatTaskList_FallsBackToUUIDWithoutAlias(t *testing.T) {
+	tasks := []TaskExport{{UUID: "uuid-1", Description: "Task", Status: "pending", Priority: "H", Urgency: 1.0}}
+
+	output := FormatTaskList(tasks, nil)
+	if !strings.Contains(output, "uuid-1") {
+		t.Fatalf("FormatTaskList should fall back to UUID when alias is unavailable: %s", output)
 	}
 }
 
@@ -92,7 +103,10 @@ func TestFormatTaskInfo(t *testing.T) {
 			{Description: "First note", Entry: "2026-03-22T11:00:00Z"},
 		},
 	}
-	output := FormatTaskInfo(task)
+	output := FormatTaskInfo(task, "0", map[string]string{"dep-1": "1", "dep-2": "2"})
+	if !strings.Contains(output, "ID:          0") {
+		t.Fatalf("FormatTaskInfo missing alias ID: %s", output)
+	}
 	if !strings.Contains(output, "test-uuid") {
 		t.Fatalf("FormatTaskInfo missing UUID: %s", output)
 	}
@@ -108,8 +122,8 @@ func TestFormatTaskInfo(t *testing.T) {
 	if !strings.Contains(output, "cli, agent") {
 		t.Fatalf("FormatTaskInfo missing tags: %s", output)
 	}
-	if !strings.Contains(output, "dep-1") {
-		t.Fatalf("FormatTaskInfo missing depends: %s", output)
+	if !strings.Contains(output, "1 (dep-1)") || !strings.Contains(output, "2 (dep-2)") {
+		t.Fatalf("FormatTaskInfo missing formatted depends: %s", output)
 	}
 	if !strings.Contains(output, "First note") {
 		t.Fatalf("FormatTaskInfo missing annotation: %s", output)
@@ -117,17 +131,17 @@ func TestFormatTaskInfo(t *testing.T) {
 }
 
 func TestFormatSuccess(t *testing.T) {
-	output := FormatSuccess("test-uuid")
-	if !strings.Contains(output, "ok") || !strings.Contains(output, "test-uuid") {
-		t.Fatalf("FormatSuccess = %q, want ok + uuid", output)
+	output := FormatSuccess("0")
+	if !strings.Contains(output, "ok") || !strings.Contains(output, "0") {
+		t.Fatalf("FormatSuccess = %q, want ok + alias", output)
 	}
 }
 
 func TestFormatError(t *testing.T) {
 	err := &testError{msg: "something went wrong"}
-	output := FormatError(err, "uuid-123")
-	if !strings.Contains(output, "error") || !strings.Contains(output, "uuid-123") || !strings.Contains(output, "something went wrong") {
-		t.Fatalf("FormatError = %q, want error + uuid + message", output)
+	output := FormatError(err, "0")
+	if !strings.Contains(output, "error") || !strings.Contains(output, "0") || !strings.Contains(output, "something went wrong") {
+		t.Fatalf("FormatError = %q, want error + alias + message", output)
 	}
 }
 
@@ -195,7 +209,7 @@ func TestFormatTaskInfo_NoOptionalFields(t *testing.T) {
 		Tags:        []string{},
 		Urgency:     0,
 	}
-	output := FormatTaskInfo(task)
+	output := FormatTaskInfo(task, "0", nil)
 	if !strings.Contains(output, "simple-uuid") {
 		t.Fatalf("FormatTaskInfo missing UUID: %s", output)
 	}

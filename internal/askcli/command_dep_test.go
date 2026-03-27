@@ -11,6 +11,24 @@ import (
 )
 
 func TestHandleDep_AddSuccess(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 2,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[1] == "export" {
@@ -30,8 +48,8 @@ func TestHandleDep_AddSuccess(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("dep add code = %d, want 0", code)
 	}
-	if !strings.Contains(stdout.String(), "ok") || !strings.Contains(stdout.String(), "uuid-1") {
-		t.Fatalf("stdout = %q, want ok + uuid", stdout.String())
+	if !strings.Contains(stdout.String(), "ok 0") || strings.Contains(stdout.String(), "uuid-1") {
+		t.Fatalf("stdout = %q, want ok + alias only", stdout.String())
 	}
 	// Verify uuid:<uuid> is the filter (not a modification argument).
 	if len(capturedArgs) < 3 || capturedArgs[0] != "uuid:uuid-1" || capturedArgs[1] != "modify" {
@@ -60,6 +78,25 @@ func TestHandleDep_RmSuccess(t *testing.T) {
 }
 
 func TestHandleDep_ListSuccess(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 3,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "dep-1", Alias: "1", CreatedAt: nowTaskAliasCache()},
+			{UUID: "dep-2", Alias: "2", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
 	jsonData := `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":["dep-1","dep-2"]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		io.WriteString(stdout, jsonData)
@@ -71,8 +108,8 @@ func TestHandleDep_ListSuccess(t *testing.T) {
 		t.Fatalf("dep list code = %d, want 0", code)
 	}
 	output := stdout.String()
-	if !strings.Contains(output, "dep-1") || !strings.Contains(output, "dep-2") {
-		t.Fatalf("stdout = %q, want deps", output)
+	if !strings.Contains(output, "1") || !strings.Contains(output, "2") || strings.Contains(output, "dep-1") || strings.Contains(output, "dep-2") {
+		t.Fatalf("stdout = %q, want alias deps only", output)
 	}
 }
 

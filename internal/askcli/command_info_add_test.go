@@ -11,6 +11,24 @@ import (
 )
 
 func TestHandleInfo_Success(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 2,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "dep-1", Alias: "1", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
 	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli","agent"],"urgency":15.0,"depends":["dep-1"],"annotations":[{"description":"Note 1","entry":"2026-03-22T10:00:00Z"}]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		// args[0] is "uuid:<uuid>" (the filter); emit data for any export call
@@ -25,6 +43,9 @@ func TestHandleInfo_Success(t *testing.T) {
 		t.Fatalf("info code = %d, want 0", code)
 	}
 	output := stdout.String()
+	if !strings.Contains(output, "ID:          0") {
+		t.Fatalf("output missing alias ID: %s", output)
+	}
 	if !strings.Contains(output, "test-uuid") {
 		t.Fatalf("output missing UUID: %s", output)
 	}
@@ -33,6 +54,9 @@ func TestHandleInfo_Success(t *testing.T) {
 	}
 	if !strings.Contains(output, "Started:     no") {
 		t.Fatalf("output missing explicit started state: %s", output)
+	}
+	if !strings.Contains(output, "Depends:     1 (dep-1)") {
+		t.Fatalf("output missing formatted dependency alias: %s", output)
 	}
 }
 
@@ -67,8 +91,8 @@ func TestHandleInfo_AliasSelector(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("info code = %d, want 0", code)
 	}
-	if !strings.Contains(stdout.String(), "test-uuid") {
-		t.Fatalf("stdout = %q, want resolved UUID", stdout.String())
+	if !strings.Contains(stdout.String(), "ID:          0") || !strings.Contains(stdout.String(), "UUID:        test-uuid") {
+		t.Fatalf("stdout = %q, want alias and UUID", stdout.String())
 	}
 }
 
@@ -84,6 +108,16 @@ func TestHandleInfo_NumericID(t *testing.T) {
 }
 
 func TestHandleInfo_MissingUUID(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
 	jsonData := `[{"uuid":"started-uuid","description":"Started task","status":"pending","priority":"M","start":"2026-03-26T10:00:00Z","urgency":5.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
@@ -96,8 +130,8 @@ func TestHandleInfo_MissingUUID(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("info code = %d, want 0 for implicit started task", code)
 	}
-	if !strings.Contains(stdout.String(), "started-uuid") {
-		t.Fatalf("output missing started task UUID: %s", stdout.String())
+	if !strings.Contains(stdout.String(), "ID:          0") || !strings.Contains(stdout.String(), "UUID:        started-uuid") {
+		t.Fatalf("output missing alias and started task UUID: %s", stdout.String())
 	}
 }
 

@@ -24,7 +24,13 @@ func (d Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stder
 		stdout.Write(data)
 		io.WriteString(stdout, "\n")
 	} else {
-		io.WriteString(stdout, FormatTaskInfo(tasks[0]))
+		allUUIDs := append([]string{tasks[0].UUID}, tasks[0].Depends...)
+		aliases, err := ensureTaskAliasesForUUIDs(allUUIDs)
+		if err != nil {
+			fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
+			return 1, nil
+		}
+		io.WriteString(stdout, FormatTaskInfo(tasks[0], displayTaskAlias(tasks[0].UUID, aliases), aliases))
 	}
 	return 0, nil
 }

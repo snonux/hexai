@@ -53,7 +53,7 @@ func (d Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, s
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
 
@@ -75,7 +75,16 @@ func (d Dispatcher) handleDepList(ctx context.Context, args []string, stdout, st
 	if len(task.Depends) == 0 {
 		io.WriteString(stdout, "no dependencies\n")
 	} else {
-		io.WriteString(stdout, strings.Join(task.Depends, "\n")+"\n")
+		aliases, err := ensureTaskAliasesForUUIDs(task.Depends)
+		if err != nil {
+			fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
+			return 1, nil
+		}
+		ids := make([]string, 0, len(task.Depends))
+		for _, uuid := range task.Depends {
+			ids = append(ids, displayTaskAlias(uuid, aliases))
+		}
+		io.WriteString(stdout, strings.Join(ids, "\n")+"\n")
 	}
 	return 0, nil
 }

@@ -57,6 +57,17 @@ func ensureTaskAliases(tasks []TaskExport) (map[string]string, error) {
 	return aliases, nil
 }
 
+func ensureTaskAliasesForUUIDs(uuids []string) (map[string]string, error) {
+	tasks := make([]TaskExport, 0, len(uuids))
+	for _, uuid := range uuids {
+		if uuid == "" {
+			continue
+		}
+		tasks = append(tasks, TaskExport{UUID: uuid})
+	}
+	return ensureTaskAliases(tasks)
+}
+
 func loadTaskAliasCache() (taskAliasCache, string, error) {
 	path, err := taskAliasCachePath()
 	if err != nil {

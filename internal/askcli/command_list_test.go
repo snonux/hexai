@@ -4,11 +4,31 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHandleList_Success(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 2,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
 	jsonData := `[{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":["cli"],"start":"2026-03-26T10:00:00Z","urgency":15.0,"depends":[]},{"uuid":"uuid-2","description":"Task 2","status":"completed","priority":"M","tags":["agent"],"urgency":10.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
@@ -25,8 +45,11 @@ func TestHandleList_Success(t *testing.T) {
 		t.Fatalf("list code = %d, want 0", code)
 	}
 	output := stdout.String()
-	if !strings.Contains(output, "uuid-1") || !strings.Contains(output, "uuid-2") {
-		t.Fatalf("output missing UUIDs: %s", output)
+	if !strings.Contains(output, "ID") || strings.Contains(output, "UUID") {
+		t.Fatalf("output should use ID column: %s", output)
+	}
+	if !strings.Contains(output, "0") || !strings.Contains(output, "1") || strings.Contains(output, "uuid-1") || strings.Contains(output, "uuid-2") {
+		t.Fatalf("output missing aliases or leaking UUIDs: %s", output)
 	}
 	if !strings.Contains(output, "Started") || !strings.Contains(output, "yes") || !strings.Contains(output, "no") {
 		t.Fatalf("output missing explicit started state: %s", output)
@@ -34,6 +57,24 @@ func TestHandleList_Success(t *testing.T) {
 }
 
 func TestHandleList_SortedByPriority(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 2,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
 	jsonData := `[{"uuid":"uuid-2","description":"Task 2","status":"pending","priority":"M","tags":[],"urgency":10.0,"depends":[]},{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":[],"urgency":5.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
@@ -49,8 +90,8 @@ func TestHandleList_SortedByPriority(t *testing.T) {
 	output := stdout.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	taskLine1 := lines[2]
-	if !strings.Contains(taskLine1, "uuid-1") {
-		t.Fatalf("first task should be H priority (uuid-1), got: %s", taskLine1)
+	if !strings.Contains(taskLine1, "0") || strings.Contains(taskLine1, "uuid-1") {
+		t.Fatalf("first task should be H priority alias 0, got: %s", taskLine1)
 	}
 }
 
@@ -72,6 +113,23 @@ func TestHandleList_EmptyList(t *testing.T) {
 }
 
 func TestHandleAll_Success(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
 	jsonData := `[{"uuid":"uuid-1","description":"Done task","status":"completed","priority":"M","tags":[],"urgency":0.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
@@ -87,12 +145,29 @@ func TestHandleAll_Success(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("all code = %d, want 0", code)
 	}
-	if !strings.Contains(stdout.String(), "uuid-1") {
-		t.Fatalf("output missing uuid-1: %s", stdout.String())
+	if !strings.Contains(stdout.String(), "0") || strings.Contains(stdout.String(), "uuid-1") {
+		t.Fatalf("output should show alias only: %s", stdout.String())
 	}
 }
 
 func TestHandleReady_Success(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-ready", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
 	jsonData := `[{"uuid":"uuid-ready","description":"Ready task","status":"pending","priority":"H","tags":["READY"],"urgency":20.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
@@ -108,8 +183,8 @@ func TestHandleReady_Success(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("ready code = %d, want 0", code)
 	}
-	if !strings.Contains(stdout.String(), "uuid-ready") {
-		t.Fatalf("output missing uuid-ready: %s", stdout.String())
+	if !strings.Contains(stdout.String(), "0") || strings.Contains(stdout.String(), "uuid-ready") {
+		t.Fatalf("output should show alias only: %s", stdout.String())
 	}
 }
 

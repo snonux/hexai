@@ -21,6 +21,6 @@ func (d Dispatcher) handleDelete(ctx context.Context, args []string, stdin io.Re
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(resolved.UUID))
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
