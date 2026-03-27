@@ -60,6 +60,46 @@ func TestHandleInfo_Success(t *testing.T) {
 	}
 }
 
+func TestHandleInfo_AssignsDependencyAliasesFromInfo(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
+	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":["dep-b","dep-a"]}]`
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) > 0 && strings.HasPrefix(args[0], "uuid:") {
+			io.WriteString(stdout, jsonData)
+		}
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"info", "test-uuid"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("info code = %d, want 0", code)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "Depends:") ||
+		!strings.Contains(output, "(dep-a)") ||
+		!strings.Contains(output, "(dep-b)") {
+		t.Fatalf("output missing assigned dependency aliases: %s", output)
+	}
+}
+
 func TestHandleInfo_AliasSelector(t *testing.T) {
 	dir := t.TempDir()
 	oldRoot := taskAliasCacheRoot

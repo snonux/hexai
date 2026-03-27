@@ -163,6 +163,7 @@ type taskInfo struct {
 	Started     string
 	StartTime   string
 	Priority    string
+	Depends     []string
 	Tags        []string
 }
 
@@ -174,6 +175,7 @@ var (
 	startedFieldRx   = regexp.MustCompile(`Started:\s+(.+)`)
 	startTimeFieldRx = regexp.MustCompile(`Start time:\s+(.+)`)
 	priorityFieldRx  = regexp.MustCompile(`Priority:\s+(.+)`)
+	dependsFieldRx   = regexp.MustCompile(`Depends:\s+(.+)`)
 	tagsFieldRx      = regexp.MustCompile(`Tags:\s+(.+)`)
 	uuidFormatRx     = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
@@ -200,6 +202,12 @@ func parseTaskInfoText(output string, uuid string) taskInfo {
 	}
 	if m := priorityFieldRx.FindStringSubmatch(output); len(m) > 1 {
 		ti.Priority = strings.TrimSpace(m[1])
+	}
+	if m := dependsFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		depStr := strings.TrimSpace(m[1])
+		if depStr != "" {
+			ti.Depends = strings.Split(depStr, ", ")
+		}
 	}
 	if m := tagsFieldRx.FindStringSubmatch(output); len(m) > 1 {
 		tagStr := strings.TrimSpace(m[1])
@@ -400,6 +408,56 @@ func TestInfo(t *testing.T) {
 	}
 	if !strings.Contains(aliasOutput, "UUID:        "+uuid) {
 		t.Errorf("info by alias output missing uuid line: %s", aliasOutput)
+	}
+}
+
+func TestInfoShowsAllDependencies(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	dependency1, err := createTask(ctx, "integration test info dependency one")
+	if err != nil {
+		t.Fatalf("failed to create first dependency task: %v", err)
+	}
+	defer deleteTask(ctx, dependency1)
+
+	dependency2, err := createTask(ctx, "integration test info dependency two")
+	if err != nil {
+		t.Fatalf("failed to create second dependency task: %v", err)
+	}
+	defer deleteTask(ctx, dependency2)
+
+	dependent, err := createTask(ctx, "integration test task for info dependencies")
+	if err != nil {
+		t.Fatalf("failed to create dependent task: %v", err)
+	}
+	defer deleteTask(ctx, dependent)
+
+	if stdout, stderr, code := runAsk(ctx, []string{"dep", "add", dependent, dependency2}); code != 0 {
+		t.Fatalf("dep add for second dependency failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	if stdout, stderr, code := runAsk(ctx, []string{"dep", "add", dependent, dependency1}); code != 0 {
+		t.Fatalf("dep add for first dependency failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+
+	ti, ok := getTaskInfoFast(ctx, dependent)
+	if !ok {
+		t.Fatalf("info failed for task with dependencies")
+	}
+	if len(ti.Depends) != 2 {
+		t.Fatalf("info dependencies count = %d, want 2: %+v", len(ti.Depends), ti.Depends)
+	}
+
+	alias1 := mustTaskAlias(t, ctx, dependency1)
+	alias2 := mustTaskAlias(t, ctx, dependency2)
+	wantDepends := []string{
+		alias1 + " (" + dependency1 + ")",
+		alias2 + " (" + dependency2 + ")",
+	}
+	slices.Sort(wantDepends)
+	if !slices.Equal(ti.Depends, wantDepends) {
+		t.Fatalf("info dependencies = %+v, want %+v", ti.Depends, wantDepends)
 	}
 }
 
