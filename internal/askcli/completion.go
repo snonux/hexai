@@ -57,7 +57,7 @@ func FishCompletionFor(binaryPath string) string {
 	var b strings.Builder
 	writeFishPreamble(&b)
 	writeFishContextFunctions(&b)
-	writeFishTaskUUIDFunction(&b, binaryPath)
+	writeFishTaskSelectorFunction(&b, binaryPath)
 	b.WriteString("complete -c ask -f\n")
 	b.WriteString("complete -c ask -s j -l json -d 'Emit JSON output'\n")
 	for _, item := range askRootCompletionItems {
@@ -66,8 +66,8 @@ func FishCompletionFor(binaryPath string) string {
 	for _, item := range askDepCompletionItems {
 		writeFishCompletionLine(&b, "__ask_in_dep_context", item)
 	}
-	writeFishUUIDCompletionLine(&b, "__ask_in_uuid_context", "Task UUID")
-	writeFishUUIDCompletionLine(&b, "__ask_in_dep_uuid_context", "Task UUID")
+	writeFishUUIDCompletionLine(&b, "__ask_in_uuid_context", "Task selector")
+	writeFishUUIDCompletionLine(&b, "__ask_in_dep_uuid_context", "Task selector")
 	return b.String()
 }
 
@@ -181,23 +181,23 @@ func writeFishDepUUIDContextFunction(b *strings.Builder) {
 	b.WriteString("end\n\n")
 }
 
-func writeFishTaskUUIDFunction(b *strings.Builder, binaryPath string) {
-	b.WriteString("function __ask_task_uuids\n")
+func writeFishTaskSelectorFunction(b *strings.Builder, binaryPath string) {
+	b.WriteString("function __ask_task_selectors\n")
 	b.WriteString("    set -l ask_bin ")
 	b.WriteString(quoteFishString(binaryPath))
 	b.WriteString("\n")
 	b.WriteString("    set -l now (date +%s)\n")
-	b.WriteString("    if set -q __ask_task_uuid_cache_until; and test $__ask_task_uuid_cache_until -ge $now\n")
-	b.WriteString("        printf '%s\\n' $__ask_task_uuid_cache\n")
+	b.WriteString("    if set -q __ask_task_selector_cache_until; and test $__ask_task_selector_cache_until -ge $now\n")
+	b.WriteString("        printf '%s\\n' $__ask_task_selector_cache\n")
 	b.WriteString("        return 0\n")
 	b.WriteString("    end\n")
-	b.WriteString("    set -l uuids (command $ask_bin complete-uuids 2>/dev/null)\n")
+	b.WriteString("    set -l selectors (command $ask_bin complete-uuids 2>/dev/null)\n")
 	b.WriteString("    if test $status -ne 0\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
-	b.WriteString("    set -g __ask_task_uuid_cache $uuids\n")
-	b.WriteString("    set -g __ask_task_uuid_cache_until (math $now + 2)\n")
-	b.WriteString("    printf '%s\\n' $uuids\n")
+	b.WriteString("    set -g __ask_task_selector_cache $selectors\n")
+	b.WriteString("    set -g __ask_task_selector_cache_until (math $now + 2)\n")
+	b.WriteString("    printf '%s\\n' $selectors\n")
 	b.WriteString("end\n\n")
 }
 
@@ -214,7 +214,7 @@ func writeFishCompletionLine(b *strings.Builder, condition string, item fishComp
 func writeFishUUIDCompletionLine(b *strings.Builder, condition, description string) {
 	b.WriteString("complete -c ask -n '")
 	b.WriteString(condition)
-	b.WriteString("' -a '(__ask_task_uuids)' -d '")
+	b.WriteString("' -a '(__ask_task_selectors)' -d '")
 	b.WriteString(strings.ReplaceAll(description, "'", "\\'"))
 	b.WriteString("'\n")
 }

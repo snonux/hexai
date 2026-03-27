@@ -3,7 +3,8 @@
 The `ask` task-management CLI embeds its Fish completion script in the binary and prints it with `ask fish`.
 
 It completes the top-level `ask` subcommands and the nested `ask dep` operations.
-It also completes task UUIDs for UUID-taking commands by reading the current project from `ask all --json` and filtering out completed and deleted tasks.
+It also completes task selectors for UUID-taking commands by reading pending tasks through `ask complete-uuids`, which uses the local alias cache for stable short IDs.
+Fish suggests each task's alias ID first and also keeps the raw UUID available as a fallback selector.
 The script preserves the global `--json` flag.
 
 Load it into the current Fish session:

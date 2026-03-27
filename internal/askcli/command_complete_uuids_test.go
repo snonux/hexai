@@ -39,8 +39,8 @@ func TestHandleCompleteUUIDs_PrintsPendingUUIDs(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("handleCompleteUUIDs code = %d, want 0", code)
 	}
-	if got := stdout.String(); got != "uuid-1\nuuid-2\n" {
-		t.Fatalf("stdout = %q, want UUID list", got)
+	if got := stdout.String(); got != "0\nuuid-1\n1\nuuid-2\n" {
+		t.Fatalf("stdout = %q, want alias-first selector list", got)
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q, want empty", stderr.String())
@@ -109,9 +109,27 @@ func TestHandleCompleteUUIDs_WarnsOnInvalidAliasCache(t *testing.T) {
 		t.Fatalf("handleCompleteUUIDs code = %d, want 0", code)
 	}
 	if got := stdout.String(); got != "uuid-1\n" {
-		t.Fatalf("stdout = %q, want UUID list", got)
+		t.Fatalf("stdout = %q, want UUID-only fallback list", got)
 	}
 	if !strings.Contains(stderr.String(), "failed to update task alias cache") {
 		t.Fatalf("stderr = %q, want cache warning", stderr.String())
+	}
+}
+
+func TestTaskCompletionSelectors_SkipsMissingAndDuplicateAliases(t *testing.T) {
+	tasks := []TaskExport{
+		{UUID: "uuid-1"},
+		{UUID: ""},
+		{UUID: "uuid-2"},
+	}
+	aliases := map[string]string{
+		"uuid-1": "0",
+		"uuid-2": "uuid-2",
+	}
+
+	got := taskCompletionSelectors(tasks, aliases)
+	want := []string{"0", "uuid-1", "uuid-2"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("taskCompletionSelectors = %v, want %v", got, want)
 	}
 }

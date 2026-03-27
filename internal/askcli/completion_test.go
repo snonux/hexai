@@ -17,11 +17,11 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 		"complete -c ask -n '__ask_in_dep_context' -a 'add' -d 'Add a dependency'",
 		"complete -c ask -n '__ask_in_dep_context' -a 'rm' -d 'Remove a dependency'",
 		"complete -c ask -n '__ask_in_dep_context' -a 'list' -d 'List dependencies'",
-		"function __ask_task_uuids",
+		"function __ask_task_selectors",
 		`set -l ask_bin "ask"`,
-		"set -l uuids (command $ask_bin complete-uuids 2>/dev/null)",
-		"complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_uuids)' -d 'Task UUID'",
-		"complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_uuids)' -d 'Task UUID'",
+		"set -l selectors (command $ask_bin complete-uuids 2>/dev/null)",
+		"complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
+		"complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
 	} {
 		if !strings.Contains(script, line) {
 			t.Fatalf("script missing dep completion line %q", line)
@@ -39,7 +39,7 @@ func TestFishCompletionFor_EmbedsBinaryPath(t *testing.T) {
 	script := FishCompletionFor(`/tmp/ask "$HOME"`)
 	for _, line := range []string{
 		`set -l ask_bin "/tmp/ask \"\$HOME\""`,
-		"set -l uuids (command $ask_bin complete-uuids 2>/dev/null)",
+		"set -l selectors (command $ask_bin complete-uuids 2>/dev/null)",
 	} {
 		if !strings.Contains(script, line) {
 			t.Fatalf("script missing %q", line)

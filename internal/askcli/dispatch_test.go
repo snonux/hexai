@@ -66,8 +66,8 @@ func TestDispatcher_CompleteUUIDsSubcommand(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("complete-uuids code = %d, want 0", code)
 	}
-	if got := stdout.String(); got != "uuid-1\n" {
-		t.Fatalf("stdout = %q, want UUID list", got)
+	if got := stdout.String(); got != "0\nuuid-1\n" {
+		t.Fatalf("stdout = %q, want selector list", got)
 	}
 }
 
