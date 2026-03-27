@@ -46,13 +46,13 @@ func taskListWidthsFor(tasks []TaskExport, aliases map[string]string, terminalWi
 	}
 	longestDescription := widths.Description
 	for _, t := range tasks {
-		widths.Urgency = maxInt(widths.Urgency, len(fmt.Sprintf("%.1f", t.Urgency)))
-		widths.Priority = maxInt(widths.Priority, len(t.Priority))
-		widths.ID = maxInt(widths.ID, len(displayTaskAlias(t.UUID, aliases)))
-		widths.Status = maxInt(widths.Status, len(t.Status))
-		widths.Started = maxInt(widths.Started, len(formatTaskStarted(t)))
-		widths.Tags = maxInt(widths.Tags, len(formatTaskTags(t.Tags)))
-		longestDescription = maxInt(longestDescription, len(t.Description))
+		widths.Urgency = max(widths.Urgency, len(fmt.Sprintf("%.1f", t.Urgency)))
+		widths.Priority = max(widths.Priority, len(t.Priority))
+		widths.ID = max(widths.ID, len(displayTaskAlias(t.UUID, aliases)))
+		widths.Status = max(widths.Status, len(t.Status))
+		widths.Started = max(widths.Started, len(formatTaskStarted(t)))
+		widths.Tags = max(widths.Tags, len(formatTaskTags(t.Tags)))
+		longestDescription = max(longestDescription, len(t.Description))
 	}
 	widths.Description = taskListDescriptionWidth(widths, terminalWidth, longestDescription)
 	return widths
@@ -109,13 +109,6 @@ func formatTaskStarted(t TaskExport) string {
 		return "no"
 	}
 	return "yes"
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func taskListDescriptionWidth(widths taskListWidths, terminalWidth, longestDescription int) int {
