@@ -123,6 +123,31 @@ func TestHandleDep_ListSuccess(t *testing.T) {
 	}
 }
 
+func TestHandleDep_ListAssignsAliasForUnknownDependency(t *testing.T) {
+	now := useIsolatedTaskAliasCache(t)
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-1", Alias: "0", CreatedAt: now},
+		},
+	})
+
+	jsonData := `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":["dep-1"]}]`
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		io.WriteString(stdout, jsonData)
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"dep", "list", "uuid-1"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("dep list code = %d, want 0", code)
+	}
+	if got := stdout.String(); got != "1\n" {
+		t.Fatalf("stdout = %q, want assigned alias", got)
+	}
+}
+
 func TestHandleDep_UnknownOp(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		return 0, nil
@@ -223,5 +248,8 @@ func TestHandleDep_NumericUUID(t *testing.T) {
 	code, _ := d.Dispatch(context.Background(), []string{"dep", "add", "123", "uuid-2"}, nil, &stdout, &stderr)
 	if code != 1 {
 		t.Fatalf("dep add code = %d, want 1 for numeric UUID", code)
+	}
+	if !strings.Contains(stderr.String(), "task alias ID or UUID") {
+		t.Fatalf("stderr = %q, want alias-or-UUID guidance", stderr.String())
 	}
 }

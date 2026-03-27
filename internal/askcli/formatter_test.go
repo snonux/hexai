@@ -198,8 +198,8 @@ func TestNormalizeUUID(t *testing.T) {
 
 func TestRejectNumericID(t *testing.T) {
 	output := RejectNumericID()
-	if !strings.Contains(output, "use UUID") {
-		t.Fatalf("RejectNumericID = %q, want use UUID message", output)
+	if !strings.Contains(output, "task alias ID or UUID") {
+		t.Fatalf("RejectNumericID = %q, want alias-or-UUID message", output)
 	}
 }
 

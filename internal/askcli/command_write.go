@@ -9,7 +9,7 @@ import (
 
 func (d Dispatcher) handleDenotate(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
-		io.WriteString(stderr, "error: ask denotate requires a UUID and text argument\n")
+		io.WriteString(stderr, "error: ask denotate requires an ID or UUID and text argument\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
@@ -29,7 +29,7 @@ func (d Dispatcher) handleDenotate(ctx context.Context, args []string, stdout, s
 
 func (d Dispatcher) handleModify(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
-		io.WriteString(stderr, "error: ask modify requires a UUID and modification args\n")
+		io.WriteString(stderr, "error: ask modify requires an ID or UUID and modification args\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
@@ -49,7 +49,7 @@ func (d Dispatcher) handleModify(ctx context.Context, args []string, stdout, std
 
 func (d Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
-		io.WriteString(stderr, "error: ask annotate requires a UUID and note argument\n")
+		io.WriteString(stderr, "error: ask annotate requires an ID or UUID and note argument\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
@@ -69,7 +69,7 @@ func (d Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, s
 
 func (d Dispatcher) handleStart(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
-		io.WriteString(stderr, "error: ask start requires a UUID argument\n")
+		io.WriteString(stderr, "error: ask start requires an ID or UUID argument\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
@@ -90,7 +90,7 @@ func (d Dispatcher) handleStart(ctx context.Context, args []string, stdout, stde
 
 func (d Dispatcher) handleStop(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
-		io.WriteString(stderr, "error: ask stop requires a UUID argument\n")
+		io.WriteString(stderr, "error: ask stop requires an ID or UUID argument\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
@@ -109,7 +109,7 @@ func (d Dispatcher) handleStop(ctx context.Context, args []string, stdout, stder
 
 func (d Dispatcher) handleDone(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
-		io.WriteString(stderr, "error: ask done requires a UUID argument\n")
+		io.WriteString(stderr, "error: ask done requires an ID or UUID argument\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
@@ -128,7 +128,7 @@ func (d Dispatcher) handleDone(ctx context.Context, args []string, stdout, stder
 
 func (d Dispatcher) handlePriority(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
-		io.WriteString(stderr, "error: ask priority requires a UUID and priority (H/M/L)\n")
+		io.WriteString(stderr, "error: ask priority requires an ID or UUID and priority (H/M/L)\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
@@ -148,7 +148,7 @@ func (d Dispatcher) handlePriority(ctx context.Context, args []string, stdout, s
 
 func (d Dispatcher) handleTag(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
-		io.WriteString(stderr, "error: ask tag requires a UUID and +/-tag\n")
+		io.WriteString(stderr, "error: ask tag requires an ID or UUID and +/-tag\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)

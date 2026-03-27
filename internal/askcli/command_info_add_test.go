@@ -208,6 +208,9 @@ func TestHandleInfo_MissingUUID_MultipleStartedTasks(t *testing.T) {
 	if !strings.Contains(stderr.String(), "multiple started tasks found") {
 		t.Fatalf("stderr = %q, want multiple-started-tasks error", stderr.String())
 	}
+	if !strings.Contains(stderr.String(), "ID or UUID explicitly") {
+		t.Fatalf("stderr = %q, want ID-or-UUID guidance", stderr.String())
+	}
 }
 
 func TestHandleAdd_Success(t *testing.T) {

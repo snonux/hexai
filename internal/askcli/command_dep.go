@@ -27,7 +27,7 @@ func (d Dispatcher) handleDep(ctx context.Context, args []string, stdout, stderr
 
 func (d Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 4 {
-		io.WriteString(stderr, "error: ask dep add/rm requires <uuid> <dep-uuid>\n")
+		io.WriteString(stderr, "error: ask dep add/rm requires <id|uuid> <dep-id|dep-uuid>\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[2], stderr)
@@ -59,7 +59,7 @@ func (d Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, s
 
 func (d Dispatcher) handleDepList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
-		io.WriteString(stderr, "error: ask dep list requires <uuid>\n")
+		io.WriteString(stderr, "error: ask dep list requires <id|uuid>\n")
 		return 1, nil
 	}
 	_, tasks, code, err := d.resolveTaskSelector(ctx, args[2], stderr)

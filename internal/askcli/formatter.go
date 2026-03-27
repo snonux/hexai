@@ -194,5 +194,5 @@ func IsNumericID(s string) bool {
 }
 
 func RejectNumericID() string {
-	return "error: use UUID, not numeric task ID\n"
+	return "error: use a task alias ID or UUID, not a numeric Taskwarrior task ID\n"
 }

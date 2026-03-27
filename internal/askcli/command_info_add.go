@@ -54,7 +54,7 @@ func (d Dispatcher) startedInfoTasks(ctx context.Context, stderr io.Writer) ([]T
 	case 1:
 		return tasks, 0, nil
 	default:
-		return nil, 1, fmt.Errorf("multiple started tasks found; pass a UUID explicitly")
+		return nil, 1, fmt.Errorf("multiple started tasks found; pass an ID or UUID explicitly")
 	}
 }
 

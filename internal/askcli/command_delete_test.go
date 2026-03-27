@@ -64,8 +64,8 @@ func TestHandleDelete_NumericID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("delete returned unexpected error: %v", err)
 	}
-	if !strings.Contains(stderr.String(), "use UUID") {
-		t.Fatalf("stderr = %q, want 'use UUID' message", stderr.String())
+	if !strings.Contains(stderr.String(), "task alias ID or UUID") {
+		t.Fatalf("stderr = %q, want alias-or-UUID message", stderr.String())
 	}
 }
 
@@ -82,8 +82,8 @@ func TestHandleDelete_MissingUUID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("delete returned unexpected error: %v", err)
 	}
-	if !strings.Contains(stderr.String(), "requires a UUID") {
-		t.Fatalf("stderr = %q, want 'requires a UUID' message", stderr.String())
+	if !strings.Contains(stderr.String(), "requires an ID or UUID") {
+		t.Fatalf("stderr = %q, want 'requires an ID or UUID' message", stderr.String())
 	}
 }
 

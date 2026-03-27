@@ -108,6 +108,9 @@ func TestHandleDenotate_MissingArgs(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("denotate code = %d, want 1 for missing args", code)
 	}
+	if !strings.Contains(stderr.String(), "requires an ID or UUID") {
+		t.Fatalf("stderr = %q, want ID-or-UUID message", stderr.String())
+	}
 }
 
 func TestHandleModify_Success(t *testing.T) {
@@ -186,6 +189,9 @@ func TestHandleAnnotate_MissingArgs(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("annotate code = %d, want 1 for missing args", code)
 	}
+	if !strings.Contains(stderr.String(), "requires an ID or UUID") {
+		t.Fatalf("stderr = %q, want ID-or-UUID message", stderr.String())
+	}
 }
 
 func TestHandleStart_Success(t *testing.T) {
@@ -224,6 +230,9 @@ func TestHandleStart_MissingUUID(t *testing.T) {
 	code, _ := d.Dispatch(context.Background(), []string{"start"}, &bytes.Buffer{}, &stdout, &stderr)
 	if code != 1 {
 		t.Fatalf("start code = %d, want 1 for missing UUID", code)
+	}
+	if !strings.Contains(stderr.String(), "requires an ID or UUID") {
+		t.Fatalf("stderr = %q, want ID-or-UUID message", stderr.String())
 	}
 }
 
@@ -287,6 +296,9 @@ func TestHandlePriority_MissingArgs(t *testing.T) {
 	code, _ := d.Dispatch(context.Background(), []string{"priority", "uuid"}, &bytes.Buffer{}, &stdout, &stderr)
 	if code != 1 {
 		t.Fatalf("priority code = %d, want 1 for missing args", code)
+	}
+	if !strings.Contains(stderr.String(), "requires an ID or UUID") {
+		t.Fatalf("stderr = %q, want ID-or-UUID message", stderr.String())
 	}
 }
 
