@@ -72,7 +72,7 @@ func writeTaskListHeader(b *strings.Builder, widths taskListWidths) {
 
 func writeTaskListSeparator(b *strings.Builder, widths taskListWidths) {
 	total := widths.Urgency + widths.Priority + widths.ID + widths.Status + widths.Started + widths.Tags + widths.Description + 18
-	io.WriteString(b, strings.Repeat("-", total)+"\n")
+	_, _ = io.WriteString(b, strings.Repeat("-", total)+"\n")
 }
 
 func writeTaskListRow(b *strings.Builder, widths taskListWidths, t TaskExport, aliases map[string]string) {
@@ -152,7 +152,7 @@ func FormatTaskInfo(t TaskExport, alias string, dependencyAliases map[string]str
 		fmt.Fprintf(&b, "Depends:     %s\n", formatTaskDependencies(t.Depends, dependencyAliases))
 	}
 	if len(t.Annotations) > 0 {
-		io.WriteString(&b, "Annotations:\n")
+		_, _ = io.WriteString(&b, "Annotations:\n")
 		for _, a := range t.Annotations {
 			fmt.Fprintf(&b, "  - %s (added %s)\n", a.Description, a.Entry)
 		}

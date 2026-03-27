@@ -33,7 +33,7 @@ func TestHandleList_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
 			if arg == "export" {
-				io.WriteString(stdout, jsonData)
+				_, _ = io.WriteString(stdout, jsonData)
 				return 0, nil
 			}
 		}
@@ -79,7 +79,7 @@ func TestHandleList_SortedByPriority(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
 			if arg == "export" {
-				io.WriteString(stdout, jsonData)
+				_, _ = io.WriteString(stdout, jsonData)
 				return 0, nil
 			}
 		}
@@ -99,7 +99,7 @@ func TestHandleList_EmptyList(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
 			if arg == "export" {
-				io.WriteString(stdout, "[]")
+				_, _ = io.WriteString(stdout, "[]")
 				return 0, nil
 			}
 		}
@@ -134,7 +134,7 @@ func TestHandleAll_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
 			if arg == "export" {
-				io.WriteString(stdout, jsonData)
+				_, _ = io.WriteString(stdout, jsonData)
 				return 0, nil
 			}
 		}
@@ -172,7 +172,7 @@ func TestHandleReady_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		for _, arg := range args {
 			if arg == "export" {
-				io.WriteString(stdout, jsonData)
+				_, _ = io.WriteString(stdout, jsonData)
 				return 0, nil
 			}
 		}
@@ -192,7 +192,7 @@ func TestHandleList_PassesFilters(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		capturedArgs = args
-		io.WriteString(stdout, "[]")
+		_, _ = io.WriteString(stdout, "[]")
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer

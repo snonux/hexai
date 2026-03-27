@@ -10,7 +10,7 @@ import (
 
 func (d *Dispatcher) handleDep(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
-		io.WriteString(stderr, "error: ask dep requires an operation (add/rm/list) and arguments\n")
+		_, _ = io.WriteString(stderr, "error: ask dep requires an operation (add/rm/list) and arguments\n")
 		return 1, nil
 	}
 	op := args[1]
@@ -27,7 +27,7 @@ func (d *Dispatcher) handleDep(ctx context.Context, args []string, stdout, stder
 
 func (d *Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 4 {
-		io.WriteString(stderr, "error: ask dep add/rm requires <id|uuid> <dep-id|dep-uuid>\n")
+		_, _ = io.WriteString(stderr, "error: ask dep add/rm requires <id|uuid> <dep-id|dep-uuid>\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[2], stderr)
@@ -53,13 +53,13 @@ func (d *Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, 
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
+	_, _ = io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }
 
 func (d *Dispatcher) handleDepList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
-		io.WriteString(stderr, "error: ask dep list requires <id|uuid>\n")
+		_, _ = io.WriteString(stderr, "error: ask dep list requires <id|uuid>\n")
 		return 1, nil
 	}
 	_, tasks, code, err := d.resolveTaskSelector(ctx, args[2], stderr)
@@ -68,12 +68,12 @@ func (d *Dispatcher) handleDepList(ctx context.Context, args []string, stdout, s
 		return code, nil
 	}
 	if len(tasks) == 0 {
-		io.WriteString(stdout, "no dependencies\n")
+		_, _ = io.WriteString(stdout, "no dependencies\n")
 		return 0, nil
 	}
 	task := tasks[0]
 	if len(task.Depends) == 0 {
-		io.WriteString(stdout, "no dependencies\n")
+		_, _ = io.WriteString(stdout, "no dependencies\n")
 	} else {
 		aliases, err := ensureTaskAliasesForUUIDs(task.Depends)
 		if err != nil {
@@ -84,7 +84,7 @@ func (d *Dispatcher) handleDepList(ctx context.Context, args []string, stdout, s
 		for _, uuid := range task.Depends {
 			ids = append(ids, displayTaskAlias(uuid, aliases))
 		}
-		io.WriteString(stdout, strings.Join(ids, "\n")+"\n")
+		_, _ = io.WriteString(stdout, strings.Join(ids, "\n")+"\n")
 	}
 	return 0, nil
 }

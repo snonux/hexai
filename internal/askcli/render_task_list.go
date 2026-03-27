@@ -15,8 +15,8 @@ func renderTaskList(tasks []TaskExport, stdout, stderr io.Writer, jsonOutput boo
 			fmt.Fprintf(stderr, "error: failed to marshal JSON: %v\n", err)
 			return 1, nil
 		}
-		stdout.Write(data)
-		io.WriteString(stdout, "\n")
+		_, _ = stdout.Write(data)
+		_, _ = io.WriteString(stdout, "\n")
 		return 0, nil
 	}
 
@@ -25,6 +25,6 @@ func renderTaskList(tasks []TaskExport, stdout, stderr io.Writer, jsonOutput boo
 		fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 		return 1, nil
 	}
-	io.WriteString(stdout, FormatTaskListForWidth(tasks, aliases, detectTaskListTerminalWidth(stdout)))
+	_, _ = io.WriteString(stdout, FormatTaskListForWidth(tasks, aliases, detectTaskListTerminalWidth(stdout)))
 	return 0, nil
 }

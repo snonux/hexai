@@ -34,9 +34,9 @@ func TestHandleDep_AddSuccess(t *testing.T) {
 		if len(args) == 2 && args[1] == "export" {
 			switch args[0] {
 			case "uuid:uuid-1":
-				io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
+				_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
 			case "uuid:uuid-2":
-				io.WriteString(stdout, `[{"uuid":"uuid-2","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
+				_, _ = io.WriteString(stdout, `[{"uuid":"uuid-2","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
 			}
 			return 0, nil
 		}
@@ -72,9 +72,9 @@ func TestHandleDep_RmSuccess(t *testing.T) {
 		if len(args) == 2 && args[1] == "export" {
 			switch args[0] {
 			case "uuid:uuid-1":
-				io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
+				_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
 			case "uuid:uuid-2":
-				io.WriteString(stdout, `[{"uuid":"uuid-2","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
+				_, _ = io.WriteString(stdout, `[{"uuid":"uuid-2","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
 			}
 			return 0, nil
 		}
@@ -109,7 +109,7 @@ func TestHandleDep_ListSuccess(t *testing.T) {
 
 	jsonData := `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":["dep-1","dep-2"]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		io.WriteString(stdout, jsonData)
+		_, _ = io.WriteString(stdout, jsonData)
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -135,7 +135,7 @@ func TestHandleDep_ListAssignsAliasForUnknownDependency(t *testing.T) {
 
 	jsonData := `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":["dep-1"]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		io.WriteString(stdout, jsonData)
+		_, _ = io.WriteString(stdout, jsonData)
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -178,7 +178,7 @@ func TestHandleDep_AcceptUUIDPrefix(t *testing.T) {
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 				if len(args) == 2 && args[1] == "export" {
 					capturedArgs = args
-					io.WriteString(stdout, export)
+					_, _ = io.WriteString(stdout, export)
 					return 0, nil
 				}
 				capturedArgs = args
@@ -220,9 +220,9 @@ func TestHandleDep_AliasSelectors(t *testing.T) {
 		if len(args) == 2 && args[1] == "export" {
 			switch args[0] {
 			case "uuid:uuid-1":
-				io.WriteString(stdout, `[{"uuid":"uuid-1","description":"T1","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+				_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"T1","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
 			case "uuid:uuid-2":
-				io.WriteString(stdout, `[{"uuid":"uuid-2","description":"T2","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+				_, _ = io.WriteString(stdout, `[{"uuid":"uuid-2","description":"T2","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
 			}
 			return 0, nil
 		}

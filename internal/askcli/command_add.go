@@ -10,7 +10,7 @@ import (
 
 func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
-		io.WriteString(stderr, "error: ask add requires a description\n")
+		_, _ = io.WriteString(stderr, "error: ask add requires a description\n")
 		return 1, nil
 	}
 	modifiers, description, dependencySelectors, err := parseAddArgs(args[1:])
@@ -19,7 +19,7 @@ func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stder
 		return 1, nil
 	}
 	if strings.TrimSpace(description) == "" {
-		io.WriteString(stderr, "error: ask add requires a description\n")
+		_, _ = io.WriteString(stderr, "error: ask add requires a description\n")
 		return 1, nil
 	}
 	dependencyUUIDs, code, err := d.resolveAddDependencyUUIDs(ctx, dependencySelectors, stderr)
@@ -42,7 +42,7 @@ func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stder
 	}
 	uuid := extractUUIDFromAddOutput(outBuf.String())
 	if uuid == "" {
-		io.WriteString(stderr, "error: could not parse UUID from task creation output\n")
+		_, _ = io.WriteString(stderr, "error: could not parse UUID from task creation output\n")
 		return 1, nil
 	}
 	aliases, err := ensureTaskAliasesForUUIDs([]string{uuid})
@@ -50,7 +50,7 @@ func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stder
 		fmt.Fprintf(stderr, "error: failed to assign task alias: %v\n", err)
 		return 1, nil
 	}
-	io.WriteString(stdout, displayTaskAlias(uuid, aliases)+"\n")
+	_, _ = io.WriteString(stdout, displayTaskAlias(uuid, aliases)+"\n")
 	return 0, nil
 }
 

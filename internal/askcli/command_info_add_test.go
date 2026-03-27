@@ -33,7 +33,7 @@ func TestHandleInfo_Success(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		// args[0] is "uuid:<uuid>" (the filter); emit data for any export call
 		if len(args) > 0 && strings.HasPrefix(args[0], "uuid:") {
-			io.WriteString(stdout, jsonData)
+			_, _ = io.WriteString(stdout, jsonData)
 		}
 		return 0, nil
 	}})
@@ -81,7 +81,7 @@ func TestHandleInfo_AssignsDependencyAliasesFromInfo(t *testing.T) {
 	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":["dep-b","dep-a"]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) > 0 && strings.HasPrefix(args[0], "uuid:") {
-			io.WriteString(stdout, jsonData)
+			_, _ = io.WriteString(stdout, jsonData)
 		}
 		return 0, nil
 	}})
@@ -121,7 +121,7 @@ func TestHandleInfo_AliasSelector(t *testing.T) {
 	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) > 0 && strings.HasPrefix(args[0], "uuid:test-uuid") {
-			io.WriteString(stdout, jsonData)
+			_, _ = io.WriteString(stdout, jsonData)
 		}
 		return 0, nil
 	}})
@@ -161,7 +161,7 @@ func TestHandleInfo_MissingUUID(t *testing.T) {
 	jsonData := `[{"uuid":"started-uuid","description":"Started task","status":"pending","priority":"M","start":"2026-03-26T10:00:00Z","urgency":5.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
-			io.WriteString(stdout, jsonData)
+			_, _ = io.WriteString(stdout, jsonData)
 		}
 		return 0, nil
 	}})
@@ -178,7 +178,7 @@ func TestHandleInfo_MissingUUID(t *testing.T) {
 func TestHandleInfo_MissingUUID_NoStartedTask(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
-			io.WriteString(stdout, "[]")
+			_, _ = io.WriteString(stdout, "[]")
 		}
 		return 0, nil
 	}})
@@ -196,7 +196,7 @@ func TestHandleInfo_MissingUUID_MultipleStartedTasks(t *testing.T) {
 	jsonData := `[{"uuid":"started-1","description":"Started task 1","status":"pending","priority":"M","start":"2026-03-26T10:00:00Z","urgency":5.0,"depends":[]},{"uuid":"started-2","description":"Started task 2","status":"pending","priority":"H","start":"2026-03-26T11:00:00Z","urgency":8.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
-			io.WriteString(stdout, jsonData)
+			_, _ = io.WriteString(stdout, jsonData)
 		}
 		return 0, nil
 	}})
@@ -223,7 +223,7 @@ func TestHandleAdd_Success(t *testing.T) {
 	})
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		io.WriteString(stdout, "Created task abc-123-def.")
+		_, _ = io.WriteString(stdout, "Created task abc-123-def.")
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -247,7 +247,7 @@ func TestHandleAdd_AliasAssignmentFailure(t *testing.T) {
 	defer func() { taskAliasCacheRoot = oldRoot }()
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		io.WriteString(stdout, "Created task abc-123-def.")
+		_, _ = io.WriteString(stdout, "Created task abc-123-def.")
 		return 0, nil
 	}})
 
@@ -302,7 +302,7 @@ func TestHandleAdd_MultipleWords(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(makeAddRunner(func(args []string, stdout io.Writer) {
 		capturedArgs = args
-		io.WriteString(stdout, "Created task test-uuid.")
+		_, _ = io.WriteString(stdout, "Created task test-uuid.")
 	}))
 	var stdout, stderr bytes.Buffer
 	d.Dispatch(context.Background(), []string{"add", "Multi", "word", "description"}, nil, &stdout, &stderr)
@@ -316,7 +316,7 @@ func TestHandleAdd_WithPriority(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(makeAddRunner(func(args []string, stdout io.Writer) {
 		capturedArgs = args
-		io.WriteString(stdout, "Created task test-uuid.")
+		_, _ = io.WriteString(stdout, "Created task test-uuid.")
 	}))
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"add", "priority:H", "Fix critical bug"}, nil, &stdout, &stderr)
@@ -339,7 +339,7 @@ func TestHandleAdd_WithTag(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(makeAddRunner(func(args []string, stdout io.Writer) {
 		capturedArgs = args
-		io.WriteString(stdout, "Created task test-uuid.")
+		_, _ = io.WriteString(stdout, "Created task test-uuid.")
 	}))
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"add", "+cli", "New feature"}, nil, &stdout, &stderr)
@@ -356,7 +356,7 @@ func TestHandleAdd_WithPriorityAndTag(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(makeAddRunner(func(args []string, stdout io.Writer) {
 		capturedArgs = args
-		io.WriteString(stdout, "Created task test-uuid.")
+		_, _ = io.WriteString(stdout, "Created task test-uuid.")
 	}))
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"add", "priority:H", "+cli", "Complex task"}, nil, &stdout, &stderr)
@@ -383,12 +383,12 @@ func TestHandleAdd_WithDependencies(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		switch {
 		case len(args) >= 2 && args[0] == "uuid:dep-uuid-1" && args[1] == "export":
-			io.WriteString(stdout, `[{"uuid":"dep-uuid-1","description":"Dependency one","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			_, _ = io.WriteString(stdout, `[{"uuid":"dep-uuid-1","description":"Dependency one","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
 		case len(args) >= 2 && args[0] == "uuid:dep-uuid-2" && args[1] == "export":
-			io.WriteString(stdout, `[{"uuid":"dep-uuid-2","description":"Dependency two","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			_, _ = io.WriteString(stdout, `[{"uuid":"dep-uuid-2","description":"Dependency two","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
 		case len(args) >= 1 && args[0] == "add":
 			capturedAddArgs = append([]string(nil), args...)
-			io.WriteString(stdout, "Created task created-uuid.")
+			_, _ = io.WriteString(stdout, "Created task created-uuid.")
 		default:
 			t.Fatalf("unexpected runner args: %v", args)
 		}

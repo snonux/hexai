@@ -8,7 +8,7 @@ import (
 
 func (d *Dispatcher) handleDelete(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
-		io.WriteString(stderr, "error: ask delete requires an ID or UUID argument\n")
+		_, _ = io.WriteString(stderr, "error: ask delete requires an ID or UUID argument\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
@@ -21,6 +21,6 @@ func (d *Dispatcher) handleDelete(ctx context.Context, args []string, stdin io.R
 	if code != 0 {
 		return code, err
 	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
+	_, _ = io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
 	return 0, nil
 }

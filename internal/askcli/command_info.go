@@ -21,8 +21,8 @@ func (d *Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stde
 			fmt.Fprintf(stderr, "error: failed to marshal JSON: %v\n", err)
 			return 1, nil
 		}
-		stdout.Write(data)
-		io.WriteString(stdout, "\n")
+		_, _ = stdout.Write(data)
+		_, _ = io.WriteString(stdout, "\n")
 	} else {
 		allUUIDs := append([]string{tasks[0].UUID}, tasks[0].Depends...)
 		aliases, err := ensureTaskAliasesForUUIDs(allUUIDs)
@@ -30,7 +30,7 @@ func (d *Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stde
 			fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 			return 1, nil
 		}
-		io.WriteString(stdout, FormatTaskInfo(tasks[0], displayTaskAlias(tasks[0].UUID, aliases), aliases))
+		_, _ = io.WriteString(stdout, FormatTaskInfo(tasks[0], displayTaskAlias(tasks[0].UUID, aliases), aliases))
 	}
 	return 0, nil
 }
@@ -77,7 +77,7 @@ func (d *Dispatcher) exportTasks(ctx context.Context, args []string, stderr io.W
 func writeInfoError(stderr io.Writer, err error) {
 	msg := err.Error()
 	if strings.HasPrefix(msg, "error:") {
-		io.WriteString(stderr, msg+"\n")
+		_, _ = io.WriteString(stderr, msg+"\n")
 		return
 	}
 	fmt.Fprintf(stderr, "error: %v\n", err)

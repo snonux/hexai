@@ -31,7 +31,7 @@ func TestHandleUrgency_Success(t *testing.T) {
 
 	jsonData := `[{"uuid":"uuid-2","description":"Task 2","status":"pending","priority":"M","tags":["agent"],"urgency":10.0,"depends":[]},{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		io.WriteString(stdout, jsonData)
+		_, _ = io.WriteString(stdout, jsonData)
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -56,7 +56,7 @@ func TestHandleUrgency_Success(t *testing.T) {
 
 func TestHandleUrgency_EmptyList(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		io.WriteString(stdout, "[]")
+		_, _ = io.WriteString(stdout, "[]")
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -81,7 +81,7 @@ func TestHandleUrgency_PassesCorrectArgs(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		capturedArgs = args
-		io.WriteString(stdout, "[]")
+		_, _ = io.WriteString(stdout, "[]")
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer

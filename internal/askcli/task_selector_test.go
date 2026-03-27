@@ -113,7 +113,7 @@ func TestHandleInfo_StaleAlias(t *testing.T) {
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "uuid:task-uuid-1" && args[1] == "export" {
-			io.WriteString(stdout, "[]")
+			_, _ = io.WriteString(stdout, "[]")
 		}
 		return 0, nil
 	}})

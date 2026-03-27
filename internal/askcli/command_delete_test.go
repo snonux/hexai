@@ -30,7 +30,7 @@ func TestHandleDelete_Success(t *testing.T) {
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "uuid:test-uuid-123" && args[1] == "export" {
-			io.WriteString(stdout, `[{"uuid":"test-uuid-123","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			_, _ = io.WriteString(stdout, `[{"uuid":"test-uuid-123","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
 			return 0, nil
 		}
 		return 0, nil
@@ -105,7 +105,7 @@ func TestHandleDelete_PassesCorrectArgs(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[1] == "export" {
-			io.WriteString(stdout, `[{"uuid":"my-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			_, _ = io.WriteString(stdout, `[{"uuid":"my-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
 			return 0, nil
 		}
 		capturedArgs = args
@@ -139,7 +139,7 @@ func TestHandleDelete_AliasSelector(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "uuid:test-uuid-123" && args[1] == "export" {
-			io.WriteString(stdout, `[{"uuid":"test-uuid-123","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			_, _ = io.WriteString(stdout, `[{"uuid":"test-uuid-123","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
 			return 0, nil
 		}
 		capturedArgs = args
