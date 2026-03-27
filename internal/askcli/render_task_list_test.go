@@ -10,6 +10,13 @@ import (
 )
 
 func TestRenderTaskList_JSONOutput(t *testing.T) {
+	oldLoader := taskListAliasLoader
+	defer func() { taskListAliasLoader = oldLoader }()
+
+	taskListAliasLoader = func(tasks []TaskExport) (map[string]string, error) {
+		return map[string]string{"uuid-json": "sq"}, nil
+	}
+
 	tasks := []TaskExport{{
 		UUID:        "uuid-json",
 		Description: "JSON task",
@@ -26,12 +33,16 @@ func TestRenderTaskList_JSONOutput(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("renderTaskList code = %d, want 0", code)
 	}
-	var parsed []TaskExport
+	var parsed []taskExportWithID
 	if err := json.Unmarshal(bytes.TrimSpace(stdout.Bytes()), &parsed); err != nil {
 		t.Fatalf("failed to parse JSON output: %v", err)
 	}
-	if !reflect.DeepEqual(parsed, tasks) {
-		t.Fatalf("rendered tasks = %#v, want %#v", parsed, tasks)
+	want := []taskExportWithID{{
+		ID:         "sq",
+		TaskExport: tasks[0],
+	}}
+	if !reflect.DeepEqual(parsed, want) {
+		t.Fatalf("rendered tasks = %#v, want %#v", parsed, want)
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("unexpected stderr = %q", stderr.String())

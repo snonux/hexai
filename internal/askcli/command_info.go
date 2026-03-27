@@ -15,8 +15,14 @@ func (d *Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stde
 		writeInfoError(stderr, err)
 		return code, nil
 	}
+	allUUIDs := append([]string{tasks[0].UUID}, tasks[0].Depends...)
+	aliases, err := ensureTaskAliasesForUUIDs(allUUIDs)
+	if err != nil {
+		fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
+		return 1, nil
+	}
 	if d.jsonOutput {
-		data, err := json.Marshal(tasks)
+		data, err := json.Marshal(withTaskIDs(tasks, aliases))
 		if err != nil {
 			fmt.Fprintf(stderr, "error: failed to marshal JSON: %v\n", err)
 			return 1, nil
@@ -24,12 +30,6 @@ func (d *Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stde
 		_, _ = stdout.Write(data)
 		_, _ = io.WriteString(stdout, "\n")
 	} else {
-		allUUIDs := append([]string{tasks[0].UUID}, tasks[0].Depends...)
-		aliases, err := ensureTaskAliasesForUUIDs(allUUIDs)
-		if err != nil {
-			fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
-			return 1, nil
-		}
 		_, _ = io.WriteString(stdout, FormatTaskInfo(tasks[0], displayTaskAlias(tasks[0].UUID, aliases), aliases))
 	}
 	return 0, nil

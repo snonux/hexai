@@ -34,3 +34,19 @@ func ParseTaskExport(r io.Reader) ([]TaskExport, error) {
 	}
 	return tasks, nil
 }
+
+type taskExportWithID struct {
+	ID string `json:"id,omitempty"`
+	TaskExport
+}
+
+func withTaskIDs(tasks []TaskExport, aliases map[string]string) []taskExportWithID {
+	withIDs := make([]taskExportWithID, len(tasks))
+	for i := range withIDs {
+		withIDs[i] = taskExportWithID{
+			ID:         displayTaskAlias(tasks[i].UUID, aliases),
+			TaskExport: tasks[i],
+		}
+	}
+	return withIDs
+}

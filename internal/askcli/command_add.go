@@ -50,7 +50,7 @@ func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stder
 		fmt.Fprintf(stderr, "error: failed to assign task alias: %v\n", err)
 		return 1, nil
 	}
-	_, _ = io.WriteString(stdout, displayTaskAlias(uuid, aliases)+"\n")
+	_, _ = io.WriteString(stdout, FormatCreatedTask(displayTaskAlias(uuid, aliases)))
 	return 0, nil
 }
 

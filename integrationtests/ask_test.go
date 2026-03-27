@@ -117,13 +117,13 @@ func runTaskWithStdin(ctx context.Context, args []string, stdin string) (stdout,
 }
 
 // createTask creates a new task via ask add and returns its UUID.
-// ask add prints the human-facing alias ID, so we resolve the created UUID via ask info.
+// ask add prints a human-facing created-task message, so we resolve the created UUID via ask info.
 func createTask(ctx context.Context, desc string) (string, error) {
 	stdout, stderr, code := runAsk(ctx, []string{"add", "+integrationtest", desc})
 	if code != 0 {
 		return "", fmt.Errorf("create task failed (code %d): stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
-	id := strings.TrimSpace(stdout.String())
+	id := extractTaskIDFromAddOutput(stdout.String())
 	if id == "" {
 		return "", fmt.Errorf("could not extract task ID from ask add output: %s", stdout.String())
 	}
@@ -135,6 +135,16 @@ func createTask(ctx context.Context, desc string) (string, error) {
 		return "", fmt.Errorf("ask info %q did not return a UUID", id)
 	}
 	return info.UUID, nil
+}
+
+func extractTaskIDFromAddOutput(output string) string {
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "created task ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "created task "))
+		}
+	}
+	return strings.TrimSpace(output)
 }
 
 func deleteTask(ctx context.Context, uuid string) {
@@ -298,7 +308,7 @@ func TestAdd(t *testing.T) {
 	}
 }
 
-// TestAddReturnsAlias verifies that ask add outputs the human-facing alias ID.
+// TestAddReturnsAlias verifies that ask add outputs the human-facing alias ID in its creation message.
 func TestAddReturnsAlias(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -307,7 +317,8 @@ func TestAddReturnsAlias(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("ask add failed with code %d", code)
 	}
-	id := strings.TrimSpace(stdout.String())
+	rawOutput := strings.TrimSpace(stdout.String())
+	id := extractTaskIDFromAddOutput(rawOutput)
 	info, ok := getTaskInfoFast(ctx, id)
 	if !ok {
 		t.Fatalf("ask info %q failed after add", id)
@@ -316,6 +327,9 @@ func TestAddReturnsAlias(t *testing.T) {
 
 	if id == "" {
 		t.Fatal("ask add returned an empty task ID")
+	}
+	if rawOutput != "created task "+id {
+		t.Fatalf("ask add output = %q, want %q", rawOutput, "created task "+id)
 	}
 	if uuidFormatRx.MatchString(id) {
 		t.Fatalf("ask add output %q leaked a UUID, want alias ID", id)

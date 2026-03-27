@@ -195,6 +195,13 @@ func TestFormatSuccess(t *testing.T) {
 	}
 }
 
+func TestFormatCreatedTask(t *testing.T) {
+	output := FormatCreatedTask("sp")
+	if output != "created task sp\n" {
+		t.Fatalf("FormatCreatedTask = %q, want created task message", output)
+	}
+}
+
 func TestFormatError(t *testing.T) {
 	err := &testError{msg: "something went wrong"}
 	output := FormatError(err, "0")

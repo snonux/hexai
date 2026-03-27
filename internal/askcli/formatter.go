@@ -168,6 +168,11 @@ func FormatSuccess(alias string) string {
 	return fmt.Sprintf("ok %s\n", alias)
 }
 
+// FormatCreatedTask returns the success string written to stdout after ask add creates a task.
+func FormatCreatedTask(alias string) string {
+	return fmt.Sprintf("created task %s\n", alias)
+}
+
 // FormatError formats error output using the optional task identifier when available.
 func FormatError(err error, taskID string) string {
 	if taskID != "" {

@@ -60,7 +60,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reade
 func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "ask - task management CLI\n")
 	_, _ = io.WriteString(w, "\nSubcommands:\n")
-	_, _ = io.WriteString(w, "  ask add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print its ID\n")
+	_, _ = io.WriteString(w, "  ask add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print created task <id>\n")
 	_, _ = io.WriteString(w, "  ask list [filters]           List active tasks (default)\n")
 	_, _ = io.WriteString(w, "  ask ready                   List READY tasks (not blocked)\n")
 	_, _ = io.WriteString(w, "  ask all [filters]            List all tasks including completed/deleted\n")

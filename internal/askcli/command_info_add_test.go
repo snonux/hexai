@@ -3,6 +3,7 @@ package askcli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"path/filepath"
 	"strings"
@@ -136,6 +137,53 @@ func TestHandleInfo_AliasSelector(t *testing.T) {
 	}
 }
 
+func TestHandleInfo_JSONIncludesAliasID(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
+	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) > 0 && strings.HasPrefix(args[0], "uuid:test-uuid") {
+			_, _ = io.WriteString(stdout, jsonData)
+		}
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"--json", "info", "0"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("info code = %d, want 0", code)
+	}
+
+	var parsed []map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(stdout.Bytes()), &parsed); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if len(parsed) != 1 {
+		t.Fatalf("parsed len = %d, want 1", len(parsed))
+	}
+	if got := parsed[0]["id"]; got != "0" {
+		t.Fatalf("json id = %#v, want 0", got)
+	}
+	if got := parsed[0]["uuid"]; got != "test-uuid" {
+		t.Fatalf("json uuid = %#v, want test-uuid", got)
+	}
+}
+
 func TestHandleInfo_NumericID(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		return 0, nil
@@ -231,8 +279,8 @@ func TestHandleAdd_Success(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0", code)
 	}
-	if got := strings.TrimSpace(stdout.String()); got != "1" {
-		t.Fatalf("stdout = %q, want alias 1", stdout.String())
+	if got := strings.TrimSpace(stdout.String()); got != "created task 1" {
+		t.Fatalf("stdout = %q, want created task 1", stdout.String())
 	}
 	cache := readTaskAliasCacheSnapshot(t)
 	entry := findTaskAliasEntry(t, cache, "abc-123-def")
@@ -406,8 +454,8 @@ func TestHandleAdd_WithDependencies(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0: stderr=%s", code, stderr.String())
 	}
-	if got := strings.TrimSpace(stdout.String()); got != "2" {
-		t.Fatalf("stdout = %q, want alias 2", stdout.String())
+	if got := strings.TrimSpace(stdout.String()); got != "created task 2" {
+		t.Fatalf("stdout = %q, want created task 2", stdout.String())
 	}
 	if len(capturedAddArgs) < 6 {
 		t.Fatalf("capturedAddArgs = %v, want add invocation with dependency modifier", capturedAddArgs)
