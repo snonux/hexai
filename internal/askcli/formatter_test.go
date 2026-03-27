@@ -18,8 +18,11 @@ func TestFormatTaskList(t *testing.T) {
 	if len(lines) < 3 {
 		t.Fatalf("FormatTaskList produced too few lines: %d", len(lines))
 	}
-	if !strings.Contains(lines[0], "ID") || !strings.Contains(lines[0], "Priority") {
-		t.Fatalf("header missing ID or Priority column: %s", lines[0])
+	if !strings.Contains(lines[0], "ID") || !strings.Contains(lines[0], "Prio") {
+		t.Fatalf("header missing ID or Prio column: %s", lines[0])
+	}
+	if strings.Contains(lines[0], "Priority") {
+		t.Fatalf("header should use compact Prio label: %s", lines[0])
 	}
 	if !strings.Contains(lines[0], "Started") {
 		t.Fatalf("header missing Started column: %s", lines[0])
@@ -62,7 +65,7 @@ func TestFormatTaskList_AlignsHeaderAndSeparator(t *testing.T) {
 	widths := taskListWidthsFor(tasks, aliases)
 	wantHeader := fmt.Sprintf("%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s",
 		widths.Urgency, "Urgency",
-		widths.Priority, "Priority",
+		widths.Priority, "Prio",
 		widths.ID, "ID",
 		widths.Status, "Status",
 		widths.Started, "Started",
