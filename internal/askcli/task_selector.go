@@ -117,3 +117,38 @@ func looksLikeTaskAlias(selector string) bool {
 	_, ok := decodeTaskAliasID(selector)
 	return ok && !strings.Contains(selector, "-")
 }
+
+func displayResolvedTaskID(resolved resolvedTaskSelector) string {
+	return displayTaskAlias(resolved.UUID, map[string]string{resolved.UUID: resolved.Alias})
+}
+
+func displayTaskAlias(uuid string, aliases map[string]string) string {
+	if alias := strings.TrimSpace(aliases[uuid]); alias != "" {
+		return alias
+	}
+	return uuid
+}
+
+// NormalizeUUID strips any leading "uuid:" prefix so callers can accept
+// both "uuid:<value>" and bare UUID strings interchangeably. The returned
+// value is always a plain UUID ready to be prefixed again when building
+// taskwarrior filter arguments.
+func NormalizeUUID(s string) string {
+	return strings.TrimPrefix(s, "uuid:")
+}
+
+func IsNumericID(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func RejectNumericID() string {
+	return "error: use a task alias ID or UUID, not a numeric Taskwarrior task ID\n"
+}
