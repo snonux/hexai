@@ -58,6 +58,16 @@ func TestHandleDep_AddSuccess(t *testing.T) {
 }
 
 func TestHandleDep_RmSuccess(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[1] == "export" {
 			switch args[0] {

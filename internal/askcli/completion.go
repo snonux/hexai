@@ -9,6 +9,19 @@ type fishCompletionItem struct {
 	description string
 }
 
+var askSingleSelectorCompletionCommands = []string{
+	"info",
+	"annotate",
+	"start",
+	"stop",
+	"done",
+	"priority",
+	"tag",
+	"modify",
+	"denotate",
+	"delete",
+}
+
 var askRootCompletionItems = []fishCompletionItem{
 	{name: "add", description: "Create a new task"},
 	{name: "list", description: "List active tasks"},
@@ -47,6 +60,34 @@ var askUUIDCompletionItems = []fishCompletionItem{
 	{name: "modify", description: "Modify task fields"},
 	{name: "denotate", description: "Remove an annotation"},
 	{name: "delete", description: "Delete a task"},
+}
+
+func fishSingleSelectorCompletionContext(positional []string) bool {
+	if len(positional) != 1 {
+		return false
+	}
+
+	for _, command := range askSingleSelectorCompletionCommands {
+		if positional[0] == command {
+			return true
+		}
+	}
+	return false
+}
+
+func fishDepSelectorCompletionContext(positional []string) bool {
+	if len(positional) < 2 || positional[0] != "dep" {
+		return false
+	}
+
+	switch positional[1] {
+	case "add", "rm":
+		return len(positional) == 2 || len(positional) == 3
+	case "list":
+		return len(positional) == 2
+	default:
+		return false
+	}
 }
 
 func FishCompletion() string {
@@ -136,11 +177,13 @@ func writeFishUUIDContextFunction(b *strings.Builder) {
 	b.WriteString("    if test (count $positional) -eq 0\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
-	b.WriteString("    if test (count $positional) -gt 2\n")
+	b.WriteString("    if test (count $positional) -ne 1\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
 	b.WriteString("    switch $positional[1]\n")
-	b.WriteString("        case info annotate start stop done priority tag modify denotate delete\n")
+	b.WriteString("        case ")
+	b.WriteString(strings.Join(askSingleSelectorCompletionCommands, " "))
+	b.WriteString("\n")
 	b.WriteString("            return 0\n")
 	b.WriteString("        case '*'\n")
 	b.WriteString("            return 1\n")
@@ -167,11 +210,11 @@ func writeFishDepUUIDContextFunction(b *strings.Builder) {
 	b.WriteString("    end\n")
 	b.WriteString("    switch $positional[2]\n")
 	b.WriteString("        case add rm\n")
-	b.WriteString("            if test (count $positional) -le 4\n")
+	b.WriteString("            if test (count $positional) -eq 2 -o (count $positional) -eq 3\n")
 	b.WriteString("                return 0\n")
 	b.WriteString("            end\n")
 	b.WriteString("        case list\n")
-	b.WriteString("            if test (count $positional) -le 3\n")
+	b.WriteString("            if test (count $positional) -eq 2\n")
 	b.WriteString("                return 0\n")
 	b.WriteString("            end\n")
 	b.WriteString("        case '*'\n")

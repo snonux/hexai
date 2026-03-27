@@ -10,21 +10,29 @@ import (
 	"time"
 )
 
-func TestHandleStart_AliasSelector(t *testing.T) {
+func useIsolatedTaskAliasCache(t *testing.T) time.Time {
+	t.Helper()
+
 	dir := t.TempDir()
 	oldRoot := taskAliasCacheRoot
 	oldNow := nowTaskAliasCache
+	fixedNow := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
 	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
+	nowTaskAliasCache = func() time.Time { return fixedNow }
+	t.Cleanup(func() {
 		taskAliasCacheRoot = oldRoot
 		nowTaskAliasCache = oldNow
-	}()
+	})
+	return fixedNow
+}
+
+func TestHandleStart_AliasSelector(t *testing.T) {
+	now := useIsolatedTaskAliasCache(t)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
 	})
 
@@ -49,20 +57,12 @@ func TestHandleStart_AliasSelector(t *testing.T) {
 }
 
 func TestHandleDenotate_Success(t *testing.T) {
-	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := useIsolatedTaskAliasCache(t)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
 	})
 
@@ -111,20 +111,12 @@ func TestHandleDenotate_MissingArgs(t *testing.T) {
 }
 
 func TestHandleModify_Success(t *testing.T) {
-	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := useIsolatedTaskAliasCache(t)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
 	})
 
@@ -158,20 +150,12 @@ func TestHandleModify_NumericID(t *testing.T) {
 }
 
 func TestHandleAnnotate_Success(t *testing.T) {
-	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := useIsolatedTaskAliasCache(t)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
 	})
 
@@ -205,20 +189,12 @@ func TestHandleAnnotate_MissingArgs(t *testing.T) {
 }
 
 func TestHandleStart_Success(t *testing.T) {
-	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := useIsolatedTaskAliasCache(t)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
 	})
 
@@ -252,6 +228,8 @@ func TestHandleStart_MissingUUID(t *testing.T) {
 }
 
 func TestHandleStop_Success(t *testing.T) {
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
 			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
@@ -267,6 +245,8 @@ func TestHandleStop_Success(t *testing.T) {
 }
 
 func TestHandleDone_Success(t *testing.T) {
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
 			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
@@ -282,6 +262,8 @@ func TestHandleDone_Success(t *testing.T) {
 }
 
 func TestHandlePriority_Success(t *testing.T) {
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
 			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
@@ -309,6 +291,8 @@ func TestHandlePriority_MissingArgs(t *testing.T) {
 }
 
 func TestHandleTag_Success(t *testing.T) {
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
 			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
@@ -355,6 +339,8 @@ func TestAllWriteHandlers_PassCorrectArgs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.subcommand, func(t *testing.T) {
+			useIsolatedTaskAliasCache(t)
+
 			var capturedArgs []string
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 				if len(args) == 2 && args[1] == "export" {
@@ -399,6 +385,8 @@ func TestAllWriteHandlers_AcceptUUIDPrefix(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.subcommand, func(t *testing.T) {
+			useIsolatedTaskAliasCache(t)
+
 			var capturedArgs []string
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 				if len(args) == 2 && args[1] == "export" {

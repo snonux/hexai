@@ -35,6 +35,59 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 	}
 }
 
+func TestFishSingleSelectorCompletionContext(t *testing.T) {
+	testCases := []struct {
+		name       string
+		positional []string
+		want       bool
+	}{
+		{name: "info expects selector", positional: []string{"info"}, want: true},
+		{name: "annotate expects selector", positional: []string{"annotate"}, want: true},
+		{name: "priority expects selector", positional: []string{"priority"}, want: true},
+		{name: "delete expects selector", positional: []string{"delete"}, want: true},
+		{name: "annotate stops after selector", positional: []string{"annotate", "0"}, want: false},
+		{name: "priority stops after selector", positional: []string{"priority", "0"}, want: false},
+		{name: "modify stops after selector", positional: []string{"modify", "0"}, want: false},
+		{name: "dep is not a single selector command", positional: []string{"dep"}, want: false},
+		{name: "empty positional", positional: nil, want: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := fishSingleSelectorCompletionContext(tc.positional); got != tc.want {
+				t.Fatalf("fishSingleSelectorCompletionContext(%v) = %t, want %t", tc.positional, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFishDepSelectorCompletionContext(t *testing.T) {
+	testCases := []struct {
+		name       string
+		positional []string
+		want       bool
+	}{
+		{name: "dep add first selector", positional: []string{"dep", "add"}, want: true},
+		{name: "dep add second selector", positional: []string{"dep", "add", "0"}, want: true},
+		{name: "dep add stops after second selector", positional: []string{"dep", "add", "0", "1"}, want: false},
+		{name: "dep rm first selector", positional: []string{"dep", "rm"}, want: true},
+		{name: "dep rm second selector", positional: []string{"dep", "rm", "0"}, want: true},
+		{name: "dep rm stops after second selector", positional: []string{"dep", "rm", "0", "1"}, want: false},
+		{name: "dep list selector", positional: []string{"dep", "list"}, want: true},
+		{name: "dep list stops after selector", positional: []string{"dep", "list", "0"}, want: false},
+		{name: "dep unknown operation", positional: []string{"dep", "noop"}, want: false},
+		{name: "non dep command", positional: []string{"info"}, want: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := fishDepSelectorCompletionContext(tc.positional); got != tc.want {
+				t.Fatalf("fishDepSelectorCompletionContext(%v) = %t, want %t", tc.positional, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestFishCompletionFor_EmbedsBinaryPath(t *testing.T) {
 	script := FishCompletionFor(`/tmp/ask "$HOME"`)
 	for _, line := range []string{
