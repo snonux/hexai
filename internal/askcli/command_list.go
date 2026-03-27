@@ -3,7 +3,6 @@ package askcli
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -52,23 +51,7 @@ func (d *Dispatcher) handleListWithFilters(ctx context.Context, initialFilters, 
 		}
 		return tasks[i].Urgency > tasks[j].Urgency
 	})
-	if d.jsonOutput {
-		data, err := json.Marshal(tasks)
-		if err != nil {
-			fmt.Fprintf(stderr, "error: failed to marshal JSON: %v\n", err)
-			return 1, nil
-		}
-		stdout.Write(data)
-		io.WriteString(stdout, "\n")
-	} else {
-		aliases, err := ensureTaskAliases(tasks)
-		if err != nil {
-			fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
-			return 1, nil
-		}
-		io.WriteString(stdout, FormatTaskListForWidth(tasks, aliases, detectTaskListTerminalWidth(stdout)))
-	}
-	return 0, nil
+	return renderTaskList(tasks, stdout, stderr, d.jsonOutput)
 }
 
 func priorityOrder(p string) int {
