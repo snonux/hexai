@@ -35,6 +35,11 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 	if strings.Contains(script, "assets/ask.fish") {
 		t.Fatalf("script should not reference a static asset")
 	}
+	for _, name := range []string{"info", "annotate", "start", "stop", "done", "priority", "tag", "modify", "denotate", "delete"} {
+		if strings.Contains(script, "complete -c ask -n '__ask_in_uuid_context' -a '"+name+"'") {
+			t.Fatalf("script should not hard-code UUID completion item %q", name)
+		}
+	}
 }
 
 func TestFishSingleSelectorCompletionContext(t *testing.T) {

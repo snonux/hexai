@@ -49,19 +49,6 @@ var askDepCompletionItems = []fishCompletionItem{
 	{name: "list", description: "List dependencies"},
 }
 
-var askUUIDCompletionItems = []fishCompletionItem{
-	{name: "info", description: "Show task details"},
-	{name: "annotate", description: "Add an annotation"},
-	{name: "start", description: "Start a task"},
-	{name: "stop", description: "Stop a task"},
-	{name: "done", description: "Mark a task complete"},
-	{name: "priority", description: "Set priority"},
-	{name: "tag", description: "Add or remove a tag"},
-	{name: "modify", description: "Modify task fields"},
-	{name: "denotate", description: "Remove an annotation"},
-	{name: "delete", description: "Delete a task"},
-}
-
 func fishSingleSelectorCompletionContext(positional []string) bool {
 	if len(positional) != 1 {
 		return false
