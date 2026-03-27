@@ -275,6 +275,22 @@ func TestHandleAdd_MissingDescription(t *testing.T) {
 	}
 }
 
+func TestHandleAdd_DependsModifierWithoutSelectors(t *testing.T) {
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		t.Fatalf("runner should not be called when depends: has no selectors: %v", args)
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"add", "depends:", "New", "task"}, nil, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("add code = %d, want 1", code)
+	}
+	if got := stderr.String(); !strings.Contains(got, "ask add depends:<id|uuid>[,<id|uuid>...] requires at least one dependency ID or UUID") {
+		t.Fatalf("stderr = %q, want depends: selector error", got)
+	}
+}
+
 func makeAddRunner(onAdd func(args []string, stdout io.Writer)) *spyRunner {
 	return &spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		onAdd(args, stdout)
@@ -353,6 +369,60 @@ func TestHandleAdd_WithPriorityAndTag(t *testing.T) {
 	}
 }
 
+func TestHandleAdd_WithDependencies(t *testing.T) {
+	now := useIsolatedTaskAliasCache(t)
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 2,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "dep-uuid-1", Alias: "0", CreatedAt: now},
+			{UUID: "dep-uuid-2", Alias: "1", CreatedAt: now},
+		},
+	})
+
+	var capturedAddArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		switch {
+		case len(args) >= 2 && args[0] == "uuid:dep-uuid-1" && args[1] == "export":
+			io.WriteString(stdout, `[{"uuid":"dep-uuid-1","description":"Dependency one","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+		case len(args) >= 2 && args[0] == "uuid:dep-uuid-2" && args[1] == "export":
+			io.WriteString(stdout, `[{"uuid":"dep-uuid-2","description":"Dependency two","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+		case len(args) >= 1 && args[0] == "add":
+			capturedAddArgs = append([]string(nil), args...)
+			io.WriteString(stdout, "Created task created-uuid.")
+		default:
+			t.Fatalf("unexpected runner args: %v", args)
+		}
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(
+		context.Background(),
+		[]string{"add", "+cli", "depends:0,1", "New", "task"},
+		nil,
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("add code = %d, want 0: stderr=%s", code, stderr.String())
+	}
+	if got := strings.TrimSpace(stdout.String()); got != "2" {
+		t.Fatalf("stdout = %q, want alias 2", stdout.String())
+	}
+	if len(capturedAddArgs) < 6 {
+		t.Fatalf("capturedAddArgs = %v, want add invocation with dependency modifier", capturedAddArgs)
+	}
+	if capturedAddArgs[3] != "+cli" {
+		t.Fatalf("capturedAddArgs[3] = %q, want +cli", capturedAddArgs[3])
+	}
+	if capturedAddArgs[4] != "depends:dep-uuid-1,dep-uuid-2" {
+		t.Fatalf("capturedAddArgs[4] = %q, want dependency modifier", capturedAddArgs[4])
+	}
+	if capturedAddArgs[5] != "New task" {
+		t.Fatalf("capturedAddArgs[5] = %q, want joined description", capturedAddArgs[5])
+	}
+}
+
 func TestExtractUUIDFromAddOutput(t *testing.T) {
 	if uuid := extractUUIDFromAddOutput("Created task abc-123-def."); uuid != "abc-123-def" {
 		t.Fatalf("got %q, want abc-123-def", uuid)
@@ -366,40 +436,52 @@ func TestExtractUUIDFromAddOutput(t *testing.T) {
 }
 
 func TestParseAddArgs(t *testing.T) {
-	mods, desc := parseAddArgs([]string{"priority:H", "+cli", "Fix bug"})
-	if desc != "Fix bug" || len(mods) != 2 {
-		t.Fatalf("parseAddArgs([\"priority:H\", \"+cli\", \"Fix bug\"]) = mods=%v, desc=%q, want mods=[priority:H, +cli], desc=\"Fix bug\"", mods, desc)
+	mods, desc, deps, err := parseAddArgs([]string{"priority:H", "+cli", "Fix bug"})
+	if err != nil || desc != "Fix bug" || len(mods) != 2 || len(deps) != 0 {
+		t.Fatalf("parseAddArgs([\"priority:H\", \"+cli\", \"Fix bug\"]) = mods=%v, desc=%q, deps=%v, err=%v", mods, desc, deps, err)
 	}
 
-	mods, desc = parseAddArgs([]string{"Multi", "word", "description"})
-	if desc != "Multi word description" || len(mods) != 0 {
-		t.Fatalf("parseAddArgs([\"Multi\", \"word\", \"description\"]) = mods=%v, desc=%q, want mods=[], desc=\"Multi word description\"", mods, desc)
+	mods, desc, deps, err = parseAddArgs([]string{"Multi", "word", "description"})
+	if err != nil || desc != "Multi word description" || len(mods) != 0 || len(deps) != 0 {
+		t.Fatalf("parseAddArgs([\"Multi\", \"word\", \"description\"]) = mods=%v, desc=%q, deps=%v, err=%v", mods, desc, deps, err)
 	}
 
-	mods, desc = parseAddArgs([]string{"-deprecated", "Old task"})
-	if desc != "Old task" || len(mods) != 1 || mods[0] != "-deprecated" {
-		t.Fatalf("parseAddArgs([\"-deprecated\", \"Old task\"]) = mods=%v, desc=%q", mods, desc)
+	mods, desc, deps, err = parseAddArgs([]string{"-deprecated", "Old task"})
+	if err != nil || desc != "Old task" || len(mods) != 1 || mods[0] != "-deprecated" || len(deps) != 0 {
+		t.Fatalf("parseAddArgs([\"-deprecated\", \"Old task\"]) = mods=%v, desc=%q, deps=%v, err=%v", mods, desc, deps, err)
 	}
 
 	// An arg starting with "+" but containing spaces is NOT a modifier — it is
 	// the start of the description. This prevents agents from quoting tag+desc
 	// together (e.g. "+code-quality Fix foo") and having them land in the wrong
 	// place.
-	mods, desc = parseAddArgs([]string{"+code-quality Fix foo bar"})
-	if desc != "+code-quality Fix foo bar" || len(mods) != 0 {
-		t.Fatalf("space-containing +arg should be description, got mods=%v, desc=%q", mods, desc)
+	mods, desc, deps, err = parseAddArgs([]string{"+code-quality Fix foo bar"})
+	if err != nil || desc != "+code-quality Fix foo bar" || len(mods) != 0 || len(deps) != 0 {
+		t.Fatalf("space-containing +arg should be description, got mods=%v, desc=%q, deps=%v, err=%v", mods, desc, deps, err)
 	}
 
 	// Same issue when mixed: a proper tag precedes a space-containing arg.
-	mods, desc = parseAddArgs([]string{"+cli", "+code-quality Fix foo bar"})
-	if desc != "+code-quality Fix foo bar" || len(mods) != 1 || mods[0] != "+cli" {
-		t.Fatalf("mixed case: mods=%v, desc=%q", mods, desc)
+	mods, desc, deps, err = parseAddArgs([]string{"+cli", "+code-quality Fix foo bar"})
+	if err != nil || desc != "+code-quality Fix foo bar" || len(mods) != 1 || mods[0] != "+cli" || len(deps) != 0 {
+		t.Fatalf("mixed case: mods=%v, desc=%q, deps=%v, err=%v", mods, desc, deps, err)
 	}
 
 	// All-modifier args (no description) should return empty description, not a
 	// duplicate of the modifiers.
-	mods, desc = parseAddArgs([]string{"+cli", "+agent"})
-	if desc != "" || len(mods) != 2 {
-		t.Fatalf("all-modifier case: mods=%v, desc=%q, want empty desc", mods, desc)
+	mods, desc, deps, err = parseAddArgs([]string{"+cli", "+agent"})
+	if err != nil || desc != "" || len(mods) != 2 || len(deps) != 0 {
+		t.Fatalf("all-modifier case: mods=%v, desc=%q, deps=%v, err=%v", mods, desc, deps, err)
+	}
+
+	mods, desc, deps, err = parseAddArgs([]string{"+cli", "depends:0,1", "Fix", "bug"})
+	if err != nil || desc != "Fix bug" || len(mods) != 1 || mods[0] != "+cli" || len(deps) != 2 || deps[0] != "0" || deps[1] != "1" {
+		t.Fatalf("depends case: mods=%v, desc=%q, deps=%v, err=%v", mods, desc, deps, err)
+	}
+
+	if _, _, _, err = parseAddArgs([]string{"depends:", "Fix", "bug"}); err == nil {
+		t.Fatalf("parseAddArgs should reject empty depends: modifier")
+	}
+	if _, _, _, err = parseAddArgs([]string{"depends:0,,1", "Fix", "bug"}); err == nil {
+		t.Fatalf("parseAddArgs should reject empty selector entries")
 	}
 }

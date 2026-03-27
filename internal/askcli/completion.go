@@ -90,6 +90,14 @@ func fishDepSelectorCompletionContext(positional []string) bool {
 	}
 }
 
+func fishAddDependencyModifierCompletionContext(positional []string, current string) bool {
+	if len(positional) == 0 || positional[0] != "add" {
+		return false
+	}
+	current = strings.TrimSpace(current)
+	return current == "depends" || strings.HasPrefix(current, "depends:")
+}
+
 func FishCompletion() string {
 	return FishCompletionFor("ask")
 }
@@ -99,6 +107,7 @@ func FishCompletionFor(binaryPath string) string {
 	writeFishPreamble(&b)
 	writeFishContextFunctions(&b)
 	writeFishTaskSelectorFunction(&b, binaryPath)
+	writeFishAddDependencyModifierFunction(&b)
 	b.WriteString("complete -c ask -f\n")
 	b.WriteString("complete -c ask -s j -l json -d 'Emit JSON output'\n")
 	for _, item := range askRootCompletionItems {
@@ -109,6 +118,7 @@ func FishCompletionFor(binaryPath string) string {
 	}
 	writeFishUUIDCompletionLine(&b, "__ask_in_uuid_context", "Task selector")
 	writeFishUUIDCompletionLine(&b, "__ask_in_dep_uuid_context", "Task selector")
+	writeFishFunctionCompletionLine(&b, "__ask_in_add_dep_modifier_context", "__ask_add_dependency_modifiers", "Task dependency")
 	return b.String()
 }
 
@@ -122,6 +132,7 @@ func writeFishContextFunctions(b *strings.Builder) {
 	writeFishDepContextFunction(b)
 	writeFishUUIDContextFunction(b)
 	writeFishDepUUIDContextFunction(b)
+	writeFishAddDependencyModifierContextFunction(b)
 }
 
 func writeFishNeedsRootCompletionFunction(b *strings.Builder) {
@@ -224,6 +235,30 @@ func writeFishDepUUIDContextFunction(b *strings.Builder) {
 	b.WriteString("end\n\n")
 }
 
+func writeFishAddDependencyModifierContextFunction(b *strings.Builder) {
+	b.WriteString("function __ask_in_add_dep_modifier_context\n")
+	b.WriteString("    set -l tokens (commandline -opc)\n")
+	b.WriteString("    set -l positional\n")
+	b.WriteString("    for token in $tokens[2..-1]\n")
+	b.WriteString("        if string match -qr '^-' -- $token\n")
+	b.WriteString("            continue\n")
+	b.WriteString("        end\n")
+	b.WriteString("        set -a positional $token\n")
+	b.WriteString("    end\n")
+	b.WriteString("    if test (count $positional) -lt 1\n")
+	b.WriteString("        return 1\n")
+	b.WriteString("    end\n")
+	b.WriteString("    if test $positional[1] != add\n")
+	b.WriteString("        return 1\n")
+	b.WriteString("    end\n")
+	b.WriteString("    set -l current (commandline -ct)\n")
+	b.WriteString("    if test $current = depends\n")
+	b.WriteString("        return 0\n")
+	b.WriteString("    end\n")
+	b.WriteString("    string match -qr '^depends:' -- $current\n")
+	b.WriteString("end\n\n")
+}
+
 func writeFishTaskSelectorFunction(b *strings.Builder, binaryPath string) {
 	b.WriteString("function __ask_task_selectors\n")
 	b.WriteString("    set -l ask_bin ")
@@ -244,6 +279,42 @@ func writeFishTaskSelectorFunction(b *strings.Builder, binaryPath string) {
 	b.WriteString("end\n\n")
 }
 
+func writeFishAddDependencyModifierFunction(b *strings.Builder) {
+	b.WriteString("function __ask_add_dependency_modifiers\n")
+	b.WriteString("    set -l current (commandline -ct)\n")
+	b.WriteString("    if test $current = depends\n")
+	b.WriteString("        printf '%s\\n' 'depends:'\n")
+	b.WriteString("        return 0\n")
+	b.WriteString("    end\n")
+	b.WriteString("    if not string match -qr '^depends:' -- $current\n")
+	b.WriteString("        return 1\n")
+	b.WriteString("    end\n")
+	b.WriteString("    set -l raw (string sub -s 9 -- $current)\n")
+	b.WriteString("    set -l partial $raw\n")
+	b.WriteString("    set -l chosen\n")
+	b.WriteString("    if string match -q '*,*' -- $raw\n")
+	b.WriteString("        set -l pieces (string split ',' -- $raw)\n")
+	b.WriteString("        set partial $pieces[-1]\n")
+	b.WriteString("        if test (count $pieces) -gt 1\n")
+	b.WriteString("            set chosen $pieces[1..-2]\n")
+	b.WriteString("        end\n")
+	b.WriteString("    end\n")
+	b.WriteString("    for selector in (__ask_task_selectors)\n")
+	b.WriteString("        if contains -- $selector $chosen\n")
+	b.WriteString("            continue\n")
+	b.WriteString("        end\n")
+	b.WriteString("        if not string match -q -- \"$partial*\" $selector\n")
+	b.WriteString("            continue\n")
+	b.WriteString("        end\n")
+	b.WriteString("        if test (count $chosen) -eq 0\n")
+	b.WriteString("            printf 'depends:%s\\n' $selector\n")
+	b.WriteString("        else\n")
+	b.WriteString("            printf 'depends:%s,%s\\n' (string join ',' $chosen) $selector\n")
+	b.WriteString("        end\n")
+	b.WriteString("    end\n")
+	b.WriteString("end\n\n")
+}
+
 func writeFishCompletionLine(b *strings.Builder, condition string, item fishCompletionItem) {
 	b.WriteString("complete -c ask -n '")
 	b.WriteString(condition)
@@ -258,6 +329,16 @@ func writeFishUUIDCompletionLine(b *strings.Builder, condition, description stri
 	b.WriteString("complete -c ask -n '")
 	b.WriteString(condition)
 	b.WriteString("' -a '(__ask_task_selectors)' -d '")
+	b.WriteString(strings.ReplaceAll(description, "'", "\\'"))
+	b.WriteString("'\n")
+}
+
+func writeFishFunctionCompletionLine(b *strings.Builder, condition, functionName, description string) {
+	b.WriteString("complete -c ask -n '")
+	b.WriteString(condition)
+	b.WriteString("' -a '(")
+	b.WriteString(functionName)
+	b.WriteString(")' -d '")
 	b.WriteString(strings.ReplaceAll(description, "'", "\\'"))
 	b.WriteString("'\n")
 }

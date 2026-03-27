@@ -328,6 +328,57 @@ func TestAddReturnsAlias(t *testing.T) {
 	}
 }
 
+func TestAddWithDependsModifier(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	dep1UUID, err := createTask(ctx, "integration test add depends target one")
+	if err != nil {
+		t.Fatalf("failed to create first dependency task: %v", err)
+	}
+	defer deleteTask(ctx, dep1UUID)
+
+	dep2UUID, err := createTask(ctx, "integration test add depends target two")
+	if err != nil {
+		t.Fatalf("failed to create second dependency task: %v", err)
+	}
+	defer deleteTask(ctx, dep2UUID)
+
+	dep1Alias := mustTaskAlias(t, ctx, dep1UUID)
+	dep2Alias := mustTaskAlias(t, ctx, dep2UUID)
+
+	stdout, stderr, code := runAsk(ctx, []string{
+		"add",
+		"+integrationtest",
+		"depends:" + dep1Alias + "," + dep2Alias,
+		"integration",
+		"test",
+		"task",
+		"with",
+		"inline",
+		"depends",
+	})
+	if code != 0 {
+		t.Fatalf("ask add with depends modifier failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+
+	id := strings.TrimSpace(stdout.String())
+	info, ok := getTaskInfoFast(ctx, id)
+	if !ok {
+		t.Fatalf("ask info %q failed after add", id)
+	}
+	defer deleteTask(ctx, info.UUID)
+
+	raw, ok := getTaskInfoRaw(ctx, info.UUID)
+	if !ok {
+		t.Fatalf("raw info for created task %s failed", info.UUID)
+	}
+	if !strings.Contains(raw, dep1Alias+" ("+dep1UUID+")") || !strings.Contains(raw, dep2Alias+" ("+dep2UUID+")") {
+		t.Fatalf("created task info missing formatted dependencies: %s", raw)
+	}
+}
+
 func TestList(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

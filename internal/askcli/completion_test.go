@@ -18,10 +18,12 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 		"complete -c ask -n '__ask_in_dep_context' -a 'rm' -d 'Remove a dependency'",
 		"complete -c ask -n '__ask_in_dep_context' -a 'list' -d 'List dependencies'",
 		"function __ask_task_selectors",
+		"function __ask_add_dependency_modifiers",
 		`set -l ask_bin "ask"`,
 		"set -l selectors (command $ask_bin complete-uuids 2>/dev/null)",
 		"complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
 		"complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
+		"complete -c ask -n '__ask_in_add_dep_modifier_context' -a '(__ask_add_dependency_modifiers)' -d 'Task dependency'",
 	} {
 		if !strings.Contains(script, line) {
 			t.Fatalf("script missing dep completion line %q", line)
@@ -83,6 +85,29 @@ func TestFishDepSelectorCompletionContext(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := fishDepSelectorCompletionContext(tc.positional); got != tc.want {
 				t.Fatalf("fishDepSelectorCompletionContext(%v) = %t, want %t", tc.positional, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFishAddDependencyModifierCompletionContext(t *testing.T) {
+	testCases := []struct {
+		name       string
+		positional []string
+		current    string
+		want       bool
+	}{
+		{name: "add without depends modifier", positional: []string{"add", "task"}, current: "task", want: false},
+		{name: "add with depends keyword prefix", positional: []string{"add"}, current: "depends", want: true},
+		{name: "add with depends modifier", positional: []string{"add", "+cli"}, current: "depends:0", want: true},
+		{name: "add with comma continuation", positional: []string{"add", "+cli"}, current: "depends:0,", want: true},
+		{name: "non add command", positional: []string{"dep", "add"}, current: "depends:0", want: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := fishAddDependencyModifierCompletionContext(tc.positional, tc.current); got != tc.want {
+				t.Fatalf("fishAddDependencyModifierCompletionContext(%v, %q) = %t, want %t", tc.positional, tc.current, got, tc.want)
 			}
 		})
 	}

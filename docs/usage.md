@@ -136,6 +136,7 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 | Subcommand | Description |
 |---|---|
 | `ask add "description"` | Create a new task and print its alias ID |
+| `ask add depends:<id\|uuid>,<id\|uuid> "description"` | Create task with inline dependencies |
 | `ask add priority:H "description"` | Create task with priority |
 | `ask add +tag "description"` | Create task with tag |
 | `ask list` | List pending tasks only (alias-ID table) |
@@ -167,6 +168,9 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 ```sh
 # Create a task
 ask add priority:H "Implement new feature"
+
+# Create a task with dependencies
+ask add +cli depends:0,1 "Implement dependent feature"
 
 # List tasks
 ask list +READY limit:5
