@@ -28,7 +28,7 @@ func (d *Dispatcher) resolveTaskSelector(ctx context.Context, selector string, s
 	tasks, code, err := d.exportTasks(ctx, []string{"uuid:" + resolved.UUID, "export"}, stderr)
 	if err != nil {
 		if resolved.UsedAlias && strings.Contains(err.Error(), "task not found") {
-			return resolvedTaskSelector{}, nil, 1, fmt.Errorf("alias %q is stale: task %s was not found", selector, resolved.UUID)
+			return resolvedTaskSelector{}, nil, 1, fmt.Errorf("alias %q did not resolve to a task in the current scope", selector)
 		}
 		return resolvedTaskSelector{}, nil, code, err
 	}

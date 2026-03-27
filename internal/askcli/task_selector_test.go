@@ -123,8 +123,8 @@ func TestHandleInfo_StaleAlias(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("info code = %d, want 1 for stale alias", code)
 	}
-	if !strings.Contains(stderr.String(), `alias "0" is stale`) {
-		t.Fatalf("stderr = %q, want stale alias message", stderr.String())
+	if !strings.Contains(stderr.String(), `alias "0" did not resolve to a task in the current scope`) {
+		t.Fatalf("stderr = %q, want current-scope alias message", stderr.String())
 	}
 }
 

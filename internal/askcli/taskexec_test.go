@@ -13,11 +13,49 @@ import (
 
 func TestExecutorTaskArgs(t *testing.T) {
 	exec_ := NewExecutor("ask")
-	args, err := exec_.taskArgs("/tmp/work/hexai", []string{"list", "limit:1"})
+	args, err := exec_.taskArgs(context.Background(), "/tmp/work/hexai", []string{"list", "limit:1"})
 	if err != nil {
 		t.Fatalf("taskArgs returned error: %v", err)
 	}
 	want := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:hexai", "+agent", "list", "limit:1"}
+	if !reflect.DeepEqual(args, want) {
+		t.Fatalf("task args = %v, want %v", args, want)
+	}
+}
+
+func TestExecutorTaskArgs_NoAgentScope(t *testing.T) {
+	exec_ := NewExecutor("ask")
+	ctx := contextWithTaskScope(context.Background(), taskScopeNoAgent)
+	args, err := exec_.taskArgs(ctx, "/tmp/work/hexai", []string{"list", "limit:1"})
+	if err != nil {
+		t.Fatalf("taskArgs returned error: %v", err)
+	}
+	want := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:hexai", "-agent", "list", "limit:1"}
+	if !reflect.DeepEqual(args, want) {
+		t.Fatalf("task args = %v, want %v", args, want)
+	}
+}
+
+func TestExecutorTaskArgs_AddDefaultScope(t *testing.T) {
+	exec_ := NewExecutor("ask")
+	args, err := exec_.taskArgs(context.Background(), "/tmp/work/hexai", []string{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "new task"})
+	if err != nil {
+		t.Fatalf("taskArgs returned error: %v", err)
+	}
+	want := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:hexai", "add", "rc.verbose=nothing", "rc.verbose=new-uuid", "+agent", "new task"}
+	if !reflect.DeepEqual(args, want) {
+		t.Fatalf("task args = %v, want %v", args, want)
+	}
+}
+
+func TestExecutorTaskArgs_AddNoAgentScope(t *testing.T) {
+	exec_ := NewExecutor("ask")
+	ctx := contextWithTaskScope(context.Background(), taskScopeNoAgent)
+	args, err := exec_.taskArgs(ctx, "/tmp/work/hexai", []string{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "new task"})
+	if err != nil {
+		t.Fatalf("taskArgs returned error: %v", err)
+	}
+	want := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:hexai", "add", "rc.verbose=nothing", "rc.verbose=new-uuid", "new task"}
 	if !reflect.DeepEqual(args, want) {
 		t.Fatalf("task args = %v, want %v", args, want)
 	}
@@ -48,6 +86,32 @@ func TestExecutorRun_InjectsProjectFilterAndAgentTag(t *testing.T) {
 		t.Fatalf("task binary = %q, want /usr/bin/task", gotName)
 	}
 	wantArgs := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:hexai", "+agent", "list", "limit:1"}
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("task args = %v, want %v", gotArgs, wantArgs)
+	}
+}
+
+func TestExecutorRun_InjectsProjectFilterAndNoAgentTag(t *testing.T) {
+	var gotArgs []string
+	exec_ := Executor{
+		commandName:    "ask",
+		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
+		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
+		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+			gotArgs = append([]string(nil), args...)
+			return nil
+		},
+	}
+
+	ctx := contextWithTaskScope(context.Background(), taskScopeNoAgent)
+	exitCode, err := exec_.Run(ctx, []string{"list", "limit:1"}, strings.NewReader("in"), &bytes.Buffer{}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("exitCode = %d, want 0", exitCode)
+	}
+	wantArgs := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:hexai", "-agent", "list", "limit:1"}
 	if !reflect.DeepEqual(gotArgs, wantArgs) {
 		t.Fatalf("task args = %v, want %v", gotArgs, wantArgs)
 	}

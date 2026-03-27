@@ -377,7 +377,7 @@ func TestAddWithDependsModifier(t *testing.T) {
 		t.Fatalf("ask add with depends modifier failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 
-	id := strings.TrimSpace(stdout.String())
+	id := extractTaskIDFromAddOutput(stdout.String())
 	info, ok := getTaskInfoFast(ctx, id)
 	if !ok {
 		t.Fatalf("ask info %q failed after add", id)

@@ -16,6 +16,7 @@ var askDepCompletionItems = []fishCompletionItem{
 }
 
 func fishSingleSelectorCompletionContext(positional []string) bool {
+	positional = trimTaskScopePrefix(positional)
 	if len(positional) != 1 {
 		return false
 	}
@@ -29,6 +30,7 @@ func fishSingleSelectorCompletionContext(positional []string) bool {
 }
 
 func fishDepSelectorCompletionContext(positional []string) bool {
+	positional = trimTaskScopePrefix(positional)
 	if len(positional) < 2 || positional[0] != "dep" {
 		return false
 	}
@@ -44,6 +46,7 @@ func fishDepSelectorCompletionContext(positional []string) bool {
 }
 
 func fishAddDependencyModifierCompletionContext(positional []string, current string) bool {
+	positional = trimTaskScopePrefix(positional)
 	if len(positional) == 0 || positional[0] != "add" {
 		return false
 	}
@@ -65,9 +68,15 @@ func FishCompletionFor(binaryPath string) string {
 	writeFishAddDependencyModifierFunction(&b)
 	b.WriteString("complete -c ask -f\n")
 	b.WriteString("complete -c ask -s j -l json -d 'Emit JSON output'\n")
+	for _, item := range []fishCompletionItem{
+		{name: "na", description: "Run against project tasks without +agent"},
+		{name: "no-agent", description: "Run against project tasks without +agent"},
+	} {
+		writeFishCompletionLine(&b, "__ask_needs_root_completion", item)
+	}
 	for _, entry := range commandRegistry.rootCompletionEntries() {
 		item := fishCompletionItem{name: entry.name, description: entry.description}
-		writeFishCompletionLine(&b, "__ask_needs_root_completion", item)
+		writeFishCompletionLine(&b, "__ask_needs_command_completion", item)
 	}
 	for _, item := range askDepCompletionItems {
 		writeFishCompletionLine(&b, "__ask_in_dep_context", item)
@@ -84,55 +93,19 @@ func writeFishPreamble(b *strings.Builder) {
 }
 
 func writeFishContextFunctions(b *strings.Builder) {
+	writeFishPositionalTokensFunction(b)
+	writeFishCommandPositionalsFunction(b)
+	writeFishScopePrefixFunction(b)
 	writeFishNeedsRootCompletionFunction(b)
+	writeFishNeedsCommandCompletionFunction(b)
 	writeFishDepContextFunction(b)
 	writeFishUUIDContextFunction(b)
 	writeFishDepUUIDContextFunction(b)
 	writeFishAddDependencyModifierContextFunction(b)
 }
 
-func writeFishNeedsRootCompletionFunction(b *strings.Builder) {
-	b.WriteString("function __ask_needs_root_completion\n")
-	b.WriteString("    set -l tokens (commandline -opc)\n")
-	b.WriteString("    if test (count $tokens) -le 1\n")
-	b.WriteString("        return 0\n")
-	b.WriteString("    end\n")
-	b.WriteString("    for token in $tokens[2..-1]\n")
-	b.WriteString("        if not string match -qr '^-' -- $token\n")
-	b.WriteString("            return 1\n")
-	b.WriteString("        end\n")
-	b.WriteString("    end\n")
-	b.WriteString("    return 0\n")
-	b.WriteString("end\n\n")
-}
-
-func writeFishDepContextFunction(b *strings.Builder) {
-	b.WriteString("function __ask_in_dep_context\n")
-	b.WriteString("    set -l tokens (commandline -opc)\n")
-	b.WriteString("    if test (count $tokens) -lt 2\n")
-	b.WriteString("        return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    set -l seen_dep 0\n")
-	b.WriteString("    for token in $tokens[2..-1]\n")
-	b.WriteString("        if string match -qr '^-' -- $token\n")
-	b.WriteString("            continue\n")
-	b.WriteString("        end\n")
-	b.WriteString("        if test $seen_dep -eq 0\n")
-	b.WriteString("            if test $token = dep\n")
-	b.WriteString("                set seen_dep 1\n")
-	b.WriteString("            else\n")
-	b.WriteString("                return 1\n")
-	b.WriteString("            end\n")
-	b.WriteString("        else\n")
-	b.WriteString("            return 1\n")
-	b.WriteString("        end\n")
-	b.WriteString("    end\n")
-	b.WriteString("    test $seen_dep -eq 1\n")
-	b.WriteString("end\n\n")
-}
-
-func writeFishUUIDContextFunction(b *strings.Builder) {
-	b.WriteString("function __ask_in_uuid_context\n")
+func writeFishPositionalTokensFunction(b *strings.Builder) {
+	b.WriteString("function __ask_positional_tokens\n")
 	b.WriteString("    set -l tokens (commandline -opc)\n")
 	b.WriteString("    set -l positional\n")
 	b.WriteString("    for token in $tokens[2..-1]\n")
@@ -141,6 +114,89 @@ func writeFishUUIDContextFunction(b *strings.Builder) {
 	b.WriteString("        end\n")
 	b.WriteString("        set -a positional $token\n")
 	b.WriteString("    end\n")
+	b.WriteString("    for token in $positional\n")
+	b.WriteString("        printf '%s\\n' $token\n")
+	b.WriteString("    end\n")
+	b.WriteString("end\n\n")
+}
+
+func writeFishCommandPositionalsFunction(b *strings.Builder) {
+	b.WriteString("function __ask_command_positionals\n")
+	b.WriteString("    set -l positional (__ask_positional_tokens)\n")
+	b.WriteString("    if test (count $positional) -gt 0\n")
+	b.WriteString("        switch $positional[1]\n")
+	b.WriteString("            case na no-agent\n")
+	b.WriteString("                for token in $positional[2..-1]\n")
+	b.WriteString("                    printf '%s\\n' $token\n")
+	b.WriteString("                end\n")
+	b.WriteString("                return 0\n")
+	b.WriteString("        end\n")
+	b.WriteString("    end\n")
+	b.WriteString("    for token in $positional\n")
+	b.WriteString("        printf '%s\\n' $token\n")
+	b.WriteString("    end\n")
+	b.WriteString("end\n\n")
+}
+
+func writeFishScopePrefixFunction(b *strings.Builder) {
+	b.WriteString("function __ask_scope_prefix\n")
+	b.WriteString("    set -l positional (__ask_positional_tokens)\n")
+	b.WriteString("    if test (count $positional) -eq 0\n")
+	b.WriteString("        return 1\n")
+	b.WriteString("    end\n")
+	b.WriteString("    switch $positional[1]\n")
+	b.WriteString("        case na no-agent\n")
+	b.WriteString("            printf '%s\\n' $positional[1]\n")
+	b.WriteString("            return 0\n")
+	b.WriteString("        case '*'\n")
+	b.WriteString("            return 1\n")
+	b.WriteString("    end\n")
+	b.WriteString("    return 1\n")
+	b.WriteString("end\n\n")
+}
+
+func writeFishNeedsRootCompletionFunction(b *strings.Builder) {
+	b.WriteString("function __ask_needs_root_completion\n")
+	b.WriteString("    set -l positional (__ask_positional_tokens)\n")
+	b.WriteString("    if test (count $positional) -eq 0\n")
+	b.WriteString("        return 0\n")
+	b.WriteString("    end\n")
+	b.WriteString("    return 1\n")
+	b.WriteString("end\n\n")
+}
+
+func writeFishNeedsCommandCompletionFunction(b *strings.Builder) {
+	b.WriteString("function __ask_needs_command_completion\n")
+	b.WriteString("    set -l positional (__ask_positional_tokens)\n")
+	b.WriteString("    if test (count $positional) -eq 0\n")
+	b.WriteString("        return 0\n")
+	b.WriteString("    end\n")
+	b.WriteString("    if test (count $positional) -eq 1\n")
+	b.WriteString("        switch $positional[1]\n")
+	b.WriteString("            case na no-agent\n")
+	b.WriteString("                return 0\n")
+	b.WriteString("        end\n")
+	b.WriteString("    end\n")
+	b.WriteString("    return 1\n")
+	b.WriteString("end\n\n")
+}
+
+func writeFishDepContextFunction(b *strings.Builder) {
+	b.WriteString("function __ask_in_dep_context\n")
+	b.WriteString("    set -l positional (__ask_command_positionals)\n")
+	b.WriteString("    if test (count $positional) -lt 1\n")
+	b.WriteString("        return 1\n")
+	b.WriteString("    end\n")
+	b.WriteString("    if test $positional[1] != dep\n")
+	b.WriteString("        return 1\n")
+	b.WriteString("    end\n")
+	b.WriteString("    test (count $positional) -eq 1\n")
+	b.WriteString("end\n\n")
+}
+
+func writeFishUUIDContextFunction(b *strings.Builder) {
+	b.WriteString("function __ask_in_uuid_context\n")
+	b.WriteString("    set -l positional (__ask_command_positionals)\n")
 	b.WriteString("    if test (count $positional) -eq 0\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
@@ -161,14 +217,7 @@ func writeFishUUIDContextFunction(b *strings.Builder) {
 
 func writeFishDepUUIDContextFunction(b *strings.Builder) {
 	b.WriteString("function __ask_in_dep_uuid_context\n")
-	b.WriteString("    set -l tokens (commandline -opc)\n")
-	b.WriteString("    set -l positional\n")
-	b.WriteString("    for token in $tokens[2..-1]\n")
-	b.WriteString("        if string match -qr '^-' -- $token\n")
-	b.WriteString("            continue\n")
-	b.WriteString("        end\n")
-	b.WriteString("        set -a positional $token\n")
-	b.WriteString("    end\n")
+	b.WriteString("    set -l positional (__ask_command_positionals)\n")
 	b.WriteString("    if test (count $positional) -lt 2\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
@@ -193,14 +242,7 @@ func writeFishDepUUIDContextFunction(b *strings.Builder) {
 
 func writeFishAddDependencyModifierContextFunction(b *strings.Builder) {
 	b.WriteString("function __ask_in_add_dep_modifier_context\n")
-	b.WriteString("    set -l tokens (commandline -opc)\n")
-	b.WriteString("    set -l positional\n")
-	b.WriteString("    for token in $tokens[2..-1]\n")
-	b.WriteString("        if string match -qr '^-' -- $token\n")
-	b.WriteString("            continue\n")
-	b.WriteString("        end\n")
-	b.WriteString("        set -a positional $token\n")
-	b.WriteString("    end\n")
+	b.WriteString("    set -l positional (__ask_command_positionals)\n")
 	b.WriteString("    if test (count $positional) -lt 1\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
@@ -220,17 +262,28 @@ func writeFishTaskSelectorFunction(b *strings.Builder, binaryPath string) {
 	b.WriteString("    set -l ask_bin ")
 	b.WriteString(quoteFishString(binaryPath))
 	b.WriteString("\n")
+	b.WriteString("    set -l scope_prefix (__ask_scope_prefix)\n")
+	b.WriteString("    set -l cache_key default\n")
+	b.WriteString("    if test -n \"$scope_prefix\"\n")
+	b.WriteString("        set cache_key $scope_prefix\n")
+	b.WriteString("    end\n")
 	b.WriteString("    set -l now (date +%s)\n")
-	b.WriteString("    if set -q __ask_task_selector_cache_until; and test $__ask_task_selector_cache_until -ge $now\n")
+	b.WriteString("    if set -q __ask_task_selector_cache_until; and test $__ask_task_selector_cache_until -ge $now; and set -q __ask_task_selector_cache_key; and test \"$__ask_task_selector_cache_key\" = \"$cache_key\"\n")
 	b.WriteString("        printf '%s\\n' $__ask_task_selector_cache\n")
 	b.WriteString("        return 0\n")
 	b.WriteString("    end\n")
-	b.WriteString("    set -l selectors (command $ask_bin complete-uuids 2>/dev/null)\n")
+	b.WriteString("    set -l selectors\n")
+	b.WriteString("    if test -n \"$scope_prefix\"\n")
+	b.WriteString("        set selectors (command $ask_bin $scope_prefix complete-uuids 2>/dev/null)\n")
+	b.WriteString("    else\n")
+	b.WriteString("        set selectors (command $ask_bin complete-uuids 2>/dev/null)\n")
+	b.WriteString("    end\n")
 	b.WriteString("    if test $status -ne 0\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
 	b.WriteString("    set -g __ask_task_selector_cache $selectors\n")
 	b.WriteString("    set -g __ask_task_selector_cache_until (math $now + 2)\n")
+	b.WriteString("    set -g __ask_task_selector_cache_key $cache_key\n")
 	b.WriteString("    printf '%s\\n' $selectors\n")
 	b.WriteString("end\n\n")
 }

@@ -125,7 +125,9 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 
 ## Task management
 
-`ask` is a task management CLI for the current git project. It auto-scopes to `project:<repo> +agent` so all operations are confined to the current project.
+`ask` is a task management CLI for the current git project. By default it auto-scopes to `project:<repo> +agent` so operations are confined to agent-managed project tasks.
+
+Use `ask na <subcommand...>` or `ask no-agent <subcommand...>` to run the same subcommands against project tasks without the `+agent` tag. Those prefixes keep the project scope but replace the default tag filter with `-agent`.
 
 `ask` never exposes Taskwarrior numeric task IDs. Human-facing output uses stable local alias IDs where practical, while `ask info` shows both the alias ID and the UUID. Commands that accept a task selector support either the alias ID or the UUID.
 
@@ -139,7 +141,9 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 | `ask add depends:<id\|uuid>,<id\|uuid> "description"` | Create task with inline dependencies |
 | `ask add priority:H "description"` | Create task with priority |
 | `ask add +tag "description"` | Create task with tag |
+| `ask na add "description"` | Create a project task without the `+agent` tag |
 | `ask list` | List pending tasks only (alias-ID table) |
+| `ask na list` | List pending project tasks without the `+agent` tag |
 | `ask all` | List all tasks including completed/deleted |
 | `ask list +READY` | List only ready tasks |
 | `ask list +BLOCKED` | List blocked tasks |
@@ -169,14 +173,23 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 # Create a task
 ask add priority:H "Implement new feature"
 
+# Create a non-agent task
+ask na add "Follow up manually"
+
 # Create a task with dependencies
 ask add +cli depends:0,1 "Implement dependent feature"
 
 # List tasks
 ask list +READY limit:5
 
+# List non-agent tasks
+ask no-agent list
+
 # Show alias and UUID for a task
 ask info 0
+
+# Show a non-agent task
+ask na info 0
 
 # Start working
 ask start 0

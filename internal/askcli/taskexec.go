@@ -34,7 +34,7 @@ func NewExecutor(commandName string) Executor {
 	}
 }
 
-func (e Executor) taskArgs(repoRoot string, args []string) ([]string, error) {
+func (e Executor) taskArgs(ctx context.Context, repoRoot string, args []string) ([]string, error) {
 	projectName, err := projectNameFromRoot(repoRoot)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,24 @@ func (e Executor) taskArgs(repoRoot string, args []string) ([]string, error) {
 	// rc.verbose=nothing suppresses Taskwarrior's configuration override
 	// banner, while rc.confirmation=off keeps non-interactive commands from
 	// prompting when stdin is unavailable.
-	return append([]string{"rc.verbose=nothing", "rc.confirmation=off", "project:" + projectName, "+agent"}, args...), nil
+	if len(args) > 0 && args[0] == "add" {
+		return addTaskArgs(projectName, taskScopeFromContext(ctx), args), nil
+	}
+	scopeFilter := taskScopeFilter(taskScopeFromContext(ctx))
+	return append([]string{"rc.verbose=nothing", "rc.confirmation=off", "project:" + projectName, scopeFilter}, args...), nil
+}
+
+func addTaskArgs(projectName string, scope taskScopeMode, args []string) []string {
+	taskArgs := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:" + projectName, "add"}
+	nextArg := 1
+	for nextArg < len(args) && strings.HasPrefix(args[nextArg], "rc.") {
+		taskArgs = append(taskArgs, args[nextArg])
+		nextArg++
+	}
+	if scope == taskScopeAgent {
+		taskArgs = append(taskArgs, "+agent")
+	}
+	return append(taskArgs, args[nextArg:]...)
 }
 
 // Run delegates CLI arguments to Taskwarrior, enforcing agent defaults and error handling.
@@ -56,7 +73,7 @@ func (e Executor) Run(ctx context.Context, args []string, stdin io.Reader, stdou
 	if err != nil {
 		return 1, fmt.Errorf("%s: must be run inside a git repository: %w", executor.label(), err)
 	}
-	taskArgs, err := executor.taskArgs(repoRoot, args)
+	taskArgs, err := executor.taskArgs(ctx, repoRoot, args)
 	if err != nil {
 		return 1, fmt.Errorf("%s: %w", executor.label(), err)
 	}

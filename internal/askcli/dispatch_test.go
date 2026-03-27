@@ -26,6 +26,9 @@ func TestDispatcher_Help(t *testing.T) {
 	if !strings.Contains(output, "ask - task management CLI") {
 		t.Fatalf("help missing title: %s", output)
 	}
+	if !strings.Contains(output, "ask na <subcommand...>") || !strings.Contains(output, "ask no-agent <subcommand...>") {
+		t.Fatalf("help missing no-agent scope prefixes: %s", output)
+	}
 	if !strings.Contains(output, "ask list") {
 		t.Fatalf("help missing list subcommand: %s", output)
 	}
@@ -161,6 +164,97 @@ func TestParseGlobalFlags(t *testing.T) {
 	}
 	if got := strings.Join(filtered, " "); got != "list extra" {
 		t.Fatalf("filtered args = %q, want \"list extra\"", got)
+	}
+}
+
+func TestParseTaskScopePrefix(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantScope taskScopeMode
+		wantArgs  []string
+	}{
+		{name: "default scope", args: []string{"list"}, wantScope: taskScopeAgent, wantArgs: []string{"list"}},
+		{name: "na prefix", args: []string{"na", "list"}, wantScope: taskScopeNoAgent, wantArgs: []string{"list"}},
+		{name: "no-agent prefix", args: []string{"no-agent", "info", "0"}, wantScope: taskScopeNoAgent, wantArgs: []string{"info", "0"}},
+		{name: "empty args", args: nil, wantScope: taskScopeAgent, wantArgs: nil},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gotScope, gotArgs := parseTaskScopePrefix(tc.args)
+			if gotScope != tc.wantScope {
+				t.Fatalf("scope = %v, want %v", gotScope, tc.wantScope)
+			}
+			if !reflect.DeepEqual(gotArgs, tc.wantArgs) {
+				t.Fatalf("args = %v, want %v", gotArgs, tc.wantArgs)
+			}
+		})
+	}
+}
+
+func TestDispatcher_NoAgentPrefix_StripsScopePrefix(t *testing.T) {
+	taskJSONFor := func(uuid string) string {
+		return `[{"uuid":"` + uuid + `","description":"Test","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`
+	}
+
+	tests := []struct {
+		name      string
+		args      []string
+		wantCalls [][]string
+	}{
+		{
+			name:      "na defaults to list",
+			args:      []string{"na"},
+			wantCalls: [][]string{{"status:pending", "export"}},
+		},
+		{
+			name:      "na list",
+			args:      []string{"na", "list"},
+			wantCalls: [][]string{{"status:pending", "export"}},
+		},
+		{
+			name:      "no-agent info",
+			args:      []string{"no-agent", "info", "test-uuid"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}},
+		},
+		{
+			name:      "no-agent add",
+			args:      []string{"no-agent", "add", "new task description"},
+			wantCalls: [][]string{{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "new task description"}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls [][]string
+			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+				calls = append(calls, append([]string(nil), args...))
+				switch strings.Join(args, " ") {
+				case "status:pending export":
+					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
+				case "uuid:test-uuid export":
+					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
+				case "add rc.verbose=nothing rc.verbose=new-uuid new task description":
+					_, _ = io.WriteString(stdout, "Created task task-uuid-abc.\n")
+				default:
+					t.Fatalf("unexpected runner args: %v", args)
+				}
+				return 0, nil
+			}})
+
+			var stdout, stderr bytes.Buffer
+			code, err := d.Dispatch(context.Background(), tc.args, nil, &stdout, &stderr)
+			if err != nil {
+				t.Fatalf("Dispatch returned error: %v", err)
+			}
+			if code != 0 {
+				t.Fatalf("Dispatch code = %d, want 0", code)
+			}
+			if !reflect.DeepEqual(calls, tc.wantCalls) {
+				t.Fatalf("runner calls = %#v, want %#v", calls, tc.wantCalls)
+			}
+		})
 	}
 }
 

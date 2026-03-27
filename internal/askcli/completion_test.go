@@ -7,6 +7,11 @@ import (
 
 func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 	script := FishCompletion()
+	for _, name := range []string{"na", "no-agent"} {
+		if !strings.Contains(script, " -a '"+name+"' ") {
+			t.Fatalf("script missing scope completion for %q", name)
+		}
+	}
 	for _, name := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "fish", "help"} {
 		if !strings.Contains(script, " -a '"+name+"' ") {
 			t.Fatalf("script missing root completion for %q", name)
@@ -17,10 +22,14 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 		"complete -c ask -n '__ask_in_dep_context' -a 'add' -d 'Add a dependency'",
 		"complete -c ask -n '__ask_in_dep_context' -a 'rm' -d 'Remove a dependency'",
 		"complete -c ask -n '__ask_in_dep_context' -a 'list' -d 'List dependencies'",
+		"function __ask_command_positionals",
+		"function __ask_scope_prefix",
 		"function __ask_task_selectors",
 		"function __ask_add_dependency_modifiers",
 		`set -l ask_bin "ask"`,
-		"set -l selectors (command $ask_bin complete-uuids 2>/dev/null)",
+		"set -l selectors",
+		"set selectors (command $ask_bin complete-uuids 2>/dev/null)",
+		"set selectors (command $ask_bin $scope_prefix complete-uuids 2>/dev/null)",
 		"complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
 		"complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
 		"complete -c ask -n '__ask_in_add_dep_modifier_context' -a '(__ask_add_dependency_modifiers)' -d 'Task dependency'",
@@ -49,9 +58,11 @@ func TestFishSingleSelectorCompletionContext(t *testing.T) {
 		want       bool
 	}{
 		{name: "info expects selector", positional: []string{"info"}, want: true},
+		{name: "info expects selector with no-agent prefix", positional: []string{"na", "info"}, want: true},
 		{name: "annotate expects selector", positional: []string{"annotate"}, want: true},
 		{name: "priority expects selector", positional: []string{"priority"}, want: true},
 		{name: "delete expects selector", positional: []string{"delete"}, want: true},
+		{name: "delete expects selector with alias prefix", positional: []string{"no-agent", "delete"}, want: true},
 		{name: "annotate stops after selector", positional: []string{"annotate", "0"}, want: false},
 		{name: "priority stops after selector", positional: []string{"priority", "0"}, want: false},
 		{name: "modify stops after selector", positional: []string{"modify", "0"}, want: false},
@@ -75,6 +86,7 @@ func TestFishDepSelectorCompletionContext(t *testing.T) {
 		want       bool
 	}{
 		{name: "dep add first selector", positional: []string{"dep", "add"}, want: true},
+		{name: "dep add first selector with no-agent prefix", positional: []string{"na", "dep", "add"}, want: true},
 		{name: "dep add second selector", positional: []string{"dep", "add", "0"}, want: true},
 		{name: "dep add stops after second selector", positional: []string{"dep", "add", "0", "1"}, want: false},
 		{name: "dep rm first selector", positional: []string{"dep", "rm"}, want: true},
@@ -105,6 +117,7 @@ func TestFishAddDependencyModifierCompletionContext(t *testing.T) {
 		{name: "add without depends modifier", positional: []string{"add", "task"}, current: "task", want: false},
 		{name: "add with depends keyword prefix", positional: []string{"add"}, current: "depends", want: true},
 		{name: "add with depends modifier", positional: []string{"add", "+cli"}, current: "depends:0", want: true},
+		{name: "add with depends modifier and no-agent prefix", positional: []string{"na", "add", "+cli"}, current: "depends:0", want: true},
 		{name: "add with comma continuation", positional: []string{"add", "+cli"}, current: "depends:0,", want: true},
 		{name: "non add command", positional: []string{"dep", "add"}, current: "depends:0", want: false},
 	}
@@ -122,7 +135,7 @@ func TestFishCompletionFor_EmbedsBinaryPath(t *testing.T) {
 	script := FishCompletionFor(`/tmp/ask "$HOME"`)
 	for _, line := range []string{
 		`set -l ask_bin "/tmp/ask \"\$HOME\""`,
-		"set -l selectors (command $ask_bin complete-uuids 2>/dev/null)",
+		"set selectors (command $ask_bin complete-uuids 2>/dev/null)",
 	} {
 		if !strings.Contains(script, line) {
 			t.Fatalf("script missing %q", line)

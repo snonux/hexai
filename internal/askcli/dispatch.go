@@ -45,6 +45,8 @@ func parseGlobalFlags(args []string) ([]string, bool) {
 func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	args, jsonOutput := parseGlobalFlags(args)
 	d.jsonOutput = jsonOutput
+	scope, args := parseTaskScopePrefix(args)
+	ctx = contextWithTaskScope(ctx, scope)
 
 	if len(args) == 0 {
 		args = []string{"list"}
@@ -59,6 +61,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reade
 
 func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "ask - task management CLI\n")
+	_, _ = io.WriteString(w, "\nScope prefixes:\n")
+	_, _ = io.WriteString(w, "  ask na <subcommand...>         Run a subcommand against project tasks without +agent\n")
+	_, _ = io.WriteString(w, "  ask no-agent <subcommand...>   Alias for ask na\n")
 	_, _ = io.WriteString(w, "\nSubcommands:\n")
 	_, _ = io.WriteString(w, "  ask add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print created task <id>\n")
 	_, _ = io.WriteString(w, "  ask list [filters]           List active tasks (default)\n")
