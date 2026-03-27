@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func (d Dispatcher) handleDenotate(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleDenotate(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
 		io.WriteString(stderr, "error: ask denotate requires an ID or UUID and text argument\n")
 		return 1, nil
@@ -27,7 +27,7 @@ func (d Dispatcher) handleDenotate(ctx context.Context, args []string, stdout, s
 	return 0, nil
 }
 
-func (d Dispatcher) handleModify(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleModify(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
 		io.WriteString(stderr, "error: ask modify requires an ID or UUID and modification args\n")
 		return 1, nil
@@ -47,7 +47,7 @@ func (d Dispatcher) handleModify(ctx context.Context, args []string, stdout, std
 	return 0, nil
 }
 
-func (d Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
 		io.WriteString(stderr, "error: ask annotate requires an ID or UUID and note argument\n")
 		return 1, nil
@@ -67,7 +67,7 @@ func (d Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, s
 	return 0, nil
 }
 
-func (d Dispatcher) handleStart(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleStart(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
 		io.WriteString(stderr, "error: ask start requires an ID or UUID argument\n")
 		return 1, nil
@@ -88,7 +88,7 @@ func (d Dispatcher) handleStart(ctx context.Context, args []string, stdout, stde
 	return 0, nil
 }
 
-func (d Dispatcher) handleStop(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleStop(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
 		io.WriteString(stderr, "error: ask stop requires an ID or UUID argument\n")
 		return 1, nil
@@ -107,7 +107,7 @@ func (d Dispatcher) handleStop(ctx context.Context, args []string, stdout, stder
 	return 0, nil
 }
 
-func (d Dispatcher) handleDone(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleDone(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
 		io.WriteString(stderr, "error: ask done requires an ID or UUID argument\n")
 		return 1, nil
@@ -126,7 +126,7 @@ func (d Dispatcher) handleDone(ctx context.Context, args []string, stdout, stder
 	return 0, nil
 }
 
-func (d Dispatcher) handlePriority(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handlePriority(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
 		io.WriteString(stderr, "error: ask priority requires an ID or UUID and priority (H/M/L)\n")
 		return 1, nil
@@ -146,7 +146,7 @@ func (d Dispatcher) handlePriority(ctx context.Context, args []string, stdout, s
 	return 0, nil
 }
 
-func (d Dispatcher) handleTag(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleTag(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
 		io.WriteString(stderr, "error: ask tag requires an ID or UUID and +/-tag\n")
 		return 1, nil

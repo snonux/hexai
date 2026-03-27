@@ -10,22 +10,22 @@ import (
 	"strings"
 )
 
-func (d Dispatcher) handleList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	return d.handleListWithFilters(ctx, []string{"status:pending"}, args[1:], stdout, stderr)
 }
 
-func (d Dispatcher) handleAll(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleAll(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	return d.handleListWithFilters(ctx, nil, args[1:], stdout, stderr)
 }
 
-func (d Dispatcher) handleReady(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleReady(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	return d.handleListWithFilters(ctx, []string{"+READY"}, args[1:], stdout, stderr)
 }
 
 // handleListWithFilters is the shared implementation for list/all/ready.
 // initialFilters seeds the taskwarrior filter; extraArgs are user-supplied
 // filter modifiers (limit:, sort:, +tag, started).
-func (d Dispatcher) handleListWithFilters(ctx context.Context, initialFilters, extraArgs []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleListWithFilters(ctx context.Context, initialFilters, extraArgs []string, stdout, stderr io.Writer) (int, error) {
 	filterArgs := append([]string(nil), initialFilters...)
 	for _, arg := range extraArgs {
 		if strings.HasPrefix(arg, "limit:") || strings.HasPrefix(arg, "sort:") ||

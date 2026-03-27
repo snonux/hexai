@@ -23,7 +23,7 @@ func NewDispatcher(runner Runner) *Dispatcher {
 	return &Dispatcher{runner: runner}
 }
 
-func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	// Extract --json flag before dispatching.
 	var jsonOutput bool
 	var filtered []string
@@ -85,7 +85,7 @@ func (d Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader
 	}
 }
 
-func (d Dispatcher) help(w io.Writer) (int, error) {
+func (d *Dispatcher) help(w io.Writer) (int, error) {
 	io.WriteString(w, "ask - task management CLI\n")
 	io.WriteString(w, "\nSubcommands:\n")
 	io.WriteString(w, "  ask add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print its ID\n")
@@ -110,7 +110,7 @@ func (d Dispatcher) help(w io.Writer) (int, error) {
 	return 0, nil
 }
 
-func (d Dispatcher) unknownCommand(w io.Writer, subcommand string) (int, error) {
+func (d *Dispatcher) unknownCommand(w io.Writer, subcommand string) (int, error) {
 	fmt.Fprintf(w, "ask: unknown subcommand %q\n", subcommand)
 	return 1, nil
 }

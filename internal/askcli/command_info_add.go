@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func (d Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	tasks, code, err := d.infoTasks(ctx, args, stderr)
 	if err != nil {
 		writeInfoError(stderr, err)
@@ -35,7 +35,7 @@ func (d Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stder
 	return 0, nil
 }
 
-func (d Dispatcher) infoTasks(ctx context.Context, args []string, stderr io.Writer) ([]TaskExport, int, error) {
+func (d *Dispatcher) infoTasks(ctx context.Context, args []string, stderr io.Writer) ([]TaskExport, int, error) {
 	if len(args) >= 2 {
 		_, tasks, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
 		return tasks, code, err
@@ -43,7 +43,7 @@ func (d Dispatcher) infoTasks(ctx context.Context, args []string, stderr io.Writ
 	return d.startedInfoTasks(ctx, stderr)
 }
 
-func (d Dispatcher) startedInfoTasks(ctx context.Context, stderr io.Writer) ([]TaskExport, int, error) {
+func (d *Dispatcher) startedInfoTasks(ctx context.Context, stderr io.Writer) ([]TaskExport, int, error) {
 	tasks, code, err := d.exportTasks(ctx, []string{"started", "export"}, stderr)
 	if err != nil {
 		return nil, code, err
@@ -58,7 +58,7 @@ func (d Dispatcher) startedInfoTasks(ctx context.Context, stderr io.Writer) ([]T
 	}
 }
 
-func (d Dispatcher) exportTasks(ctx context.Context, args []string, stderr io.Writer) ([]TaskExport, int, error) {
+func (d *Dispatcher) exportTasks(ctx context.Context, args []string, stderr io.Writer) ([]TaskExport, int, error) {
 	var outBuf bytes.Buffer
 	code, err := d.runner.Run(ctx, args, nil, &outBuf, stderr)
 	if code != 0 {
@@ -83,7 +83,7 @@ func writeInfoError(stderr io.Writer, err error) {
 	fmt.Fprintf(stderr, "error: %v\n", err)
 }
 
-func (d Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
 		io.WriteString(stderr, "error: ask add requires a description\n")
 		return 1, nil
@@ -129,7 +129,7 @@ func (d Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr
 	return 0, nil
 }
 
-func (d Dispatcher) resolveAddDependencyUUIDs(ctx context.Context, selectors []string, stderr io.Writer) ([]string, int, error) {
+func (d *Dispatcher) resolveAddDependencyUUIDs(ctx context.Context, selectors []string, stderr io.Writer) ([]string, int, error) {
 	dependencies := make([]string, 0, len(selectors))
 	for _, selector := range selectors {
 		resolved, _, code, err := d.resolveTaskSelector(ctx, selector, stderr)

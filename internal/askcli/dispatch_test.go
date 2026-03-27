@@ -123,6 +123,34 @@ func TestDispatcher_FishSubcommandRejectsExtraArgs(t *testing.T) {
 	}
 }
 
+func TestDispatcher_DispatchPersistsJSONFlagOnDispatcher(t *testing.T) {
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if strings.Join(args, " ") != "status:pending export" {
+			t.Fatalf("args = %v, want list export args", args)
+		}
+		_, _ = io.WriteString(stdout, `[]`)
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(context.Background(), []string{"--json", "list"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("Dispatch returned error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("Dispatch code = %d, want 0", code)
+	}
+	if !d.jsonOutput {
+		t.Fatal("Dispatch did not persist jsonOutput on the dispatcher")
+	}
+	if got := stdout.String(); got != "[]\n" {
+		t.Fatalf("stdout = %q, want JSON output", got)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
 func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 	subcommands := []string{}
 	subcommandArgs := map[string][]string{

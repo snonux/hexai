@@ -14,7 +14,7 @@ type resolvedTaskSelector struct {
 	UsedAlias bool
 }
 
-func (d Dispatcher) resolveTaskSelector(ctx context.Context, selector string, stderr io.Writer) (resolvedTaskSelector, []TaskExport, int, error) {
+func (d *Dispatcher) resolveTaskSelector(ctx context.Context, selector string, stderr io.Writer) (resolvedTaskSelector, []TaskExport, int, error) {
 	normalized, requiresLookup, err := normalizeTaskSelectorInput(selector)
 	if err != nil {
 		return resolvedTaskSelector{}, nil, 1, err

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func (d Dispatcher) handleDep(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleDep(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
 		io.WriteString(stderr, "error: ask dep requires an operation (add/rm/list) and arguments\n")
 		return 1, nil
@@ -25,7 +25,7 @@ func (d Dispatcher) handleDep(ctx context.Context, args []string, stdout, stderr
 	}
 }
 
-func (d Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 4 {
 		io.WriteString(stderr, "error: ask dep add/rm requires <id|uuid> <dep-id|dep-uuid>\n")
 		return 1, nil
@@ -57,7 +57,7 @@ func (d Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, s
 	return 0, nil
 }
 
-func (d Dispatcher) handleDepList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleDepList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
 		io.WriteString(stderr, "error: ask dep list requires <id|uuid>\n")
 		return 1, nil

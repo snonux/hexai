@@ -9,7 +9,7 @@ import (
 	"sort"
 )
 
-func (d Dispatcher) handleUrgency(ctx context.Context, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleUrgency(ctx context.Context, stdout, stderr io.Writer) (int, error) {
 	var outBuf bytes.Buffer
 	code, err := d.runner.Run(ctx, []string{"export"}, nil, &outBuf, stderr)
 	if code != 0 {
