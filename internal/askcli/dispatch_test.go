@@ -154,6 +154,16 @@ func TestDispatcher_DispatchPersistsJSONFlagOnDispatcher(t *testing.T) {
 	}
 }
 
+func TestParseGlobalFlags(t *testing.T) {
+	filtered, jsonOutput := parseGlobalFlags([]string{"--json", "list", "--json", "extra"})
+	if !jsonOutput {
+		t.Fatalf("json flag not detected")
+	}
+	if got := strings.Join(filtered, " "); got != "list extra" {
+		t.Fatalf("filtered args = %q, want \"list extra\"", got)
+	}
+}
+
 func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 	dir := t.TempDir()
 	oldRoot := taskAliasCacheRoot

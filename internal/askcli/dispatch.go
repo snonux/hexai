@@ -23,18 +23,21 @@ func NewDispatcher(runner Runner) *Dispatcher {
 	return &Dispatcher{runner: runner}
 }
 
-func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-	// Extract --json flag before dispatching.
-	var jsonOutput bool
+func parseGlobalFlags(args []string) ([]string, bool) {
 	var filtered []string
-	for _, a := range args {
-		if a == "--json" {
+	var jsonOutput bool
+	for _, arg := range args {
+		if arg == "--json" {
 			jsonOutput = true
-		} else {
-			filtered = append(filtered, a)
+			continue
 		}
+		filtered = append(filtered, arg)
 	}
-	args = filtered
+	return filtered, jsonOutput
+}
+
+func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	args, jsonOutput := parseGlobalFlags(args)
 	d.jsonOutput = jsonOutput
 
 	if len(args) == 0 {
