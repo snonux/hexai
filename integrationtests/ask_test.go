@@ -117,17 +117,24 @@ func runTaskWithStdin(ctx context.Context, args []string, stdin string) (stdout,
 }
 
 // createTask creates a new task via ask add and returns its UUID.
-// ask add outputs the UUID directly (via rc.verbose=new-uuid), so no follow-up lookup is needed.
+// ask add prints the human-facing alias ID, so we resolve the created UUID via ask info.
 func createTask(ctx context.Context, desc string) (string, error) {
 	stdout, stderr, code := runAsk(ctx, []string{"add", "+integrationtest", desc})
 	if code != 0 {
 		return "", fmt.Errorf("create task failed (code %d): stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
-	uuid := strings.TrimSpace(stdout.String())
-	if uuid == "" {
-		return "", fmt.Errorf("could not extract UUID from ask add output: %s", stdout.String())
+	id := strings.TrimSpace(stdout.String())
+	if id == "" {
+		return "", fmt.Errorf("could not extract task ID from ask add output: %s", stdout.String())
 	}
-	return uuid, nil
+	info, ok := getTaskInfoFast(ctx, id)
+	if !ok {
+		return "", fmt.Errorf("could not resolve task ID %q after ask add", id)
+	}
+	if info.UUID == "" {
+		return "", fmt.Errorf("ask info %q did not return a UUID", id)
+	}
+	return info.UUID, nil
 }
 
 func deleteTask(ctx context.Context, uuid string) {
@@ -291,8 +298,8 @@ func TestAdd(t *testing.T) {
 	}
 }
 
-// TestAddReturnsUUID verifies that ask add outputs a UUID, never a numeric task ID.
-func TestAddReturnsUUID(t *testing.T) {
+// TestAddReturnsAlias verifies that ask add outputs the human-facing alias ID.
+func TestAddReturnsAlias(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -300,11 +307,24 @@ func TestAddReturnsUUID(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("ask add failed with code %d", code)
 	}
-	uuid := strings.TrimSpace(stdout.String())
-	defer deleteTask(ctx, uuid)
+	id := strings.TrimSpace(stdout.String())
+	info, ok := getTaskInfoFast(ctx, id)
+	if !ok {
+		t.Fatalf("ask info %q failed after add", id)
+	}
+	defer deleteTask(ctx, info.UUID)
 
-	if !uuidFormatRx.MatchString(uuid) {
-		t.Errorf("ask add output %q is not a valid UUID", uuid)
+	if id == "" {
+		t.Fatal("ask add returned an empty task ID")
+	}
+	if uuidFormatRx.MatchString(id) {
+		t.Fatalf("ask add output %q leaked a UUID, want alias ID", id)
+	}
+	if info.ID != id {
+		t.Fatalf("ask info ID = %q, want %q", info.ID, id)
+	}
+	if !uuidFormatRx.MatchString(info.UUID) {
+		t.Fatalf("ask info UUID = %q, want valid UUID", info.UUID)
 	}
 }
 

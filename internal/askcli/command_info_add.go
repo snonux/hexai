@@ -104,7 +104,12 @@ func (d Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr
 		io.WriteString(stderr, "error: could not parse UUID from task creation output\n")
 		return 1, nil
 	}
-	io.WriteString(stdout, uuid+"\n")
+	aliases, err := ensureTaskAliasesForUUIDs([]string{uuid})
+	if err != nil {
+		fmt.Fprintf(stderr, "error: failed to assign task alias: %v\n", err)
+		return 1, nil
+	}
+	io.WriteString(stdout, displayTaskAlias(uuid, aliases)+"\n")
 	return 0, nil
 }
 

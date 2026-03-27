@@ -211,7 +211,14 @@ func TestHandleInfo_MissingUUID_MultipleStartedTasks(t *testing.T) {
 }
 
 func TestHandleAdd_Success(t *testing.T) {
-	// With rc.verbose=new-uuid, task add outputs "Created task <uuid>." directly.
+	now := useIsolatedTaskAliasCache(t)
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "existing-uuid", Alias: "0", CreatedAt: now},
+		},
+	})
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		io.WriteString(stdout, "Created task abc-123-def.")
 		return 0, nil
@@ -221,8 +228,36 @@ func TestHandleAdd_Success(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("add code = %d, want 0", code)
 	}
-	if !strings.Contains(stdout.String(), "abc-123-def") {
-		t.Fatalf("output missing UUID: %s", stdout.String())
+	if got := strings.TrimSpace(stdout.String()); got != "1" {
+		t.Fatalf("stdout = %q, want alias 1", stdout.String())
+	}
+	cache := readTaskAliasCacheSnapshot(t)
+	entry := findTaskAliasEntry(t, cache, "abc-123-def")
+	if entry.Alias != "1" {
+		t.Fatalf("created task alias = %q, want 1", entry.Alias)
+	}
+}
+
+func TestHandleAdd_AliasAssignmentFailure(t *testing.T) {
+	oldRoot := taskAliasCacheRoot
+	taskAliasCacheRoot = func() (string, error) { return "", io.ErrUnexpectedEOF }
+	defer func() { taskAliasCacheRoot = oldRoot }()
+
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		io.WriteString(stdout, "Created task abc-123-def.")
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"add", "New task description"}, nil, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("add code = %d, want 1", code)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty output on alias assignment failure", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "failed to assign task alias") {
+		t.Fatalf("stderr = %q, want alias assignment failure", stderr.String())
 	}
 }
 

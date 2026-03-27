@@ -135,7 +135,7 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 
 | Subcommand | Description |
 |---|---|
-| `ask add "description"` | Create a new task |
+| `ask add "description"` | Create a new task and print its alias ID |
 | `ask add priority:H "description"` | Create task with priority |
 | `ask add +tag "description"` | Create task with tag |
 | `ask list` | List pending tasks only (alias-ID table) |
