@@ -156,15 +156,12 @@ func (c *taskAliasCache) prune(now time.Time) bool {
 }
 
 func (c *taskAliasCache) ensureAlias(uuid string, now time.Time) (string, bool) {
-	for i := range c.Entries {
-		if c.Entries[i].UUID != uuid {
-			continue
+	if entry, ok := c.findEntry(func(entry taskAliasCacheEntry) bool { return entry.UUID == uuid }); ok {
+		if entry.LastAccessedAt.Equal(now) {
+			return entry.Alias, false
 		}
-		if c.Entries[i].LastAccessedAt.Equal(now) {
-			return c.Entries[i].Alias, false
-		}
-		c.Entries[i].LastAccessedAt = now
-		return c.Entries[i].Alias, true
+		entry.LastAccessedAt = now
+		return entry.Alias, true
 	}
 
 	alias := encodeTaskAliasID(c.NextID)
@@ -179,28 +176,33 @@ func (c *taskAliasCache) ensureAlias(uuid string, now time.Time) (string, bool) 
 	return alias, true
 }
 
-func (c *taskAliasCache) lookupUUIDByAlias(alias string, now time.Time) (string, bool, bool) {
+func (c *taskAliasCache) findEntry(match func(taskAliasCacheEntry) bool) (*taskAliasCacheEntry, bool) {
 	for i := range c.Entries {
-		if c.Entries[i].Alias != alias {
-			continue
+		if match(c.Entries[i]) {
+			return &c.Entries[i], true
 		}
-		changed := !c.Entries[i].LastAccessedAt.Equal(now)
-		c.Entries[i].LastAccessedAt = now
-		return c.Entries[i].UUID, true, changed
 	}
-	return "", false, false
+	return nil, false
+}
+
+func (c *taskAliasCache) lookupUUIDByAlias(alias string, now time.Time) (string, bool, bool) {
+	entry, ok := c.findEntry(func(entry taskAliasCacheEntry) bool { return entry.Alias == alias })
+	if !ok {
+		return "", false, false
+	}
+	changed := !entry.LastAccessedAt.Equal(now)
+	entry.LastAccessedAt = now
+	return entry.UUID, true, changed
 }
 
 func (c *taskAliasCache) lookupAliasByUUID(uuid string, now time.Time) (string, bool, bool) {
-	for i := range c.Entries {
-		if c.Entries[i].UUID != uuid {
-			continue
-		}
-		changed := !c.Entries[i].LastAccessedAt.Equal(now)
-		c.Entries[i].LastAccessedAt = now
-		return c.Entries[i].Alias, true, changed
+	entry, ok := c.findEntry(func(entry taskAliasCacheEntry) bool { return entry.UUID == uuid })
+	if !ok {
+		return "", false, false
 	}
-	return "", false, false
+	changed := !entry.LastAccessedAt.Equal(now)
+	entry.LastAccessedAt = now
+	return entry.Alias, true, changed
 }
 
 func (c taskAliasCache) save(path string) error {
