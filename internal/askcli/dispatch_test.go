@@ -5,8 +5,11 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDispatcher_Help(t *testing.T) {
@@ -152,46 +155,167 @@ func TestDispatcher_DispatchPersistsJSONFlagOnDispatcher(t *testing.T) {
 }
 
 func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
-	subcommands := []string{}
-	subcommandArgs := map[string][]string{
-		"delete":   {"delete", "test-uuid"},
-		"denotate": {"denotate", "test-uuid", "text"},
-		"modify":   {"modify", "test-uuid", "priority:H"},
-		"annotate": {"annotate", "test-uuid", "note"},
-		"start":    {"start", "test-uuid"},
-		"stop":     {"stop", "test-uuid"},
-		"done":     {"done", "test-uuid"},
-		"priority": {"priority", "test-uuid", "H"},
-		"tag":      {"tag", "test-uuid", "+cli"},
-		"dep":      {"dep", "list", "test-uuid"},
-		"list":     {"list"},
-		"all":      {"all"},
-		"ready":    {"ready"},
-		"urgency":  {"urgency"},
-		"info":     {"info", "test-uuid"},
-		"add":      {"add", "new task description"},
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	taskJSONFor := func(uuid string) string {
+		return `[{"uuid":"` + uuid + `","description":"Test","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`
 	}
-	for _, sub := range subcommands {
-		var stdout, stderr bytes.Buffer
-		calls := 0
-		d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout_, stderr_ io.Writer) (int, error) {
-			calls++
-			if args[0] == "export" || args[0] == "uuid" {
-				io.WriteString(stdout_, `[{"uuid":"test-uuid","description":"Test","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`)
+
+	cases := []struct {
+		name      string
+		args      []string
+		wantCalls [][]string
+	}{
+		{
+			name:      "list",
+			args:      []string{"list"},
+			wantCalls: [][]string{{"status:pending", "export"}},
+		},
+		{
+			name:      "all",
+			args:      []string{"all"},
+			wantCalls: [][]string{{"export"}},
+		},
+		{
+			name:      "ready",
+			args:      []string{"ready"},
+			wantCalls: [][]string{{"+READY", "export"}},
+		},
+		{
+			name:      "urgency",
+			args:      []string{"urgency"},
+			wantCalls: [][]string{{"export"}},
+		},
+		{
+			name:      "complete-uuids",
+			args:      []string{"complete-uuids"},
+			wantCalls: [][]string{{"status:pending", "export"}},
+		},
+		{
+			name:      "info",
+			args:      []string{"info", "test-uuid"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}},
+		},
+		{
+			name:      "add",
+			args:      []string{"add", "new task description"},
+			wantCalls: [][]string{{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "new task description"}},
+		},
+		{
+			name:      "annotate",
+			args:      []string{"annotate", "test-uuid", "note"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:test-uuid", "annotate", "note"}},
+		},
+		{
+			name:      "start",
+			args:      []string{"start", "test-uuid"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:test-uuid", "start"}},
+		},
+		{
+			name:      "stop",
+			args:      []string{"stop", "test-uuid"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:test-uuid", "stop"}},
+		},
+		{
+			name:      "done",
+			args:      []string{"done", "test-uuid"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:test-uuid", "done"}},
+		},
+		{
+			name:      "priority",
+			args:      []string{"priority", "test-uuid", "H"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:test-uuid", "modify", "priority:H"}},
+		},
+		{
+			name:      "tag",
+			args:      []string{"tag", "test-uuid", "+cli"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:test-uuid", "modify", "+cli"}},
+		},
+		{
+			name:      "modify",
+			args:      []string{"modify", "test-uuid", "priority:H"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:test-uuid", "modify", "priority:H"}},
+		},
+		{
+			name:      "denotate",
+			args:      []string{"denotate", "test-uuid", "text"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:test-uuid", "denotate", "text"}},
+		},
+		{
+			name:      "delete",
+			args:      []string{"delete", "test-uuid"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:test-uuid", "delete"}},
+		},
+		{
+			name:      "dep list",
+			args:      []string{"dep", "list", "test-uuid"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}},
+		},
+		{
+			name:      "dep add",
+			args:      []string{"dep", "add", "test-uuid", "dep-uuid"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:dep-uuid", "export"}, {"uuid:test-uuid", "modify", "depends:dep-uuid"}},
+		},
+		{
+			name:      "dep rm",
+			args:      []string{"dep", "rm", "test-uuid", "dep-uuid"},
+			wantCalls: [][]string{{"uuid:test-uuid", "export"}, {"uuid:dep-uuid", "export"}, {"uuid:test-uuid", "modify", "depends:-dep-uuid"}},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls [][]string
+			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+				calls = append(calls, append([]string(nil), args...))
+				switch strings.Join(args, " ") {
+				case "export", "status:pending export", "+READY export":
+					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
+				case "uuid:test-uuid export":
+					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
+				case "uuid:dep-uuid export":
+					_, _ = io.WriteString(stdout, taskJSONFor("dep-uuid"))
+				case "add rc.verbose=nothing rc.verbose=new-uuid new task description":
+					_, _ = io.WriteString(stdout, "Created task task-uuid-abc.\n")
+				case "uuid:test-uuid annotate note":
+				case "uuid:test-uuid start":
+				case "uuid:test-uuid stop":
+				case "uuid:test-uuid done":
+				case "uuid:test-uuid modify priority:H":
+				case "uuid:test-uuid modify +cli":
+				case "uuid:test-uuid modify depends:dep-uuid":
+				case "uuid:test-uuid modify depends:-dep-uuid":
+				case "uuid:test-uuid denotate text":
+				case "uuid:test-uuid delete":
+				default:
+					t.Fatalf("unexpected runner args: %v", args)
+				}
+				return 0, nil
+			}})
+
+			var stdout, stderr bytes.Buffer
+			code, err := d.Dispatch(context.Background(), tc.args, nil, &stdout, &stderr)
+			if err != nil {
+				t.Fatalf("Dispatch returned error: %v", err)
 			}
-			if args[0] == "add" {
-				io.WriteString(stdout_, "Created task 123.\nUUID: test-uuid-abc")
+			if code != 0 {
+				t.Fatalf("Dispatch code = %d, want 0", code)
 			}
-			return 0, nil
-		}})
-		args := []string{sub}
-		if extra, ok := subcommandArgs[sub]; ok {
-			args = extra
-		}
-		code, _ := d.Dispatch(context.Background(), args, nil, &stdout, &stderr)
-		if code != 0 {
-			t.Errorf("subcommand %q code = %d, want 0", sub, code)
-		}
+			if !reflect.DeepEqual(calls, tc.wantCalls) {
+				t.Fatalf("runner calls = %#v, want %#v", calls, tc.wantCalls)
+			}
+			if stderr.Len() != 0 {
+				t.Fatalf("stderr = %q, want empty", stderr.String())
+			}
+		})
 	}
 }
 
