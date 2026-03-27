@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -155,6 +156,7 @@ func listTasksWithTag(ctx context.Context, tag string) []askcli.TaskExport {
 }
 
 type taskInfo struct {
+	ID          string
 	UUID        string
 	Description string
 	Status      string
@@ -165,6 +167,7 @@ type taskInfo struct {
 }
 
 var (
+	idFieldRx        = regexp.MustCompile(`ID:\s+(.+)`)
 	uuidFieldRx      = regexp.MustCompile(`UUID:\s+(.+)`)
 	descFieldRx      = regexp.MustCompile(`Description:\s+(.+)`)
 	statusFieldRx    = regexp.MustCompile(`Status:\s+(.+)`)
@@ -177,6 +180,9 @@ var (
 
 func parseTaskInfoText(output string, uuid string) taskInfo {
 	ti := taskInfo{UUID: uuid}
+	if m := idFieldRx.FindStringSubmatch(output); len(m) > 1 {
+		ti.ID = strings.TrimSpace(m[1])
+	}
 	if m := uuidFieldRx.FindStringSubmatch(output); len(m) > 1 {
 		ti.UUID = strings.TrimSpace(m[1])
 	}
@@ -217,6 +223,24 @@ func getTaskInfoRaw(ctx context.Context, uuid string) (string, bool) {
 		return "", false
 	}
 	return stdout.String(), true
+}
+
+func mustTaskAlias(t *testing.T, ctx context.Context, uuid string) string {
+	t.Helper()
+
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("failed to get task info for %s", uuid)
+	}
+	if ti.ID == "" {
+		t.Fatalf("task info for %s did not include an alias ID", uuid)
+	}
+	return ti.ID
+}
+
+func aliasCachePath(t *testing.T, cacheRoot string) string {
+	t.Helper()
+	return filepath.Join(cacheRoot, "hexai", "ask", "task-aliases-v1.json")
 }
 
 func TestMain(m *testing.M) {
@@ -279,6 +303,8 @@ func TestAddReturnsUUID(t *testing.T) {
 func TestList(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	cacheRoot := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheRoot)
 
 	uuid, err := createTask(ctx, "integration test task for list")
 	if err != nil {
@@ -289,6 +315,13 @@ func TestList(t *testing.T) {
 	stdout, _, code := runAsk(ctx, []string{"list"})
 	if code != 0 {
 		t.Fatalf("list failed with code %d: %s", code, stdout.String())
+	}
+	alias := mustTaskAlias(t, ctx, uuid)
+	if !strings.Contains(stdout.String(), alias) {
+		t.Errorf("list output does not contain expected alias %q", alias)
+	}
+	if strings.Contains(stdout.String(), uuid) {
+		t.Errorf("list output should not contain raw UUID %s", uuid)
 	}
 	if !strings.Contains(stdout.String(), "integration test task for list") {
 		t.Errorf("list output does not contain expected task description")
@@ -336,6 +369,7 @@ func TestReady(t *testing.T) {
 func TestInfo(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 
 	uuid, err := createTask(ctx, "integration test task for info")
 	if err != nil {
@@ -350,8 +384,22 @@ func TestInfo(t *testing.T) {
 	if ti.UUID != uuid {
 		t.Errorf("info uuid mismatch: got %s, want %s", ti.UUID, uuid)
 	}
+	if ti.ID == "" {
+		t.Errorf("info output missing alias ID")
+	}
 	if !strings.Contains(ti.Description, "integration test task for info") {
 		t.Errorf("info description mismatch: %s", ti.Description)
+	}
+
+	aliasOutput, ok := getTaskInfoRaw(ctx, ti.ID)
+	if !ok {
+		t.Fatalf("info by alias failed")
+	}
+	if !strings.Contains(aliasOutput, "ID:          "+ti.ID) {
+		t.Errorf("info by alias output missing alias line: %s", aliasOutput)
+	}
+	if !strings.Contains(aliasOutput, "UUID:        "+uuid) {
+		t.Errorf("info by alias output missing uuid line: %s", aliasOutput)
 	}
 }
 
@@ -568,6 +616,7 @@ func TestDepAdd(t *testing.T) {
 func TestDepList(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 
 	uuid1, err := createTask(ctx, "integration test dep list target")
 	if err != nil {
@@ -587,8 +636,12 @@ func TestDepList(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("dep list failed with code %d: %s", code, stdout.String())
 	}
-	if !strings.Contains(stdout.String(), uuid1) {
-		t.Errorf("dep list output does not contain target uuid: %s", stdout.String())
+	alias1 := mustTaskAlias(t, ctx, uuid1)
+	if !strings.Contains(stdout.String(), alias1) {
+		t.Errorf("dep list output does not contain target alias %q: %s", alias1, stdout.String())
+	}
+	if strings.Contains(stdout.String(), uuid1) {
+		t.Errorf("dep list output should not contain raw target uuid %s: %s", uuid1, stdout.String())
 	}
 }
 
@@ -806,6 +859,7 @@ func TestFishRejectsExtraArgs(t *testing.T) {
 func TestCompleteUUIDs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 
 	uuid, err := createTask(ctx, "integration test task for complete-uuids")
 	if err != nil {
@@ -817,8 +871,224 @@ func TestCompleteUUIDs(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("complete-uuids returned non-zero exit code %d: stderr=%s", code, stderr.String())
 	}
+	alias := mustTaskAlias(t, ctx, uuid)
+	if !strings.Contains(stdout.String(), alias) {
+		t.Errorf("complete-uuids output does not contain created task alias %s", alias)
+	}
 	if !strings.Contains(stdout.String(), uuid) {
 		t.Errorf("complete-uuids output does not contain created task UUID %s", uuid)
+	}
+}
+
+func TestAliasSelectorsAcrossUUIDCommands(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	uuid, err := createTask(ctx, "integration test task for alias selectors")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	alias := mustTaskAlias(t, ctx, uuid)
+
+	infoOut, ok := getTaskInfoRaw(ctx, alias)
+	if !ok {
+		t.Fatalf("info by alias failed")
+	}
+	if !strings.Contains(infoOut, "UUID:        "+uuid) {
+		t.Fatalf("info by alias did not resolve the task: %s", infoOut)
+	}
+
+	note := "integration alias annotation"
+	stdout, _, code := runAsk(ctx, []string{"annotate", alias, note})
+	if code != 0 {
+		t.Fatalf("annotate by alias failed with code %d: %s", code, stdout.String())
+	}
+	if strings.TrimSpace(stdout.String()) != "ok "+alias {
+		t.Fatalf("annotate output = %q, want ok %s", stdout.String(), alias)
+	}
+
+	raw, ok := getTaskInfoRaw(ctx, uuid)
+	if !ok || !strings.Contains(raw, note) {
+		t.Fatalf("annotation %q not found after alias annotate: %s", note, raw)
+	}
+
+	note2 := "remove me via alias"
+	if _, _, code = runAsk(ctx, []string{"annotate", alias, note2}); code != 0 {
+		t.Fatalf("setup annotate for denotate failed with code %d", code)
+	}
+	stdout, _, code = runAsk(ctx, []string{"denotate", alias, note2})
+	if code != 0 {
+		t.Fatalf("denotate by alias failed with code %d: %s", code, stdout.String())
+	}
+	raw, ok = getTaskInfoRaw(ctx, uuid)
+	if !ok || strings.Contains(raw, note2) {
+		t.Fatalf("annotation %q still present after alias denotate: %s", note2, raw)
+	}
+
+	stdout, _, code = runAsk(ctx, []string{"start", alias})
+	if code != 0 {
+		t.Fatalf("start by alias failed with code %d: %s", code, stdout.String())
+	}
+	ti, ok := getTaskInfoFast(ctx, uuid)
+	if !ok || ti.Started != "yes" {
+		t.Fatalf("task not started after alias start: %+v", ti)
+	}
+
+	stdout, _, code = runAsk(ctx, []string{"stop", alias})
+	if code != 0 {
+		t.Fatalf("stop by alias failed with code %d: %s", code, stdout.String())
+	}
+	ti, ok = getTaskInfoFast(ctx, uuid)
+	if !ok || ti.Started != "no" {
+		t.Fatalf("task not stopped after alias stop: %+v", ti)
+	}
+
+	stdout, _, code = runAsk(ctx, []string{"priority", alias, "H"})
+	if code != 0 {
+		t.Fatalf("priority by alias failed with code %d: %s", code, stdout.String())
+	}
+	ti, ok = getTaskInfoFast(ctx, uuid)
+	if !ok || ti.Priority != "H" {
+		t.Fatalf("task priority not updated after alias priority: %+v", ti)
+	}
+
+	stdout, _, code = runAsk(ctx, []string{"modify", alias, "priority:L"})
+	if code != 0 {
+		t.Fatalf("modify by alias failed with code %d: %s", code, stdout.String())
+	}
+	ti, ok = getTaskInfoFast(ctx, uuid)
+	if !ok || ti.Priority != "L" {
+		t.Fatalf("task priority not updated after alias modify: %+v", ti)
+	}
+
+	stdout, _, code = runAsk(ctx, []string{"tag", alias, "+aliascheck"})
+	if code != 0 {
+		t.Fatalf("tag by alias failed with code %d: %s", code, stdout.String())
+	}
+	ti, ok = getTaskInfoFast(ctx, uuid)
+	if !ok || !slices.Contains(ti.Tags, "aliascheck") {
+		t.Fatalf("tag not added after alias tag: %+v", ti)
+	}
+
+	depUUID, err := createTask(ctx, "integration test task dependency alias target")
+	if err != nil {
+		t.Fatalf("failed to create dependency task: %v", err)
+	}
+	defer deleteTask(ctx, depUUID)
+
+	depAlias := mustTaskAlias(t, ctx, depUUID)
+	stdout, _, code = runAsk(ctx, []string{"dep", "add", alias, depAlias})
+	if code != 0 {
+		t.Fatalf("dep add by alias failed with code %d: %s", code, stdout.String())
+	}
+
+	stdout, _, code = runAsk(ctx, []string{"dep", "list", alias})
+	if code != 0 {
+		t.Fatalf("dep list by alias failed with code %d: %s", code, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), depAlias) || strings.Contains(stdout.String(), depUUID) {
+		t.Fatalf("dep list by alias output = %q, want alias %q without raw UUID", stdout.String(), depAlias)
+	}
+
+	stdout, _, code = runAsk(ctx, []string{"dep", "rm", alias, depAlias})
+	if code != 0 {
+		t.Fatalf("dep rm by alias failed with code %d: %s", code, stdout.String())
+	}
+	stdout, _, code = runAsk(ctx, []string{"dep", "list", alias})
+	if code != 0 {
+		t.Fatalf("dep list after rm failed with code %d: %s", code, stdout.String())
+	}
+	if strings.TrimSpace(stdout.String()) != "no dependencies" {
+		t.Fatalf("dep list after rm = %q, want no dependencies", stdout.String())
+	}
+
+	doneUUID, err := createTask(ctx, "integration test alias done")
+	if err != nil {
+		t.Fatalf("failed to create done task: %v", err)
+	}
+	doneAlias := mustTaskAlias(t, ctx, doneUUID)
+	stdout, _, code = runAsk(ctx, []string{"done", doneAlias})
+	if code != 0 {
+		t.Fatalf("done by alias failed with code %d: %s", code, stdout.String())
+	}
+	doneInfo, ok := getTaskInfoFast(ctx, doneUUID)
+	if !ok || strings.ToLower(doneInfo.Status) != "completed" {
+		t.Fatalf("done task not completed after alias done: %+v", doneInfo)
+	}
+	deleteTask(ctx, doneUUID)
+
+	deleteUUID, err := createTask(ctx, "integration test alias delete")
+	if err != nil {
+		t.Fatalf("failed to create delete task: %v", err)
+	}
+	deleteAlias := mustTaskAlias(t, ctx, deleteUUID)
+	stdout, _, code = runAskWithStdin(ctx, []string{"delete", deleteAlias}, "yes\n")
+	if code != 0 {
+		t.Fatalf("delete by alias failed with code %d: %s", code, stdout.String())
+	}
+
+	tasks := listTasksWithTag(ctx, "integrationtest")
+	for _, task := range tasks {
+		if task.UUID == deleteUUID {
+			t.Fatalf("task %s still exists after alias delete", deleteUUID)
+		}
+	}
+}
+
+func TestAliasCachePrunesExpiredEntriesOlderThan120Days(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cacheRoot := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheRoot)
+
+	uuid, err := createTask(ctx, "integration test alias cache pruning")
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	cachePath := aliasCachePath(t, cacheRoot)
+	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%s): %v", cachePath, err)
+	}
+	seed := `{
+  "next_id": 37,
+  "entries": [
+    {
+      "uuid": "expired-task",
+      "alias": "z",
+      "created_at": "2025-01-01T00:00:00Z",
+      "last_accessed_at": "2025-01-01T00:00:00Z"
+    }
+  ]
+}`
+	if err := os.WriteFile(cachePath, []byte(seed), 0o600); err != nil {
+		t.Fatalf("WriteFile(%s): %v", cachePath, err)
+	}
+
+	stdout, stderr, code := runAsk(ctx, []string{"info", uuid})
+	if code != 0 {
+		t.Fatalf("info failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	if strings.Contains(stdout.String(), "ID:          z\n") {
+		t.Fatalf("info output still contains pruned alias z: %q", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "ID:          01\n") {
+		t.Fatalf("info output did not allocate the next monotonic alias 01: %q", stdout.String())
+	}
+
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", cachePath, err)
+	}
+	if strings.Contains(string(data), "expired-task") {
+		t.Fatalf("expired cache entry was not pruned: %s", string(data))
+	}
+	if !strings.Contains(string(data), `"next_id": 38`) {
+		t.Fatalf("cache next_id was not advanced after pruning and allocation: %s", string(data))
 	}
 }
 

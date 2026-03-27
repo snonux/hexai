@@ -179,6 +179,53 @@ func TestEnsureTaskAliases_PrunesExpiredEntriesWithoutReusingIDs(t *testing.T) {
 	}
 }
 
+func TestEnsureTaskAliases_DoesNotPruneEntriesAt120DayBoundary(t *testing.T) {
+	dir := t.TempDir()
+
+	oldNow := nowTaskAliasCache
+	oldRoot := taskAliasCacheRoot
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	defer func() {
+		nowTaskAliasCache = oldNow
+		taskAliasCacheRoot = oldRoot
+	}()
+
+	path, err := taskAliasCachePath()
+	if err != nil {
+		t.Fatalf("taskAliasCachePath: %v", err)
+	}
+
+	boundary := nowTaskAliasCache().Add(-taskAliasCacheTTL)
+	cache := taskAliasCache{
+		NextID: 37,
+		Entries: []taskAliasCacheEntry{
+			{
+				UUID:           "boundary",
+				Alias:          "z",
+				CreatedAt:      boundary,
+				LastAccessedAt: boundary,
+			},
+		},
+	}
+	if err := cache.save(path); err != nil {
+		t.Fatalf("save seed cache: %v", err)
+	}
+
+	aliases, err := ensureTaskAliases([]TaskExport{{UUID: "boundary"}})
+	if err != nil {
+		t.Fatalf("ensureTaskAliases returned error: %v", err)
+	}
+	if aliases["boundary"] != "z" {
+		t.Fatalf("boundary alias = %q, want z", aliases["boundary"])
+	}
+
+	cache = readTaskAliasCacheForTest(t, path)
+	if !hasTaskAliasEntry(cache, "boundary") {
+		t.Fatal("boundary entry should not have been pruned")
+	}
+}
+
 func TestEnsureTaskAliases_InvalidCacheReturnsError(t *testing.T) {
 	dir := t.TempDir()
 
