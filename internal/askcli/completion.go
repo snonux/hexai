@@ -9,40 +9,6 @@ type fishCompletionItem struct {
 	description string
 }
 
-var askSingleSelectorCompletionCommands = []string{
-	"info",
-	"annotate",
-	"start",
-	"stop",
-	"done",
-	"priority",
-	"tag",
-	"modify",
-	"denotate",
-	"delete",
-}
-
-var askRootCompletionItems = []fishCompletionItem{
-	{name: "add", description: "Create a new task"},
-	{name: "list", description: "List active tasks"},
-	{name: "all", description: "List all tasks"},
-	{name: "ready", description: "List READY tasks"},
-	{name: "info", description: "Show task details"},
-	{name: "annotate", description: "Add an annotation"},
-	{name: "start", description: "Start a task"},
-	{name: "stop", description: "Stop a task"},
-	{name: "done", description: "Mark a task complete"},
-	{name: "priority", description: "Set priority"},
-	{name: "tag", description: "Add or remove a tag"},
-	{name: "dep", description: "Manage dependencies"},
-	{name: "urgency", description: "List tasks sorted by urgency"},
-	{name: "modify", description: "Modify task fields"},
-	{name: "denotate", description: "Remove an annotation"},
-	{name: "delete", description: "Delete a task"},
-	{name: "fish", description: "Emit Fish shell completion script"},
-	{name: "help", description: "Show help"},
-}
-
 var askDepCompletionItems = []fishCompletionItem{
 	{name: "add", description: "Add a dependency"},
 	{name: "rm", description: "Remove a dependency"},
@@ -54,7 +20,7 @@ func fishSingleSelectorCompletionContext(positional []string) bool {
 		return false
 	}
 
-	for _, command := range askSingleSelectorCompletionCommands {
+	for _, command := range commandRegistry.singleSelectorNames() {
 		if positional[0] == command {
 			return true
 		}
@@ -99,7 +65,8 @@ func FishCompletionFor(binaryPath string) string {
 	writeFishAddDependencyModifierFunction(&b)
 	b.WriteString("complete -c ask -f\n")
 	b.WriteString("complete -c ask -s j -l json -d 'Emit JSON output'\n")
-	for _, item := range askRootCompletionItems {
+	for _, entry := range commandRegistry.rootCompletionEntries() {
+		item := fishCompletionItem{name: entry.name, description: entry.description}
 		writeFishCompletionLine(&b, "__ask_needs_root_completion", item)
 	}
 	for _, item := range askDepCompletionItems {
@@ -182,7 +149,7 @@ func writeFishUUIDContextFunction(b *strings.Builder) {
 	b.WriteString("    end\n")
 	b.WriteString("    switch $positional[1]\n")
 	b.WriteString("        case ")
-	b.WriteString(strings.Join(askSingleSelectorCompletionCommands, " "))
+	b.WriteString(strings.Join(commandRegistry.singleSelectorNames(), " "))
 	b.WriteString("\n")
 	b.WriteString("            return 0\n")
 	b.WriteString("        case '*'\n")

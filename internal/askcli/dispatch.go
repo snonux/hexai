@@ -47,51 +47,14 @@ func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reade
 	d.jsonOutput = jsonOutput
 
 	if len(args) == 0 {
-		return d.handleList(ctx, []string{"list"}, stdout, stderr)
+		args = []string{"list"}
 	}
 	subcommand := args[0]
-	switch subcommand {
-	case "info":
-		return d.handleInfo(ctx, args, stdout, stderr)
-	case "add":
-		return d.handleAdd(ctx, args, stdout, stderr)
-	case "list":
-		return d.handleList(ctx, args, stdout, stderr)
-	case "all":
-		return d.handleAll(ctx, args, stdout, stderr)
-	case "ready":
-		return d.handleReady(ctx, args, stdout, stderr)
-	case "dep":
-		return d.handleDep(ctx, args, stdout, stderr)
-	case "urgency":
-		return d.handleUrgency(ctx, stdout, stderr)
-	case "annotate":
-		return d.handleAnnotate(ctx, args, stdout, stderr)
-	case "start":
-		return d.handleStart(ctx, args, stdout, stderr)
-	case "stop":
-		return d.handleStop(ctx, args, stdout, stderr)
-	case "done":
-		return d.handleDone(ctx, args, stdout, stderr)
-	case "priority":
-		return d.handlePriority(ctx, args, stdout, stderr)
-	case "tag":
-		return d.handleTag(ctx, args, stdout, stderr)
-	case "modify":
-		return d.handleModify(ctx, args, stdout, stderr)
-	case "denotate":
-		return d.handleDenotate(ctx, args, stdout, stderr)
-	case "delete":
-		return d.handleDelete(ctx, args, stdin, stdout, stderr)
-	case "fish":
-		return d.handleFish(args, stdout, stderr)
-	case "help":
-		return d.help(stdout)
-	case "complete-uuids":
-		return d.handleCompleteUUIDs(ctx, stdout, stderr)
-	default:
+	entry, ok := commandRegistry.get(subcommand)
+	if !ok {
 		return d.unknownCommand(stderr, subcommand)
 	}
+	return entry.handler(d, ctx, args, stdin, stdout, stderr)
 }
 
 func (d *Dispatcher) help(w io.Writer) (int, error) {

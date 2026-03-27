@@ -7,7 +7,8 @@ import (
 	"io"
 )
 
-func (d *Dispatcher) handleCompleteUUIDs(ctx context.Context, stdout, stderr io.Writer) (int, error) {
+func (d *Dispatcher) handleCompleteUUIDs(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	_ = args
 	var outBuf bytes.Buffer
 	code, err := d.runner.Run(ctx, []string{"status:pending", "export"}, nil, &outBuf, stderr)
 	if code != 0 {

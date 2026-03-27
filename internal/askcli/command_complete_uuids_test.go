@@ -32,7 +32,7 @@ func TestHandleCompleteUUIDs_PrintsPendingUUIDs(t *testing.T) {
 	}})
 
 	var stdout, stderr bytes.Buffer
-	code, err := d.handleCompleteUUIDs(context.Background(), &stdout, &stderr)
+	code, err := d.handleCompleteUUIDs(context.Background(), nil, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("handleCompleteUUIDs returned error: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestHandleCompleteUUIDs_ParseError(t *testing.T) {
 	}})
 
 	var stdout, stderr bytes.Buffer
-	code, err := d.handleCompleteUUIDs(context.Background(), &stdout, &stderr)
+	code, err := d.handleCompleteUUIDs(context.Background(), nil, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("handleCompleteUUIDs returned error: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestHandleCompleteUUIDs_WarnsOnInvalidAliasCache(t *testing.T) {
 	}})
 
 	var stdout, stderr bytes.Buffer
-	code, err := d.handleCompleteUUIDs(context.Background(), &stdout, &stderr)
+	code, err := d.handleCompleteUUIDs(context.Background(), nil, &stdout, &stderr)
 	if err != nil {
 		t.Fatalf("handleCompleteUUIDs returned error: %v", err)
 	}
