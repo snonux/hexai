@@ -9,10 +9,12 @@ import (
 	"codeberg.org/snonux/hexai/internal/termprint"
 )
 
+// FormatTaskList renders a table of tasks using the terminal's width when possible.
 func FormatTaskList(tasks []TaskExport, aliases map[string]string) string {
 	return FormatTaskListForWidth(tasks, aliases, 0)
 }
 
+// FormatTaskListForWidth renders a table of tasks constrained to the provided terminal width.
 func FormatTaskListForWidth(tasks []TaskExport, aliases map[string]string, terminalWidth int) string {
 	widths := taskListWidthsFor(tasks, aliases, terminalWidth)
 	var b strings.Builder
@@ -133,6 +135,7 @@ func detectTaskListTerminalWidth(w io.Writer) int {
 	return termprint.DetectTerminalWidth(w)
 }
 
+// FormatTaskInfo builds a human-readable block describing a single task.
 func FormatTaskInfo(t TaskExport, alias string, dependencyAliases map[string]string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "ID:          %s\n", alias)
@@ -160,10 +163,12 @@ func FormatTaskInfo(t TaskExport, alias string, dependencyAliases map[string]str
 	return b.String()
 }
 
+// FormatSuccess returns the success string written to stdout after a task command runs.
 func FormatSuccess(alias string) string {
 	return fmt.Sprintf("ok %s\n", alias)
 }
 
+// FormatError formats error output using the optional task identifier when available.
 func FormatError(err error, taskID string) string {
 	if taskID != "" {
 		return fmt.Sprintf("error %s: %v\n", taskID, err)

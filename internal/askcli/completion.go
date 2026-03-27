@@ -85,10 +85,12 @@ func fishAddDependencyModifierCompletionContext(positional []string, current str
 	return current == "depends" || strings.HasPrefix(current, "depends:")
 }
 
+// FishCompletion returns the default Fish completion script for the ask CLI.
 func FishCompletion() string {
 	return FishCompletionFor("ask")
 }
 
+// FishCompletionFor returns a Fish completion script that points to the provided binary path.
 func FishCompletionFor(binaryPath string) string {
 	var b strings.Builder
 	writeFishPreamble(&b)

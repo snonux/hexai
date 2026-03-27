@@ -137,6 +137,7 @@ func NormalizeUUID(s string) string {
 	return strings.TrimPrefix(s, "uuid:")
 }
 
+// IsNumericID reports whether the string is entirely numeric.
 func IsNumericID(s string) bool {
 	if s == "" {
 		return false
@@ -149,6 +150,7 @@ func IsNumericID(s string) bool {
 	return true
 }
 
+// RejectNumericID returns the error message emitted when numeric Taskwarrior IDs are passed.
 func RejectNumericID() string {
 	return "error: use a task alias ID or UUID, not a numeric Taskwarrior task ID\n"
 }

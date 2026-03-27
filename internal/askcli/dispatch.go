@@ -6,15 +6,20 @@ import (
 	"io"
 )
 
+// Runner performs CLI work that would otherwise be handled by ask itself.
+//
+// The interface is implemented by the executor that ultimately proxies commands to Taskwarrior.
 type Runner interface {
 	Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error)
 }
 
+// Dispatcher translates CLI arguments into concrete subcommands and presents the output.
 type Dispatcher struct {
 	runner     Runner
 	jsonOutput bool
 }
 
+// NewDispatcher creates a Dispatcher backed by the provided Runner or a default executor when nil.
 func NewDispatcher(runner Runner) *Dispatcher {
 	if runner == nil {
 		e := NewExecutor("ask")
@@ -36,6 +41,7 @@ func parseGlobalFlags(args []string) ([]string, bool) {
 	return filtered, jsonOutput
 }
 
+// Dispatch parses CLI arguments, handles global flags, and routes the request to the matching subcommand.
 func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	args, jsonOutput := parseGlobalFlags(args)
 	d.jsonOutput = jsonOutput

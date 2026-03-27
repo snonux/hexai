@@ -16,6 +16,7 @@ type repoTopLevelDetector func(context.Context) (string, error)
 
 type commandRunner func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error
 
+// Executor encapsulates how ask communicates with the Taskwarrior binary.
 type Executor struct {
 	commandName    string
 	findBinary     binaryFinder
@@ -23,6 +24,7 @@ type Executor struct {
 	runCommand     commandRunner
 }
 
+// NewExecutor constructs an Executor that invokes Taskwarrior via the given command name.
 func NewExecutor(commandName string) Executor {
 	return Executor{
 		commandName:    strings.TrimSpace(commandName),
@@ -43,6 +45,7 @@ func (e Executor) taskArgs(repoRoot string, args []string) ([]string, error) {
 	return append([]string{"rc.verbose=nothing", "rc.confirmation=off", "project:" + projectName, "+agent"}, args...), nil
 }
 
+// Run delegates CLI arguments to Taskwarrior, enforcing agent defaults and error handling.
 func (e Executor) Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	executor := normalizeExecutor(e)
 	taskPath, err := executor.findBinary()

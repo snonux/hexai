@@ -6,6 +6,7 @@ import (
 	"io"
 )
 
+// TaskExport mirrors the JSON structure returned by Taskwarrior export commands.
 type TaskExport struct {
 	UUID        string   `json:"uuid"`
 	Description string   `json:"description"`
@@ -21,6 +22,7 @@ type TaskExport struct {
 	} `json:"annotations"`
 }
 
+// ParseTaskExport decodes Taskwarrior JSON from the supplied reader.
 func ParseTaskExport(r io.Reader) ([]TaskExport, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
