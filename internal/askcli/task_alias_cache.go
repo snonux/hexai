@@ -205,7 +205,7 @@ func (c *taskAliasCache) lookupAliasByUUID(uuid string, now time.Time) (string, 
 	return entry.Alias, true, changed
 }
 
-func (c taskAliasCache) save(path string) error {
+func (c *taskAliasCache) save(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create task alias cache dir: %w", err)
 	}
