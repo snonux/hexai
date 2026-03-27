@@ -3,6 +3,7 @@ package askcli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"path/filepath"
 	"strings"
@@ -419,5 +420,72 @@ func TestAllWriteHandlers_AcceptUUIDPrefix(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRunSingleTaskCommand_ResolveErrorWritesInfoError(t *testing.T) {
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		t.Fatal("runFn should not be called when selector resolution fails")
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, err := d.runSingleTaskCommand(
+		context.Background(),
+		"123",
+		&stdout,
+		&stderr,
+		func(resolved resolvedTaskSelector) []string {
+			t.Fatal("buildArgs should not be called when selector resolution fails")
+			return nil
+		},
+	)
+	if code != 1 {
+		t.Fatalf("runSingleTaskCommand code = %d, want 1", code)
+	}
+	if err != nil {
+		t.Fatalf("runSingleTaskCommand returned error: %v", err)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty output", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "use a task alias ID or UUID") {
+		t.Fatalf("stderr = %q, want numeric task ID error", stderr.String())
+	}
+}
+
+func TestRunSingleTaskCommand_RunFailureDoesNotWriteSuccess(t *testing.T) {
+	useIsolatedTaskAliasCache(t)
+
+	runErr := errors.New("runner failed")
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) == 2 && args[0] == "uuid:test-uuid" && args[1] == "export" {
+			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Task","status":"pending","priority":"M","tags":[],"urgency":0,"depends":[]}]`)
+			return 0, nil
+		}
+		return 2, runErr
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, err := d.runSingleTaskCommand(
+		context.Background(),
+		"test-uuid",
+		&stdout,
+		&stderr,
+		func(resolved resolvedTaskSelector) []string {
+			return []string{"uuid:" + resolved.UUID, "start"}
+		},
+	)
+	if code != 2 {
+		t.Fatalf("runSingleTaskCommand code = %d, want 2", code)
+	}
+	if !errors.Is(err, runErr) {
+		t.Fatalf("runSingleTaskCommand error = %v, want %v", err, runErr)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty output", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty output", stderr.String())
 	}
 }

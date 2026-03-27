@@ -7,24 +7,37 @@ import (
 	"strings"
 )
 
+func (d *Dispatcher) runSingleTaskCommand(
+	ctx context.Context,
+	selector string,
+	stdout, stderr io.Writer,
+	buildArgs func(resolvedTaskSelector) []string,
+) (int, error) {
+	resolved, _, code, err := d.resolveTaskSelector(ctx, selector, stderr)
+	if err != nil {
+		writeInfoError(stderr, err)
+		return code, nil
+	}
+
+	var outBuf bytes.Buffer
+	code, err = d.runner.Run(ctx, buildArgs(resolved), nil, &outBuf, io.Discard)
+	if code != 0 {
+		return code, err
+	}
+
+	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
+	return 0, nil
+}
+
 func (d *Dispatcher) handleDenotate(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
 		io.WriteString(stderr, "error: ask denotate requires an ID or UUID and text argument\n")
 		return 1, nil
 	}
-	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
-	if err != nil {
-		writeInfoError(stderr, err)
-		return code, nil
-	}
 	text := args[2]
-	var outBuf bytes.Buffer
-	code, err = d.runner.Run(ctx, []string{"uuid:" + resolved.UUID, "denotate", text}, nil, &outBuf, io.Discard)
-	if code != 0 {
-		return code, err
-	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
-	return 0, nil
+	return d.runSingleTaskCommand(ctx, args[1], stdout, stderr, func(resolved resolvedTaskSelector) []string {
+		return []string{"uuid:" + resolved.UUID, "denotate", text}
+	})
 }
 
 func (d *Dispatcher) handleModify(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -32,19 +45,10 @@ func (d *Dispatcher) handleModify(ctx context.Context, args []string, stdout, st
 		io.WriteString(stderr, "error: ask modify requires an ID or UUID and modification args\n")
 		return 1, nil
 	}
-	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
-	if err != nil {
-		writeInfoError(stderr, err)
-		return code, nil
-	}
 	modArgs := args[2:]
-	var outBuf bytes.Buffer
-	code, err = d.runner.Run(ctx, append([]string{"uuid:" + resolved.UUID, "modify"}, modArgs...), nil, &outBuf, io.Discard)
-	if code != 0 {
-		return code, err
-	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
-	return 0, nil
+	return d.runSingleTaskCommand(ctx, args[1], stdout, stderr, func(resolved resolvedTaskSelector) []string {
+		return append([]string{"uuid:" + resolved.UUID, "modify"}, modArgs...)
+	})
 }
 
 func (d *Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -52,19 +56,10 @@ func (d *Dispatcher) handleAnnotate(ctx context.Context, args []string, stdout, 
 		io.WriteString(stderr, "error: ask annotate requires an ID or UUID and note argument\n")
 		return 1, nil
 	}
-	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
-	if err != nil {
-		writeInfoError(stderr, err)
-		return code, nil
-	}
 	note := strings.Join(args[2:], " ")
-	var outBuf bytes.Buffer
-	code, err = d.runner.Run(ctx, []string{"uuid:" + resolved.UUID, "annotate", note}, nil, &outBuf, io.Discard)
-	if code != 0 {
-		return code, err
-	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
-	return 0, nil
+	return d.runSingleTaskCommand(ctx, args[1], stdout, stderr, func(resolved resolvedTaskSelector) []string {
+		return []string{"uuid:" + resolved.UUID, "annotate", note}
+	})
 }
 
 func (d *Dispatcher) handleStart(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -72,20 +67,11 @@ func (d *Dispatcher) handleStart(ctx context.Context, args []string, stdout, std
 		io.WriteString(stderr, "error: ask start requires an ID or UUID argument\n")
 		return 1, nil
 	}
-	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
-	if err != nil {
-		writeInfoError(stderr, err)
-		return code, nil
-	}
-	var outBuf bytes.Buffer
-	// uuid:<uuid> is used as the filter so taskwarrior selects the exact task;
-	// the action verb follows the filter.
-	code, err = d.runner.Run(ctx, []string{"uuid:" + resolved.UUID, "start"}, nil, &outBuf, io.Discard)
-	if code != 0 {
-		return code, err
-	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
-	return 0, nil
+	return d.runSingleTaskCommand(ctx, args[1], stdout, stderr, func(resolved resolvedTaskSelector) []string {
+		// uuid:<uuid> is used as the filter so taskwarrior selects the exact task;
+		// the action verb follows the filter.
+		return []string{"uuid:" + resolved.UUID, "start"}
+	})
 }
 
 func (d *Dispatcher) handleStop(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -93,18 +79,9 @@ func (d *Dispatcher) handleStop(ctx context.Context, args []string, stdout, stde
 		io.WriteString(stderr, "error: ask stop requires an ID or UUID argument\n")
 		return 1, nil
 	}
-	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
-	if err != nil {
-		writeInfoError(stderr, err)
-		return code, nil
-	}
-	var outBuf bytes.Buffer
-	code, err = d.runner.Run(ctx, []string{"uuid:" + resolved.UUID, "stop"}, nil, &outBuf, io.Discard)
-	if code != 0 {
-		return code, err
-	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
-	return 0, nil
+	return d.runSingleTaskCommand(ctx, args[1], stdout, stderr, func(resolved resolvedTaskSelector) []string {
+		return []string{"uuid:" + resolved.UUID, "stop"}
+	})
 }
 
 func (d *Dispatcher) handleDone(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -112,18 +89,9 @@ func (d *Dispatcher) handleDone(ctx context.Context, args []string, stdout, stde
 		io.WriteString(stderr, "error: ask done requires an ID or UUID argument\n")
 		return 1, nil
 	}
-	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
-	if err != nil {
-		writeInfoError(stderr, err)
-		return code, nil
-	}
-	var outBuf bytes.Buffer
-	code, err = d.runner.Run(ctx, []string{"uuid:" + resolved.UUID, "done"}, nil, &outBuf, io.Discard)
-	if code != 0 {
-		return code, err
-	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
-	return 0, nil
+	return d.runSingleTaskCommand(ctx, args[1], stdout, stderr, func(resolved resolvedTaskSelector) []string {
+		return []string{"uuid:" + resolved.UUID, "done"}
+	})
 }
 
 func (d *Dispatcher) handlePriority(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -131,19 +99,10 @@ func (d *Dispatcher) handlePriority(ctx context.Context, args []string, stdout, 
 		io.WriteString(stderr, "error: ask priority requires an ID or UUID and priority (H/M/L)\n")
 		return 1, nil
 	}
-	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
-	if err != nil {
-		writeInfoError(stderr, err)
-		return code, nil
-	}
 	priority := args[2]
-	var outBuf bytes.Buffer
-	code, err = d.runner.Run(ctx, []string{"uuid:" + resolved.UUID, "modify", "priority:" + priority}, nil, &outBuf, io.Discard)
-	if code != 0 {
-		return code, err
-	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
-	return 0, nil
+	return d.runSingleTaskCommand(ctx, args[1], stdout, stderr, func(resolved resolvedTaskSelector) []string {
+		return []string{"uuid:" + resolved.UUID, "modify", "priority:" + priority}
+	})
 }
 
 func (d *Dispatcher) handleTag(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
@@ -151,17 +110,8 @@ func (d *Dispatcher) handleTag(ctx context.Context, args []string, stdout, stder
 		io.WriteString(stderr, "error: ask tag requires an ID or UUID and +/-tag\n")
 		return 1, nil
 	}
-	resolved, _, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
-	if err != nil {
-		writeInfoError(stderr, err)
-		return code, nil
-	}
 	tag := args[2]
-	var outBuf bytes.Buffer
-	code, err = d.runner.Run(ctx, []string{"uuid:" + resolved.UUID, "modify", tag}, nil, &outBuf, io.Discard)
-	if code != 0 {
-		return code, err
-	}
-	io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
-	return 0, nil
+	return d.runSingleTaskCommand(ctx, args[1], stdout, stderr, func(resolved resolvedTaskSelector) []string {
+		return []string{"uuid:" + resolved.UUID, "modify", tag}
+	})
 }
