@@ -38,8 +38,8 @@ type taskListWidths struct {
 
 func taskListWidthsFor(tasks []TaskExport, aliases map[string]string, terminalWidth int) taskListWidths {
 	widths := taskListWidths{
-		Urgency:     len("Urgency"),
-		Priority:    len("Prio"),
+		Urgency:     len("Urg"),
+		Priority:    len("Pro"),
 		ID:          len("ID"),
 		Status:      len("Status"),
 		Started:     len("Started"),
@@ -62,8 +62,8 @@ func taskListWidthsFor(tasks []TaskExport, aliases map[string]string, terminalWi
 
 func writeTaskListHeader(b *strings.Builder, widths taskListWidths) {
 	fmt.Fprintf(b, "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n",
-		widths.Urgency, "Urgency",
-		widths.Priority, "Prio",
+		widths.Urgency, "Urg",
+		widths.Priority, "Pro",
 		widths.ID, "ID",
 		widths.Status, "Status",
 		widths.Started, "Started",
