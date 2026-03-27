@@ -5,10 +5,16 @@ import (
 	"io"
 	"slices"
 	"strings"
+
+	"codeberg.org/snonux/hexai/internal/termprint"
 )
 
 func FormatTaskList(tasks []TaskExport, aliases map[string]string) string {
-	widths := taskListWidthsFor(tasks, aliases)
+	return FormatTaskListForWidth(tasks, aliases, 0)
+}
+
+func FormatTaskListForWidth(tasks []TaskExport, aliases map[string]string, terminalWidth int) string {
+	widths := taskListWidthsFor(tasks, aliases, terminalWidth)
 	var b strings.Builder
 	writeTaskListHeader(&b, widths)
 	writeTaskListSeparator(&b, widths)
@@ -28,7 +34,7 @@ type taskListWidths struct {
 	Description int
 }
 
-func taskListWidthsFor(tasks []TaskExport, aliases map[string]string) taskListWidths {
+func taskListWidthsFor(tasks []TaskExport, aliases map[string]string, terminalWidth int) taskListWidths {
 	widths := taskListWidths{
 		Urgency:     len("Urgency"),
 		Priority:    len("Prio"),
@@ -38,6 +44,7 @@ func taskListWidthsFor(tasks []TaskExport, aliases map[string]string) taskListWi
 		Tags:        len("Tags"),
 		Description: len("Description"),
 	}
+	longestDescription := widths.Description
 	for _, t := range tasks {
 		widths.Urgency = maxInt(widths.Urgency, len(fmt.Sprintf("%.1f", t.Urgency)))
 		widths.Priority = maxInt(widths.Priority, len(t.Priority))
@@ -45,8 +52,9 @@ func taskListWidthsFor(tasks []TaskExport, aliases map[string]string) taskListWi
 		widths.Status = maxInt(widths.Status, len(t.Status))
 		widths.Started = maxInt(widths.Started, len(formatTaskStarted(t)))
 		widths.Tags = maxInt(widths.Tags, len(formatTaskTags(t.Tags)))
-		widths.Description = maxInt(widths.Description, len(formatTaskDescription(t.Description)))
+		longestDescription = maxInt(longestDescription, len(t.Description))
 	}
+	widths.Description = taskListDescriptionWidth(widths, terminalWidth, longestDescription)
 	return widths
 }
 
@@ -75,7 +83,7 @@ func writeTaskListRow(b *strings.Builder, widths taskListWidths, t TaskExport, a
 		widths.Status, t.Status,
 		widths.Started, formatTaskStarted(t),
 		widths.Tags, formatTaskTags(t.Tags),
-		widths.Description, formatTaskDescription(t.Description),
+		widths.Description, formatTaskDescription(t.Description, widths.Description),
 	)
 }
 
@@ -86,11 +94,14 @@ func formatTaskTags(tags []string) string {
 	return strings.Join(tags, ",")
 }
 
-func formatTaskDescription(desc string) string {
-	if len(desc) > 50 {
-		return desc[:47] + "..."
+func formatTaskDescription(desc string, width int) string {
+	if width <= 0 || len(desc) <= width {
+		return desc
 	}
-	return desc
+	if width <= 3 {
+		return desc[:width]
+	}
+	return desc[:width-3] + "..."
 }
 
 func formatTaskStarted(t TaskExport) string {
@@ -105,6 +116,28 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func taskListDescriptionWidth(widths taskListWidths, terminalWidth, longestDescription int) int {
+	if terminalWidth <= 0 {
+		return longestDescription
+	}
+	available := terminalWidth - taskListFixedWidth(widths)
+	if available < len("Description") {
+		return len("Description")
+	}
+	if available < longestDescription {
+		return available
+	}
+	return longestDescription
+}
+
+func taskListFixedWidth(widths taskListWidths) int {
+	return widths.Urgency + widths.Priority + widths.ID + widths.Status + widths.Started + widths.Tags + 18
+}
+
+func detectTaskListTerminalWidth(w io.Writer) int {
+	return termprint.DetectTerminalWidth(w)
 }
 
 func FormatTaskInfo(t TaskExport, alias string, dependencyAliases map[string]string) string {

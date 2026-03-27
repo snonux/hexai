@@ -30,8 +30,8 @@ func TestFormatTaskList(t *testing.T) {
 	if !strings.Contains(lines[2], "0") || strings.Contains(lines[2], "uuid-1") {
 		t.Fatalf("first task line should show alias only: %s", lines[2])
 	}
-	if !strings.Contains(lines[3], "...") {
-		t.Fatalf("long description should be truncated with ...: %s", lines[3])
+	if !strings.Contains(lines[3], strings.Repeat("a", 100)) {
+		t.Fatalf("default formatting should keep the full description when width is unconstrained: %s", lines[3])
 	}
 }
 
@@ -62,7 +62,7 @@ func TestFormatTaskList_AlignsHeaderAndSeparator(t *testing.T) {
 		t.Fatalf("FormatTaskList produced %d lines, want 4: %q", len(lines), output)
 	}
 
-	widths := taskListWidthsFor(tasks, aliases)
+	widths := taskListWidthsFor(tasks, aliases, 0)
 	wantHeader := fmt.Sprintf("%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s",
 		widths.Urgency, "Urgency",
 		widths.Priority, "Prio",
@@ -86,6 +86,61 @@ func TestFormatTaskList_FallsBackToUUIDWithoutAlias(t *testing.T) {
 	output := FormatTaskList(tasks, nil)
 	if !strings.Contains(output, "uuid-1") {
 		t.Fatalf("FormatTaskList should fall back to UUID when alias is unavailable: %s", output)
+	}
+}
+
+func TestFormatTaskListForWidth_UsesAvailableTerminalWidthForDescription(t *testing.T) {
+	tasks := []TaskExport{
+		{
+			UUID:        "uuid-1",
+			Description: strings.Repeat("x", 70),
+			Status:      "pending",
+			Priority:    "H",
+			Tags:        []string{"cli"},
+			Urgency:     1.0,
+		},
+	}
+
+	aliases := map[string]string{"uuid-1": "0"}
+	terminalWidth := 110
+	output := FormatTaskListForWidth(tasks, aliases, terminalWidth)
+	lines := strings.Split(strings.TrimSuffix(output, "\n"), "\n")
+	widths := taskListWidthsFor(tasks, aliases, terminalWidth)
+	if widths.Description <= 50 {
+		t.Fatalf("description width = %d, want > 50 for this terminal width", widths.Description)
+	}
+	if got := len(lines[0]); got != taskListFixedWidth(widths)+widths.Description {
+		t.Fatalf("header width = %d, want %d: %q", got, taskListFixedWidth(widths)+widths.Description, lines[0])
+	}
+	renderedDescription := strings.Split(lines[2], " | ")[6]
+	if renderedDescription != strings.Repeat("x", widths.Description-3)+"..." {
+		t.Fatalf("description should expand to the available terminal width: %s", lines[2])
+	}
+	if len(renderedDescription) != widths.Description {
+		t.Fatalf("rendered description width = %d, want %d", len(renderedDescription), widths.Description)
+	}
+}
+
+func TestFormatTaskListForWidth_TruncatesDescriptionWhenTerminalIsNarrow(t *testing.T) {
+	tasks := []TaskExport{
+		{
+			UUID:        "uuid-1",
+			Description: "abcdefghijklmnop",
+			Status:      "pending",
+			Priority:    "H",
+			Tags:        []string{"cli"},
+			Urgency:     1.0,
+		},
+	}
+
+	aliases := map[string]string{"uuid-1": "0"}
+	output := FormatTaskListForWidth(tasks, aliases, 40)
+	lines := strings.Split(strings.TrimSuffix(output, "\n"), "\n")
+	if !strings.Contains(lines[2], "abcdefgh...") {
+		t.Fatalf("description should truncate to fit a narrow terminal: %s", lines[2])
+	}
+	if strings.Contains(lines[2], "abcdefghijklmnop") {
+		t.Fatalf("description should not print the full description in a narrow terminal: %s", lines[2])
 	}
 }
 

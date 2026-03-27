@@ -66,7 +66,7 @@ func (d Dispatcher) handleListWithFilters(ctx context.Context, initialFilters, e
 			fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 			return 1, nil
 		}
-		io.WriteString(stdout, FormatTaskList(tasks, aliases))
+		io.WriteString(stdout, FormatTaskListForWidth(tasks, aliases, detectTaskListTerminalWidth(stdout)))
 	}
 	return 0, nil
 }

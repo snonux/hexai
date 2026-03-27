@@ -36,7 +36,7 @@ func NewColumnPrinter(stdout io.Writer, providers []string, models []string) *Co
 		return nil
 	}
 
-	width := detectTerminalWidth(stdout)
+	width := DetectTerminalWidth(stdout)
 	if width <= 0 {
 		width = 100
 	}
@@ -61,7 +61,7 @@ func NewColumnPrinter(stdout io.Writer, providers []string, models []string) *Co
 	}
 }
 
-func detectTerminalWidth(w io.Writer) int {
+func DetectTerminalWidth(w io.Writer) int {
 	type fder interface{ Fd() uintptr }
 	if f, ok := w.(*os.File); ok {
 		if width, _, err := term.GetSize(int(f.Fd())); err == nil {
@@ -74,6 +74,10 @@ func detectTerminalWidth(w io.Writer) int {
 		}
 	}
 	return 0
+}
+
+func detectTerminalWidth(w io.Writer) int {
+	return DetectTerminalWidth(w)
 }
 
 // Writer returns an io.Writer that routes chunks to a single column index.
