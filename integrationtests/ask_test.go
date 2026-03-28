@@ -147,8 +147,15 @@ func extractTaskIDFromAddOutput(output string) string {
 	return strings.TrimSpace(output)
 }
 
-func deleteTask(ctx context.Context, uuid string) {
-	runTaskWithStdin(ctx, []string{"uuid:" + uuid, "delete"}, "yes\n")
+// deleteTask removes the task identified by uuid from Taskwarrior. It always
+// uses a fresh background context with a short timeout so that deferred cleanup
+// calls succeed even when the calling test's context has already been cancelled
+// (e.g. after a timeout). The ctx parameter is accepted for backwards
+// compatibility but intentionally ignored.
+func deleteTask(_ context.Context, uuid string) {
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	runTaskWithStdin(cleanupCtx, []string{"uuid:" + uuid, "delete"}, "yes\n")
 }
 
 func listTasksWithTag(ctx context.Context, tag string) []askcli.TaskExport {
@@ -268,6 +275,30 @@ func aliasCachePath(t *testing.T, cacheRoot string) string {
 	return filepath.Join(cacheRoot, "hexai", "ask", "task-aliases-v1.json")
 }
 
+// cleanupOrphanedIntegrationTasks deletes any tasks with the +integrationtest
+// tag that were left behind by previous test runs (e.g. when a test timed out
+// before its deferred deleteTask could complete, or when the process was
+// killed). Running this at the start of TestMain keeps the Taskwarrior
+// database clean and prevents orphaned tasks from polluting subsequent runs.
+//
+// A bulk deletion approach is used to handle large numbers of orphaned tasks
+// efficiently: taskwarrior's "all" confirmation answer deletes all matching
+// tasks in a single invocation rather than one call per task.
+func cleanupOrphanedIntegrationTasks() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// "all" as stdin answers taskwarrior's per-task confirmation prompts with
+	// "delete all matching tasks", so the entire set is removed in one shot.
+	runTaskWithStdin(ctx, []string{
+		"rc.verbose=nothing",
+		"project:hexai",
+		"+integrationtest",
+		"status:pending",
+		"delete",
+	}, "all\n")
+}
+
 func TestMain(m *testing.M) {
 	repoRoot = findRepoRoot()
 	if repoRoot == "" {
@@ -282,6 +313,9 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "failed to build ask binary: %v\n%s\n", err, out)
 		os.Exit(1)
 	}
+	// Remove any tasks left over from previous integration test runs to avoid
+	// state pollution across runs.
+	cleanupOrphanedIntegrationTasks()
 	os.Exit(m.Run())
 }
 
