@@ -18,9 +18,17 @@ var (
 	taskAliasCacheRoot = stats.CacheDir
 )
 
+// taskAliasCache maps UUIDs to short human-readable aliases for display and
+// completion. The Entries slice is persisted as JSON; the byUUID and byAlias
+// maps are derived in-memory for O(1) lookups and are rebuilt after every load
+// or mutation.
 type taskAliasCache struct {
 	NextID  uint64                `json:"next_id"`
 	Entries []taskAliasCacheEntry `json:"entries"`
+
+	// In-memory lookup maps — not serialized to JSON.
+	byUUID  map[string]*taskAliasCacheEntry
+	byAlias map[string]*taskAliasCacheEntry
 }
 
 type taskAliasCacheEntry struct {
@@ -88,6 +96,9 @@ func loadTaskAliasCache() (taskAliasCache, string, error) {
 	if err := cache.validate(); err != nil {
 		return taskAliasCache{}, "", fmt.Errorf("validate task alias cache: %w", err)
 	}
+	// Rebuild lookup maps from the deserialized entries so that all subsequent
+	// operations use O(1) map access rather than a linear scan.
+	cache.rebuildMaps()
 	return cache, path, nil
 }
 
@@ -134,6 +145,20 @@ func (c *taskAliasCache) validate() error {
 	return nil
 }
 
+// rebuildMaps repopulates byUUID and byAlias from the current Entries slice.
+// This must be called after any operation that mutates Entries (load, prune,
+// add). Pointer stability is guaranteed because entries are addressed by their
+// slice index at the time the map is built; both maps are fully rebuilt each
+// time rather than patched to avoid stale pointers after slice reallocation.
+func (c *taskAliasCache) rebuildMaps() {
+	c.byUUID = make(map[string]*taskAliasCacheEntry, len(c.Entries))
+	c.byAlias = make(map[string]*taskAliasCacheEntry, len(c.Entries))
+	for i := range c.Entries {
+		c.byUUID[c.Entries[i].UUID] = &c.Entries[i]
+		c.byAlias[c.Entries[i].Alias] = &c.Entries[i]
+	}
+}
+
 func (c *taskAliasCache) prune(now time.Time) bool {
 	if len(c.Entries) == 0 {
 		return false
@@ -151,12 +176,16 @@ func (c *taskAliasCache) prune(now time.Time) bool {
 	c.Entries = kept
 	if changed {
 		c.sortEntries()
+		// Rebuild maps after pruning so removed entries are no longer reachable.
+		c.rebuildMaps()
 	}
 	return changed
 }
 
+// ensureAlias returns the alias for uuid, creating one if necessary. It uses
+// the byUUID map for O(1) lookup instead of a linear slice scan.
 func (c *taskAliasCache) ensureAlias(uuid string, now time.Time) (string, bool) {
-	if entry, ok := c.findEntry(func(entry taskAliasCacheEntry) bool { return entry.UUID == uuid }); ok {
+	if entry, ok := c.byUUID[uuid]; ok {
 		if entry.LastAccessedAt.Equal(now) {
 			return entry.Alias, false
 		}
@@ -173,20 +202,17 @@ func (c *taskAliasCache) ensureAlias(uuid string, now time.Time) (string, bool) 
 		LastAccessedAt: now,
 	})
 	c.sortEntries()
+	// Rebuild maps after append because sortEntries may reorder the slice and
+	// the previous pointer stored in byUUID for other entries may now be stale.
+	c.rebuildMaps()
 	return alias, true
 }
 
-func (c *taskAliasCache) findEntry(match func(taskAliasCacheEntry) bool) (*taskAliasCacheEntry, bool) {
-	for i := range c.Entries {
-		if match(c.Entries[i]) {
-			return &c.Entries[i], true
-		}
-	}
-	return nil, false
-}
-
+// lookupUUIDByAlias returns the UUID for the given alias using an O(1) map
+// lookup. Returns (uuid, found, changed) where changed is true when
+// LastAccessedAt was updated.
 func (c *taskAliasCache) lookupUUIDByAlias(alias string, now time.Time) (string, bool, bool) {
-	entry, ok := c.findEntry(func(entry taskAliasCacheEntry) bool { return entry.Alias == alias })
+	entry, ok := c.byAlias[alias]
 	if !ok {
 		return "", false, false
 	}
@@ -195,8 +221,11 @@ func (c *taskAliasCache) lookupUUIDByAlias(alias string, now time.Time) (string,
 	return entry.UUID, true, changed
 }
 
+// lookupAliasByUUID returns the alias for the given UUID using an O(1) map
+// lookup. Returns (alias, found, changed) where changed is true when
+// LastAccessedAt was updated.
 func (c *taskAliasCache) lookupAliasByUUID(uuid string, now time.Time) (string, bool, bool) {
-	entry, ok := c.findEntry(func(entry taskAliasCacheEntry) bool { return entry.UUID == uuid })
+	entry, ok := c.byUUID[uuid]
 	if !ok {
 		return "", false, false
 	}
