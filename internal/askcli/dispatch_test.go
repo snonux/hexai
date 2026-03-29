@@ -223,6 +223,11 @@ func TestDispatcher_NoAgentPrefix_StripsScopePrefix(t *testing.T) {
 			args:      []string{"no-agent", "add", "new task description"},
 			wantCalls: [][]string{{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "new task description"}},
 		},
+		{
+			name:      "na implicit add",
+			args:      []string{"na", "description", "here"},
+			wantCalls: [][]string{{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "description here"}},
+		},
 	}
 
 	for _, tc := range tests {
@@ -235,7 +240,8 @@ func TestDispatcher_NoAgentPrefix_StripsScopePrefix(t *testing.T) {
 					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
 				case "uuid:test-uuid export":
 					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
-				case "add rc.verbose=nothing rc.verbose=new-uuid new task description":
+				case "add rc.verbose=nothing rc.verbose=new-uuid new task description",
+					"add rc.verbose=nothing rc.verbose=new-uuid description here":
 					_, _ = io.WriteString(stdout, "Created task task-uuid-abc.\n")
 				default:
 					t.Fatalf("unexpected runner args: %v", args)
