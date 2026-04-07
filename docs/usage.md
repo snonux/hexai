@@ -250,9 +250,9 @@ Tips:
 
 `hexai-tmux-edit` opens your `$EDITOR` in a tmux popup for composing longer AI agent prompts. It captures existing prompt text from the target pane, pre-fills the editor, and sends the edited text back via `tmux send-keys`.
 
-This is useful when working with AI CLI agents (Claude Code, Cursor, Amp, Aider, etc.) and you need to compose a longer, multi-line prompt with the comfort of your regular editor (spellcheck, search/replace, etc.).
+This is useful when working with AI CLI agents (Cursor, Amp, Aider, etc.) and you need to compose a longer, multi-line prompt with the comfort of your regular editor (spellcheck, search/replace, etc.).
 
-OpenAI Codex CLI is not a built-in `hexai-tmux-edit` agent. Codex already supports editing in an external editor via `Ctrl+G`.
+OpenAI Codex CLI and Claude Code CLI are not built-in `hexai-tmux-edit` agents. Both support editing in an external editor natively via `Ctrl+G`.
 
 ### Supported agents
 
@@ -261,17 +261,14 @@ Built-in agent detection (auto-detected from pane content, checked in order):
 1. **Cursor** -- detects box-drawing UI `│ →` or footer `/ commands · @ files`
    - Clears with: `End BSpace*200` (backspace method)
    - Prompt pattern: Extracts from last `│...│` box
-2. **Claude Code** -- detects `❯` prompt symbol, "claude code", or "anthropic"
-   - Clears with: `C-a C-k` (Emacs/readline style)
-   - Prompt pattern: Extracts from last section between `─────` rules
-3. **Amp** -- detects "amp" or "sourcegraph" in pane (TUI mode)
+2. **Amp** -- detects "amp" or "sourcegraph" in pane (TUI mode)
    - Clears with: `C-u` (Emacs/readline style)
    - Prompt pattern: Extracts from `│...│` box UI (similar to Cursor)
-4. **Aider** -- detects "aider" in pane
+3. **Aider** -- detects "aider" in pane
    - Clears with: `C-u` (Emacs/readline style)
    - Prompt pattern: Shell-style `> prompt`
 
-**Detection order matters**: Cursor and Claude are checked first to avoid false positives. For example, Cursor may display "Claude 4.5 Sonnet" as its model name, but Cursor's distinctive `│ →` box UI is matched first.
+**Detection order matters**: Cursor is checked first to avoid false positives. For example, Cursor may display "Claude 4.5 Sonnet" as its model name, but Cursor's distinctive `│ →` box UI is matched first.
 
 Additional agents can be added via `[tmux_edit.agents]` in config.toml without code changes.
 

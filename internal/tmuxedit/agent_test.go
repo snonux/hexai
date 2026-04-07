@@ -13,10 +13,8 @@ func TestDetectAgent(t *testing.T) {
 		content string
 		want    string
 	}{
-		{"claude code prompt", "────\n❯ hello world\n────", "claude"},
-		{"claude code banner", "claude code v1.2\n❯ ", "claude"},
-		{"claude from anthropic", "Powered by Anthropic\n❯ ", "claude"},
 		{"cursor box ui", "│ → type here │\n/ commands · @ files", "cursor"},
+		// Cursor panes often show Claude model names; cursor's box UI must be detected first
 		{"cursor not false claude", "Claude 4.5 Sonnet\n│ → test │\n/ commands · @ files", "cursor"},
 		{"amp from banner", "Amp by Sourcegraph\n> ", "amp"},
 		{"aider from banner", "aider v0.50\n> /help", "aider"},
@@ -39,8 +37,6 @@ func TestFindAgentByName(t *testing.T) {
 		name string
 		want string
 	}{
-		{"claude", "claude"},
-		{"Claude", "claude"},
 		{"CURSOR", "cursor"},
 		{"amp", "amp"},
 		{"nonexistent", "generic"},

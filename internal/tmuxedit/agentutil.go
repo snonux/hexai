@@ -65,9 +65,9 @@ func joinLastContiguousBlock(matches []promptMatch, strips []string) string {
 }
 
 // scopeToLastSection extracts the content between the last two lines matching
-// the section delimiter pattern. This isolates the prompt area (e.g. Claude's
-// ─── rules) from previous conversation content. Returns the full content if
-// no pattern is set or fewer than two delimiters are found.
+// the section delimiter pattern. This isolates the prompt area from previous
+// conversation content. Returns the full content if no pattern is set or
+// fewer than two delimiters are found.
 func scopeToLastSection(paneContent, sectionPattern string) string {
 	if sectionPattern == "" {
 		return paneContent
@@ -118,7 +118,7 @@ func sendClearSequence(paneID, clearKeys string) error {
 				return fmt.Errorf("clear key %q failed: %w", key, err)
 			}
 		}
-		// Add delay after Escape to let Vim/Claude exit INSERT mode
+		// Add delay after Escape to let Vim-based agents exit INSERT mode
 		if key == "Escape" {
 			time.Sleep(150 * time.Millisecond)
 		}

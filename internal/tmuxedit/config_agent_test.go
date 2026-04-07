@@ -9,29 +9,31 @@ import (
 func boolP(b bool) *bool { return &b }
 
 func TestResolveAgents_MergeOverride(t *testing.T) {
+	// Override the built-in "amp" agent to verify config merging preserves
+	// builtin fields (detectPattern) while applying user overrides (DisplayName, ClearFirst).
 	cfgAgents := []appconfig.TmuxEditAgentCfg{
 		{
-			Name:        "claude",
-			DisplayName: "My Claude",
+			Name:        "amp",
+			DisplayName: "My Amp",
 			ClearFirst:  boolP(false),
 		},
 	}
 	agents := resolveAgents(cfgAgents)
-	var claude Agent
+	var amp Agent
 	for _, a := range agents {
-		if a.Name() == "claude" {
-			claude = a
+		if a.Name() == "amp" {
+			amp = a
 			break
 		}
 	}
-	if claude == nil {
-		t.Fatal("claude agent not found")
+	if amp == nil {
+		t.Fatal("amp agent not found")
 	}
-	if claude.DisplayName() != "My Claude" {
-		t.Errorf("DisplayName = %q, want My Claude", claude.DisplayName())
+	if amp.DisplayName() != "My Amp" {
+		t.Errorf("DisplayName = %q, want My Amp", amp.DisplayName())
 	}
 	// ClearInput should be no-op after override to false
-	c := claude.(Configurable)
+	c := amp.(Configurable)
 	if c.Base().clearFirst {
 		t.Error("clearFirst should be false after override")
 	}
@@ -42,11 +44,12 @@ func TestResolveAgents_MergeOverride(t *testing.T) {
 }
 
 func TestResolveAgents_MergeAllFields(t *testing.T) {
+	// Override the built-in "aider" agent with all fields to verify full merging.
 	cfgAgents := []appconfig.TmuxEditAgentCfg{
 		{
-			Name:          "claude",
-			DisplayName:   "Custom Claude",
-			DetectPattern: "(?i)custom-claude",
+			Name:          "aider",
+			DisplayName:   "Custom Aider",
+			DetectPattern: "(?i)custom-aider",
 			PromptPattern: `>\s+(.*)$`,
 			StripPatterns: []string{"NOISE"},
 			ClearFirst:    boolP(true),
@@ -58,17 +61,17 @@ func TestResolveAgents_MergeAllFields(t *testing.T) {
 	agents := resolveAgents(cfgAgents)
 	var a Agent
 	for _, ag := range agents {
-		if ag.Name() == "claude" {
+		if ag.Name() == "aider" {
 			a = ag
 			break
 		}
 	}
 	if a == nil {
-		t.Fatal("claude agent not found")
+		t.Fatal("aider agent not found")
 	}
 	c := a.(Configurable)
 	base := c.Base()
-	if base.detectPattern != "(?i)custom-claude" {
+	if base.detectPattern != "(?i)custom-aider" {
 		t.Errorf("detectPattern = %q", base.detectPattern)
 	}
 	if base.promptPat != `>\s+(.*)$` {

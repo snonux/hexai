@@ -15,10 +15,11 @@ type configAgent struct{ baseAgent }
 // matters: agents with distinctive UI elements (box-drawing, etc.) are
 // checked first to avoid false positives from model names like "Claude
 // 4.5 Sonnet" appearing in other agents' panes.
+// Claude Code is not included here: it now supports opening the prompt
+// in an external editor natively via Ctrl+G (like OpenAI Codex CLI).
 func builtinAgents() []Agent {
 	return []Agent{
 		newCursorAgent(),
-		newClaudeAgent(),
 		&configAgent{baseAgent{
 			name:          "amp",
 			displayName:   "Amp",

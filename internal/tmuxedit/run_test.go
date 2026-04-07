@@ -31,9 +31,9 @@ func TestRunWithConfig_HappyPath(t *testing.T) {
 		return nil, nil
 	}
 
-	// Mock: capture pane content with Claude Code agent detected
+	// Mock: capture pane content with Aider agent detected; aider uses "> prompt" pattern
 	capturePane = func(paneID string) (string, error) {
-		return "claude code v1.0\n──────\n❯ fix the bug\n──────", nil
+		return "aider v0.50\n> fix the bug", nil
 	}
 
 	// Mock: editor popup returns modified text
@@ -125,7 +125,7 @@ func TestRunWithConfig_EditorEmpty(t *testing.T) {
 		return []byte("%1"), nil
 	}
 	capturePane = func(string) (string, error) {
-		return "claude code\n❯ ", nil
+		return "aider v0.50\n> ", nil
 	}
 	openEditorPopup = func(string, string, string) (string, error) {
 		return "", nil // user saved empty file
@@ -355,8 +355,9 @@ func TestRunWithConfig_ClearInputError(t *testing.T) {
 	runCommand = func(name string, args ...string) ([]byte, error) {
 		return []byte("%1"), nil
 	}
+	// Use Aider (clearFirst=true, clearKeys="C-u") so ClearInput is exercised
 	capturePane = func(string) (string, error) {
-		return "claude code v1.0\n──────\n❯ fix the bug\n──────", nil
+		return "aider v0.50\n> fix the bug", nil
 	}
 	openEditorPopup = func(string, string, string) (string, error) {
 		return "new text", nil

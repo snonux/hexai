@@ -160,26 +160,14 @@ temperature = 0.2
 # default_agent = ""                   # force agent name; skip auto-detect
 
 # Override or add agent definitions (merged with built-in defaults by name).
-# Built-in agents (checked in order): cursor, claude, amp, aider.
-# OpenAI Codex CLI already supports external editor mode via Ctrl+G,
-# so no built-in codex tmux_edit agent profile is needed.
+# Built-in agents (checked in order): cursor, amp, aider.
+# OpenAI Codex CLI and Claude Code CLI both support external editor mode via
+# Ctrl+G, so no built-in tmux_edit agent profiles are needed for them.
 # - cursor: Box UI │...│, clears with End+BSpace*200
-# - claude: Prompt symbol ❯, clears with C-a C-k (Emacs/readline)
 # - amp: Box UI │...│ (TUI mode), clears with C-u (Emacs/readline)
 # - aider: Shell-style > prompt, clears with C-u (Emacs/readline)
 # Tmux keybinding (add to ~/.tmux.conf):
 #   bind e run-shell -b "cd '#{pane_current_path}' && hexai-tmux-edit --pane '#{pane_id}'"
-
-# [[tmux_edit.agents]]
-# name = "claude"
-# display_name = "Claude Code"
-# detect_pattern = "(?i)(claude|anthropic)"
-# prompt_pattern = '(?m)>\s*(.+)$'
-# strip_patterns = []
-# clear_first = true
-# clear_keys = "C-u"
-# newline_keys = "S-Enter"
-# submit_keys = "Enter"
 
 # [[tmux_edit.agents]]
 # name = "cursor"

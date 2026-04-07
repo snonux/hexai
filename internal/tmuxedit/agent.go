@@ -27,7 +27,7 @@ type Configurable interface {
 }
 
 // baseAgent holds configurable fields and provides default implementations
-// of the Agent interface. Specialized agents (cursor, claude) embed baseAgent
+// of the Agent interface. Specialized agents (e.g. cursor) embed baseAgent
 // and override methods where behavior differs from the defaults.
 type baseAgent struct {
 	name          string
@@ -45,7 +45,7 @@ type baseAgent struct {
 // Base returns a pointer to the baseAgent for config merging.
 func (b *baseAgent) Base() *baseAgent { return b }
 
-// Name returns the agent's short identifier (e.g. "claude", "cursor").
+// Name returns the agent's short identifier (e.g. "cursor", "amp").
 func (b *baseAgent) Name() string { return b.name }
 
 // DisplayName returns the agent's human-readable name.
