@@ -57,6 +57,18 @@ func TestDispatcher_UnknownSubcommand(t *testing.T) {
 }
 
 func TestDispatcher_CompleteUUIDsSubcommand(t *testing.T) {
+	// Use a temp dir for the alias cache so this test is hermetic and does
+	// not depend on cache state left by other tests.
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if strings.Join(args, " ") != "status:pending export" {
 			t.Fatalf("args = %v, want pending export", args)

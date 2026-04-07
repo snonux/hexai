@@ -107,7 +107,10 @@ func taskAliasCachePath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve cache dir: %w", err)
 	}
-	return filepath.Join(dir, "ask", "task-aliases-v1.json"), nil
+	// v2 uses reversed alias strings (e.g. "10" instead of "01") so that the
+	// first character varies more often, improving shell auto-completion. The
+	// old v1 file is intentionally abandoned so the mapping starts fresh.
+	return filepath.Join(dir, "ask", "task-aliases-v2.json"), nil
 }
 
 func (c *taskAliasCache) validate() error {
@@ -273,6 +276,21 @@ func (e taskAliasCacheEntry) lastTouchedAt() time.Time {
 	return e.CreatedAt
 }
 
+// reverseString returns s with its bytes in reverse order. Alias strings only
+// ever contain ASCII characters so byte-level reversal is correct.
+func reverseString(s string) string {
+	b := []byte(s)
+	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+		b[i], b[j] = b[j], b[i]
+	}
+	return string(b)
+}
+
+// encodeTaskAliasID converts a monotonically-increasing counter to a short
+// alphanumeric string and then reverses it. The reversal ensures that the
+// first character of the alias varies as quickly as possible, which makes
+// shell tab-completion more effective (e.g. "1", "2", ... "z", "00" becomes
+// "1", "2", ..., "z", "00"; then "10", "20", ... instead of "00", "10", ...).
 func encodeTaskAliasID(id uint64) string {
 	const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
@@ -290,9 +308,14 @@ func encodeTaskAliasID(id uint64) string {
 		buf[i] = alphabet[remaining%uint64(len(alphabet))]
 		remaining /= uint64(len(alphabet))
 	}
-	return string(buf)
+	// Reverse so that the least-significant digit comes first, keeping the
+	// leading character diverse across consecutive IDs.
+	return reverseString(string(buf))
 }
 
+// decodeTaskAliasID is the inverse of encodeTaskAliasID. It reverses the alias
+// string to restore the canonical (most-significant-digit-first) form before
+// decoding.
 func decodeTaskAliasID(alias string) (uint64, bool) {
 	const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
@@ -300,7 +323,9 @@ func decodeTaskAliasID(alias string) (uint64, bool) {
 		return 0, false
 	}
 
-	width := len(alias)
+	// Reverse the alias back to the canonical form before decoding.
+	canonical := reverseString(alias)
+	width := len(canonical)
 	var id uint64
 	blockSize := uint64(len(alphabet))
 	for i := 1; i < width; i++ {
@@ -309,7 +334,7 @@ func decodeTaskAliasID(alias string) (uint64, bool) {
 	}
 
 	var value uint64
-	for _, r := range alias {
+	for _, r := range canonical {
 		index := int64(-1)
 		for i, candidate := range alphabet {
 			if r == candidate {

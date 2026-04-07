@@ -11,6 +11,8 @@ import (
 func TestEncodeTaskAliasID(t *testing.T) {
 	t.Parallel()
 
+	// Aliases are stored in reversed form so that the first character varies
+	// quickly across consecutive IDs, improving shell tab-completion.
 	tests := []struct {
 		id   uint64
 		want string
@@ -20,12 +22,12 @@ func TestEncodeTaskAliasID(t *testing.T) {
 		{id: 10, want: "a"},
 		{id: 35, want: "z"},
 		{id: 36, want: "00"},
-		{id: 37, want: "01"},
-		{id: 71, want: "0z"},
-		{id: 72, want: "10"},
+		{id: 37, want: "10"},
+		{id: 71, want: "z0"},
+		{id: 72, want: "01"},
 		{id: 1331, want: "zz"},
 		{id: 1332, want: "000"},
-		{id: 1333, want: "001"},
+		{id: 1333, want: "100"},
 	}
 
 	for _, tc := range tests {
@@ -38,6 +40,8 @@ func TestEncodeTaskAliasID(t *testing.T) {
 func TestDecodeTaskAliasID(t *testing.T) {
 	t.Parallel()
 
+	// Aliases are in reversed form (matching encodeTaskAliasID output), so
+	// decodeTaskAliasID must reverse them back before decoding.
 	tests := []struct {
 		alias string
 		want  uint64
@@ -46,7 +50,7 @@ func TestDecodeTaskAliasID(t *testing.T) {
 		{alias: "0", want: 0, ok: true},
 		{alias: "z", want: 35, ok: true},
 		{alias: "00", want: 36, ok: true},
-		{alias: "01", want: 37, ok: true},
+		{alias: "10", want: 37, ok: true},
 		{alias: "zz", want: 1331, ok: true},
 		{alias: "000", want: 1332, ok: true},
 		{alias: "", ok: false},
@@ -163,8 +167,8 @@ func TestEnsureTaskAliases_PrunesExpiredEntriesWithoutReusingIDs(t *testing.T) {
 	if aliases["fresh"] != "00" {
 		t.Fatalf("fresh alias = %q, want 00", aliases["fresh"])
 	}
-	if aliases["new-task"] != "01" {
-		t.Fatalf("new-task alias = %q, want 01", aliases["new-task"])
+	if aliases["new-task"] != "10" {
+		t.Fatalf("new-task alias = %q, want 10", aliases["new-task"])
 	}
 
 	cache = readTaskAliasCacheForTest(t, path)
