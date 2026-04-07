@@ -5,7 +5,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 )
+
+// completionDescriptionMaxLen is the maximum number of characters of a task
+// description included in fish shell completion suggestions.
+const completionDescriptionMaxLen = 60
 
 func (d *Dispatcher) handleCompleteUUIDs(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	_ = args
@@ -24,12 +29,44 @@ func (d *Dispatcher) handleCompleteUUIDs(ctx context.Context, args []string, std
 		fmt.Fprintf(stderr, "warning: failed to update task alias cache: %v\n", err)
 		aliases = nil
 	}
-	for _, selector := range taskCompletionSelectors(tasks, aliases) {
-		_, _ = io.WriteString(stdout, selector+"\n")
+	// Each line is "selector\tdescription" so fish shell can show the task
+	// summary alongside the ID in the autocompletion menu.
+	for _, item := range taskCompletionItems(tasks, aliases) {
+		_, _ = io.WriteString(stdout, item+"\n")
 	}
 	return 0, nil
 }
 
+// taskCompletionItems returns tab-separated "selector\tdescription" strings
+// for each task, placing the short alias before the UUID when available.
+// Fish shell interprets the tab-separated format to display descriptions.
+func taskCompletionItems(tasks []TaskExport, aliases map[string]string) []string {
+	items := make([]string, 0, len(tasks)*2)
+	for _, task := range tasks {
+		if task.UUID == "" {
+			continue
+		}
+		desc := truncateDescription(task.Description, completionDescriptionMaxLen)
+		if alias := displayTaskAlias(task.UUID, aliases); alias != "" && alias != task.UUID {
+			items = append(items, alias+"\t"+desc)
+		}
+		items = append(items, task.UUID+"\t"+desc)
+	}
+	return items
+}
+
+// truncateDescription shortens s to at most maxLen characters, appending "…"
+// when the string is cut, so the completion hint fits on one line.
+func truncateDescription(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen]) + "…"
+}
+
+// taskCompletionSelectors returns plain selector strings (no descriptions) for
+// use in contexts that do not support tab-separated fish completion items.
 func taskCompletionSelectors(tasks []TaskExport, aliases map[string]string) []string {
 	selectors := make([]string, 0, len(tasks)*2)
 	for _, task := range tasks {
@@ -42,4 +79,13 @@ func taskCompletionSelectors(tasks []TaskExport, aliases map[string]string) []st
 		selectors = append(selectors, task.UUID)
 	}
 	return selectors
+}
+
+// completionItemSelector extracts the selector (before the tab) from a
+// tab-separated completion item returned by taskCompletionItems.
+func completionItemSelector(item string) string {
+	if idx := strings.IndexByte(item, '\t'); idx >= 0 {
+		return item[:idx]
+	}
+	return item
 }

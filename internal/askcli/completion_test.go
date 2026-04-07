@@ -33,6 +33,10 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 		"complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
 		"complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
 		"complete -c ask -n '__ask_in_add_dep_modifier_context' -a '(__ask_add_dependency_modifiers)' -d 'Task dependency'",
+		// The dep modifier function must extract just the selector (before the
+		// tab) from each tab-separated "selector\tdescription" completion item.
+		"for item in (__ask_task_selectors)",
+		"set -l selector (string split -m1 '\\t' -- $item)[1]",
 	} {
 		if !strings.Contains(script, line) {
 			t.Fatalf("script missing dep completion line %q", line)

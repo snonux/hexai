@@ -27,7 +27,7 @@ func TestHandleCompleteUUIDs_PrintsPendingUUIDs(t *testing.T) {
 		if strings.Join(args, " ") != strings.Join(want, " ") {
 			t.Fatalf("args = %v, want %v", args, want)
 		}
-		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1"},{"uuid":"uuid-2"},{"uuid":""}]`)
+		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"First task"},{"uuid":"uuid-2","description":"Second task"},{"uuid":""}]`)
 		return 0, nil
 	}})
 
@@ -39,8 +39,10 @@ func TestHandleCompleteUUIDs_PrintsPendingUUIDs(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("handleCompleteUUIDs code = %d, want 0", code)
 	}
-	if got := stdout.String(); got != "0\nuuid-1\n1\nuuid-2\n" {
-		t.Fatalf("stdout = %q, want alias-first selector list", got)
+	// Each line is "selector\tdescription" so fish shell shows the task
+	// summary alongside the alias/UUID in the autocompletion menu.
+	if got := stdout.String(); got != "0\tFirst task\nuuid-1\tFirst task\n1\tSecond task\nuuid-2\tSecond task\n" {
+		t.Fatalf("stdout = %q, want tab-separated selector+description list", got)
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q, want empty", stderr.String())
@@ -96,7 +98,7 @@ func TestHandleCompleteUUIDs_WarnsOnInvalidAliasCache(t *testing.T) {
 	}
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1"}]`)
+		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Fallback task"}]`)
 		return 0, nil
 	}})
 
@@ -108,8 +110,9 @@ func TestHandleCompleteUUIDs_WarnsOnInvalidAliasCache(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("handleCompleteUUIDs code = %d, want 0", code)
 	}
-	if got := stdout.String(); got != "uuid-1\n" {
-		t.Fatalf("stdout = %q, want UUID-only fallback list", got)
+	// When alias cache is unavailable, output UUID with description (tab-separated).
+	if got := stdout.String(); got != "uuid-1\tFallback task\n" {
+		t.Fatalf("stdout = %q, want UUID-only fallback list with description", got)
 	}
 	if !strings.Contains(stderr.String(), "failed to update task alias cache") {
 		t.Fatalf("stderr = %q, want cache warning", stderr.String())
@@ -131,5 +134,59 @@ func TestTaskCompletionSelectors_SkipsMissingAndDuplicateAliases(t *testing.T) {
 	want := []string{"0", "uuid-1", "uuid-2"}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("taskCompletionSelectors = %v, want %v", got, want)
+	}
+}
+
+func TestTaskCompletionItems_IncludesDescriptions(t *testing.T) {
+	tasks := []TaskExport{
+		{UUID: "uuid-1", Description: "First task"},
+		{UUID: "", Description: "Ignored"},
+		{UUID: "uuid-2", Description: "Second task"},
+	}
+	aliases := map[string]string{
+		"uuid-1": "0",
+		"uuid-2": "uuid-2", // same as UUID, so alias is skipped
+	}
+
+	got := taskCompletionItems(tasks, aliases)
+	// Alias "0" differs from UUID so it gets its own entry; "uuid-2" matches
+	// UUID so no alias entry is emitted for it.
+	want := []string{
+		"0\tFirst task",
+		"uuid-1\tFirst task",
+		"uuid-2\tSecond task",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("taskCompletionItems = %v, want %v", got, want)
+	}
+}
+
+func TestTruncateDescription_ShortString(t *testing.T) {
+	got := truncateDescription("hello", 10)
+	if got != "hello" {
+		t.Fatalf("truncateDescription = %q, want %q", got, "hello")
+	}
+}
+
+func TestTruncateDescription_ExactLength(t *testing.T) {
+	got := truncateDescription("hello", 5)
+	if got != "hello" {
+		t.Fatalf("truncateDescription = %q, want %q", got, "hello")
+	}
+}
+
+func TestTruncateDescription_LongString(t *testing.T) {
+	got := truncateDescription("hello world", 5)
+	if got != "hello…" {
+		t.Fatalf("truncateDescription = %q, want %q", got, "hello…")
+	}
+}
+
+func TestTruncateDescription_Unicode(t *testing.T) {
+	// Japanese characters are multi-byte but each is one rune, so maxLen=3
+	// should cut at 3 runes.
+	got := truncateDescription("日本語テスト", 3)
+	if got != "日本語…" {
+		t.Fatalf("truncateDescription = %q, want %q", got, "日本語…")
 	}
 }

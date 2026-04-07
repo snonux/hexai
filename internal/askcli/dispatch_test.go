@@ -73,7 +73,7 @@ func TestDispatcher_CompleteUUIDsSubcommand(t *testing.T) {
 		if strings.Join(args, " ") != "status:pending export" {
 			t.Fatalf("args = %v, want pending export", args)
 		}
-		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1"}]`)
+		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Sample task"}]`)
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
@@ -84,8 +84,9 @@ func TestDispatcher_CompleteUUIDsSubcommand(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("complete-uuids code = %d, want 0", code)
 	}
-	if got := stdout.String(); got != "0\nuuid-1\n" {
-		t.Fatalf("stdout = %q, want selector list", got)
+	// Output is "selector\tdescription" for fish shell autocompletion display.
+	if got := stdout.String(); got != "0\tSample task\nuuid-1\tSample task\n" {
+		t.Fatalf("stdout = %q, want tab-separated selector list", got)
 	}
 }
 

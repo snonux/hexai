@@ -75,9 +75,14 @@ func hasTag(tags []string, want string) bool {
 	return false
 }
 
+// hasSelectorLine reports whether any line in output starts with want followed
+// by a tab or end-of-line. This handles the "selector\tdescription" format
+// emitted by complete-uuids for fish shell autocompletion.
 func hasSelectorLine(output, want string) bool {
 	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
-		if strings.TrimSpace(line) == want {
+		line = strings.TrimSpace(line)
+		// Accept exact match (no description) or tab-prefixed description.
+		if line == want || strings.HasPrefix(line, want+"\t") {
 			return true
 		}
 	}

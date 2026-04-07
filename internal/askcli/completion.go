@@ -308,7 +308,10 @@ func writeFishAddDependencyModifierFunction(b *strings.Builder) {
 	b.WriteString("            set chosen $pieces[1..-2]\n")
 	b.WriteString("        end\n")
 	b.WriteString("    end\n")
-	b.WriteString("    for selector in (__ask_task_selectors)\n")
+	// Each item from __ask_task_selectors is "selector\tdescription"; extract
+	// just the selector (before the tab) for matching and output purposes.
+	b.WriteString("    for item in (__ask_task_selectors)\n")
+	b.WriteString("        set -l selector (string split -m1 '\\t' -- $item)[1]\n")
 	b.WriteString("        if contains -- $selector $chosen\n")
 	b.WriteString("            continue\n")
 	b.WriteString("        end\n")
