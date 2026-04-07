@@ -91,7 +91,11 @@ func loadTaskAliasCache() (taskAliasCache, string, error) {
 
 	var cache taskAliasCache
 	if err := json.Unmarshal(data, &cache); err != nil {
-		return taskAliasCache{}, "", fmt.Errorf("parse task alias cache: %w", err)
+		// Cache file is unreadable (e.g. truncated write or duplicate-write
+		// corruption). Discard and start fresh — tasks will get new alias IDs on
+		// the next run, which is preferable to a hard failure.
+		_ = os.Remove(path)
+		return taskAliasCache{}, path, nil
 	}
 	if err := cache.validate(); err != nil {
 		return taskAliasCache{}, "", fmt.Errorf("validate task alias cache: %w", err)

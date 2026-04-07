@@ -80,7 +80,7 @@ func TestHandleCompleteUUIDs_ParseError(t *testing.T) {
 	}
 }
 
-func TestHandleCompleteUUIDs_WarnsOnInvalidAliasCache(t *testing.T) {
+func TestHandleCompleteUUIDs_RecoverFromCorruptAliasCache(t *testing.T) {
 	dir := t.TempDir()
 	oldRoot := taskAliasCacheRoot
 	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
@@ -93,6 +93,9 @@ func TestHandleCompleteUUIDs_WarnsOnInvalidAliasCache(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
+	// Simulate a corrupted cache file (e.g. two JSON objects concatenated from a
+	// concurrent write race). The handler must recover by resetting the cache and
+	// assigning fresh aliases rather than erroring or degrading to UUID-only output.
 	if err := os.WriteFile(path, []byte("{bad"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
@@ -110,12 +113,18 @@ func TestHandleCompleteUUIDs_WarnsOnInvalidAliasCache(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("handleCompleteUUIDs code = %d, want 0", code)
 	}
-	// When alias cache is unavailable, output UUID with description (tab-separated).
-	if got := stdout.String(); got != "uuid-1\tFallback task\n" {
-		t.Fatalf("stdout = %q, want UUID-only fallback list with description", got)
+	// After recovery a fresh alias (e.g. "0") must be assigned, so the output
+	// includes both the short alias and the UUID (fish shows whichever the user
+	// types). No warning should appear on stderr.
+	got := stdout.String()
+	if !strings.Contains(got, "uuid-1\tFallback task") {
+		t.Fatalf("stdout = %q, want UUID with description", got)
 	}
-	if !strings.Contains(stderr.String(), "failed to update task alias cache") {
-		t.Fatalf("stderr = %q, want cache warning", stderr.String())
+	if !strings.Contains(got, "Fallback task") {
+		t.Fatalf("stdout = %q, want task description in output", got)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want no warnings after graceful recovery", stderr.String())
 	}
 }
 

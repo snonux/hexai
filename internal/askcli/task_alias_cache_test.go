@@ -230,7 +230,7 @@ func TestEnsureTaskAliases_DoesNotPruneEntriesAt120DayBoundary(t *testing.T) {
 	}
 }
 
-func TestEnsureTaskAliases_InvalidCacheReturnsError(t *testing.T) {
+func TestEnsureTaskAliases_CorruptedCacheIsResetGracefully(t *testing.T) {
 	dir := t.TempDir()
 
 	oldRoot := taskAliasCacheRoot
@@ -244,12 +244,24 @@ func TestEnsureTaskAliases_InvalidCacheReturnsError(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
+	// Write a corrupted cache (e.g. two JSON objects concatenated due to a
+	// concurrent write race). The function must recover gracefully by resetting
+	// the cache instead of returning an error.
 	if err := os.WriteFile(path, []byte("{not-json"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	if _, err := ensureTaskAliases([]TaskExport{{UUID: "uuid-1"}}); err == nil {
-		t.Fatal("expected error for invalid cache file")
+	aliases, err := ensureTaskAliases([]TaskExport{{UUID: "uuid-1"}})
+	if err != nil {
+		t.Fatalf("expected graceful recovery from corrupted cache, got error: %v", err)
+	}
+	// A fresh alias should have been assigned after the corrupt file was discarded.
+	if aliases["uuid-1"] == "" {
+		t.Fatal("expected alias to be assigned after cache reset")
+	}
+	// The corrupt file should have been removed and replaced with a valid one.
+	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
+		t.Fatal("expected a new cache file to be written after reset")
 	}
 }
 

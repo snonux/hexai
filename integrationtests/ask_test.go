@@ -272,7 +272,7 @@ func mustTaskAlias(t *testing.T, ctx context.Context, uuid string) string {
 
 func aliasCachePath(t *testing.T, cacheRoot string) string {
 	t.Helper()
-	return filepath.Join(cacheRoot, "hexai", "ask", "task-aliases-v1.json")
+	return filepath.Join(cacheRoot, "hexai", "ask", "task-aliases-v2.json")
 }
 
 // cleanupOrphanedIntegrationTasks deletes any tasks with the +integrationtest
