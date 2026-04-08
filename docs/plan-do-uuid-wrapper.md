@@ -1,5 +1,7 @@
 # Plan: `do` as UUID-only Taskwarrior Wrapper
 
+The user-facing CLI binary is **`do`** (it was previously named `ask`). This document uses `do` throughout. The Go implementation package remains `internal/askcli` in the tree below.
+
 ## Goal
 
 Rewrite the `do` command from a thin pass-through proxy into a **subcommand-based CLI** that wraps Taskwarrior. The wrapper never exposes numeric task IDs to the caller — only UUIDs. Output is minimal and machine-friendly for coding agents.
@@ -81,8 +83,8 @@ If an argument looks like a bare numeric ID where a UUID is expected, reject wit
 ## Package Layout
 
 ```
-cmd/do/main.go             — parse subcommand, dispatch to askcli
-internal/askcli/             — NEW package
+cmd/do/main.go             — parse subcommand, dispatch to internal/askcli
+internal/askcli/             — implementation package (CLI name: do)
   ├── dispatch.go            — subcommand router (switch args[0])
   ├── taskexec.go            — wraps Taskwarrior execution (binary lookup, repo detection, run)
   ├── taskexport.go          — TaskExport struct + JSON parse helper

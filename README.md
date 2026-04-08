@@ -14,7 +14,7 @@ It has got improved capabilities for Go code understanding (for example, create 
 * Stand-alone command line tool for LLM interaction
   - Includes `--tps-simulation` to preview how fast a model would feel by streaming placeholder text or piped stdin at a chosen token-per-second rate
 * Task management CLI for agent-managed project work
-  - Entrypoint: `do`
+  - Entrypoint: `do` (the binary was formerly named `ask`; use `do` in scripts and documentation)
   - Auto-scopes to `project:<repo> +agent` (derived from git repo root)
   - Never exposes numeric task IDs — uses UUIDs only
   - Machine-friendly output: UUID-only tables, suppressed decorative text

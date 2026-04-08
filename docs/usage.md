@@ -125,7 +125,9 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 
 ## Task management
 
-`do` is a task management CLI for the current git project. By default it auto-scopes to `project:<repo> +agent` so operations are confined to agent-managed project tasks.
+`do` is a task management CLI for the current git project. The binary was previously named `ask`; use `do` everywhere (commands, scripts, shell completion).
+
+By default it auto-scopes to `project:<repo> +agent` so operations are confined to agent-managed project tasks.
 
 Use `do na <subcommand...>` or `do no-agent <subcommand...>` to run the same subcommands against project tasks without the `+agent` tag. Those prefixes keep the project scope but replace the default tag filter with `-agent`.
 

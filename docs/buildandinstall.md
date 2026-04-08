@@ -19,7 +19,7 @@ Note: `mage lint` uses `golangci-lint`. Install via `mage devinstall` if needed.
 
 Either use the Mage method as mentioned above, or install directly with:
 
-- Taskwarrior proxy: `go install codeberg.org/snonux/hexai/cmd/do@latest`
+- Task CLI (`do`, agent-scoped Taskwarrior wrapper): `go install codeberg.org/snonux/hexai/cmd/do@latest`
 - CLI: `go install codeberg.org/snonux/hexai/cmd/hexai@latest`
 - LSP: `go install codeberg.org/snonux/hexai/cmd/hexai-lsp-server@latest`
 - Action runner: `go install codeberg.org/snonux/hexai/cmd/hexai-tmux-action@latest`
