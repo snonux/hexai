@@ -13,6 +13,18 @@ import (
 const completionDescriptionMaxLen = 60
 
 func (d *Dispatcher) handleCompleteUUIDs(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	return d.completeTaskSelectors(ctx, args, stdout, stderr, taskCompletionItems)
+}
+
+func (d *Dispatcher) handleCompleteAliases(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	return d.completeTaskSelectors(ctx, args, stdout, stderr, taskCompletionAliasItems)
+}
+
+// taskCompletionLinesFn builds tab-separated "selector\tdescription" lines for
+// completion output (full list vs alias-only for Fish).
+type taskCompletionLinesFn func(tasks []TaskExport, aliases map[string]string) []string
+
+func (d *Dispatcher) completeTaskSelectors(ctx context.Context, args []string, stdout, stderr io.Writer, lines taskCompletionLinesFn) (int, error) {
 	_ = args
 	var outBuf bytes.Buffer
 	code, err := d.runner.Run(ctx, []string{"status:pending", "export"}, nil, &outBuf, stderr)
@@ -31,7 +43,7 @@ func (d *Dispatcher) handleCompleteUUIDs(ctx context.Context, args []string, std
 	}
 	// Each line is "selector\tdescription" so fish shell can show the task
 	// summary alongside the ID in the autocompletion menu.
-	for _, item := range taskCompletionItems(tasks, aliases) {
+	for _, item := range lines(tasks, aliases) {
 		_, _ = io.WriteString(stdout, item+"\n")
 	}
 	return 0, nil
@@ -51,6 +63,24 @@ func taskCompletionItems(tasks []TaskExport, aliases map[string]string) []string
 			items = append(items, alias+"\t"+desc)
 		}
 		items = append(items, task.UUID+"\t"+desc)
+	}
+	return items
+}
+
+// taskCompletionAliasItems returns tab-separated "selector\tdescription" lines
+// only for short alias IDs (never the raw UUID). Used by Fish completion via
+// `complete-aliases`; non-shell callers still use complete-uuids for full
+// selector lists.
+func taskCompletionAliasItems(tasks []TaskExport, aliases map[string]string) []string {
+	items := make([]string, 0, len(tasks))
+	for _, task := range tasks {
+		if task.UUID == "" {
+			continue
+		}
+		desc := truncateDescription(task.Description, completionDescriptionMaxLen)
+		if alias := displayTaskAlias(task.UUID, aliases); alias != "" && alias != task.UUID {
+			items = append(items, alias+"\t"+desc)
+		}
 	}
 	return items
 }

@@ -3,8 +3,8 @@
 The `do` task-management CLI embeds its Fish completion script in the binary and prints it with `do fish`.
 
 It completes the top-level `do` subcommands and the nested `do dep` operations.
-It also completes task selectors for UUID-taking commands by reading pending tasks through `do complete-uuids`, which uses the local alias cache for stable short IDs.
-Fish suggests each task's alias ID first and also keeps the raw UUID available as a fallback selector.
+It also completes task selectors for UUID-taking commands by reading pending tasks through `do complete-aliases`, which uses the local alias cache for stable short IDs.
+The `do complete-uuids` command still emits both alias and UUID lines for scripts and tests that need the full selector list.
 Selector suggestions stop once a command has consumed its selector argument, and `do dep add` / `do dep rm` suggest selectors for both task positions.
 When typing `do add depends:...`, Fish also completes the comma-separated dependency selector list inside the `depends:` modifier.
 The script preserves the global `--json` flag.

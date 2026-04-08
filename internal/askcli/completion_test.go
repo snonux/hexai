@@ -28,8 +28,8 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 		"function __do_add_dependency_modifiers",
 		`set -l do_bin "do"`,
 		"set -l selectors",
-		"set selectors (command $do_bin complete-uuids 2>/dev/null)",
-		"set selectors (command $do_bin $scope_prefix complete-uuids 2>/dev/null)",
+		"set selectors (command $do_bin complete-aliases 2>/dev/null)",
+		"set selectors (command $do_bin $scope_prefix complete-aliases 2>/dev/null)",
 		"complete -c do -n '__do_in_uuid_context' -a '(__do_task_selectors)' -d 'Task selector'",
 		"complete -c do -n '__do_in_dep_uuid_context' -a '(__do_task_selectors)' -d 'Task selector'",
 		"complete -c do -n '__do_in_add_dep_modifier_context' -a '(__do_add_dependency_modifiers)' -d 'Task dependency'",
@@ -139,7 +139,7 @@ func TestFishCompletionFor_EmbedsBinaryPath(t *testing.T) {
 	script := FishCompletionFor(`/tmp/do "$HOME"`)
 	for _, line := range []string{
 		`set -l do_bin "/tmp/do \"\$HOME\""`,
-		"set selectors (command $do_bin complete-uuids 2>/dev/null)",
+		"set selectors (command $do_bin complete-aliases 2>/dev/null)",
 	} {
 		if !strings.Contains(script, line) {
 			t.Fatalf("script missing %q", line)

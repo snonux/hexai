@@ -77,7 +77,7 @@ func hasTag(tags []string, want string) bool {
 
 // hasSelectorLine reports whether any line in output starts with want followed
 // by a tab or end-of-line. This handles the "selector\tdescription" format
-// emitted by complete-uuids for fish shell autocompletion.
+// emitted by complete-uuids / complete-aliases (tab-separated selector lines).
 func hasSelectorLine(output, want string) bool {
 	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
 		line = strings.TrimSpace(line)

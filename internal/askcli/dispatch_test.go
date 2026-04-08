@@ -90,6 +90,38 @@ func TestDispatcher_CompleteUUIDsSubcommand(t *testing.T) {
 	}
 }
 
+func TestDispatcher_CompleteAliasesSubcommand(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if strings.Join(args, " ") != "status:pending export" {
+			t.Fatalf("args = %v, want pending export", args)
+		}
+		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Sample task"}]`)
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(context.Background(), []string{"complete-aliases"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("complete-aliases returned error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("complete-aliases code = %d, want 0", code)
+	}
+	// Fish completion uses aliases only; UUID lines are omitted.
+	if got := stdout.String(); got != "0\tSample task\n" {
+		t.Fatalf("stdout = %q, want alias-only tab-separated list", got)
+	}
+}
+
 func TestDispatcher_LongHelp(t *testing.T) {
 	d := NewDispatcher(nil)
 	var stdout bytes.Buffer
@@ -320,6 +352,11 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 		{
 			name:      "complete-uuids",
 			args:      []string{"complete-uuids"},
+			wantCalls: [][]string{{"status:pending", "export"}},
+		},
+		{
+			name:      "complete-aliases",
+			args:      []string{"complete-aliases"},
 			wantCalls: [][]string{{"status:pending", "export"}},
 		},
 		{

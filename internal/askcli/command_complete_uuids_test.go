@@ -146,6 +146,62 @@ func TestTaskCompletionSelectors_SkipsMissingAndDuplicateAliases(t *testing.T) {
 	}
 }
 
+func TestTaskCompletionAliasItems_OnlyShortAliases(t *testing.T) {
+	tasks := []TaskExport{
+		{UUID: "uuid-1", Description: "First task"},
+		{UUID: "", Description: "Ignored"},
+		{UUID: "uuid-2", Description: "Second task"},
+	}
+	aliases := map[string]string{
+		"uuid-1": "0",
+		"uuid-2": "uuid-2", // same as UUID: no alias-only line (use complete-uuids for UUID)
+	}
+
+	got := taskCompletionAliasItems(tasks, aliases)
+	want := []string{
+		"0\tFirst task",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("taskCompletionAliasItems = %v, want %v", got, want)
+	}
+}
+
+func TestHandleCompleteAliases_PrintsAliasesOnly(t *testing.T) {
+	dir := t.TempDir()
+	oldNow := nowTaskAliasCache
+	oldRoot := taskAliasCacheRoot
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	defer func() {
+		nowTaskAliasCache = oldNow
+		taskAliasCacheRoot = oldRoot
+	}()
+
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		want := []string{"status:pending", "export"}
+		if strings.Join(args, " ") != strings.Join(want, " ") {
+			t.Fatalf("args = %v, want %v", args, want)
+		}
+		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"First task"},{"uuid":"uuid-2","description":"Second task"},{"uuid":""}]`)
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, err := d.handleCompleteAliases(context.Background(), nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("handleCompleteAliases returned error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("handleCompleteAliases code = %d, want 0", code)
+	}
+	if got := stdout.String(); got != "0\tFirst task\n1\tSecond task\n" {
+		t.Fatalf("stdout = %q, want alias-only tab-separated list", got)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
 func TestTaskCompletionItems_IncludesDescriptions(t *testing.T) {
 	tasks := []TaskExport{
 		{UUID: "uuid-1", Description: "First task"},

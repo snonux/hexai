@@ -204,4 +204,10 @@ func init() {
 		handler:             wrapSimpleCommand((*Dispatcher).handleCompleteUUIDs),
 		includeInCompletion: false,
 	})
+	commandRegistry.add(commandEntry{
+		name:                "complete-aliases",
+		description:         "Emit short task selector list for Fish completion",
+		handler:             wrapSimpleCommand((*Dispatcher).handleCompleteAliases),
+		includeInCompletion: false,
+	})
 }
