@@ -25,15 +25,15 @@ var (
 
 // Build builds binaries.
 func Build() error {
-	mg.Deps(BuildAsk, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit, BuildHexaiMCPServer)
+	mg.Deps(BuildDo, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit, BuildHexaiMCPServer)
 	printCoverage()
 	return nil
 }
 
-// BuildAsk builds the Taskwarrior proxy wrapper.
-func BuildAsk() error {
+// BuildDo builds the Taskwarrior proxy wrapper.
+func BuildDo() error {
 	printCoverage()
-	return sh.RunV("go", "build", "-o", "ask", "./cmd/ask")
+	return sh.RunV("go", "build", "-o", "do", "./cmd/do")
 }
 
 // BuildHexaiLSP builds the LSP server binary.
@@ -70,7 +70,7 @@ func BuildHexaiMCPServer() error {
 func Dev() error {
 	printCoverage()
 	mg.Deps(Test, Vet, Lint)
-	if err := sh.RunV("go", "build", "-race", "-o", "ask", "./cmd/ask"); err != nil {
+	if err := sh.RunV("go", "build", "-race", "-o", "do", "./cmd/do"); err != nil {
 		return err
 	}
 	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp-server", "./cmd/hexai-lsp-server"); err != nil {
@@ -120,7 +120,7 @@ func Install() error {
 		return err
 	}
 	for _, name := range []string{
-		"ask",
+		"do",
 		"hexai-lsp-server",
 		"hexai",
 		"hexai-tmux-action",

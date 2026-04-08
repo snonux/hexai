@@ -18,38 +18,38 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 		}
 	}
 	for _, line := range []string{
-		"# Source with: ask fish | source",
-		"complete -c ask -n '__ask_in_dep_context' -a 'add' -d 'Add a dependency'",
-		"complete -c ask -n '__ask_in_dep_context' -a 'rm' -d 'Remove a dependency'",
-		"complete -c ask -n '__ask_in_dep_context' -a 'list' -d 'List dependencies'",
-		"function __ask_command_positionals",
-		"function __ask_scope_prefix",
-		"function __ask_task_selectors",
-		"function __ask_add_dependency_modifiers",
-		`set -l ask_bin "ask"`,
+		"# Source with: do fish | source",
+		"complete -c do -n '__do_in_dep_context' -a 'add' -d 'Add a dependency'",
+		"complete -c do -n '__do_in_dep_context' -a 'rm' -d 'Remove a dependency'",
+		"complete -c do -n '__do_in_dep_context' -a 'list' -d 'List dependencies'",
+		"function __do_command_positionals",
+		"function __do_scope_prefix",
+		"function __do_task_selectors",
+		"function __do_add_dependency_modifiers",
+		`set -l do_bin "do"`,
 		"set -l selectors",
-		"set selectors (command $ask_bin complete-uuids 2>/dev/null)",
-		"set selectors (command $ask_bin $scope_prefix complete-uuids 2>/dev/null)",
-		"complete -c ask -n '__ask_in_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
-		"complete -c ask -n '__ask_in_dep_uuid_context' -a '(__ask_task_selectors)' -d 'Task selector'",
-		"complete -c ask -n '__ask_in_add_dep_modifier_context' -a '(__ask_add_dependency_modifiers)' -d 'Task dependency'",
+		"set selectors (command $do_bin complete-uuids 2>/dev/null)",
+		"set selectors (command $do_bin $scope_prefix complete-uuids 2>/dev/null)",
+		"complete -c do -n '__do_in_uuid_context' -a '(__do_task_selectors)' -d 'Task selector'",
+		"complete -c do -n '__do_in_dep_uuid_context' -a '(__do_task_selectors)' -d 'Task selector'",
+		"complete -c do -n '__do_in_add_dep_modifier_context' -a '(__do_add_dependency_modifiers)' -d 'Task dependency'",
 		// The dep modifier function must extract just the selector (before the
 		// tab) from each tab-separated "selector\tdescription" completion item.
-		"for item in (__ask_task_selectors)",
+		"for item in (__do_task_selectors)",
 		"set -l selector (string split -m1 '\\t' -- $item)[1]",
 	} {
 		if !strings.Contains(script, line) {
 			t.Fatalf("script missing dep completion line %q", line)
 		}
 	}
-	if strings.Contains(script, "ask export") {
+	if strings.Contains(script, "do export") {
 		t.Fatalf("script should not advertise non-existent export command")
 	}
-	if strings.Contains(script, "assets/ask.fish") {
+	if strings.Contains(script, "assets/do.fish") {
 		t.Fatalf("script should not reference a static asset")
 	}
 	for _, name := range []string{"info", "annotate", "start", "stop", "done", "priority", "tag", "modify", "denotate", "delete"} {
-		if strings.Contains(script, "complete -c ask -n '__ask_in_uuid_context' -a '"+name+"'") {
+		if strings.Contains(script, "complete -c do -n '__do_in_uuid_context' -a '"+name+"'") {
 			t.Fatalf("script should not hard-code UUID completion item %q", name)
 		}
 	}
@@ -136,10 +136,10 @@ func TestFishAddDependencyModifierCompletionContext(t *testing.T) {
 }
 
 func TestFishCompletionFor_EmbedsBinaryPath(t *testing.T) {
-	script := FishCompletionFor(`/tmp/ask "$HOME"`)
+	script := FishCompletionFor(`/tmp/do "$HOME"`)
 	for _, line := range []string{
-		`set -l ask_bin "/tmp/ask \"\$HOME\""`,
-		"set selectors (command $ask_bin complete-uuids 2>/dev/null)",
+		`set -l do_bin "/tmp/do \"\$HOME\""`,
+		"set selectors (command $do_bin complete-uuids 2>/dev/null)",
 	} {
 		if !strings.Contains(script, line) {
 			t.Fatalf("script missing %q", line)

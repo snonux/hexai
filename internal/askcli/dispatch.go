@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-// Runner performs CLI work that would otherwise be handled by ask itself.
+// Runner performs CLI work that would otherwise be handled by the do CLI itself.
 //
 // The interface is implemented by the executor that ultimately proxies commands to Taskwarrior.
 type Runner interface {
@@ -22,7 +22,7 @@ type Dispatcher struct {
 // NewDispatcher creates a Dispatcher backed by the provided Runner or a default executor when nil.
 func NewDispatcher(runner Runner) *Dispatcher {
 	if runner == nil {
-		e := NewExecutor("ask")
+		e := NewExecutor("do")
 		runner = &e
 	}
 	return &Dispatcher{runner: runner}
@@ -65,34 +65,34 @@ func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reade
 }
 
 func (d *Dispatcher) help(w io.Writer) (int, error) {
-	_, _ = io.WriteString(w, "ask - task management CLI\n")
+	_, _ = io.WriteString(w, "do - task management CLI\n")
 	_, _ = io.WriteString(w, "\nScope prefixes:\n")
-	_, _ = io.WriteString(w, "  ask na <subcommand...>         Run a subcommand against project tasks without +agent\n")
-	_, _ = io.WriteString(w, "  ask no-agent <subcommand...>   Alias for ask na\n")
+	_, _ = io.WriteString(w, "  do na <subcommand...>         Run a subcommand against project tasks without +agent\n")
+	_, _ = io.WriteString(w, "  do no-agent <subcommand...>   Alias for do na\n")
 	_, _ = io.WriteString(w, "\nSubcommands:\n")
-	_, _ = io.WriteString(w, "  ask add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print created task <id>\n")
-	_, _ = io.WriteString(w, "  ask list [filters]           List active tasks (default)\n")
-	_, _ = io.WriteString(w, "  ask ready                   List READY tasks (not blocked)\n")
-	_, _ = io.WriteString(w, "  ask all [filters]            List all tasks including completed/deleted\n")
-	_, _ = io.WriteString(w, "  ask info [id|uuid]            Show task details or current started task\n")
-	_, _ = io.WriteString(w, "  ask annotate <id|uuid> \"note\" Add annotation to task\n")
-	_, _ = io.WriteString(w, "  ask start <id|uuid>           Start working on task\n")
-	_, _ = io.WriteString(w, "  ask stop <id|uuid>            Stop work on a task\n")
-	_, _ = io.WriteString(w, "  ask done <id|uuid>            Mark task complete\n")
-	_, _ = io.WriteString(w, "  ask priority <id|uuid> <P>    Set priority (H/M/L)\n")
-	_, _ = io.WriteString(w, "  ask tag <id|uuid> +/-<tag>    Add or remove tag\n")
-	_, _ = io.WriteString(w, "  ask dep add <id|uuid> <dep>   Add dependency\n")
-	_, _ = io.WriteString(w, "  ask dep rm <id|uuid> <dep>    Remove dependency\n")
-	_, _ = io.WriteString(w, "  ask dep list <id|uuid>        List dependencies\n")
-	_, _ = io.WriteString(w, "  ask urgency                   List tasks sorted by urgency\n")
-	_, _ = io.WriteString(w, "  ask modify <id|uuid> <args...> Modify task fields\n")
-	_, _ = io.WriteString(w, "  ask denotate <id|uuid> \"text\" Remove annotation\n")
-	_, _ = io.WriteString(w, "  ask delete <id|uuid>          Delete a task\n")
-	_, _ = io.WriteString(w, "  ask fish                      Emit Fish shell completion script\n")
+	_, _ = io.WriteString(w, "  do add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print created task <id>\n")
+	_, _ = io.WriteString(w, "  do list [filters]           List active tasks (default)\n")
+	_, _ = io.WriteString(w, "  do ready                   List READY tasks (not blocked)\n")
+	_, _ = io.WriteString(w, "  do all [filters]            List all tasks including completed/deleted\n")
+	_, _ = io.WriteString(w, "  do info [id|uuid]            Show task details or current started task\n")
+	_, _ = io.WriteString(w, "  do annotate <id|uuid> \"note\" Add annotation to task\n")
+	_, _ = io.WriteString(w, "  do start <id|uuid>           Start working on task\n")
+	_, _ = io.WriteString(w, "  do stop <id|uuid>            Stop work on a task\n")
+	_, _ = io.WriteString(w, "  do done <id|uuid>            Mark task complete\n")
+	_, _ = io.WriteString(w, "  do priority <id|uuid> <P>    Set priority (H/M/L)\n")
+	_, _ = io.WriteString(w, "  do tag <id|uuid> +/-<tag>    Add or remove tag\n")
+	_, _ = io.WriteString(w, "  do dep add <id|uuid> <dep>   Add dependency\n")
+	_, _ = io.WriteString(w, "  do dep rm <id|uuid> <dep>    Remove dependency\n")
+	_, _ = io.WriteString(w, "  do dep list <id|uuid>        List dependencies\n")
+	_, _ = io.WriteString(w, "  do urgency                   List tasks sorted by urgency\n")
+	_, _ = io.WriteString(w, "  do modify <id|uuid> <args...> Modify task fields\n")
+	_, _ = io.WriteString(w, "  do denotate <id|uuid> \"text\" Remove annotation\n")
+	_, _ = io.WriteString(w, "  do delete <id|uuid>          Delete a task\n")
+	_, _ = io.WriteString(w, "  do fish                      Emit Fish shell completion script\n")
 	return 0, nil
 }
 
 func (d *Dispatcher) unknownCommand(w io.Writer, subcommand string) (int, error) {
-	fmt.Fprintf(w, "ask: unknown subcommand %q\n", subcommand)
+	fmt.Fprintf(w, "do: unknown subcommand %q\n", subcommand)
 	return 1, nil
 }

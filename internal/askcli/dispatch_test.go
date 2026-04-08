@@ -23,19 +23,19 @@ func TestDispatcher_Help(t *testing.T) {
 		t.Fatalf("help returned error: %v", err)
 	}
 	output := stdout.String()
-	if !strings.Contains(output, "ask - task management CLI") {
+	if !strings.Contains(output, "do - task management CLI") {
 		t.Fatalf("help missing title: %s", output)
 	}
-	if !strings.Contains(output, "ask na <subcommand...>") || !strings.Contains(output, "ask no-agent <subcommand...>") {
+	if !strings.Contains(output, "do na <subcommand...>") || !strings.Contains(output, "do no-agent <subcommand...>") {
 		t.Fatalf("help missing no-agent scope prefixes: %s", output)
 	}
-	if !strings.Contains(output, "ask list") {
+	if !strings.Contains(output, "do list") {
 		t.Fatalf("help missing list subcommand: %s", output)
 	}
-	if !strings.Contains(output, "ask all") {
+	if !strings.Contains(output, "do all") {
 		t.Fatalf("help missing all subcommand: %s", output)
 	}
-	if !strings.Contains(output, "ask fish") {
+	if !strings.Contains(output, "do fish") {
 		t.Fatalf("help missing fish subcommand: %s", output)
 	}
 }
@@ -96,8 +96,8 @@ func TestDispatcher_LongHelp(t *testing.T) {
 	d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard)
 	output := stdout.String()
 	for _, sub := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "fish"} {
-		if !strings.Contains(output, "ask "+sub) {
-			t.Errorf("help missing subcommand: ask %s", sub)
+		if !strings.Contains(output, "do "+sub) {
+			t.Errorf("help missing subcommand: do %s", sub)
 		}
 	}
 }
@@ -137,7 +137,7 @@ func TestDispatcher_FishSubcommandRejectsExtraArgs(t *testing.T) {
 	if stdout.Len() != 0 {
 		t.Fatalf("fish extra args wrote unexpected stdout: %q", stdout.String())
 	}
-	if got := stderr.String(); !strings.Contains(got, "usage: ask fish") {
+	if got := stderr.String(); !strings.Contains(got, "usage: do fish") {
 		t.Fatalf("fish extra args stderr = %q, want usage", got)
 	}
 }

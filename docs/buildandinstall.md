@@ -3,7 +3,7 @@
 Hexai uses Mage for developer tasks. Install Mage, then run targets like build, dev, test, and install.
 
 - Install Mage: `go install github.com/magefile/mage@latest`
-- Build binaries: `mage build` (produces `ask`, `hexai`, `hexai-lsp-server`, `hexai-tmux-action`, and `hexai-tmux-edit`)
+- Build binaries: `mage build` (produces `do`, `hexai`, `hexai-lsp-server`, `hexai-tmux-action`, and `hexai-tmux-edit`)
 - Dev build (+ tests, vet, lint): `mage dev`
 - Run tests: `mage test`
 - Run tests with coverage: `go test ./... -cover`
@@ -11,7 +11,7 @@ Hexai uses Mage for developer tasks. Install Mage, then run targets like build, 
 - In restricted sandboxes/CI (no sockets), skip network-based tests:
   - `HEXAI_TEST_SKIP_NET=1 go test ./... -cover`
 - Install binaries to `GOPATH/bin`: `mage install`
-- Load Fish completions in the current shell: `~/go/bin/ask fish | source`
+- Load Fish completions in the current shell: `~/go/bin/do fish | source`
 
 Note: `mage lint` uses `golangci-lint`. Install via `mage devinstall` if needed.
 
@@ -19,7 +19,7 @@ Note: `mage lint` uses `golangci-lint`. Install via `mage devinstall` if needed.
 
 Either use the Mage method as mentioned above, or install directly with:
 
-- Taskwarrior proxy: `go install codeberg.org/snonux/hexai/cmd/ask@latest`
+- Taskwarrior proxy: `go install codeberg.org/snonux/hexai/cmd/do@latest`
 - CLI: `go install codeberg.org/snonux/hexai/cmd/hexai@latest`
 - LSP: `go install codeberg.org/snonux/hexai/cmd/hexai-lsp-server@latest`
 - Action runner: `go install codeberg.org/snonux/hexai/cmd/hexai-tmux-action@latest`

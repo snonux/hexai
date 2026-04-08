@@ -54,9 +54,9 @@ func fishAddDependencyModifierCompletionContext(positional []string, current str
 	return current == "depends" || strings.HasPrefix(current, "depends:")
 }
 
-// FishCompletion returns the default Fish completion script for the ask CLI.
+// FishCompletion returns the default Fish completion script for the do CLI.
 func FishCompletion() string {
-	return FishCompletionFor("ask")
+	return FishCompletionFor("do")
 }
 
 // FishCompletionFor returns a Fish completion script that points to the provided binary path.
@@ -66,30 +66,30 @@ func FishCompletionFor(binaryPath string) string {
 	writeFishContextFunctions(&b)
 	writeFishTaskSelectorFunction(&b, binaryPath)
 	writeFishAddDependencyModifierFunction(&b)
-	b.WriteString("complete -c ask -f\n")
-	b.WriteString("complete -c ask -s j -l json -d 'Emit JSON output'\n")
+	b.WriteString("complete -c do -f\n")
+	b.WriteString("complete -c do -s j -l json -d 'Emit JSON output'\n")
 	for _, item := range []fishCompletionItem{
 		{name: "na", description: "Run against project tasks without +agent"},
 		{name: "no-agent", description: "Run against project tasks without +agent"},
 	} {
-		writeFishCompletionLine(&b, "__ask_needs_root_completion", item)
+		writeFishCompletionLine(&b, "__do_needs_root_completion", item)
 	}
 	for _, entry := range commandRegistry.rootCompletionEntries() {
 		item := fishCompletionItem{name: entry.name, description: entry.description}
-		writeFishCompletionLine(&b, "__ask_needs_command_completion", item)
+		writeFishCompletionLine(&b, "__do_needs_command_completion", item)
 	}
 	for _, item := range askDepCompletionItems {
-		writeFishCompletionLine(&b, "__ask_in_dep_context", item)
+		writeFishCompletionLine(&b, "__do_in_dep_context", item)
 	}
-	writeFishUUIDCompletionLine(&b, "__ask_in_uuid_context", "Task selector")
-	writeFishUUIDCompletionLine(&b, "__ask_in_dep_uuid_context", "Task selector")
-	writeFishFunctionCompletionLine(&b, "__ask_in_add_dep_modifier_context", "__ask_add_dependency_modifiers", "Task dependency")
+	writeFishUUIDCompletionLine(&b, "__do_in_uuid_context", "Task selector")
+	writeFishUUIDCompletionLine(&b, "__do_in_dep_uuid_context", "Task selector")
+	writeFishFunctionCompletionLine(&b, "__do_in_add_dep_modifier_context", "__do_add_dependency_modifiers", "Task dependency")
 	return b.String()
 }
 
 func writeFishPreamble(b *strings.Builder) {
-	b.WriteString("# Fish completion for ask.\n")
-	b.WriteString("# Source with: ask fish | source\n\n")
+	b.WriteString("# Fish completion for do.\n")
+	b.WriteString("# Source with: do fish | source\n\n")
 }
 
 func writeFishContextFunctions(b *strings.Builder) {
@@ -105,7 +105,7 @@ func writeFishContextFunctions(b *strings.Builder) {
 }
 
 func writeFishPositionalTokensFunction(b *strings.Builder) {
-	b.WriteString("function __ask_positional_tokens\n")
+	b.WriteString("function __do_positional_tokens\n")
 	b.WriteString("    set -l tokens (commandline -opc)\n")
 	b.WriteString("    set -l positional\n")
 	b.WriteString("    for token in $tokens[2..-1]\n")
@@ -121,8 +121,8 @@ func writeFishPositionalTokensFunction(b *strings.Builder) {
 }
 
 func writeFishCommandPositionalsFunction(b *strings.Builder) {
-	b.WriteString("function __ask_command_positionals\n")
-	b.WriteString("    set -l positional (__ask_positional_tokens)\n")
+	b.WriteString("function __do_command_positionals\n")
+	b.WriteString("    set -l positional (__do_positional_tokens)\n")
 	b.WriteString("    if test (count $positional) -gt 0\n")
 	b.WriteString("        switch $positional[1]\n")
 	b.WriteString("            case na no-agent\n")
@@ -139,8 +139,8 @@ func writeFishCommandPositionalsFunction(b *strings.Builder) {
 }
 
 func writeFishScopePrefixFunction(b *strings.Builder) {
-	b.WriteString("function __ask_scope_prefix\n")
-	b.WriteString("    set -l positional (__ask_positional_tokens)\n")
+	b.WriteString("function __do_scope_prefix\n")
+	b.WriteString("    set -l positional (__do_positional_tokens)\n")
 	b.WriteString("    if test (count $positional) -eq 0\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
@@ -156,8 +156,8 @@ func writeFishScopePrefixFunction(b *strings.Builder) {
 }
 
 func writeFishNeedsRootCompletionFunction(b *strings.Builder) {
-	b.WriteString("function __ask_needs_root_completion\n")
-	b.WriteString("    set -l positional (__ask_positional_tokens)\n")
+	b.WriteString("function __do_needs_root_completion\n")
+	b.WriteString("    set -l positional (__do_positional_tokens)\n")
 	b.WriteString("    if test (count $positional) -eq 0\n")
 	b.WriteString("        return 0\n")
 	b.WriteString("    end\n")
@@ -166,8 +166,8 @@ func writeFishNeedsRootCompletionFunction(b *strings.Builder) {
 }
 
 func writeFishNeedsCommandCompletionFunction(b *strings.Builder) {
-	b.WriteString("function __ask_needs_command_completion\n")
-	b.WriteString("    set -l positional (__ask_positional_tokens)\n")
+	b.WriteString("function __do_needs_command_completion\n")
+	b.WriteString("    set -l positional (__do_positional_tokens)\n")
 	b.WriteString("    if test (count $positional) -eq 0\n")
 	b.WriteString("        return 0\n")
 	b.WriteString("    end\n")
@@ -182,8 +182,8 @@ func writeFishNeedsCommandCompletionFunction(b *strings.Builder) {
 }
 
 func writeFishDepContextFunction(b *strings.Builder) {
-	b.WriteString("function __ask_in_dep_context\n")
-	b.WriteString("    set -l positional (__ask_command_positionals)\n")
+	b.WriteString("function __do_in_dep_context\n")
+	b.WriteString("    set -l positional (__do_command_positionals)\n")
 	b.WriteString("    if test (count $positional) -lt 1\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
@@ -195,8 +195,8 @@ func writeFishDepContextFunction(b *strings.Builder) {
 }
 
 func writeFishUUIDContextFunction(b *strings.Builder) {
-	b.WriteString("function __ask_in_uuid_context\n")
-	b.WriteString("    set -l positional (__ask_command_positionals)\n")
+	b.WriteString("function __do_in_uuid_context\n")
+	b.WriteString("    set -l positional (__do_command_positionals)\n")
 	b.WriteString("    if test (count $positional) -eq 0\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
@@ -216,8 +216,8 @@ func writeFishUUIDContextFunction(b *strings.Builder) {
 }
 
 func writeFishDepUUIDContextFunction(b *strings.Builder) {
-	b.WriteString("function __ask_in_dep_uuid_context\n")
-	b.WriteString("    set -l positional (__ask_command_positionals)\n")
+	b.WriteString("function __do_in_dep_uuid_context\n")
+	b.WriteString("    set -l positional (__do_command_positionals)\n")
 	b.WriteString("    if test (count $positional) -lt 2\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
@@ -241,8 +241,8 @@ func writeFishDepUUIDContextFunction(b *strings.Builder) {
 }
 
 func writeFishAddDependencyModifierContextFunction(b *strings.Builder) {
-	b.WriteString("function __ask_in_add_dep_modifier_context\n")
-	b.WriteString("    set -l positional (__ask_command_positionals)\n")
+	b.WriteString("function __do_in_add_dep_modifier_context\n")
+	b.WriteString("    set -l positional (__do_command_positionals)\n")
 	b.WriteString("    if test (count $positional) -lt 1\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
@@ -258,38 +258,38 @@ func writeFishAddDependencyModifierContextFunction(b *strings.Builder) {
 }
 
 func writeFishTaskSelectorFunction(b *strings.Builder, binaryPath string) {
-	b.WriteString("function __ask_task_selectors\n")
-	b.WriteString("    set -l ask_bin ")
+	b.WriteString("function __do_task_selectors\n")
+	b.WriteString("    set -l do_bin ")
 	b.WriteString(quoteFishString(binaryPath))
 	b.WriteString("\n")
-	b.WriteString("    set -l scope_prefix (__ask_scope_prefix)\n")
+	b.WriteString("    set -l scope_prefix (__do_scope_prefix)\n")
 	b.WriteString("    set -l cache_key default\n")
 	b.WriteString("    if test -n \"$scope_prefix\"\n")
 	b.WriteString("        set cache_key $scope_prefix\n")
 	b.WriteString("    end\n")
 	b.WriteString("    set -l now (date +%s)\n")
-	b.WriteString("    if set -q __ask_task_selector_cache_until; and test $__ask_task_selector_cache_until -ge $now; and set -q __ask_task_selector_cache_key; and test \"$__ask_task_selector_cache_key\" = \"$cache_key\"\n")
-	b.WriteString("        printf '%s\\n' $__ask_task_selector_cache\n")
+	b.WriteString("    if set -q __do_task_selector_cache_until; and test $__do_task_selector_cache_until -ge $now; and set -q __do_task_selector_cache_key; and test \"$__do_task_selector_cache_key\" = \"$cache_key\"\n")
+	b.WriteString("        printf '%s\\n' $__do_task_selector_cache\n")
 	b.WriteString("        return 0\n")
 	b.WriteString("    end\n")
 	b.WriteString("    set -l selectors\n")
 	b.WriteString("    if test -n \"$scope_prefix\"\n")
-	b.WriteString("        set selectors (command $ask_bin $scope_prefix complete-uuids 2>/dev/null)\n")
+	b.WriteString("        set selectors (command $do_bin $scope_prefix complete-uuids 2>/dev/null)\n")
 	b.WriteString("    else\n")
-	b.WriteString("        set selectors (command $ask_bin complete-uuids 2>/dev/null)\n")
+	b.WriteString("        set selectors (command $do_bin complete-uuids 2>/dev/null)\n")
 	b.WriteString("    end\n")
 	b.WriteString("    if test $status -ne 0\n")
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
-	b.WriteString("    set -g __ask_task_selector_cache $selectors\n")
-	b.WriteString("    set -g __ask_task_selector_cache_until (math $now + 2)\n")
-	b.WriteString("    set -g __ask_task_selector_cache_key $cache_key\n")
+	b.WriteString("    set -g __do_task_selector_cache $selectors\n")
+	b.WriteString("    set -g __do_task_selector_cache_until (math $now + 2)\n")
+	b.WriteString("    set -g __do_task_selector_cache_key $cache_key\n")
 	b.WriteString("    printf '%s\\n' $selectors\n")
 	b.WriteString("end\n\n")
 }
 
 func writeFishAddDependencyModifierFunction(b *strings.Builder) {
-	b.WriteString("function __ask_add_dependency_modifiers\n")
+	b.WriteString("function __do_add_dependency_modifiers\n")
 	b.WriteString("    set -l current (commandline -ct)\n")
 	b.WriteString("    if test $current = depends\n")
 	b.WriteString("        printf '%s\\n' 'depends:'\n")
@@ -308,9 +308,9 @@ func writeFishAddDependencyModifierFunction(b *strings.Builder) {
 	b.WriteString("            set chosen $pieces[1..-2]\n")
 	b.WriteString("        end\n")
 	b.WriteString("    end\n")
-	// Each item from __ask_task_selectors is "selector\tdescription"; extract
+	// Each item from __do_task_selectors is "selector\tdescription"; extract
 	// just the selector (before the tab) for matching and output purposes.
-	b.WriteString("    for item in (__ask_task_selectors)\n")
+	b.WriteString("    for item in (__do_task_selectors)\n")
 	b.WriteString("        set -l selector (string split -m1 '\\t' -- $item)[1]\n")
 	b.WriteString("        if contains -- $selector $chosen\n")
 	b.WriteString("            continue\n")
@@ -328,7 +328,7 @@ func writeFishAddDependencyModifierFunction(b *strings.Builder) {
 }
 
 func writeFishCompletionLine(b *strings.Builder, condition string, item fishCompletionItem) {
-	b.WriteString("complete -c ask -n '")
+	b.WriteString("complete -c do -n '")
 	b.WriteString(condition)
 	b.WriteString("' -a '")
 	b.WriteString(item.name)
@@ -338,15 +338,15 @@ func writeFishCompletionLine(b *strings.Builder, condition string, item fishComp
 }
 
 func writeFishUUIDCompletionLine(b *strings.Builder, condition, description string) {
-	b.WriteString("complete -c ask -n '")
+	b.WriteString("complete -c do -n '")
 	b.WriteString(condition)
-	b.WriteString("' -a '(__ask_task_selectors)' -d '")
+	b.WriteString("' -a '(__do_task_selectors)' -d '")
 	b.WriteString(strings.ReplaceAll(description, "'", "\\'"))
 	b.WriteString("'\n")
 }
 
 func writeFishFunctionCompletionLine(b *strings.Builder, condition, functionName, description string) {
-	b.WriteString("complete -c ask -n '")
+	b.WriteString("complete -c do -n '")
 	b.WriteString(condition)
 	b.WriteString("' -a '(")
 	b.WriteString(functionName)

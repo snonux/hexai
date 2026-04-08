@@ -168,7 +168,7 @@ func FormatSuccess(alias string) string {
 	return fmt.Sprintf("ok %s\n", alias)
 }
 
-// FormatCreatedTask returns the success string written to stdout after ask add creates a task.
+// FormatCreatedTask returns the success string written to stdout after do add creates a task.
 func FormatCreatedTask(alias string) string {
 	return fmt.Sprintf("created task %s\n", alias)
 }
