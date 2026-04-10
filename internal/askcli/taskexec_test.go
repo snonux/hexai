@@ -36,6 +36,19 @@ func TestExecutorTaskArgs_NoAgentScope(t *testing.T) {
 	}
 }
 
+func TestExecutorTaskArgs_ProjectOverride(t *testing.T) {
+	exec_ := NewExecutor("do")
+	ctx := contextWithTaskProject(context.Background(), "alpha")
+	args, err := exec_.taskArgs(ctx, "", []string{"list", "limit:1"})
+	if err != nil {
+		t.Fatalf("taskArgs returned error: %v", err)
+	}
+	want := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:alpha", "+agent", "list", "limit:1"}
+	if !reflect.DeepEqual(args, want) {
+		t.Fatalf("task args = %v, want %v", args, want)
+	}
+}
+
 func TestExecutorTaskArgs_AddDefaultScope(t *testing.T) {
 	exec_ := NewExecutor("do")
 	args, err := exec_.taskArgs(context.Background(), "/tmp/work/hexai", []string{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "new task"})
@@ -112,6 +125,35 @@ func TestExecutorRun_InjectsProjectFilterAndNoAgentTag(t *testing.T) {
 		t.Fatalf("exitCode = %d, want 0", exitCode)
 	}
 	wantArgs := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:hexai", "-agent", "list", "limit:1"}
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("task args = %v, want %v", gotArgs, wantArgs)
+	}
+}
+
+func TestExecutorRun_ProjectOverrideSkipsRepoDetection(t *testing.T) {
+	var gotArgs []string
+	exec_ := Executor{
+		commandName: "do",
+		findBinary:  func() (string, error) { return "/usr/bin/task", nil },
+		detectRepoRoot: func(context.Context) (string, error) {
+			t.Fatal("detectRepoRoot should not be called when project override is set")
+			return "", nil
+		},
+		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+			gotArgs = append([]string(nil), args...)
+			return nil
+		},
+	}
+
+	ctx := contextWithTaskProject(context.Background(), "alpha")
+	exitCode, err := exec_.Run(ctx, []string{"list"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("exitCode = %d, want 0", exitCode)
+	}
+	wantArgs := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:alpha", "+agent", "list"}
 	if !reflect.DeepEqual(gotArgs, wantArgs) {
 		t.Fatalf("task args = %v, want %v", gotArgs, wantArgs)
 	}

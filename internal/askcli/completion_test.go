@@ -7,7 +7,7 @@ import (
 
 func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 	script := FishCompletion()
-	for _, name := range []string{"na", "no-agent"} {
+	for _, name := range []string{"na", "no-agent", "proj:"} {
 		if !strings.Contains(script, " -a '"+name+"' ") {
 			t.Fatalf("script missing scope completion for %q", name)
 		}
@@ -30,6 +30,8 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 		"set -l selectors",
 		"set selectors (command $do_bin complete-aliases 2>/dev/null)",
 		"set selectors (command $do_bin $scope_prefix complete-aliases 2>/dev/null)",
+		"case na no-agent proj:*",
+		"set cache_key (string join ' ' $scope_prefix)",
 		"complete -c do -n '__do_in_uuid_context' -a '(__do_task_selectors)' -d 'Task selector'",
 		"complete -c do -n '__do_in_dep_uuid_context' -a '(__do_task_selectors)' -d 'Task selector'",
 		"complete -c do -n '__do_in_add_dep_modifier_context' -a '(__do_add_dependency_modifiers)' -d 'Task dependency'",
@@ -63,6 +65,7 @@ func TestFishSingleSelectorCompletionContext(t *testing.T) {
 	}{
 		{name: "info expects selector", positional: []string{"info"}, want: true},
 		{name: "info expects selector with no-agent prefix", positional: []string{"na", "info"}, want: true},
+		{name: "info expects selector with project prefix", positional: []string{"proj:alpha", "info"}, want: true},
 		{name: "annotate expects selector", positional: []string{"annotate"}, want: true},
 		{name: "priority expects selector", positional: []string{"priority"}, want: true},
 		{name: "delete expects selector", positional: []string{"delete"}, want: true},
@@ -91,6 +94,7 @@ func TestFishDepSelectorCompletionContext(t *testing.T) {
 	}{
 		{name: "dep add first selector", positional: []string{"dep", "add"}, want: true},
 		{name: "dep add first selector with no-agent prefix", positional: []string{"na", "dep", "add"}, want: true},
+		{name: "dep add first selector with project prefix", positional: []string{"proj:alpha", "dep", "add"}, want: true},
 		{name: "dep add second selector", positional: []string{"dep", "add", "0"}, want: true},
 		{name: "dep add stops after second selector", positional: []string{"dep", "add", "0", "1"}, want: false},
 		{name: "dep rm first selector", positional: []string{"dep", "rm"}, want: true},
@@ -122,6 +126,7 @@ func TestFishAddDependencyModifierCompletionContext(t *testing.T) {
 		{name: "add with depends keyword prefix", positional: []string{"add"}, current: "depends", want: true},
 		{name: "add with depends modifier", positional: []string{"add", "+cli"}, current: "depends:0", want: true},
 		{name: "add with depends modifier and no-agent prefix", positional: []string{"na", "add", "+cli"}, current: "depends:0", want: true},
+		{name: "add with depends modifier and project prefix", positional: []string{"proj:alpha", "add", "+cli"}, current: "depends:0", want: true},
 		{name: "add with comma continuation", positional: []string{"add", "+cli"}, current: "depends:0,", want: true},
 		{name: "non add command", positional: []string{"dep", "add"}, current: "depends:0", want: false},
 	}

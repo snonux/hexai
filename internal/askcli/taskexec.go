@@ -35,9 +35,17 @@ func NewExecutor(commandName string) Executor {
 }
 
 func (e Executor) taskArgs(ctx context.Context, repoRoot string, args []string) ([]string, error) {
-	projectName, err := projectNameFromRoot(repoRoot)
-	if err != nil {
-		return nil, err
+	projectName, ok := taskProjectFromContext(ctx)
+	if !ok {
+		var err error
+		projectName, err = projectNameFromRoot(repoRoot)
+		if err != nil {
+			return nil, err
+		}
+	}
+	projectName = strings.TrimSpace(projectName)
+	if projectName == "" {
+		return nil, fmt.Errorf("project override proj:<name> requires a project name")
 	}
 	// rc.verbose=nothing suppresses Taskwarrior's configuration override
 	// banner, while rc.confirmation=off keeps non-interactive commands from
@@ -69,9 +77,12 @@ func (e Executor) Run(ctx context.Context, args []string, stdin io.Reader, stdou
 	if err != nil {
 		return 1, fmt.Errorf("%s: task binary lookup failed: %w", executor.label(), err)
 	}
-	repoRoot, err := executor.detectRepoRoot(ctx)
-	if err != nil {
-		return 1, fmt.Errorf("%s: must be run inside a git repository: %w", executor.label(), err)
+	repoRoot := ""
+	if _, ok := taskProjectFromContext(ctx); !ok {
+		repoRoot, err = executor.detectRepoRoot(ctx)
+		if err != nil {
+			return 1, fmt.Errorf("%s: must be run inside a git repository: %w", executor.label(), err)
+		}
 	}
 	taskArgs, err := executor.taskArgs(ctx, repoRoot, args)
 	if err != nil {

@@ -129,11 +129,13 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 
 By default it auto-scopes to `project:<repo> +agent` so operations are confined to agent-managed project tasks.
 
+Use `do proj:<name> <subcommand...>` to override the project explicitly instead of deriving it from the current git repository.
+
 Use `do na <subcommand...>` or `do no-agent <subcommand...>` to run the same subcommands against project tasks without the `+agent` tag. Those prefixes keep the project scope but replace the default tag filter with `-agent`.
 
 `do` never exposes Taskwarrior numeric task IDs. Human-facing output uses stable local alias IDs where practical, while `do info` shows both the alias ID and the UUID. Commands that accept a task selector support either the alias ID or the UUID.
 
-`do` must be run inside a git repository so the project name can be derived from the repo root.
+`do` must be run inside a git repository unless you provide an explicit `proj:<name>` override.
 
 ### Subcommands
 

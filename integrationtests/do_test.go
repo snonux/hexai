@@ -64,6 +64,22 @@ func runDo(ctx context.Context, args []string) (stdout, stderr bytes.Buffer, exi
 	return stdout, stderr, ee.ExitCode()
 }
 
+func runDoInDir(ctx context.Context, dir string, args []string) (stdout, stderr bytes.Buffer, exitCode int) {
+	cmd := exec.CommandContext(ctx, doBinaryPath(), args...)
+	cmd.Dir = dir
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		return
+	}
+	var ee *exec.ExitError
+	if !errors.As(err, &ee) {
+		return bytes.Buffer{}, stderr, -1
+	}
+	return stdout, stderr, ee.ExitCode()
+}
+
 // runDoWithStdin runs do with the given stdin. Only use this for commands
 // that actually forward stdin to taskwarrior (currently only: delete).
 func runDoWithStdin(ctx context.Context, args []string, stdin string) (stdout, stderr bytes.Buffer, exitCode int) {
@@ -145,6 +161,31 @@ func createTask(ctx context.Context, desc string) (string, error) {
 		return "", fmt.Errorf("could not resolve task UUID for %q after do add: %w", desc, err)
 	}
 	return uuid, nil
+}
+
+func TestProjectPrefixWorksOutsideGitRepo(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	desc := fmt.Sprintf("integration test project override %d", time.Now().UnixNano())
+	uuid, err := createTask(ctx, desc)
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+	defer deleteTask(ctx, uuid)
+
+	outsideDir := t.TempDir()
+	stdout, stderr, code := runDoInDir(ctx, outsideDir, []string{"proj:hexai", "list"})
+	if code != 0 {
+		t.Fatalf("do proj:hexai list failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), desc) {
+		t.Fatalf("output missing task description %q: %s", desc, stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
+	}
 }
 
 func findTaskUUIDByDescription(ctx context.Context, desc string) (string, error) {

@@ -16,7 +16,7 @@ var askDepCompletionItems = []fishCompletionItem{
 }
 
 func fishSingleSelectorCompletionContext(positional []string) bool {
-	positional = trimTaskScopePrefix(positional)
+	positional = trimTaskPrefixes(positional)
 	if len(positional) != 1 {
 		return false
 	}
@@ -30,7 +30,7 @@ func fishSingleSelectorCompletionContext(positional []string) bool {
 }
 
 func fishDepSelectorCompletionContext(positional []string) bool {
-	positional = trimTaskScopePrefix(positional)
+	positional = trimTaskPrefixes(positional)
 	if len(positional) < 2 || positional[0] != "dep" {
 		return false
 	}
@@ -46,7 +46,7 @@ func fishDepSelectorCompletionContext(positional []string) bool {
 }
 
 func fishAddDependencyModifierCompletionContext(positional []string, current string) bool {
-	positional = trimTaskScopePrefix(positional)
+	positional = trimTaskPrefixes(positional)
 	if len(positional) == 0 || positional[0] != "add" {
 		return false
 	}
@@ -71,6 +71,7 @@ func FishCompletionFor(binaryPath string) string {
 	for _, item := range []fishCompletionItem{
 		{name: "na", description: "Run against project tasks without +agent"},
 		{name: "no-agent", description: "Run against project tasks without +agent"},
+		{name: "proj:", description: "Run against an explicit project"},
 	} {
 		writeFishCompletionLine(&b, "__do_needs_root_completion", item)
 	}
@@ -123,13 +124,12 @@ func writeFishPositionalTokensFunction(b *strings.Builder) {
 func writeFishCommandPositionalsFunction(b *strings.Builder) {
 	b.WriteString("function __do_command_positionals\n")
 	b.WriteString("    set -l positional (__do_positional_tokens)\n")
-	b.WriteString("    if test (count $positional) -gt 0\n")
+	b.WriteString("    while test (count $positional) -gt 0\n")
 	b.WriteString("        switch $positional[1]\n")
-	b.WriteString("            case na no-agent\n")
-	b.WriteString("                for token in $positional[2..-1]\n")
-	b.WriteString("                    printf '%s\\n' $token\n")
-	b.WriteString("                end\n")
-	b.WriteString("                return 0\n")
+	b.WriteString("            case na no-agent proj:*\n")
+	b.WriteString("                set positional $positional[2..-1]\n")
+	b.WriteString("            case '*'\n")
+	b.WriteString("                break\n")
 	b.WriteString("        end\n")
 	b.WriteString("    end\n")
 	b.WriteString("    for token in $positional\n")
@@ -141,17 +141,16 @@ func writeFishCommandPositionalsFunction(b *strings.Builder) {
 func writeFishScopePrefixFunction(b *strings.Builder) {
 	b.WriteString("function __do_scope_prefix\n")
 	b.WriteString("    set -l positional (__do_positional_tokens)\n")
-	b.WriteString("    if test (count $positional) -eq 0\n")
-	b.WriteString("        return 1\n")
+	b.WriteString("    while test (count $positional) -gt 0\n")
+	b.WriteString("        switch $positional[1]\n")
+	b.WriteString("            case na no-agent proj:*\n")
+	b.WriteString("                printf '%s\\n' $positional[1]\n")
+	b.WriteString("                set positional $positional[2..-1]\n")
+	b.WriteString("            case '*'\n")
+	b.WriteString("                return 0\n")
+	b.WriteString("        end\n")
 	b.WriteString("    end\n")
-	b.WriteString("    switch $positional[1]\n")
-	b.WriteString("        case na no-agent\n")
-	b.WriteString("            printf '%s\\n' $positional[1]\n")
-	b.WriteString("            return 0\n")
-	b.WriteString("        case '*'\n")
-	b.WriteString("            return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    return 1\n")
+	b.WriteString("    return 0\n")
 	b.WriteString("end\n\n")
 }
 
@@ -173,7 +172,7 @@ func writeFishNeedsCommandCompletionFunction(b *strings.Builder) {
 	b.WriteString("    end\n")
 	b.WriteString("    if test (count $positional) -eq 1\n")
 	b.WriteString("        switch $positional[1]\n")
-	b.WriteString("            case na no-agent\n")
+	b.WriteString("            case na no-agent proj:*\n")
 	b.WriteString("                return 0\n")
 	b.WriteString("        end\n")
 	b.WriteString("    end\n")
@@ -264,8 +263,8 @@ func writeFishTaskSelectorFunction(b *strings.Builder, binaryPath string) {
 	b.WriteString("\n")
 	b.WriteString("    set -l scope_prefix (__do_scope_prefix)\n")
 	b.WriteString("    set -l cache_key default\n")
-	b.WriteString("    if test -n \"$scope_prefix\"\n")
-	b.WriteString("        set cache_key $scope_prefix\n")
+	b.WriteString("    if test (count $scope_prefix) -gt 0\n")
+	b.WriteString("        set cache_key (string join ' ' $scope_prefix)\n")
 	b.WriteString("    end\n")
 	b.WriteString("    set -l now (date +%s)\n")
 	b.WriteString("    if set -q __do_task_selector_cache_until; and test $__do_task_selector_cache_until -ge $now; and set -q __do_task_selector_cache_key; and test \"$__do_task_selector_cache_key\" = \"$cache_key\"\n")
@@ -273,7 +272,7 @@ func writeFishTaskSelectorFunction(b *strings.Builder, binaryPath string) {
 	b.WriteString("        return 0\n")
 	b.WriteString("    end\n")
 	b.WriteString("    set -l selectors\n")
-	b.WriteString("    if test -n \"$scope_prefix\"\n")
+	b.WriteString("    if test (count $scope_prefix) -gt 0\n")
 	b.WriteString("        set selectors (command $do_bin $scope_prefix complete-aliases 2>/dev/null)\n")
 	b.WriteString("    else\n")
 	b.WriteString("        set selectors (command $do_bin complete-aliases 2>/dev/null)\n")

@@ -26,6 +26,9 @@ func TestDispatcher_Help(t *testing.T) {
 	if !strings.Contains(output, "do - task management CLI") {
 		t.Fatalf("help missing title: %s", output)
 	}
+	if !strings.Contains(output, "do proj:<name> <subcommand...>") {
+		t.Fatalf("help missing project prefix: %s", output)
+	}
 	if !strings.Contains(output, "do na <subcommand...>") || !strings.Contains(output, "do no-agent <subcommand...>") {
 		t.Fatalf("help missing no-agent scope prefixes: %s", output)
 	}
@@ -235,6 +238,67 @@ func TestParseTaskScopePrefix(t *testing.T) {
 				t.Fatalf("args = %v, want %v", gotArgs, tc.wantArgs)
 			}
 		})
+	}
+}
+
+func TestParseTaskPrefixes(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		wantScope      taskScopeMode
+		wantProject    string
+		wantProjectSet bool
+		wantRemaining  []string
+	}{
+		{name: "default", args: []string{"list"}, wantScope: taskScopeAgent, wantRemaining: []string{"list"}},
+		{name: "project prefix", args: []string{"proj:alpha", "list"}, wantProject: "alpha", wantProjectSet: true, wantRemaining: []string{"list"}},
+		{name: "project prefix with empty name", args: []string{"proj:", "list"}, wantProject: "", wantProjectSet: true, wantRemaining: []string{"list"}},
+		{name: "scope then project", args: []string{"na", "proj:alpha", "list"}, wantScope: taskScopeNoAgent, wantProject: "alpha", wantProjectSet: true, wantRemaining: []string{"list"}},
+		{name: "project then scope", args: []string{"proj:alpha", "na", "list"}, wantScope: taskScopeNoAgent, wantProject: "alpha", wantProjectSet: true, wantRemaining: []string{"list"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gotScope, gotProject, gotProjectSet, gotRemaining := parseTaskPrefixes(tc.args)
+			if gotScope != tc.wantScope {
+				t.Fatalf("scope = %v, want %v", gotScope, tc.wantScope)
+			}
+			if gotProject != tc.wantProject {
+				t.Fatalf("project = %q, want %q", gotProject, tc.wantProject)
+			}
+			if gotProjectSet != tc.wantProjectSet {
+				t.Fatalf("projectSet = %t, want %t", gotProjectSet, tc.wantProjectSet)
+			}
+			if !reflect.DeepEqual(gotRemaining, tc.wantRemaining) {
+				t.Fatalf("remaining = %v, want %v", gotRemaining, tc.wantRemaining)
+			}
+		})
+	}
+}
+
+func TestDispatcher_ProjectPrefix_PassesProjectOverride(t *testing.T) {
+	var gotArgs []string
+	var gotProject string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		gotArgs = append([]string(nil), args...)
+		gotProject, _ = taskProjectFromContext(ctx)
+		_, _ = io.WriteString(stdout, `[]`)
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(context.Background(), []string{"proj:alpha", "list"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("Dispatch returned error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("Dispatch code = %d, want 0", code)
+	}
+	if gotProject != "alpha" {
+		t.Fatalf("project override = %q, want alpha", gotProject)
+	}
+	if !reflect.DeepEqual(gotArgs, []string{"status:pending", "export"}) {
+		t.Fatalf("runner args = %v, want [status:pending export]", gotArgs)
 	}
 }
 

@@ -1,6 +1,9 @@
 package askcli
 
-import "context"
+import (
+	"context"
+	"strings"
+)
 
 type taskScopeMode int
 
@@ -10,6 +13,12 @@ const (
 )
 
 type taskScopeContextKey struct{}
+
+type taskProjectContextKey struct{}
+
+type taskProjectContextValue struct {
+	project string
+}
 
 func contextWithTaskScope(ctx context.Context, scope taskScopeMode) context.Context {
 	if scope == taskScopeAgent {
@@ -29,6 +38,24 @@ func taskScopeFromContext(ctx context.Context) taskScopeMode {
 	return scope
 }
 
+func contextWithTaskProject(ctx context.Context, project string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, taskProjectContextKey{}, taskProjectContextValue{project: project})
+}
+
+func taskProjectFromContext(ctx context.Context) (string, bool) {
+	if ctx == nil {
+		return "", false
+	}
+	value, ok := ctx.Value(taskProjectContextKey{}).(taskProjectContextValue)
+	if !ok {
+		return "", false
+	}
+	return value.project, true
+}
+
 func taskScopeFilter(scope taskScopeMode) string {
 	if scope == taskScopeNoAgent {
 		return "-agent"
@@ -37,13 +64,8 @@ func taskScopeFilter(scope taskScopeMode) string {
 }
 
 func parseTaskScopePrefix(args []string) (taskScopeMode, []string) {
-	if len(args) == 0 {
-		return taskScopeAgent, nil
-	}
-	if isTaskScopePrefix(args[0]) {
-		return taskScopeNoAgent, args[1:]
-	}
-	return taskScopeAgent, args
+	scope, _, _, remaining := parseTaskPrefixes(args)
+	return scope, remaining
 }
 
 func isTaskScopePrefix(arg string) bool {
@@ -55,9 +77,35 @@ func isTaskScopePrefix(arg string) bool {
 	}
 }
 
+func isTaskProjectPrefix(arg string) bool {
+	return strings.HasPrefix(arg, "proj:")
+}
+
 func trimTaskScopePrefix(args []string) []string {
-	if len(args) == 0 || !isTaskScopePrefix(args[0]) {
-		return args
+	return trimTaskPrefixes(args)
+}
+
+func trimTaskPrefixes(args []string) []string {
+	_, _, _, remaining := parseTaskPrefixes(args)
+	return remaining
+}
+
+func parseTaskPrefixes(args []string) (taskScopeMode, string, bool, []string) {
+	scope := taskScopeAgent
+	projectName := ""
+	projectSet := false
+	for len(args) > 0 {
+		switch {
+		case isTaskScopePrefix(args[0]):
+			scope = taskScopeNoAgent
+			args = args[1:]
+		case isTaskProjectPrefix(args[0]):
+			projectName = args[0][len("proj:"):]
+			projectSet = true
+			args = args[1:]
+		default:
+			return scope, projectName, projectSet, args
+		}
 	}
-	return args[1:]
+	return scope, projectName, projectSet, nil
 }
