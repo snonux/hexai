@@ -3,6 +3,7 @@ package askcli
 import (
 	"fmt"
 	"io"
+	"os"
 	"slices"
 	"strings"
 
@@ -139,7 +140,9 @@ func detectTaskListTerminalWidth(w io.Writer) int {
 func FormatTaskInfo(t TaskExport, alias string, dependencyAliases map[string]string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "ID:          %s\n", alias)
-	fmt.Fprintf(&b, "UUID:        %s\n", t.UUID)
+	if debugEnabled() {
+		fmt.Fprintf(&b, "UUID:        %s\n", t.UUID)
+	}
 	fmt.Fprintf(&b, "Description: %s\n", t.Description)
 	fmt.Fprintf(&b, "Status:      %s\n", t.Status)
 	fmt.Fprintf(&b, "Started:     %s\n", formatTaskStarted(t))
@@ -161,6 +164,11 @@ func FormatTaskInfo(t TaskExport, alias string, dependencyAliases map[string]str
 		}
 	}
 	return b.String()
+}
+
+func debugEnabled() bool {
+	_, ok := os.LookupEnv("HEXAI_DEBUG")
+	return ok
 }
 
 // FormatSuccess returns the success string written to stdout after a task command runs.

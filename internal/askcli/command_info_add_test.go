@@ -12,6 +12,7 @@ import (
 )
 
 func TestHandleInfo_Success(t *testing.T) {
+	unsetTestEnv(t, "HEXAI_DEBUG")
 	dir := t.TempDir()
 	oldRoot := taskAliasCacheRoot
 	oldNow := nowTaskAliasCache
@@ -47,8 +48,8 @@ func TestHandleInfo_Success(t *testing.T) {
 	if !strings.Contains(output, "ID:          0") {
 		t.Fatalf("output missing alias ID: %s", output)
 	}
-	if !strings.Contains(output, "test-uuid") {
-		t.Fatalf("output missing UUID: %s", output)
+	if strings.Contains(output, "UUID:") || strings.Contains(output, "test-uuid") {
+		t.Fatalf("output leaked UUID in default mode: %s", output)
 	}
 	if !strings.Contains(output, "H") {
 		t.Fatalf("output missing priority: %s", output)
@@ -58,6 +59,46 @@ func TestHandleInfo_Success(t *testing.T) {
 	}
 	if !strings.Contains(output, "Depends:     1 (dep-1)") {
 		t.Fatalf("output missing formatted dependency alias: %s", output)
+	}
+}
+
+func TestHandleInfo_Success_DebugShowsUUID(t *testing.T) {
+	t.Setenv("HEXAI_DEBUG", "true")
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
+	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli","agent"],"urgency":15.0,"depends":[],"annotations":[]}]`
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) > 0 && strings.HasPrefix(args[0], "uuid:") {
+			_, _ = io.WriteString(stdout, jsonData)
+		}
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"info", "test-uuid"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("info code = %d, want 0", code)
+	}
+	if !strings.Contains(stdout.String(), "UUID:        test-uuid") {
+		t.Fatalf("output missing UUID in debug mode: %s", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "ID:          0") {
+		t.Fatalf("output missing alias ID in debug mode: %s", stdout.String())
 	}
 }
 
@@ -102,6 +143,7 @@ func TestHandleInfo_AssignsDependencyAliasesFromInfo(t *testing.T) {
 }
 
 func TestHandleInfo_AliasSelector(t *testing.T) {
+	unsetTestEnv(t, "HEXAI_DEBUG")
 	dir := t.TempDir()
 	oldRoot := taskAliasCacheRoot
 	oldNow := nowTaskAliasCache
@@ -132,8 +174,11 @@ func TestHandleInfo_AliasSelector(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("info code = %d, want 0", code)
 	}
-	if !strings.Contains(stdout.String(), "ID:          0") || !strings.Contains(stdout.String(), "UUID:        test-uuid") {
-		t.Fatalf("stdout = %q, want alias and UUID", stdout.String())
+	if !strings.Contains(stdout.String(), "ID:          0") {
+		t.Fatalf("stdout = %q, want alias ID", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "UUID:") || strings.Contains(stdout.String(), "test-uuid") {
+		t.Fatalf("stdout = %q, want UUID hidden by default", stdout.String())
 	}
 }
 
@@ -196,6 +241,7 @@ func TestHandleInfo_NumericID(t *testing.T) {
 }
 
 func TestHandleInfo_MissingUUID(t *testing.T) {
+	unsetTestEnv(t, "HEXAI_DEBUG")
 	dir := t.TempDir()
 	oldRoot := taskAliasCacheRoot
 	oldNow := nowTaskAliasCache
@@ -218,8 +264,11 @@ func TestHandleInfo_MissingUUID(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("info code = %d, want 0 for implicit started task", code)
 	}
-	if !strings.Contains(stdout.String(), "ID:          0") || !strings.Contains(stdout.String(), "UUID:        started-uuid") {
-		t.Fatalf("output missing alias and started task UUID: %s", stdout.String())
+	if !strings.Contains(stdout.String(), "ID:          0") {
+		t.Fatalf("output missing alias: %s", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "UUID:") || strings.Contains(stdout.String(), "started-uuid") {
+		t.Fatalf("output leaked started task UUID in default mode: %s", stdout.String())
 	}
 }
 

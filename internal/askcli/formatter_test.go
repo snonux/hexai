@@ -2,9 +2,23 @@ package askcli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 )
+
+func unsetTestEnv(t *testing.T, key string) {
+	t.Helper()
+	oldValue, hadValue := os.LookupEnv(key)
+	_ = os.Unsetenv(key)
+	t.Cleanup(func() {
+		if !hadValue {
+			_ = os.Unsetenv(key)
+			return
+		}
+		_ = os.Setenv(key, oldValue)
+	})
+}
 
 func TestFormatTaskList(t *testing.T) {
 	tasks := []TaskExport{
@@ -145,6 +159,7 @@ func TestFormatTaskListForWidth_TruncatesDescriptionWhenTerminalIsNarrow(t *test
 }
 
 func TestFormatTaskInfo(t *testing.T) {
+	unsetTestEnv(t, "HEXAI_DEBUG")
 	task := TaskExport{
 		UUID:        "test-uuid",
 		Description: "Test description",
@@ -165,8 +180,8 @@ func TestFormatTaskInfo(t *testing.T) {
 	if !strings.Contains(output, "ID:          0") {
 		t.Fatalf("FormatTaskInfo missing alias ID: %s", output)
 	}
-	if !strings.Contains(output, "test-uuid") {
-		t.Fatalf("FormatTaskInfo missing UUID: %s", output)
+	if strings.Contains(output, "UUID:") || strings.Contains(output, "test-uuid") {
+		t.Fatalf("FormatTaskInfo leaked UUID in default mode: %s", output)
 	}
 	if !strings.Contains(output, "H") {
 		t.Fatalf("FormatTaskInfo missing priority H: %s", output)
@@ -185,6 +200,16 @@ func TestFormatTaskInfo(t *testing.T) {
 	}
 	if !strings.Contains(output, "First note") {
 		t.Fatalf("FormatTaskInfo missing annotation: %s", output)
+	}
+}
+
+func TestFormatTaskInfo_DebugShowsUUID(t *testing.T) {
+	t.Setenv("HEXAI_DEBUG", "1")
+	task := TaskExport{UUID: "test-uuid", Description: "Test description", Status: "pending", Priority: "H", Urgency: 1}
+
+	output := FormatTaskInfo(task, "0", nil)
+	if !strings.Contains(output, "UUID:        test-uuid") {
+		t.Fatalf("FormatTaskInfo missing UUID in debug mode: %s", output)
 	}
 }
 
@@ -266,6 +291,7 @@ func TestRejectNumericID(t *testing.T) {
 }
 
 func TestFormatTaskInfo_NoOptionalFields(t *testing.T) {
+	unsetTestEnv(t, "HEXAI_DEBUG")
 	task := TaskExport{
 		UUID:        "simple-uuid",
 		Description: "Simple task",
@@ -275,8 +301,8 @@ func TestFormatTaskInfo_NoOptionalFields(t *testing.T) {
 		Urgency:     0,
 	}
 	output := FormatTaskInfo(task, "0", nil)
-	if !strings.Contains(output, "simple-uuid") {
-		t.Fatalf("FormatTaskInfo missing UUID: %s", output)
+	if strings.Contains(output, "UUID:") || strings.Contains(output, "simple-uuid") {
+		t.Fatalf("FormatTaskInfo leaked UUID in default mode: %s", output)
 	}
 	if !strings.Contains(output, "Started:     no") {
 		t.Fatalf("FormatTaskInfo should show Started: no when not started: %s", output)

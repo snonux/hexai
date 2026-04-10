@@ -32,3 +32,5 @@ end
 ```
 
 No external `do.fish` file is required.
+
+If you installed with `mage install`, the installer also writes an autoloadable completion file to `~/.config/fish/completions/do.fish` (or `$XDG_CONFIG_HOME/fish/completions/do.fish`), so new Fish sessions should pick it up automatically.

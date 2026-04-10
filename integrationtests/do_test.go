@@ -83,6 +83,19 @@ func runDoWithStdin(ctx context.Context, args []string, stdin string) (stdout, s
 	return stdout, stderr, ee.ExitCode()
 }
 
+func unsetTestEnv(t *testing.T, key string) {
+	t.Helper()
+	oldValue, hadValue := os.LookupEnv(key)
+	_ = os.Unsetenv(key)
+	t.Cleanup(func() {
+		if !hadValue {
+			_ = os.Unsetenv(key)
+			return
+		}
+		_ = os.Setenv(key, oldValue)
+	})
+}
+
 func runTask(ctx context.Context, args []string) (stdout, stderr bytes.Buffer, exitCode int) {
 	cmd := exec.CommandContext(ctx, "task", args...)
 	cmd.Dir = repoRoot
@@ -117,7 +130,7 @@ func runTaskWithStdin(ctx context.Context, args []string, stdin string) (stdout,
 }
 
 // createTask creates a new task via do add and returns its UUID.
-// do add prints a human-facing created-task message, so we resolve the created UUID via do info.
+// do add prints a human-facing created-task message, so we resolve the created UUID from task export.
 func createTask(ctx context.Context, desc string) (string, error) {
 	stdout, stderr, code := runDo(ctx, []string{"add", "+integrationtest", desc})
 	if code != 0 {
@@ -127,14 +140,28 @@ func createTask(ctx context.Context, desc string) (string, error) {
 	if id == "" {
 		return "", fmt.Errorf("could not extract task ID from do add output: %s", stdout.String())
 	}
-	info, ok := getTaskInfoFast(ctx, id)
-	if !ok {
-		return "", fmt.Errorf("could not resolve task ID %q after do add", id)
+	uuid, err := findTaskUUIDByDescription(ctx, desc)
+	if err != nil {
+		return "", fmt.Errorf("could not resolve task UUID for %q after do add: %w", desc, err)
 	}
-	if info.UUID == "" {
-		return "", fmt.Errorf("do info %q did not return a UUID", id)
+	return uuid, nil
+}
+
+func findTaskUUIDByDescription(ctx context.Context, desc string) (string, error) {
+	stdout, stderr, code := runTask(ctx, []string{"export", "project:hexai", "+integrationtest"})
+	if code != 0 {
+		return "", fmt.Errorf("task export failed (code %d): stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
-	return info.UUID, nil
+	var tasks []askcli.TaskExport
+	if err := json.Unmarshal(stdout.Bytes(), &tasks); err != nil {
+		return "", fmt.Errorf("failed to parse task export: %w", err)
+	}
+	for _, task := range tasks {
+		if task.Description == desc && task.Status == "pending" {
+			return task.UUID, nil
+		}
+	}
+	return "", fmt.Errorf("pending task %q not found in export", desc)
 }
 
 func extractTaskIDFromAddOutput(output string) string {
@@ -353,11 +380,16 @@ func TestAddReturnsAlias(t *testing.T) {
 	}
 	rawOutput := strings.TrimSpace(stdout.String())
 	id := extractTaskIDFromAddOutput(rawOutput)
-	info, ok := getTaskInfoFast(ctx, id)
-	if !ok {
-		t.Fatalf("do info %q failed after add", id)
+	uuid, err := findTaskUUIDByDescription(ctx, "uuid format check")
+	if err != nil {
+		t.Fatalf("failed to resolve created task UUID: %v", err)
 	}
-	defer deleteTask(ctx, info.UUID)
+	defer deleteTask(ctx, uuid)
+
+	info, ok := getTaskInfoFast(ctx, uuid)
+	if !ok {
+		t.Fatalf("do info %q failed after add", uuid)
+	}
 
 	if id == "" {
 		t.Fatal("do add returned an empty task ID")
@@ -371,8 +403,8 @@ func TestAddReturnsAlias(t *testing.T) {
 	if info.ID != id {
 		t.Fatalf("do info ID = %q, want %q", info.ID, id)
 	}
-	if !uuidFormatRx.MatchString(info.UUID) {
-		t.Fatalf("do info UUID = %q, want valid UUID", info.UUID)
+	if info.UUID != uuid {
+		t.Fatalf("do info UUID = %q, want %q", info.UUID, uuid)
 	}
 }
 
@@ -411,16 +443,15 @@ func TestAddWithDependsModifier(t *testing.T) {
 		t.Fatalf("do add with depends modifier failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 
-	id := extractTaskIDFromAddOutput(stdout.String())
-	info, ok := getTaskInfoFast(ctx, id)
-	if !ok {
-		t.Fatalf("do info %q failed after add", id)
+	uuid, err := findTaskUUIDByDescription(ctx, "integration test task with inline depends")
+	if err != nil {
+		t.Fatalf("failed to resolve created task UUID: %v", err)
 	}
-	defer deleteTask(ctx, info.UUID)
+	defer deleteTask(ctx, uuid)
 
-	raw, ok := getTaskInfoRaw(ctx, info.UUID)
+	raw, ok := getTaskInfoRaw(ctx, uuid)
 	if !ok {
-		t.Fatalf("raw info for created task %s failed", info.UUID)
+		t.Fatalf("raw info for created task %s failed", uuid)
 	}
 	if !strings.Contains(raw, dep1Alias+" ("+dep1UUID+")") || !strings.Contains(raw, dep2Alias+" ("+dep2UUID+")") {
 		t.Fatalf("created task info missing formatted dependencies: %s", raw)
@@ -497,6 +528,7 @@ func TestInfo(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	unsetTestEnv(t, "HEXAI_DEBUG")
 
 	uuid, err := createTask(ctx, "integration test task for info")
 	if err != nil {
@@ -507,9 +539,6 @@ func TestInfo(t *testing.T) {
 	ti, ok := getTaskInfoFast(ctx, uuid)
 	if !ok {
 		t.Fatalf("info failed or returned no output")
-	}
-	if ti.UUID != uuid {
-		t.Errorf("info uuid mismatch: got %s, want %s", ti.UUID, uuid)
 	}
 	if ti.ID == "" {
 		t.Errorf("info output missing alias ID")
@@ -525,8 +554,8 @@ func TestInfo(t *testing.T) {
 	if !strings.Contains(aliasOutput, "ID:          "+ti.ID) {
 		t.Errorf("info by alias output missing alias line: %s", aliasOutput)
 	}
-	if !strings.Contains(aliasOutput, "UUID:        "+uuid) {
-		t.Errorf("info by alias output missing uuid line: %s", aliasOutput)
+	if strings.Contains(aliasOutput, "UUID:") || strings.Contains(aliasOutput, uuid) {
+		t.Errorf("info by alias output leaked uuid in default mode: %s", aliasOutput)
 	}
 }
 
@@ -1061,6 +1090,7 @@ func TestAliasSelectorsAcrossUUIDCommands(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	unsetTestEnv(t, "HEXAI_DEBUG")
 
 	uuid, err := createTask(ctx, "integration test task for alias selectors")
 	if err != nil {
@@ -1074,8 +1104,8 @@ func TestAliasSelectorsAcrossUUIDCommands(t *testing.T) {
 	if !ok {
 		t.Fatalf("info by alias failed")
 	}
-	if !strings.Contains(infoOut, "UUID:        "+uuid) {
-		t.Fatalf("info by alias did not resolve the task: %s", infoOut)
+	if !strings.Contains(infoOut, "ID:          "+alias) || strings.Contains(infoOut, "UUID:") || strings.Contains(infoOut, uuid) {
+		t.Fatalf("info by alias did not resolve the task without leaking UUID: %s", infoOut)
 	}
 
 	note := "integration alias annotation"
