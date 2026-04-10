@@ -133,7 +133,9 @@ Use `do proj:<name> <subcommand...>` to override the project explicitly instead 
 
 Use `do na <subcommand...>` or `do no-agent <subcommand...>` to run the same subcommands against project tasks without the `+agent` tag. Those prefixes keep the project scope but replace the default tag filter with `-agent`.
 
-`do` never exposes Taskwarrior numeric task IDs. Human-facing output uses stable local alias IDs where practical, while `do info` shows both the alias ID and the UUID. Commands that accept a task selector support either the alias ID or the UUID.
+You can combine the prefixes in either order, for example `do proj:hexai na list` or `do na proj:hexai list`.
+
+`do` never exposes Taskwarrior numeric task IDs. Human-facing output uses stable local alias IDs where practical. `do info` hides the raw UUID by default and only prints it when `HEXAI_DEBUG` is set. Commands that accept a task selector still support either the alias ID or the UUID.
 
 `do` must be run inside a git repository unless you provide an explicit `proj:<name>` override.
 
@@ -180,6 +182,12 @@ do add priority:H "Implement new feature"
 # Create a non-agent task
 do na add "Follow up manually"
 
+# List tasks for a project from outside its git repository
+do proj:hexai list
+
+# Combine project override and non-agent scope
+do proj:hexai na list
+
 # Create a task with dependencies
 do add +cli depends:0,1 "Implement dependent feature"
 
@@ -189,8 +197,11 @@ do list +READY limit:5
 # List non-agent tasks
 do no-agent list
 
-# Show alias and UUID for a task
+# Show task details
 do info 0
+
+# Show the raw UUID as well
+HEXAI_DEBUG=1 do info 0
 
 # Show a non-agent task
 do na info 0

@@ -3,6 +3,7 @@
 The `do` task-management CLI embeds its Fish completion script in the binary and prints it with `do fish`.
 
 It completes the top-level `do` subcommands and the nested `do dep` operations.
+It also suggests the global task prefixes `na`, `no-agent`, and `proj:`.
 It also completes task selectors for UUID-taking commands by reading pending tasks through `do complete-aliases`, which uses the local alias cache for stable short IDs.
 The `do complete-uuids` command still emits both alias and UUID lines for scripts and tests that need the full selector list.
 Selector suggestions stop once a command has consumed its selector argument, and `do dep add` / `do dep rm` suggest selectors for both task positions.

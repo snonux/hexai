@@ -17,8 +17,10 @@ It has got improved capabilities for Go code understanding (for example, create 
   - Entrypoint: `do` (the binary was formerly named `ask`; use `do` in scripts and documentation)
   - Auto-scopes to `project:<repo> +agent` (derived from git repo root)
   - Override the project explicitly with `do proj:<name> <subcommand...>`
-  - Never exposes numeric task IDs — uses UUIDs only
-  - Machine-friendly output: UUID-only tables, suppressed decorative text
+  - Prefixes can be combined, for example `do proj:<name> na <subcommand...>`
+  - Never exposes numeric task IDs; human-facing output uses stable alias IDs
+  - `do info` hides raw UUIDs unless `HEXAI_DEBUG` is set
+  - Machine-friendly output with suppressed decorative text
   - Subcommands: `do add`, `do list`, `do info`, `do annotate`, `do start`, `do stop`, `do done`, `do priority`, `do tag`, `do dep`, `do urgency`, `do modify`, `do denotate`, `do delete`, `do fish`, `do help`
   - Fish completion generator: `do fish`
 * Parallel completions and CLI responses from multiple providers/models for side-by-side comparison
