@@ -32,6 +32,4 @@ if test -x $ask_bin
 end
 ```
 
-No external `ask.fish` file is required.
-
-If you installed with `mage install`, the installer also writes an autoloadable completion file to `~/.config/fish/completions/ask.fish` (or `$XDG_CONFIG_HOME/fish/completions/ask.fish`), so new Fish sessions should pick it up automatically.
+No completion file under `~/.config/fish/completions/` is required; use `ask fish | source` or the `conf.d` snippet above for new sessions.

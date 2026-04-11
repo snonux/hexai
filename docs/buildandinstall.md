@@ -11,8 +11,7 @@ Hexai uses Mage for developer tasks. Install Mage, then run targets like build, 
 - In restricted sandboxes/CI (no sockets), skip network-based tests:
   - `HEXAI_TEST_SKIP_NET=1 go test ./... -cover`
 - Install binaries to `GOPATH/bin`: `mage install`
-- `mage install` also writes Fish completion to `~/.config/fish/completions/ask.fish` (or `$XDG_CONFIG_HOME/fish/completions/ask.fish`)
-- Load Fish completions in the current shell immediately after install: `~/go/bin/ask fish | source`
+- Load Fish completions in the current shell after install: `~/go/bin/ask fish | source` (or add a `conf.d` snippet; see `docs/fish-completion.md`)
 
 Note: `mage lint` uses `golangci-lint`. Install via `mage devinstall` if needed.
 

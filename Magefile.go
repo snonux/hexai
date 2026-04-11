@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -132,39 +131,7 @@ func Install() error {
 			return err
 		}
 	}
-	return installFishCompletion(filepath.Join(bin, "ask"))
-}
-
-func installFishCompletion(askBin string) error {
-	fishConfigDir, err := resolveFishConfigDir()
-	if err != nil {
-		return err
-	}
-	completionsDir := filepath.Join(fishConfigDir, "completions")
-	if err := os.MkdirAll(completionsDir, 0o755); err != nil {
-		return err
-	}
-	out, err := exec.Command(askBin, "fish").Output()
-	if err != nil {
-		return fmt.Errorf("generate fish completion: %w", err)
-	}
-	dst := filepath.Join(completionsDir, "ask.fish")
-	if err := os.WriteFile(dst, out, 0o644); err != nil {
-		return err
-	}
-	fmt.Printf("installed %s\n", dst)
 	return nil
-}
-
-func resolveFishConfigDir() (string, error) {
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "fish"), nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("resolve home: %w", err)
-	}
-	return filepath.Join(home, ".config", "fish"), nil
 }
 
 // RunTmuxAction runs the hexai-tmux-action TUI via go run (reads stdin).
