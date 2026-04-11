@@ -114,7 +114,7 @@ func taskAliasCachePath() (string, error) {
 	// v2 uses reversed alias strings (e.g. "10" instead of "01") so that the
 	// first character varies more often, improving shell auto-completion. The
 	// old v1 file is intentionally abandoned so the mapping starts fresh.
-	return filepath.Join(dir, "do", "task-aliases-v2.json"), nil
+	return filepath.Join(dir, "ask", "task-aliases-v2.json"), nil
 }
 
 func (c *taskAliasCache) validate() error {

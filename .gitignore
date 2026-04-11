@@ -1,6 +1,6 @@
+/ask
 /do
-/cmd/do/do
-/cmd/do/ask
+/cmd/ask/ask
 /hexai
 /hexai-lsp-server
 /hexai-mcp-server

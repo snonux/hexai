@@ -26,15 +26,15 @@ var (
 
 // Build builds binaries.
 func Build() error {
-	mg.Deps(BuildDo, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit, BuildHexaiMCPServer)
+	mg.Deps(BuildAsk, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit, BuildHexaiMCPServer)
 	printCoverage()
 	return nil
 }
 
-// BuildDo builds the Taskwarrior proxy wrapper.
-func BuildDo() error {
+// BuildAsk builds the Taskwarrior proxy wrapper.
+func BuildAsk() error {
 	printCoverage()
-	return sh.RunV("go", "build", "-o", "do", "./cmd/do")
+	return sh.RunV("go", "build", "-o", "ask", "./cmd/ask")
 }
 
 // BuildHexaiLSP builds the LSP server binary.
@@ -71,7 +71,7 @@ func BuildHexaiMCPServer() error {
 func Dev() error {
 	printCoverage()
 	mg.Deps(Test, Vet, Lint)
-	if err := sh.RunV("go", "build", "-race", "-o", "do", "./cmd/do"); err != nil {
+	if err := sh.RunV("go", "build", "-race", "-o", "ask", "./cmd/ask"); err != nil {
 		return err
 	}
 	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp-server", "./cmd/hexai-lsp-server"); err != nil {
@@ -121,7 +121,7 @@ func Install() error {
 		return err
 	}
 	for _, name := range []string{
-		"do",
+		"ask",
 		"hexai-lsp-server",
 		"hexai",
 		"hexai-tmux-action",
@@ -132,10 +132,10 @@ func Install() error {
 			return err
 		}
 	}
-	return installFishCompletion(filepath.Join(bin, "do"))
+	return installFishCompletion(filepath.Join(bin, "ask"))
 }
 
-func installFishCompletion(doBin string) error {
+func installFishCompletion(askBin string) error {
 	fishConfigDir, err := resolveFishConfigDir()
 	if err != nil {
 		return err
@@ -144,11 +144,11 @@ func installFishCompletion(doBin string) error {
 	if err := os.MkdirAll(completionsDir, 0o755); err != nil {
 		return err
 	}
-	out, err := exec.Command(doBin, "fish").Output()
+	out, err := exec.Command(askBin, "fish").Output()
 	if err != nil {
 		return fmt.Errorf("generate fish completion: %w", err)
 	}
-	dst := filepath.Join(completionsDir, "do.fish")
+	dst := filepath.Join(completionsDir, "ask.fish")
 	if err := os.WriteFile(dst, out, 0o644); err != nil {
 		return err
 	}

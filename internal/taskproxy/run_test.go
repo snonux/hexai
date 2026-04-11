@@ -15,7 +15,7 @@ func TestRunnerRun_InjectsProjectFilterAndAgentTag(t *testing.T) {
 	var gotName string
 	var gotArgs []string
 	runner := Runner{
-		CommandName:    "do",
+		CommandName:    "ask",
 		findTaskBinary: func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
 		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
@@ -43,7 +43,7 @@ func TestRunnerRun_InjectsProjectFilterAndAgentTag(t *testing.T) {
 
 func TestRunnerRun_OutsideGitRepo_IsActionable(t *testing.T) {
 	runner := Runner{
-		CommandName:    "do",
+		CommandName:    "ask",
 		findTaskBinary: func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "", errors.New("git failed") },
 		runCommand: func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error {
@@ -63,7 +63,7 @@ func TestRunnerRun_OutsideGitRepo_IsActionable(t *testing.T) {
 
 func TestRunnerRun_PreservesTaskwarriorExitCode(t *testing.T) {
 	runner := Runner{
-		CommandName:    "do",
+		CommandName:    "ask",
 		findTaskBinary: func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
 		runCommand: func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error {
@@ -84,7 +84,7 @@ func TestRunnerRun_PreservesStdoutAndStderr(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	runner := Runner{
-		CommandName:    "do",
+		CommandName:    "ask",
 		findTaskBinary: func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
 		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, out, errOut io.Writer) error {
@@ -111,7 +111,7 @@ func TestRunnerRun_PreservesStdoutAndStderr(t *testing.T) {
 
 func TestRunnerRun_TaskLookupFailure_IsActionable(t *testing.T) {
 	runner := Runner{
-		CommandName:    "do",
+		CommandName:    "ask",
 		findTaskBinary: func() (string, error) { return "", errors.New("not found") },
 	}
 
@@ -126,7 +126,7 @@ func TestRunnerRun_TaskLookupFailure_IsActionable(t *testing.T) {
 
 func TestRunnerRun_EmptyRepoName_IsActionable(t *testing.T) {
 	runner := Runner{
-		CommandName:    "do",
+		CommandName:    "ask",
 		findTaskBinary: func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "/", nil },
 	}

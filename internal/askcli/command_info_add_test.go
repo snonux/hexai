@@ -383,7 +383,7 @@ func TestHandleAdd_DependsModifierWithoutSelectors(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("add code = %d, want 1", code)
 	}
-	if got := stderr.String(); !strings.Contains(got, "do add depends:<id|uuid>[,<id|uuid>...] requires at least one dependency ID or UUID") {
+	if got := stderr.String(); !strings.Contains(got, "ask add depends:<id|uuid>[,<id|uuid>...] requires at least one dependency ID or UUID") {
 		t.Fatalf("stderr = %q, want depends: selector error", got)
 	}
 }

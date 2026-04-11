@@ -10,7 +10,7 @@ import (
 
 func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
-		_, _ = io.WriteString(stderr, "error: do add requires a description\n")
+		_, _ = io.WriteString(stderr, "error: ask add requires a description\n")
 		return 1, nil
 	}
 	modifiers, description, dependencySelectors, err := parseAddArgs(args[1:])
@@ -19,7 +19,7 @@ func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stder
 		return 1, nil
 	}
 	if strings.TrimSpace(description) == "" {
-		_, _ = io.WriteString(stderr, "error: do add requires a description\n")
+		_, _ = io.WriteString(stderr, "error: ask add requires a description\n")
 		return 1, nil
 	}
 	dependencyUUIDs, code, err := d.resolveAddDependencyUUIDs(ctx, dependencySelectors, stderr)
@@ -112,14 +112,14 @@ func parseAddArgs(args []string) (modifiers []string, description string, depend
 func parseAddDependencySelectors(arg string) ([]string, error) {
 	raw := strings.TrimSpace(strings.TrimPrefix(arg, "depends:"))
 	if raw == "" {
-		return nil, fmt.Errorf("do add depends:<id|uuid>[,<id|uuid>...] requires at least one dependency ID or UUID")
+		return nil, fmt.Errorf("ask add depends:<id|uuid>[,<id|uuid>...] requires at least one dependency ID or UUID")
 	}
 	parts := strings.Split(raw, ",")
 	selectors := make([]string, 0, len(parts))
 	for _, part := range parts {
 		selector := strings.TrimSpace(part)
 		if selector == "" {
-			return nil, fmt.Errorf("do add dependency selector list contains an empty item")
+			return nil, fmt.Errorf("ask add dependency selector list contains an empty item")
 		}
 		selectors = append(selectors, selector)
 	}

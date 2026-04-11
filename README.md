@@ -14,15 +14,15 @@ It has got improved capabilities for Go code understanding (for example, create 
 * Stand-alone command line tool for LLM interaction
   - Includes `--tps-simulation` to preview how fast a model would feel by streaming placeholder text or piped stdin at a chosen token-per-second rate
 * Task management CLI for agent-managed project work
-  - Entrypoint: `do` (the binary was formerly named `ask`; use `do` in scripts and documentation)
+  - Entrypoint: `ask` (the binary was briefly named `do`; use `ask` in scripts and documentation)
   - Auto-scopes to `project:<repo> +agent` (derived from git repo root)
-  - Override the project explicitly with `do proj:<name> <subcommand...>`
-  - Prefixes can be combined, for example `do proj:<name> na <subcommand...>`
+  - Override the project explicitly with `ask proj:<name> <subcommand...>`
+  - Prefixes can be combined, for example `ask proj:<name> na <subcommand...>`
   - Never exposes numeric task IDs; human-facing output uses stable alias IDs
-  - `do info` hides raw UUIDs unless `HEXAI_DEBUG` is set
+  - `ask info` hides raw UUIDs unless `HEXAI_DEBUG` is set
   - Machine-friendly output with suppressed decorative text
-  - Subcommands: `do add`, `do list`, `do info`, `do annotate`, `do start`, `do stop`, `do done`, `do priority`, `do tag`, `do dep`, `do urgency`, `do modify`, `do denotate`, `do delete`, `do fish`, `do help`
-  - Fish completion generator: `do fish`
+  - Subcommands: `ask add`, `ask list`, `ask info`, `ask annotate`, `ask start`, `ask stop`, `ask done`, `ask priority`, `ask tag`, `ask dep`, `ask urgency`, `ask modify`, `ask denotate`, `ask delete`, `ask fish`, `ask help`
+  - Fish completion generator: `ask fish`
 * Parallel completions and CLI responses from multiple providers/models for side-by-side comparison
 * **MCP server for prompt/runbook management** (`hexai-mcp-server`) - **⚠️ DEPRECATED/EXPERIMENTAL**
   - Create, update, delete, and retrieve prompts via MCP protocol

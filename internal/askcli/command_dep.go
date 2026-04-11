@@ -10,7 +10,7 @@ import (
 
 func (d *Dispatcher) handleDep(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 2 {
-		_, _ = io.WriteString(stderr, "error: do dep requires an operation (add/rm/list) and arguments\n")
+		_, _ = io.WriteString(stderr, "error: ask dep requires an operation (add/rm/list) and arguments\n")
 		return 1, nil
 	}
 	op := args[1]
@@ -20,14 +20,14 @@ func (d *Dispatcher) handleDep(ctx context.Context, args []string, stdout, stder
 	case "list":
 		return d.handleDepList(ctx, args, stdout, stderr)
 	default:
-		fmt.Fprintf(stderr, "error: do dep: unknown operation %q (use add, rm, or list)\n", op)
+		fmt.Fprintf(stderr, "error: ask dep: unknown operation %q (use add, rm, or list)\n", op)
 		return 1, nil
 	}
 }
 
 func (d *Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 4 {
-		_, _ = io.WriteString(stderr, "error: do dep add/rm requires <id|uuid> <dep-id|dep-uuid>\n")
+		_, _ = io.WriteString(stderr, "error: ask dep add/rm requires <id|uuid> <dep-id|dep-uuid>\n")
 		return 1, nil
 	}
 	resolved, _, code, err := d.resolveTaskSelector(ctx, args[2], stderr)
@@ -59,7 +59,7 @@ func (d *Dispatcher) handleDepAddRm(ctx context.Context, args []string, stdout, 
 
 func (d *Dispatcher) handleDepList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	if len(args) < 3 {
-		_, _ = io.WriteString(stderr, "error: do dep list requires <id|uuid>\n")
+		_, _ = io.WriteString(stderr, "error: ask dep list requires <id|uuid>\n")
 		return 1, nil
 	}
 	_, tasks, code, err := d.resolveTaskSelector(ctx, args[2], stderr)

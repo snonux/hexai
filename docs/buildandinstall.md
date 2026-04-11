@@ -3,7 +3,7 @@
 Hexai uses Mage for developer tasks. Install Mage, then run targets like build, dev, test, and install.
 
 - Install Mage: `go install github.com/magefile/mage@latest`
-- Build binaries: `mage build` (produces `do`, `hexai`, `hexai-lsp-server`, `hexai-tmux-action`, and `hexai-tmux-edit`)
+- Build binaries: `mage build` (produces `ask`, `hexai`, `hexai-lsp-server`, `hexai-tmux-action`, and `hexai-tmux-edit`)
 - Dev build (+ tests, vet, lint): `mage dev`
 - Run tests: `mage test`
 - Run tests with coverage: `go test ./... -cover`
@@ -11,8 +11,8 @@ Hexai uses Mage for developer tasks. Install Mage, then run targets like build, 
 - In restricted sandboxes/CI (no sockets), skip network-based tests:
   - `HEXAI_TEST_SKIP_NET=1 go test ./... -cover`
 - Install binaries to `GOPATH/bin`: `mage install`
-- `mage install` also writes Fish completion to `~/.config/fish/completions/do.fish` (or `$XDG_CONFIG_HOME/fish/completions/do.fish`)
-- Load Fish completions in the current shell immediately after install: `~/go/bin/do fish | source`
+- `mage install` also writes Fish completion to `~/.config/fish/completions/ask.fish` (or `$XDG_CONFIG_HOME/fish/completions/ask.fish`)
+- Load Fish completions in the current shell immediately after install: `~/go/bin/ask fish | source`
 
 Note: `mage lint` uses `golangci-lint`. Install via `mage devinstall` if needed.
 
@@ -20,7 +20,7 @@ Note: `mage lint` uses `golangci-lint`. Install via `mage devinstall` if needed.
 
 Either use the Mage method as mentioned above, or install directly with:
 
-- Task CLI (`do`, agent-scoped Taskwarrior wrapper): `go install codeberg.org/snonux/hexai/cmd/do@latest`
+- Task CLI (`ask`, agent-scoped Taskwarrior wrapper): `go install codeberg.org/snonux/hexai/cmd/ask@latest`
 - CLI: `go install codeberg.org/snonux/hexai/cmd/hexai@latest`
 - LSP: `go install codeberg.org/snonux/hexai/cmd/hexai-lsp-server@latest`
 - Action runner: `go install codeberg.org/snonux/hexai/cmd/hexai-tmux-action@latest`

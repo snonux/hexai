@@ -13,7 +13,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/askcli"
 )
 
-func scopedDoArgs(scopePrefix string, args ...string) []string {
+func scopedAskArgs(scopePrefix string, args ...string) []string {
 	if strings.TrimSpace(scopePrefix) == "" {
 		return append([]string(nil), args...)
 	}
@@ -22,28 +22,28 @@ func scopedDoArgs(scopePrefix string, args ...string) []string {
 }
 
 func createTaskInScope(ctx context.Context, scopePrefix, desc string) (taskInfo, error) {
-	stdout, stderr, code := runDo(ctx, scopedDoArgs(scopePrefix, "add", "+integrationtest", desc))
+	stdout, stderr, code := runAsk(ctx, scopedAskArgs(scopePrefix, "add", "+integrationtest", desc))
 	if code != 0 {
 		return taskInfo{}, fmt.Errorf("create task failed (code %d): stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 
 	id := extractTaskIDFromAddOutput(stdout.String())
 	if id == "" {
-		return taskInfo{}, fmt.Errorf("could not extract task ID from do add output: %s", stdout.String())
+		return taskInfo{}, fmt.Errorf("could not extract task ID from ask add output: %s", stdout.String())
 	}
 
 	info, ok := getTaskInfoInScope(ctx, scopePrefix, id)
 	if !ok {
-		return taskInfo{}, fmt.Errorf("could not resolve task ID %q after do %s add", id, scopePrefix)
+		return taskInfo{}, fmt.Errorf("could not resolve task ID %q after ask %s add", id, scopePrefix)
 	}
 	if info.UUID == "" {
-		return taskInfo{}, fmt.Errorf("do %s info %q did not return a UUID", scopePrefix, id)
+		return taskInfo{}, fmt.Errorf("ask %s info %q did not return a UUID", scopePrefix, id)
 	}
 	return info, nil
 }
 
 func getTaskInfoInScope(ctx context.Context, scopePrefix, selector string) (taskInfo, bool) {
-	stdout, _, code := runDo(ctx, scopedDoArgs(scopePrefix, "info", selector))
+	stdout, _, code := runAsk(ctx, scopedAskArgs(scopePrefix, "info", selector))
 	if code != 0 {
 		return taskInfo{}, false
 	}
@@ -143,28 +143,28 @@ func TestNoAgentListSeparatesScopedTasks(t *testing.T) {
 	}
 	defer deleteTask(ctx, noAgentInfo.UUID)
 
-	stdout, stderr, code := runDo(ctx, []string{"list"})
+	stdout, stderr, code := runAsk(ctx, []string{"list"})
 	if code != 0 {
-		t.Fatalf("do list failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+		t.Fatalf("ask list failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 	if !strings.Contains(stdout.String(), agentDesc) {
-		t.Fatalf("do list should contain agent task %q: %s", agentDesc, stdout.String())
+		t.Fatalf("ask list should contain agent task %q: %s", agentDesc, stdout.String())
 	}
 	if strings.Contains(stdout.String(), noAgentDesc) {
-		t.Fatalf("do list should not contain no-agent task %q: %s", noAgentDesc, stdout.String())
+		t.Fatalf("ask list should not contain no-agent task %q: %s", noAgentDesc, stdout.String())
 	}
 
 	for _, prefix := range []string{"na", "no-agent"} {
 		t.Run(prefix, func(t *testing.T) {
-			scopedStdout, scopedStderr, scopedCode := runDo(ctx, []string{prefix, "list"})
+			scopedStdout, scopedStderr, scopedCode := runAsk(ctx, []string{prefix, "list"})
 			if scopedCode != 0 {
-				t.Fatalf("do %s list failed with code %d: stdout=%s stderr=%s", prefix, scopedCode, scopedStdout.String(), scopedStderr.String())
+				t.Fatalf("ask %s list failed with code %d: stdout=%s stderr=%s", prefix, scopedCode, scopedStdout.String(), scopedStderr.String())
 			}
 			if !strings.Contains(scopedStdout.String(), noAgentDesc) {
-				t.Fatalf("do %s list should contain no-agent task %q: %s", prefix, noAgentDesc, scopedStdout.String())
+				t.Fatalf("ask %s list should contain no-agent task %q: %s", prefix, noAgentDesc, scopedStdout.String())
 			}
 			if strings.Contains(scopedStdout.String(), agentDesc) {
-				t.Fatalf("do %s list should not contain agent task %q: %s", prefix, agentDesc, scopedStdout.String())
+				t.Fatalf("ask %s list should not contain agent task %q: %s", prefix, agentDesc, scopedStdout.String())
 			}
 		})
 	}
@@ -182,9 +182,9 @@ func TestNoAgentSelectorCommandsUseScopedTasks(t *testing.T) {
 	}
 	defer deleteTask(ctx, info.UUID)
 
-	_, stderr, code := runDo(ctx, []string{"info", info.ID})
+	_, stderr, code := runAsk(ctx, []string{"info", info.ID})
 	if code == 0 {
-		t.Fatalf("do info %s unexpectedly succeeded outside no-agent scope", info.ID)
+		t.Fatalf("ask info %s unexpectedly succeeded outside no-agent scope", info.ID)
 	}
 	if !strings.Contains(stderr.String(), "current scope") {
 		t.Fatalf("stderr = %q, want current-scope guidance", stderr.String())
@@ -192,19 +192,19 @@ func TestNoAgentSelectorCommandsUseScopedTasks(t *testing.T) {
 
 	for _, prefix := range []string{"na", "no-agent"} {
 		t.Run(prefix, func(t *testing.T) {
-			stdout, scopedStderr, scopedCode := runDo(ctx, []string{prefix, "info", info.ID})
+			stdout, scopedStderr, scopedCode := runAsk(ctx, []string{prefix, "info", info.ID})
 			if scopedCode != 0 {
-				t.Fatalf("do %s info failed with code %d: stdout=%s stderr=%s", prefix, scopedCode, stdout.String(), scopedStderr.String())
+				t.Fatalf("ask %s info failed with code %d: stdout=%s stderr=%s", prefix, scopedCode, stdout.String(), scopedStderr.String())
 			}
 			if !strings.Contains(stdout.String(), "UUID:        "+info.UUID) {
-				t.Fatalf("do %s info output missing UUID %q: %s", prefix, info.UUID, stdout.String())
+				t.Fatalf("ask %s info output missing UUID %q: %s", prefix, info.UUID, stdout.String())
 			}
 		})
 	}
 
-	stdout, stderr, code := runDo(ctx, []string{"na", "done", info.ID})
+	stdout, stderr, code := runAsk(ctx, []string{"na", "done", info.ID})
 	if code != 0 {
-		t.Fatalf("do na done failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+		t.Fatalf("ask na done failed with code %d: stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
 
 	task, err := exportTaskByUUID(ctx, info.UUID)
@@ -234,9 +234,9 @@ func TestNoAgentCompleteUUIDsUsesScopedTasks(t *testing.T) {
 	}
 	defer deleteTask(ctx, noAgentInfo.UUID)
 
-	defaultStdout, defaultStderr, defaultCode := runDo(ctx, []string{"complete-uuids"})
+	defaultStdout, defaultStderr, defaultCode := runAsk(ctx, []string{"complete-uuids"})
 	if defaultCode != 0 {
-		t.Fatalf("do complete-uuids failed with code %d: stdout=%s stderr=%s", defaultCode, defaultStdout.String(), defaultStderr.String())
+		t.Fatalf("ask complete-uuids failed with code %d: stdout=%s stderr=%s", defaultCode, defaultStdout.String(), defaultStderr.String())
 	}
 	if !hasSelectorLine(defaultStdout.String(), agentAlias) || !hasSelectorLine(defaultStdout.String(), agentUUID) {
 		t.Fatalf("default complete-uuids should contain agent selectors: %s", defaultStdout.String())
@@ -247,15 +247,15 @@ func TestNoAgentCompleteUUIDsUsesScopedTasks(t *testing.T) {
 
 	for _, prefix := range []string{"na", "no-agent"} {
 		t.Run(prefix, func(t *testing.T) {
-			stdout, stderr, code := runDo(ctx, []string{prefix, "complete-uuids"})
+			stdout, stderr, code := runAsk(ctx, []string{prefix, "complete-uuids"})
 			if code != 0 {
-				t.Fatalf("do %s complete-uuids failed with code %d: stdout=%s stderr=%s", prefix, code, stdout.String(), stderr.String())
+				t.Fatalf("ask %s complete-uuids failed with code %d: stdout=%s stderr=%s", prefix, code, stdout.String(), stderr.String())
 			}
 			if !hasSelectorLine(stdout.String(), noAgentInfo.ID) || !hasSelectorLine(stdout.String(), noAgentInfo.UUID) {
-				t.Fatalf("do %s complete-uuids should contain no-agent selectors: %s", prefix, stdout.String())
+				t.Fatalf("ask %s complete-uuids should contain no-agent selectors: %s", prefix, stdout.String())
 			}
 			if hasSelectorLine(stdout.String(), agentAlias) || hasSelectorLine(stdout.String(), agentUUID) {
-				t.Fatalf("do %s complete-uuids should not contain agent selectors: %s", prefix, stdout.String())
+				t.Fatalf("ask %s complete-uuids should not contain agent selectors: %s", prefix, stdout.String())
 			}
 		})
 	}

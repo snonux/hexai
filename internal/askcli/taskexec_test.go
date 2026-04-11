@@ -12,7 +12,7 @@ import (
 )
 
 func TestExecutorTaskArgs(t *testing.T) {
-	exec_ := NewExecutor("do")
+	exec_ := NewExecutor("ask")
 	args, err := exec_.taskArgs(context.Background(), "/tmp/work/hexai", []string{"list", "limit:1"})
 	if err != nil {
 		t.Fatalf("taskArgs returned error: %v", err)
@@ -24,7 +24,7 @@ func TestExecutorTaskArgs(t *testing.T) {
 }
 
 func TestExecutorTaskArgs_NoAgentScope(t *testing.T) {
-	exec_ := NewExecutor("do")
+	exec_ := NewExecutor("ask")
 	ctx := contextWithTaskScope(context.Background(), taskScopeNoAgent)
 	args, err := exec_.taskArgs(ctx, "/tmp/work/hexai", []string{"list", "limit:1"})
 	if err != nil {
@@ -37,7 +37,7 @@ func TestExecutorTaskArgs_NoAgentScope(t *testing.T) {
 }
 
 func TestExecutorTaskArgs_ProjectOverride(t *testing.T) {
-	exec_ := NewExecutor("do")
+	exec_ := NewExecutor("ask")
 	ctx := contextWithTaskProject(context.Background(), "alpha")
 	args, err := exec_.taskArgs(ctx, "", []string{"list", "limit:1"})
 	if err != nil {
@@ -50,7 +50,7 @@ func TestExecutorTaskArgs_ProjectOverride(t *testing.T) {
 }
 
 func TestExecutorTaskArgs_AddDefaultScope(t *testing.T) {
-	exec_ := NewExecutor("do")
+	exec_ := NewExecutor("ask")
 	args, err := exec_.taskArgs(context.Background(), "/tmp/work/hexai", []string{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "new task"})
 	if err != nil {
 		t.Fatalf("taskArgs returned error: %v", err)
@@ -62,7 +62,7 @@ func TestExecutorTaskArgs_AddDefaultScope(t *testing.T) {
 }
 
 func TestExecutorTaskArgs_AddNoAgentScope(t *testing.T) {
-	exec_ := NewExecutor("do")
+	exec_ := NewExecutor("ask")
 	ctx := contextWithTaskScope(context.Background(), taskScopeNoAgent)
 	args, err := exec_.taskArgs(ctx, "/tmp/work/hexai", []string{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "new task"})
 	if err != nil {
@@ -78,7 +78,7 @@ func TestExecutorRun_InjectsProjectFilterAndAgentTag(t *testing.T) {
 	var gotName string
 	var gotArgs []string
 	exec_ := Executor{
-		commandName:    "do",
+		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
 		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
@@ -107,7 +107,7 @@ func TestExecutorRun_InjectsProjectFilterAndAgentTag(t *testing.T) {
 func TestExecutorRun_InjectsProjectFilterAndNoAgentTag(t *testing.T) {
 	var gotArgs []string
 	exec_ := Executor{
-		commandName:    "do",
+		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
 		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
@@ -133,7 +133,7 @@ func TestExecutorRun_InjectsProjectFilterAndNoAgentTag(t *testing.T) {
 func TestExecutorRun_ProjectOverrideSkipsRepoDetection(t *testing.T) {
 	var gotArgs []string
 	exec_ := Executor{
-		commandName: "do",
+		commandName: "ask",
 		findBinary:  func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) {
 			t.Fatal("detectRepoRoot should not be called when project override is set")
@@ -161,7 +161,7 @@ func TestExecutorRun_ProjectOverrideSkipsRepoDetection(t *testing.T) {
 
 func TestExecutorRun_OutsideGitRepo_IsActionable(t *testing.T) {
 	exec_ := Executor{
-		commandName:    "do",
+		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "", errors.New("git failed") },
 		runCommand: func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error {
@@ -181,7 +181,7 @@ func TestExecutorRun_OutsideGitRepo_IsActionable(t *testing.T) {
 
 func TestExecutorRun_PreservesTaskwarriorExitCode(t *testing.T) {
 	exec_ := Executor{
-		commandName:    "do",
+		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
 		runCommand: func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error {
@@ -202,7 +202,7 @@ func TestExecutorRun_PreservesStdoutAndStderr(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	exec_ := Executor{
-		commandName:    "do",
+		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
 		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, out, errOut io.Writer) error {
@@ -229,7 +229,7 @@ func TestExecutorRun_PreservesStdoutAndStderr(t *testing.T) {
 
 func TestExecutorRun_TaskLookupFailure_IsActionable(t *testing.T) {
 	exec_ := Executor{
-		commandName: "do",
+		commandName: "ask",
 		findBinary:  func() (string, error) { return "", errors.New("not found") },
 	}
 
@@ -244,7 +244,7 @@ func TestExecutorRun_TaskLookupFailure_IsActionable(t *testing.T) {
 
 func TestExecutorRun_EmptyRepoName_IsActionable(t *testing.T) {
 	exec_ := Executor{
-		commandName:    "do",
+		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) { return "/", nil },
 	}

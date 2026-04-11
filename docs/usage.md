@@ -125,92 +125,92 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 
 ## Task management
 
-`do` is a task management CLI for the current git project. The binary was previously named `ask`; use `do` everywhere (commands, scripts, shell completion).
+`ask` is a task management CLI for the current git project. The binary was briefly named `do`; use `ask` everywhere (commands, scripts, shell completion).
 
 By default it auto-scopes to `project:<repo> +agent` so operations are confined to agent-managed project tasks.
 
-Use `do proj:<name> <subcommand...>` to override the project explicitly instead of deriving it from the current git repository.
+Use `ask proj:<name> <subcommand...>` to override the project explicitly instead of deriving it from the current git repository.
 
-Use `do na <subcommand...>` or `do no-agent <subcommand...>` to run the same subcommands against project tasks without the `+agent` tag. Those prefixes keep the project scope but replace the default tag filter with `-agent`.
+Use `ask na <subcommand...>` or `ask no-agent <subcommand...>` to run the same subcommands against project tasks without the `+agent` tag. Those prefixes keep the project scope but replace the default tag filter with `-agent`.
 
-You can combine the prefixes in either order, for example `do proj:hexai na list` or `do na proj:hexai list`.
+You can combine the prefixes in either order, for example `ask proj:hexai na list` or `ask na proj:hexai list`.
 
-`do` never exposes Taskwarrior numeric task IDs. Human-facing output uses stable local alias IDs where practical. `do info` hides the raw UUID by default and only prints it when `HEXAI_DEBUG` is set. Commands that accept a task selector still support either the alias ID or the UUID.
+`ask` never exposes Taskwarrior numeric task IDs. Human-facing output uses stable local alias IDs where practical. `ask info` hides the raw UUID by default and only prints it when `HEXAI_DEBUG` is set. Commands that accept a task selector still support either the alias ID or the UUID.
 
-`do` must be run inside a git repository unless you provide an explicit `proj:<name>` override.
+`ask` must be run inside a git repository unless you provide an explicit `proj:<name>` override.
 
 ### Subcommands
 
 | Subcommand | Description |
 |---|---|
-| `do add "description"` | Create a new task and print `created task <alias-id>` |
-| `do add depends:<id\|uuid>,<id\|uuid> "description"` | Create task with inline dependencies |
-| `do add priority:H "description"` | Create task with priority |
-| `do add +tag "description"` | Create task with tag |
-| `do na add "description"` | Create a project task without the `+agent` tag |
-| `do list` | List pending tasks only (alias-ID table) |
-| `do na list` | List pending project tasks without the `+agent` tag |
-| `do all` | List all tasks including completed/deleted |
-| `do list +READY` | List only ready tasks |
-| `do list +BLOCKED` | List blocked tasks |
-| `do list +tag` | Filter by tag |
-| `do list started` | List started tasks |
-| `do list limit:N` | Limit results |
-| `do list sort:priority-,urgency-` | Sort by priority then urgency |
-| `do info [id\|uuid]` | Show task details, or the current started task if no selector is provided |
-| `do annotate <id\|uuid> "note"` | Add annotation |
-| `do start <id\|uuid>` | Start working on a task |
-| `do stop <id\|uuid>` | Stop work on a task |
-| `do done <id\|uuid>` | Mark task complete |
-| `do priority <id\|uuid> H\|M\|L` | Set priority |
-| `do tag <id\|uuid> +tag` | Add tag |
-| `do tag <id\|uuid> -tag` | Remove tag |
-| `do dep add <id\|uuid> <dep-id\|dep-uuid>` | Add dependency |
-| `do dep rm <id\|uuid> <dep-id\|dep-uuid>` | Remove dependency |
-| `do dep list <id\|uuid>` | List dependencies |
-| `do urgency` | List tasks by urgency |
-| `do modify <id\|uuid> <args...>` | General-purpose modify |
-| `do denotate <id\|uuid> "text"` | Remove annotation |
-| `do delete <id\|uuid>` | Delete a task |
+| `ask add "description"` | Create a new task and print `created task <alias-id>` |
+| `ask add depends:<id\|uuid>,<id\|uuid> "description"` | Create task with inline dependencies |
+| `ask add priority:H "description"` | Create task with priority |
+| `ask add +tag "description"` | Create task with tag |
+| `ask na add "description"` | Create a project task without the `+agent` tag |
+| `ask list` | List pending tasks only (alias-ID table) |
+| `ask na list` | List pending project tasks without the `+agent` tag |
+| `ask all` | List all tasks including completed/deleted |
+| `ask list +READY` | List only ready tasks |
+| `ask list +BLOCKED` | List blocked tasks |
+| `ask list +tag` | Filter by tag |
+| `ask list started` | List started tasks |
+| `ask list limit:N` | Limit results |
+| `ask list sort:priority-,urgency-` | Sort by priority then urgency |
+| `ask info [id\|uuid]` | Show task details, or the current started task if no selector is provided |
+| `ask annotate <id\|uuid> "note"` | Add annotation |
+| `ask start <id\|uuid>` | Start working on a task |
+| `ask stop <id\|uuid>` | Stop work on a task |
+| `ask done <id\|uuid>` | Mark task complete |
+| `ask priority <id\|uuid> H\|M\|L` | Set priority |
+| `ask tag <id\|uuid> +tag` | Add tag |
+| `ask tag <id\|uuid> -tag` | Remove tag |
+| `ask dep add <id\|uuid> <dep-id\|dep-uuid>` | Add dependency |
+| `ask dep rm <id\|uuid> <dep-id\|dep-uuid>` | Remove dependency |
+| `ask dep list <id\|uuid>` | List dependencies |
+| `ask urgency` | List tasks by urgency |
+| `ask modify <id\|uuid> <args...>` | General-purpose modify |
+| `ask denotate <id\|uuid> "text"` | Remove annotation |
+| `ask delete <id\|uuid>` | Delete a task |
 
 ### Examples
 
 ```sh
 # Create a task
-do add priority:H "Implement new feature"
+ask add priority:H "Implement new feature"
 
 # Create a non-agent task
-do na add "Follow up manually"
+ask na add "Follow up manually"
 
 # List tasks for a project from outside its git repository
-do proj:hexai list
+ask proj:hexai list
 
 # Combine project override and non-agent scope
-do proj:hexai na list
+ask proj:hexai na list
 
 # Create a task with dependencies
-do add +cli depends:0,1 "Implement dependent feature"
+ask add +cli depends:0,1 "Implement dependent feature"
 
 # List tasks
-do list +READY limit:5
+ask list +READY limit:5
 
 # List non-agent tasks
-do no-agent list
+ask no-agent list
 
 # Show task details
-do info 0
+ask info 0
 
 # Show the raw UUID as well
-HEXAI_DEBUG=1 do info 0
+HEXAI_DEBUG=1 ask info 0
 
 # Show a non-agent task
-do na info 0
+ask na info 0
 
 # Start working
-do start 0
+ask start 0
 
 # Done
-do done 0
+ask done 0
 ```
 
 ## Hexai Action (TUI)

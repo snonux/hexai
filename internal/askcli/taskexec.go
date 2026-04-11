@@ -16,7 +16,7 @@ type repoTopLevelDetector func(context.Context) (string, error)
 
 type commandRunner func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error
 
-// Executor encapsulates how the do CLI communicates with the Taskwarrior binary.
+// Executor encapsulates how the ask CLI communicates with the Taskwarrior binary.
 type Executor struct {
 	commandName    string
 	findBinary     binaryFinder
@@ -97,14 +97,14 @@ func (e Executor) Run(ctx context.Context, args []string, stdin io.Reader, stdou
 func (e Executor) label() string {
 	label := strings.TrimSpace(e.commandName)
 	if label == "" {
-		return "do"
+		return "ask"
 	}
 	return label
 }
 
 func normalizeExecutor(e Executor) Executor {
 	if e.commandName == "" {
-		e.commandName = "do"
+		e.commandName = "ask"
 	}
 	if e.findBinary == nil {
 		e.findBinary = findTaskBinary
