@@ -125,7 +125,7 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 
 ## Task management
 
-`ask` is a task management CLI for the current git project. The binary was briefly named `do`; use `ask` everywhere (commands, scripts, shell completion).
+`ask` is a task management CLI for the current git project. The binary was briefly named `do`; use `ask` everywhere (commands, scripts, shell completion). For Fish, load completions with `ask fish | source` or the setup in [Fish shell completion](fish-completion.md).
 
 By default it auto-scopes to `project:<repo> +agent` so operations are confined to agent-managed project tasks.
 

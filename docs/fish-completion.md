@@ -2,6 +2,11 @@
 
 The `ask` task-management CLI embeds its Fish completion script in the binary and prints it with `ask fish`.
 
+`mage install` and `go install …/cmd/ask` only place the `ask` binary on your `PATH` (under `GOPATH/bin` or `~/go/bin`). They do **not** install anything under `fish/completions/`. You load completions yourself as below.
+
+If you used an older Hexai release whose `mage install` wrote `ask.fish` into your Fish completions directory, remove that file so Fish does not keep sourcing a stale script:  
+`~/.config/fish/completions/ask.fish` or `$XDG_CONFIG_HOME/fish/completions/ask.fish`.
+
 It completes the top-level `ask` subcommands and the nested `ask dep` operations.
 It also suggests the global task prefixes `na`, `no-agent`, and `proj:`.
 It also completes task selectors for UUID-taking commands by reading pending tasks through `ask complete-aliases`, which uses the local alias cache for stable short IDs.
@@ -16,13 +21,13 @@ Load it into the current Fish session:
 ask fish | source
 ```
 
-If you installed with `mage install` and `~/go/bin` is not on your `PATH` yet, use:
+If `ask` is not on your `PATH` yet, call it by full path (for example `~/go/bin/ask` when `GOPATH` is unset):
 
 ```sh
 ~/go/bin/ask fish | source
 ```
 
-To enable it automatically for new Fish sessions, add this to your Fish config or a file in `~/.config/fish/conf.d/`:
+To enable it automatically for new Fish sessions, add this to your Fish config or a file in `$XDG_CONFIG_HOME/fish/conf.d/` (often `~/.config/fish/conf.d/`):
 
 ```fish
 set -l ask_bin ~/go/bin/ask
@@ -32,4 +37,4 @@ if test -x $ask_bin
 end
 ```
 
-No completion file under `~/.config/fish/completions/` is required; use `ask fish | source` or the `conf.d` snippet above for new sessions.
+Do not rely on a static file under `fish/completions/`; either run `ask fish | source` when you want completions in the current session, or keep the `conf.d` snippet so each new session sources the script from the installed binary (stays in sync when you upgrade `ask`).
