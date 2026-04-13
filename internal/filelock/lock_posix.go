@@ -1,6 +1,6 @@
 //go:build !windows
 
-package stats
+package filelock
 
 import (
 	"errors"
@@ -8,16 +8,16 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func tryLockFile(fd uintptr) error {
+func tryLockExclusive(fd uintptr) error {
 	if err := unix.Flock(int(fd), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		if errors.Is(err, unix.EWOULDBLOCK) {
-			return errLockWouldBlock
+		if errors.Is(err, unix.EWOULDBLOCK) || errors.Is(err, unix.EAGAIN) {
+			return ErrWouldBlock
 		}
 		return err
 	}
 	return nil
 }
 
-func unlockFile(fd uintptr) error {
+func unlockExclusive(fd uintptr) error {
 	return unix.Flock(int(fd), unix.LOCK_UN)
 }

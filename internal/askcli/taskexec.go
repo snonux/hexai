@@ -77,16 +77,24 @@ func (e Executor) Run(ctx context.Context, args []string, stdin io.Reader, stdou
 	if err != nil {
 		return 1, fmt.Errorf("%s: task binary lookup failed: %w", executor.label(), err)
 	}
+	gitRoot, gitErr := executor.detectRepoRoot(ctx)
 	repoRoot := ""
 	if _, ok := taskProjectFromContext(ctx); !ok {
-		repoRoot, err = executor.detectRepoRoot(ctx)
-		if err != nil {
-			return 1, fmt.Errorf("%s: must be run inside a git repository: %w", executor.label(), err)
+		if gitErr != nil {
+			return 1, fmt.Errorf("%s: must be run inside a git repository: %w", executor.label(), gitErr)
 		}
+		repoRoot = gitRoot
 	}
 	taskArgs, err := executor.taskArgs(ctx, repoRoot, args)
 	if err != nil {
 		return 1, fmt.Errorf("%s: %w", executor.label(), err)
+	}
+	if gitErr == nil {
+		unlockAsk, lerr := acquireAskRepoLock(ctx, gitRoot)
+		if lerr != nil {
+			return 1, fmt.Errorf("%s: %w", executor.label(), lerr)
+		}
+		defer func() { _ = unlockAsk() }()
 	}
 	if err := executor.runCommand(ctx, taskPath, taskArgs, stdin, stdout, stderr); err != nil {
 		return exitCodeFor(err), nil

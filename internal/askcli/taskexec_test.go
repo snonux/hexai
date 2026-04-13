@@ -5,11 +5,22 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+func fakeHexaiRepoDir(t *testing.T) string {
+	t.Helper()
+	base := filepath.Join(t.TempDir(), "hexai")
+	if err := os.MkdirAll(filepath.Join(base, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+	return base
+}
 
 func TestExecutorTaskArgs(t *testing.T) {
 	exec_ := NewExecutor("ask")
@@ -75,12 +86,13 @@ func TestExecutorTaskArgs_AddNoAgentScope(t *testing.T) {
 }
 
 func TestExecutorRun_InjectsProjectFilterAndAgentTag(t *testing.T) {
+	repo := fakeHexaiRepoDir(t)
 	var gotName string
 	var gotArgs []string
 	exec_ := Executor{
 		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
-		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
+		detectRepoRoot: func(context.Context) (string, error) { return repo, nil },
 		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 			gotName = name
 			gotArgs = append([]string(nil), args...)
@@ -105,11 +117,12 @@ func TestExecutorRun_InjectsProjectFilterAndAgentTag(t *testing.T) {
 }
 
 func TestExecutorRun_InjectsProjectFilterAndNoAgentTag(t *testing.T) {
+	repo := fakeHexaiRepoDir(t)
 	var gotArgs []string
 	exec_ := Executor{
 		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
-		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
+		detectRepoRoot: func(context.Context) (string, error) { return repo, nil },
 		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 			gotArgs = append([]string(nil), args...)
 			return nil
@@ -130,14 +143,16 @@ func TestExecutorRun_InjectsProjectFilterAndNoAgentTag(t *testing.T) {
 	}
 }
 
-func TestExecutorRun_ProjectOverrideSkipsRepoDetection(t *testing.T) {
+func TestExecutorRun_ProjectOverrideStillLocksUsingGitRoot(t *testing.T) {
+	repo := fakeHexaiRepoDir(t)
+	var detectCalls int
 	var gotArgs []string
 	exec_ := Executor{
 		commandName: "ask",
 		findBinary:  func() (string, error) { return "/usr/bin/task", nil },
 		detectRepoRoot: func(context.Context) (string, error) {
-			t.Fatal("detectRepoRoot should not be called when project override is set")
-			return "", nil
+			detectCalls++
+			return repo, nil
 		},
 		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 			gotArgs = append([]string(nil), args...)
@@ -152,6 +167,9 @@ func TestExecutorRun_ProjectOverrideSkipsRepoDetection(t *testing.T) {
 	}
 	if exitCode != 0 {
 		t.Fatalf("exitCode = %d, want 0", exitCode)
+	}
+	if detectCalls != 1 {
+		t.Fatalf("detectRepoRoot calls = %d, want 1", detectCalls)
 	}
 	wantArgs := []string{"rc.verbose=nothing", "rc.confirmation=off", "project:alpha", "+agent", "list"}
 	if !reflect.DeepEqual(gotArgs, wantArgs) {
@@ -180,10 +198,11 @@ func TestExecutorRun_OutsideGitRepo_IsActionable(t *testing.T) {
 }
 
 func TestExecutorRun_PreservesTaskwarriorExitCode(t *testing.T) {
+	repo := fakeHexaiRepoDir(t)
 	exec_ := Executor{
 		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
-		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
+		detectRepoRoot: func(context.Context) (string, error) { return repo, nil },
 		runCommand: func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error {
 			return exec.Command("sh", "-c", "exit 7").Run()
 		},
@@ -199,12 +218,13 @@ func TestExecutorRun_PreservesTaskwarriorExitCode(t *testing.T) {
 }
 
 func TestExecutorRun_PreservesStdoutAndStderr(t *testing.T) {
+	repo := fakeHexaiRepoDir(t)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	exec_ := Executor{
 		commandName:    "ask",
 		findBinary:     func() (string, error) { return "/usr/bin/task", nil },
-		detectRepoRoot: func(context.Context) (string, error) { return "/tmp/work/hexai", nil },
+		detectRepoRoot: func(context.Context) (string, error) { return repo, nil },
 		runCommand: func(_ context.Context, name string, args []string, stdin io.Reader, out, errOut io.Writer) error {
 			_, _ = io.WriteString(out, "task stdout")
 			_, _ = io.WriteString(errOut, "task stderr")

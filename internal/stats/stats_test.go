@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"codeberg.org/snonux/hexai/internal/filelock"
 )
 
 func TestUpdateAndSnapshot_Single(t *testing.T) {
@@ -309,7 +311,7 @@ func TestTakeSnapshot_ZeroWindowSeconds(t *testing.T) {
 }
 
 // TestUpdate_CancelledContext covers the context cancellation branch in
-// acquireFileLock when the lock is already held.
+// filelock.AcquireExclusive when the lock is already held.
 func TestUpdate_CancelledContext(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", dir)
@@ -320,14 +322,14 @@ func TestUpdate_CancelledContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Hold the lock file to force acquireFileLock to spin.
+	// Hold the lock file to force filelock.AcquireExclusive to spin.
 	lockPath := filepath.Join(statsDir, lockFileName)
 	lf, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = lf.Close() }()
-	unlock, err := acquireFileLock(context.Background(), lf)
+	unlock, err := filelock.AcquireExclusive(context.Background(), lf)
 	if err != nil {
 		t.Fatal(err)
 	}

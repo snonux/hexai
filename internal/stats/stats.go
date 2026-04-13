@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"codeberg.org/snonux/hexai/internal/filelock"
 )
 
 const (
@@ -26,8 +28,6 @@ const (
 )
 
 var windowSeconds int64 = int64(defaultWindow.Seconds())
-
-var errLockWouldBlock = errors.New("stats: lock would block")
 
 // nowFunc is the clock source for event timestamps and pruning cutoffs.
 // Replaced in tests to control time without sleeping.
@@ -141,7 +141,7 @@ func lockStatsFile(ctx context.Context, dir string) (func() error, error) {
 	if err != nil {
 		return nil, err
 	}
-	unlock, err := acquireFileLock(ctx, f)
+	unlock, err := filelock.AcquireExclusive(ctx, f)
 	if err != nil {
 		_ = f.Close()
 		return nil, err
@@ -213,31 +213,6 @@ func writeStatsFileAtomic(dir, path string, sf *File) error {
 		return err
 	}
 	return nil
-}
-
-// acquireFileLock spins on tryLockFile until it succeeds, the context is
-// cancelled, or an unexpected error occurs. A single timer is reused across
-// retries to avoid leaking timers/channels on every loop iteration.
-func acquireFileLock(ctx context.Context, f *os.File) (func() error, error) {
-	fd := f.Fd()
-	retryTimer := time.NewTimer(5 * time.Millisecond)
-	defer retryTimer.Stop()
-	for {
-		err := tryLockFile(fd)
-		if err == nil {
-			return func() error { return unlockFile(fd) }, nil
-		}
-		if errors.Is(err, errLockWouldBlock) {
-			retryTimer.Reset(5 * time.Millisecond)
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-retryTimer.C:
-			}
-			continue
-		}
-		return nil, err
-	}
 }
 
 // TakeSnapshot reads the stats file and aggregates events within the stored
