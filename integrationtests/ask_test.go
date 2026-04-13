@@ -640,10 +640,7 @@ func TestInfoShowsAllDependencies(t *testing.T) {
 
 	alias1 := mustTaskAlias(t, ctx, dependency1)
 	alias2 := mustTaskAlias(t, ctx, dependency2)
-	wantDepends := []string{
-		alias1 + " (" + dependency1 + ")",
-		alias2 + " (" + dependency2 + ")",
-	}
+	wantDepends := []string{alias1, alias2}
 	slices.Sort(wantDepends)
 	if !slices.Equal(ti.Depends, wantDepends) {
 		t.Fatalf("info dependencies = %+v, want %+v", ti.Depends, wantDepends)
@@ -699,6 +696,56 @@ func TestStart(t *testing.T) {
 	}
 	if ti.StartTime == "" {
 		t.Errorf("task start time is empty after start")
+	}
+}
+
+func TestStartBlockedUntilDependenciesCompleted(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	dep, err := createTask(ctx, "integration test dependency for start gate")
+	if err != nil {
+		t.Fatalf("failed to create dependency task: %v", err)
+	}
+	defer deleteTask(ctx, dep)
+
+	dependent, err := createTask(ctx, "integration test dependent for start gate")
+	if err != nil {
+		t.Fatalf("failed to create dependent task: %v", err)
+	}
+	defer deleteTask(ctx, dependent)
+
+	if _, stderr, code := runAsk(ctx, []string{"dep", "add", dependent, dep}); code != 0 {
+		t.Fatalf("dep add failed with code %d: stderr=%s", code, stderr.String())
+	}
+
+	_, stderr, code := runAsk(ctx, []string{"start", dependent})
+	if code == 0 {
+		t.Fatalf("start should fail when a dependency is not completed")
+	}
+	if !strings.Contains(stderr.String(), "cannot start until all dependencies are completed") {
+		t.Fatalf("stderr = %q, want dependency gate message", stderr.String())
+	}
+
+	if _, stderr, code := runAsk(ctx, []string{"done", dep}); code != 0 {
+		t.Fatalf("done on dependency failed with code %d: stderr=%s", code, stderr.String())
+	}
+
+	stdout, stderr, code := runAsk(ctx, []string{"start", dependent})
+	if code != 0 {
+		t.Fatalf("start should succeed after dependency is completed: code=%d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "ok ") {
+		t.Fatalf("start stdout = %q, want success line", stdout.String())
+	}
+
+	ti, ok := getTaskInfoFast(ctx, dependent)
+	if !ok {
+		t.Fatalf("could not get task info after start")
+	}
+	if ti.Started != "yes" {
+		t.Errorf("task started state = %q, want yes", ti.Started)
 	}
 }
 

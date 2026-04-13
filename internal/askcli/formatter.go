@@ -192,16 +192,8 @@ func FormatError(err error, taskID string) string {
 func formatTaskDependencies(depends []string, aliases map[string]string) string {
 	items := make([]string, 0, len(depends))
 	for _, uuid := range depends {
-		items = append(items, formatTaskReference(uuid, aliases))
+		items = append(items, displayTaskAlias(uuid, aliases))
 	}
 	slices.Sort(items)
 	return strings.Join(items, ", ")
-}
-
-func formatTaskReference(uuid string, aliases map[string]string) string {
-	alias := strings.TrimSpace(aliases[uuid])
-	if alias == "" || alias == uuid {
-		return uuid
-	}
-	return fmt.Sprintf("%s (%s)", alias, uuid)
 }

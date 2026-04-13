@@ -67,11 +67,25 @@ func (d *Dispatcher) handleStart(ctx context.Context, args []string, stdout, std
 		_, _ = io.WriteString(stderr, "error: ask start requires an ID or UUID argument\n")
 		return 1, nil
 	}
-	return d.runSingleTaskCommand(ctx, args[1], stdout, stderr, func(resolved resolvedTaskSelector) []string {
-		// uuid:<uuid> is used as the filter so taskwarrior selects the exact task;
-		// the action verb follows the filter.
-		return []string{"uuid:" + resolved.UUID, "start"}
-	})
+	resolved, tasks, code, err := d.resolveTaskSelector(ctx, args[1], stderr)
+	if err != nil {
+		writeInfoError(stderr, err)
+		return code, nil
+	}
+	if code != 0 {
+		return code, nil
+	}
+	if depCode := d.verifyDependenciesCompletedForStart(ctx, tasks[0], stderr); depCode != 0 {
+		return depCode, nil
+	}
+
+	var outBuf bytes.Buffer
+	code, err = d.runner.Run(ctx, []string{"uuid:" + resolved.UUID, "start"}, nil, &outBuf, io.Discard)
+	if code != 0 {
+		return code, err
+	}
+	_, _ = io.WriteString(stdout, FormatSuccess(displayResolvedTaskID(resolved)))
+	return 0, nil
 }
 
 func (d *Dispatcher) handleStop(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {

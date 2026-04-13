@@ -195,8 +195,11 @@ func TestFormatTaskInfo(t *testing.T) {
 	if !strings.Contains(output, "cli, agent") {
 		t.Fatalf("FormatTaskInfo missing tags: %s", output)
 	}
-	if !strings.Contains(output, "1 (dep-1)") || !strings.Contains(output, "2 (dep-2)") {
+	if !strings.Contains(output, "Depends:     1, 2") {
 		t.Fatalf("FormatTaskInfo missing formatted depends: %s", output)
+	}
+	if strings.Contains(output, "dep-1") || strings.Contains(output, "dep-2") {
+		t.Fatalf("FormatTaskInfo should not list dependency UUIDs when aliases exist: %s", output)
 	}
 	if !strings.Contains(output, "First note") {
 		t.Fatalf("FormatTaskInfo missing annotation: %s", output)

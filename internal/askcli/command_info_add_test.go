@@ -57,8 +57,11 @@ func TestHandleInfo_Success(t *testing.T) {
 	if !strings.Contains(output, "Started:     no") {
 		t.Fatalf("output missing explicit started state: %s", output)
 	}
-	if !strings.Contains(output, "Depends:     1 (dep-1)") {
+	if !strings.Contains(output, "Depends:     1") {
 		t.Fatalf("output missing formatted dependency alias: %s", output)
+	}
+	if strings.Contains(output, "dep-1") {
+		t.Fatalf("output should not list dependency UUID when alias exists: %s", output)
 	}
 }
 
@@ -135,10 +138,11 @@ func TestHandleInfo_AssignsDependencyAliasesFromInfo(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "Depends:") ||
-		!strings.Contains(output, "(dep-a)") ||
-		!strings.Contains(output, "(dep-b)") {
+	if !strings.Contains(output, "Depends:     1, 2") {
 		t.Fatalf("output missing assigned dependency aliases: %s", output)
+	}
+	if strings.Contains(output, "dep-a") || strings.Contains(output, "dep-b") {
+		t.Fatalf("output should not list dependency UUIDs when aliases exist: %s", output)
 	}
 }
 
