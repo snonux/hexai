@@ -56,7 +56,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reade
 	}
 	subcommand := args[0]
 	entry, ok := commandRegistry.get(subcommand)
-	if !ok && scope != taskScopeAgent {
+	if !ok {
 		args = append([]string{"add"}, args...)
 		subcommand = "add"
 		entry, ok = commandRegistry.get(subcommand)

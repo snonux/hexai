@@ -43,19 +43,92 @@ func TestDispatcher_Help(t *testing.T) {
 	}
 }
 
-func TestDispatcher_UnknownSubcommand(t *testing.T) {
-	d := NewDispatcher(nil)
-	var stderr bytes.Buffer
-	code, err := d.Dispatch(context.Background(), []string{"foobar"}, nil, io.Discard, &stderr)
-	if code != 1 {
-		t.Fatalf("unknown subcommand exit code = %d, want 1", code)
+func TestDispatcher_DefaultsInvalidSubcommandToAdd(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	tests := []struct {
+		name        string
+		args        []string
+		wantCall    []string
+		wantProject string
+	}{
+		{
+			name:     "plain",
+			args:     []string{"foo", "bar", "baz"},
+			wantCall: []string{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "foo bar baz"},
+		},
+		{
+			name:        "project scoped",
+			args:        []string{"proj:alpha", "foo", "bar", "baz"},
+			wantCall:    []string{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "foo bar baz"},
+			wantProject: "alpha",
+		},
 	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotCall []string
+			var gotProject string
+			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+				gotCall = append([]string(nil), args...)
+				gotProject, _ = taskProjectFromContext(ctx)
+				_, _ = io.WriteString(stdout, "Created task uuid-default-add.\n")
+				return 0, nil
+			}})
+
+			var stdout, stderr bytes.Buffer
+			code, err := d.Dispatch(context.Background(), tc.args, nil, &stdout, &stderr)
+			if err != nil {
+				t.Fatalf("Dispatch returned error: %v", err)
+			}
+			if code != 0 {
+				t.Fatalf("Dispatch code = %d, want 0: stderr=%s", code, stderr.String())
+			}
+			if !reflect.DeepEqual(gotCall, tc.wantCall) {
+				t.Fatalf("runner args = %v, want %v", gotCall, tc.wantCall)
+			}
+			if gotProject != tc.wantProject {
+				t.Fatalf("project override = %q, want %q", gotProject, tc.wantProject)
+			}
+			if stdout.String() != "created task 0\n" {
+				t.Fatalf("stdout = %q, want created task alias", stdout.String())
+			}
+			if stderr.Len() != 0 {
+				t.Fatalf("stderr = %q, want empty", stderr.String())
+			}
+		})
+	}
+}
+
+func TestDispatcher_RealSubcommandsDoNotDefaultToAdd(t *testing.T) {
+	var gotCall []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		gotCall = append([]string(nil), args...)
+		_, _ = io.WriteString(stdout, `[]`)
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(context.Background(), []string{"list", "+ready"}, nil, &stdout, &stderr)
 	if err != nil {
-		t.Fatalf("unknown subcommand returned unexpected error: %v", err)
+		t.Fatalf("Dispatch returned error: %v", err)
 	}
-	output := stderr.String()
-	if !strings.Contains(output, "unknown subcommand") {
-		t.Fatalf("unknown subcommand output missing: %s", output)
+	if code != 0 {
+		t.Fatalf("Dispatch code = %d, want 0: stderr=%s", code, stderr.String())
+	}
+	if want := []string{"status:pending", "+ready", "export"}; !reflect.DeepEqual(gotCall, want) {
+		t.Fatalf("runner args = %v, want %v", gotCall, want)
+	}
+	if !strings.Contains(stdout.String(), "Description") {
+		t.Fatalf("stdout = %q, want rendered task list", stdout.String())
 	}
 }
 
