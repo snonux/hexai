@@ -120,6 +120,8 @@ temperature = 0.2
 # go_test_user       = "Function under test:\n{{function}}"
 # simplify_system    = "You are a precise code improvement engine. Simplify and improve the given code while preserving behavior. Return only the improved code with no prose or backticks."
 # simplify_user      = "Improve this code:\n{{selection}}"
+# fix_typos_system   = "You are a precise proofreader. Fix all typos, spelling errors, and grammatical mistakes in the given text. Improve clarity and readability while preserving the original meaning, tone, and structure. Return only the corrected text with no prose or backticks."
+# fix_typos_user     = "Fix typos and improve grammar and clarity:\n{{selection}}"
 
 # Define additional custom code actions (optional)
 # [[prompts.code_action.custom]]
