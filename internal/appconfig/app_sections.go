@@ -90,6 +90,8 @@ type PromptConfig struct {
 	PromptCodeActionGoTestUser        string `json:"-"`
 	PromptCodeActionSimplifySystem    string `json:"-"`
 	PromptCodeActionSimplifyUser      string `json:"-"`
+	PromptCodeActionFixTyposSystem    string `json:"-"`
+	PromptCodeActionFixTyposUser      string `json:"-"`
 	// CLI
 	PromptCLIDefaultSystem string `json:"-"`
 	PromptCLIExplainSystem string `json:"-"`

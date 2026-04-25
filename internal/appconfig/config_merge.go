@@ -205,6 +205,8 @@ func mergeCodeActionPrompts(dst, src *App) {
 	mergeStringField(&dst.PromptCodeActionGoTestUser, src.PromptCodeActionGoTestUser)
 	mergeStringField(&dst.PromptCodeActionSimplifySystem, src.PromptCodeActionSimplifySystem)
 	mergeStringField(&dst.PromptCodeActionSimplifyUser, src.PromptCodeActionSimplifyUser)
+	mergeStringField(&dst.PromptCodeActionFixTyposSystem, src.PromptCodeActionFixTyposSystem)
+	mergeStringField(&dst.PromptCodeActionFixTyposUser, src.PromptCodeActionFixTyposUser)
 }
 
 func mergeCLIPrompts(dst, src *App) {

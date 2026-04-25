@@ -125,6 +125,8 @@ func defaultPromptConfig() PromptConfig {
 		PromptCodeActionGoTestUser:        "Function under test:\n{{function}}",
 		PromptCodeActionSimplifySystem:    "You are a precise code improvement engine. Simplify and improve the given code while preserving behavior. Return only the improved code with no prose or backticks.",
 		PromptCodeActionSimplifyUser:      "Improve this code:\n{{selection}}",
+		PromptCodeActionFixTyposSystem:    "You are a precise proofreader. Fix all typos, spelling errors, and grammatical mistakes in the given text. Improve clarity and readability while preserving the original meaning, tone, and structure. Return only the corrected text with no prose or backticks.",
+		PromptCodeActionFixTyposUser:      "Fix typos and improve grammar and clarity:\n{{selection}}",
 
 		PromptCLIDefaultSystem: "You are Hexai CLI. Default to very short, concise answers. If the user asks for commands, output only the commands (one per line) with no commentary or explanation. Only when the word 'explain' appears in the prompt, produce a verbose explanation.",
 		PromptCLIExplainSystem: "You are Hexai CLI. The user requested an explanation. Provide a clear, verbose explanation with reasoning and details. If commands are needed, include them with brief context.",
@@ -322,6 +324,8 @@ type sectionPromptsCodeAction struct {
 	GoTestUser        string                `toml:"go_test_user"`
 	SimplifySystem    string                `toml:"simplify_system"`
 	SimplifyUser      string                `toml:"simplify_user"`
+	FixTyposSystem    string                `toml:"fix_typos_system"`
+	FixTyposUser      string                `toml:"fix_typos_user"`
 	Custom            []sectionCustomAction `toml:"custom"`
 }
 

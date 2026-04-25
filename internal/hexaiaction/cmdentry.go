@@ -10,17 +10,16 @@ import (
 
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/tmux"
-	"golang.org/x/term"
 )
 
 // Options configures the command-line orchestration for hexai-tmux-action.
 type Options struct {
-	Infile      string
-	Outfile     string
-	UIChild     bool
-	TmuxTarget  string
-	TmuxSplit   string // "v" or "h"
-	TmuxPercent int    // 1-100
+	Infile          string
+	Outfile         string
+	UIChild         bool
+	TmuxTarget      string
+	TmuxPopupWidth  string // popup width, e.g. "80%" or "120"
+	TmuxPopupHeight string // popup height, e.g. "80%" or "40"
 }
 
 // RunCommand is the CLI orchestrator used by cmd/hexai-tmux-action. It runs in tmux
@@ -30,14 +29,13 @@ func RunCommand(ctx context.Context, opts Options, stdin io.Reader, stdout, stde
 	if opts.UIChild {
 		return runChild(ctx, opts.Infile, opts.Outfile, stdout, stderr)
 	}
-	// Always use tmux path
-	return runInTmuxParent(ctx, stdin, stdout, opts.TmuxTarget, opts.TmuxSplit, opts.TmuxPercent)
+	// Always use tmux popup path
+	return runInTmuxParent(ctx, stdin, stdout, opts.TmuxTarget, opts.TmuxPopupWidth, opts.TmuxPopupHeight)
 }
 
 // seams for unit tests
 var (
-	isTTYFn        = func(fd uintptr) bool { return term.IsTerminal(int(fd)) }
-	splitRunFn     = tmux.SplitRun
+	popupRunFn     = tmux.PopupRun
 	osExecutableFn = os.Executable
 	runFn          = Run
 )
@@ -99,7 +97,7 @@ func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Wri
 	return os.Rename(tmp, outfile)
 }
 
-func runInTmuxParent(ctx context.Context, stdin io.Reader, stdout io.Writer, target, split string, percent int) error {
+func runInTmuxParent(ctx context.Context, stdin io.Reader, stdout io.Writer, target, popupWidth, popupHeight string) error {
 	dir, err := os.MkdirTemp("", "hexai-tmux-action-")
 	if err != nil {
 		return err
@@ -115,8 +113,8 @@ func runInTmuxParent(ctx context.Context, stdin io.Reader, stdout io.Writer, tar
 		return err
 	}
 	argv := []string{exe, "-ui-child", "-infile", inPath, "-outfile", outPath}
-	opts := tmux.SplitOpts{Target: target, Vertical: split != "h", Percent: percent}
-	if err := splitRunFn(opts, argv); err != nil {
+	opts := tmux.PopupOpts{Target: target, Width: popupWidth, Height: popupHeight}
+	if err := popupRunFn(opts, argv); err != nil {
 		return err
 	}
 	if err := waitForFile(ctx, outPath, 60*time.Second); err != nil {

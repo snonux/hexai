@@ -10,6 +10,7 @@ const (
 	ActionDocument    ActionKind = "document"
 	ActionGoTest      ActionKind = "gotest"
 	ActionSimplify    ActionKind = "simplify"
+	ActionFixTypos    ActionKind = "fix_typos"
 	// ActionCustom represents a configured custom action from the submenu.
 	ActionCustom ActionKind = "custom"
 	// ActionCustomPrompt is the free-form prompt opened in the editor (hotkey 'p').

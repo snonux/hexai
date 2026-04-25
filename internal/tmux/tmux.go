@@ -53,6 +53,38 @@ func SplitRun(opts SplitOpts, argv []string) error {
 	return c.Run()
 }
 
+// PopupOpts controls how a tmux display-popup is created for running a command.
+type PopupOpts struct {
+	Target string // optional pane target, e.g. ":."
+	Width  string // popup width, e.g. "80%" or "120"; empty means tmux default
+	Height string // popup height, e.g. "80%" or "40"; empty means tmux default
+}
+
+// PopupRun opens a tmux display-popup and runs argv inside it.
+// The -E flag makes the popup close automatically when the command exits.
+// It returns once the popup has closed (blocking call).
+func PopupRun(opts PopupOpts, argv []string) error {
+	if len(argv) == 0 {
+		return nil
+	}
+	args := []string{"display-popup", "-E"}
+	if cwd, err := os.Getwd(); err == nil && cwd != "" {
+		args = append(args, "-d", cwd)
+	}
+	if strings.TrimSpace(opts.Target) != "" {
+		args = append(args, "-t", opts.Target)
+	}
+	if strings.TrimSpace(opts.Width) != "" {
+		args = append(args, "-w", strings.TrimSpace(opts.Width))
+	}
+	if strings.TrimSpace(opts.Height) != "" {
+		args = append(args, "-h", strings.TrimSpace(opts.Height))
+	}
+	cmdStr := shellJoin(argv)
+	args = append(args, cmdStr)
+	return command("tmux", args...).Run()
+}
+
 // shellJoin quotes argv elements for safe use in a single shell command string.
 // It avoids interpretation by wrapping in single quotes and escaping embedded single quotes.
 func shellJoin(argv []string) string {

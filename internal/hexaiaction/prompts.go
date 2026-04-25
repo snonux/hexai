@@ -82,6 +82,13 @@ func runSimplify(ctx context.Context, cfg actionConfig, client chatDoer, selecti
 	return runOnce(ctx, client, sys, user, reqOptsFrom(cfg))
 }
 
+func runFixTypos(ctx context.Context, cfg actionConfig, client chatDoer, selection string) (string, error) {
+	prompts := cfg.PromptSection()
+	sys := prompts.PromptCodeActionFixTyposSystem
+	user := Render(prompts.PromptCodeActionFixTyposUser, map[string]string{"selection": selection})
+	return runOnce(ctx, client, sys, user, reqOptsFrom(cfg))
+}
+
 func runGoTest(ctx context.Context, cfg actionConfig, client chatDoer, funcCode string) (string, error) {
 	prompts := cfg.PromptSection()
 	sys := prompts.PromptCodeActionGoTestSystem

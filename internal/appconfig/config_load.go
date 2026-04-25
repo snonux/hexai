@@ -440,6 +440,8 @@ func applyPromptCodeAction(fc *fileConfig, out *App) {
 		strings.TrimSpace(ca.GoTestUser) == "" &&
 		strings.TrimSpace(ca.SimplifySystem) == "" &&
 		strings.TrimSpace(ca.SimplifyUser) == "" &&
+		strings.TrimSpace(ca.FixTyposSystem) == "" &&
+		strings.TrimSpace(ca.FixTyposUser) == "" &&
 		len(ca.Custom) == 0 {
 		return
 	}
@@ -453,6 +455,8 @@ func applyPromptCodeAction(fc *fileConfig, out *App) {
 	setIfNotBlank(&out.PromptCodeActionGoTestUser, ca.GoTestUser)
 	setIfNotBlank(&out.PromptCodeActionSimplifySystem, ca.SimplifySystem)
 	setIfNotBlank(&out.PromptCodeActionSimplifyUser, ca.SimplifyUser)
+	setIfNotBlank(&out.PromptCodeActionFixTyposSystem, ca.FixTyposSystem)
+	setIfNotBlank(&out.PromptCodeActionFixTyposUser, ca.FixTyposUser)
 	if len(ca.Custom) > 0 {
 		out.CustomActions = append(out.CustomActions, toCustomActions(ca.Custom)...)
 	}

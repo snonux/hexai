@@ -21,7 +21,7 @@ func TestRun_DelegatesToRunCommand(t *testing.T) {
 
 	opts := actionOptions{
 		infile: "in.txt", outfile: "out.txt",
-		tmuxSplit: "h", tmuxPercent: 50,
+		tmuxPopupWidth: "90%", tmuxPopupHeight: "70%",
 	}
 	if err := run(opts, nil, nil, nil); err != nil {
 		t.Fatalf("run: %v", err)
@@ -29,7 +29,7 @@ func TestRun_DelegatesToRunCommand(t *testing.T) {
 	if gotOpts.Infile != "in.txt" || gotOpts.Outfile != "out.txt" {
 		t.Fatalf("unexpected opts: %+v", gotOpts)
 	}
-	if gotOpts.TmuxSplit != "h" || gotOpts.TmuxPercent != 50 {
+	if gotOpts.TmuxPopupWidth != "90%" || gotOpts.TmuxPopupHeight != "70%" {
 		t.Fatalf("unexpected tmux opts: %+v", gotOpts)
 	}
 }
@@ -42,7 +42,7 @@ func TestRun_WithConfigPath(t *testing.T) {
 		return nil
 	}
 
-	opts := actionOptions{configPath: "  /tmp/test.toml  ", tmuxSplit: "v", tmuxPercent: 33}
+	opts := actionOptions{configPath: "  /tmp/test.toml  "}
 	if err := run(opts, nil, nil, nil); err != nil {
 		t.Fatalf("run: %v", err)
 	}

@@ -33,12 +33,10 @@ func TestRunCommand_UIChild(t *testing.T) {
 }
 
 func TestRunCommand_Tmux(t *testing.T) {
-	oldTTY := isTTYFn
 	oldExec := osExecutableFn
-	oldSplit := splitRunFn
-	isTTYFn = func(_ uintptr) bool { return false }
+	oldPopup := popupRunFn
 	osExecutableFn = func() (string, error) { return "/bin/hexai-tmux-action", nil }
-	splitRunFn = func(_ tmux.SplitOpts, argv []string) error {
+	popupRunFn = func(_ tmux.PopupOpts, argv []string) error {
 		for i := 0; i < len(argv)-1; i++ {
 			if argv[i] == "-outfile" && i+1 < len(argv) {
 				_ = os.WriteFile(argv[i+1], []byte("OUT"), 0o600)
@@ -47,7 +45,7 @@ func TestRunCommand_Tmux(t *testing.T) {
 		}
 		return nil
 	}
-	defer func() { isTTYFn = oldTTY; osExecutableFn = oldExec; splitRunFn = oldSplit }()
+	defer func() { osExecutableFn = oldExec; popupRunFn = oldPopup }()
 	var out bytes.Buffer
 	if err := RunCommand(context.Background(), Options{}, bytes.NewBufferString("X"), &out, io.Discard); err != nil {
 		t.Fatalf("RunCommand tmux: %v", err)

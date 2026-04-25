@@ -31,6 +31,7 @@ func newModel() model {
 		item{title: "Simplify and improve", desc: "", kind: ActionSimplify, hotkey: 'i'},
 		item{title: "Document code", desc: "", kind: ActionDocument, hotkey: 'c'},
 		item{title: "Generate Go unit test(s)", desc: "", kind: ActionGoTest, hotkey: 't'},
+		item{title: "Fix typos and improve grammar and clarity", desc: "", kind: ActionFixTypos, hotkey: 'f'},
 		item{title: "Custom prompt", desc: "", kind: ActionCustomPrompt, hotkey: 'p'},
 		item{title: "Skip", desc: "", kind: ActionSkip, hotkey: 's'},
 	}
@@ -81,7 +82,7 @@ func handleKey(m model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if n := len(m.list.Items()); n > 0 {
 			m.list.Select(n - 1)
 		}
-	case "s", "r", "c", "t", "i", "p":
+	case "s", "r", "c", "t", "i", "f", "p":
 		items := m.list.Items()
 		for i := 0; i < len(items); i++ {
 			if it, ok := items[i].(item); ok && strings.ToLower(string(it.hotkey)) == low {

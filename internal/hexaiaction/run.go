@@ -251,6 +251,7 @@ func codeActionHandlers() map[ActionKind]CodeActionHandler {
 		ActionDocument:     codeActionHandler{build: buildDocumentPlan},
 		ActionGoTest:       codeActionHandler{build: buildGoTestPlan},
 		ActionSimplify:     codeActionHandler{build: buildSimplifyPlan},
+		ActionFixTypos:     codeActionHandler{build: buildFixTyposPlan},
 		ActionCustomPrompt: codeActionHandler{build: buildCustomPromptPlan},
 	}
 }
@@ -304,6 +305,15 @@ func buildSimplifyPlan(parts InputParts, cfg actionConfig, client chatDoer, _ io
 	}, true
 }
 
+func buildFixTyposPlan(parts InputParts, cfg actionConfig, client chatDoer, _ io.Writer) (actionPlan, bool) {
+	return actionPlan{
+		fallback: parts.Selection,
+		run: func(ctx context.Context) (string, error) {
+			return handleFixTyposAction(ctx, parts, cfg, client)
+		},
+	}, true
+}
+
 func buildCustomPromptPlan(parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (actionPlan, bool) {
 	return actionPlan{
 		fallback: parts.Selection,
@@ -345,6 +355,12 @@ func handleGoTestAction(ctx context.Context, parts InputParts, cfg actionConfig,
 func handleSimplifyAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
 	return runWithTimeout(ctx, timeout20s, func(cctx context.Context) (string, error) {
 		return runSimplify(cctx, cfg, client, parts.Selection)
+	})
+}
+
+func handleFixTyposAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer) (string, error) {
+	return runWithTimeout(ctx, timeout20s, func(cctx context.Context) (string, error) {
+		return runFixTypos(cctx, cfg, client, parts.Selection)
 	})
 }
 

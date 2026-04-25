@@ -78,9 +78,9 @@ func TestRunInTmuxParent_Stubbed(t *testing.T) {
 	// capture stdout
 	rout, wout, _ := os.Pipe()
 	oldExec := osExecutableFn
-	oldSplit := splitRunFn
+	oldPopup := popupRunFn
 	osExecutableFn = func() (string, error) { return "/bin/hexai-tmux-action", nil }
-	splitRunFn = func(opts tmux.SplitOpts, argv []string) error {
+	popupRunFn = func(opts tmux.PopupOpts, argv []string) error {
 		for i := 0; i < len(argv)-1; i++ {
 			if argv[i] == "-outfile" && i+1 < len(argv) {
 				_ = os.WriteFile(argv[i+1], []byte("OUT:"+strings.Join(argv, ",")), 0o600)
@@ -89,8 +89,8 @@ func TestRunInTmuxParent_Stubbed(t *testing.T) {
 		}
 		return nil
 	}
-	t.Cleanup(func() { osExecutableFn = oldExec; splitRunFn = oldSplit })
-	if err := runInTmuxParent(context.Background(), r, wout, "", "v", 33); err != nil {
+	t.Cleanup(func() { osExecutableFn = oldExec; popupRunFn = oldPopup })
+	if err := runInTmuxParent(context.Background(), r, wout, "", "", ""); err != nil {
 		t.Fatalf("runInTmuxParent: %v", err)
 	}
 	_ = wout.Close()
@@ -108,22 +108,22 @@ func TestRunInTmuxParent_ExecutableError(t *testing.T) {
 	r, w, _ := os.Pipe()
 	_, _ = w.Write([]byte("x"))
 	_ = w.Close()
-	if err := runInTmuxParent(context.Background(), r, io.Discard, "", "v", 33); err == nil {
+	if err := runInTmuxParent(context.Background(), r, io.Discard, "", "", ""); err == nil {
 		t.Fatal("expected error from missing executable")
 	}
 }
 
-func TestRunInTmuxParent_SplitError(t *testing.T) {
+func TestRunInTmuxParent_PopupError(t *testing.T) {
 	oldExec := osExecutableFn
 	osExecutableFn = func() (string, error) { return "/bin/hexai-tmux-action", nil }
-	oldSplit := splitRunFn
-	splitRunFn = func(_ tmux.SplitOpts, _ []string) error { return fmt.Errorf("split failed") }
-	t.Cleanup(func() { osExecutableFn = oldExec; splitRunFn = oldSplit })
+	oldPopup := popupRunFn
+	popupRunFn = func(_ tmux.PopupOpts, _ []string) error { return fmt.Errorf("popup failed") }
+	t.Cleanup(func() { osExecutableFn = oldExec; popupRunFn = oldPopup })
 	r, w, _ := os.Pipe()
 	_, _ = w.Write([]byte("x"))
 	_ = w.Close()
-	if err := runInTmuxParent(context.Background(), r, io.Discard, "", "v", 33); err == nil {
-		t.Fatal("expected split error")
+	if err := runInTmuxParent(context.Background(), r, io.Discard, "", "", ""); err == nil {
+		t.Fatal("expected popup error")
 	}
 }
 
