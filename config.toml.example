@@ -148,6 +148,39 @@ temperature = 0.2
 [tmux]
 # custom_menu_hotkey = "a"            # hotkey to open the custom actions submenu in hexai-tmux-action
 
+# hexai-tmux-action menu configuration (optional).
+# When [[tmux_action.menu]] is defined it completely replaces the built-in menu.
+# Valid built-in kinds: rewrite, simplify, document, gotest, fix_typos, custom_prompt, skip.
+# Use kind = "custom" with custom_id referencing a [[prompts.code_action.custom]] id
+# to embed a custom action directly in the main menu instead of the submenu.
+# title and hotkey are optional; built-in defaults are used when omitted.
+#
+# [[tmux_action.menu]]
+# kind   = "rewrite"
+# hotkey = "r"
+#
+# [[tmux_action.menu]]
+# kind   = "simplify"
+# hotkey = "i"
+#
+# [[tmux_action.menu]]
+# kind   = "fix_typos"
+# hotkey = "f"
+#
+# [[tmux_action.menu]]
+# kind      = "custom"
+# custom_id = "extract-function"   # must match id in [[prompts.code_action.custom]]
+# hotkey    = "e"
+# title     = "Extract function"   # optional override
+#
+# [[tmux_action.menu]]
+# kind   = "custom_prompt"
+# hotkey = "p"
+#
+# [[tmux_action.menu]]
+# kind   = "skip"
+# hotkey = "s"
+
 [stats]
 # window_minutes = 60                  # sliding window for global stats (Σ@window); min 1, max 1440
 

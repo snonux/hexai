@@ -35,6 +35,19 @@ type CustomAction struct {
 	User        string // optional; if set, render with available vars
 }
 
+// TmuxActionMenuEntry configures a single entry in the hexai-tmux-action menu.
+// Set Kind to a built-in action kind (rewrite, simplify, document, gotest,
+// fix_typos, custom_prompt, skip) or to "custom" to embed a custom action
+// directly in the main menu (requires CustomID referencing a
+// [[prompts.code_action.custom]] entry). Title and Hotkey are optional
+// overrides; built-in defaults are used when left empty.
+type TmuxActionMenuEntry struct {
+	Kind     string // built-in kind or "custom"
+	CustomID string // used when Kind == "custom", references a custom action by id
+	Title    string // optional title override
+	Hotkey   string // optional single-character hotkey override
+}
+
 // TmuxEditAgentCfg describes an AI agent's detection and interaction patterns
 // for the tmux popup editor (hexai-tmux-edit).
 type TmuxEditAgentCfg struct {
@@ -155,6 +168,7 @@ type fileConfig struct {
 	Stats      sectionStats      `toml:"stats"`
 	Ignore     sectionIgnore     `toml:"ignore"`
 	TmuxEdit   sectionTmuxEdit   `toml:"tmux_edit"`
+	TmuxAction sectionTmuxAction `toml:"tmux_action"`
 	MCP        sectionMCP        `toml:"mcp"`
 }
 
@@ -351,4 +365,15 @@ type sectionCustomAction struct {
 
 type sectionTmux struct {
 	CustomMenuHotkey string `toml:"custom_menu_hotkey"`
+}
+
+type sectionTmuxAction struct {
+	Menu []sectionTmuxActionMenuEntry `toml:"menu"`
+}
+
+type sectionTmuxActionMenuEntry struct {
+	Kind     string `toml:"kind"`
+	CustomID string `toml:"custom_id"`
+	Title    string `toml:"title"`
+	Hotkey   string `toml:"hotkey"`
 }

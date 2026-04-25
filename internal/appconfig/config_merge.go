@@ -11,6 +11,7 @@ func (a *App) mergeWith(other *App) {
 	a.mergeSurfaceModels(other)
 	a.mergePrompts(other)
 	a.mergeTmuxEdit(other)
+	a.mergeTmuxAction(other)
 }
 
 // mergeBasics merges general (non-provider) fields.
@@ -224,6 +225,13 @@ func mergeCustomActionPrompts(dst, src *App) {
 func mergeStringField(dst *string, src string) {
 	if strings.TrimSpace(src) != "" {
 		*dst = src
+	}
+}
+
+// mergeTmuxAction replaces the action menu when the incoming config defines one.
+func (a *App) mergeTmuxAction(other *App) {
+	if len(other.TmuxActionMenu) > 0 {
+		a.TmuxActionMenu = append([]TmuxActionMenuEntry{}, other.TmuxActionMenu...)
 	}
 }
 

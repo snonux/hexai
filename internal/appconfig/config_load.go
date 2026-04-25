@@ -284,6 +284,24 @@ func applyFeatureSections(fc *fileConfig, out *App) {
 	applyStatsSection(fc, out)
 	fc.applyTmuxEdit(out)
 	applyMCPSection(fc, out)
+	applyTmuxActionSection(fc, out)
+}
+
+// applyTmuxActionSection converts [[tmux_action.menu]] entries into App fields.
+func applyTmuxActionSection(fc *fileConfig, out *App) {
+	if len(fc.TmuxAction.Menu) == 0 {
+		return
+	}
+	entries := make([]TmuxActionMenuEntry, 0, len(fc.TmuxAction.Menu))
+	for _, e := range fc.TmuxAction.Menu {
+		entries = append(entries, TmuxActionMenuEntry{
+			Kind:     strings.TrimSpace(e.Kind),
+			CustomID: strings.TrimSpace(e.CustomID),
+			Title:    strings.TrimSpace(e.Title),
+			Hotkey:   strings.TrimSpace(e.Hotkey),
+		})
+	}
+	out.TmuxActionMenu = entries
 }
 
 func applyGeneralSection(fc *fileConfig, out *App) {

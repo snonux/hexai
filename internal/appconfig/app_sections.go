@@ -114,6 +114,8 @@ type FeatureConfig struct {
 	TmuxEditPopupHeight  string             `json:"-"`
 	TmuxEditDefaultAgent string             `json:"-"`
 	TmuxEditAgents       []TmuxEditAgentCfg `json:"-"`
+	// TmuxAction: configurable main menu for hexai-tmux-action
+	TmuxActionMenu []TmuxActionMenuEntry `json:"-"`
 	// MCP: Model Context Protocol server settings
 	MCPPromptsDir       string `json:"-"` // Directory for prompt storage
 	MCPSlashCommandSync bool   `json:"-"` // Enable slash command sync
@@ -205,6 +207,7 @@ func (a *App) FeatureSection() FeatureConfig {
 	f := a.FeatureConfig
 	f.IgnoreExtraPatterns = slices.Clone(a.IgnoreExtraPatterns)
 	f.TmuxEditAgents = append([]TmuxEditAgentCfg{}, a.TmuxEditAgents...)
+	f.TmuxActionMenu = append([]TmuxActionMenuEntry{}, a.TmuxActionMenu...)
 	return f
 }
 
@@ -214,4 +217,5 @@ func (a *App) ApplyFeatureSection(features FeatureConfig) {
 	a.FeatureConfig = features
 	a.IgnoreExtraPatterns = slices.Clone(features.IgnoreExtraPatterns)
 	a.TmuxEditAgents = append([]TmuxEditAgentCfg{}, features.TmuxEditAgents...)
+	a.TmuxActionMenu = append([]TmuxActionMenuEntry{}, features.TmuxActionMenu...)
 }

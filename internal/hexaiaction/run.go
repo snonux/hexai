@@ -89,6 +89,12 @@ func NewRunner() *Runner {
 }
 
 func chooseActionFromConfig(cfg appconfig.App) (actionChoice, error) {
+	// Config-driven menu takes priority when defined.
+	if len(cfg.TmuxActionMenu) > 0 {
+		kind, custom, err := RunTUIFromConfig(cfg.TmuxActionMenu, cfg.CustomActions)
+		return actionChoice{kind: kind, custom: custom}, err
+	}
+	// Default path: built-in menu, with optional custom-actions submenu.
 	if len(cfg.CustomActions) == 0 {
 		kind, err := RunTUI()
 		return actionChoice{kind: kind}, err
