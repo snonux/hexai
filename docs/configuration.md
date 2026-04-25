@@ -87,16 +87,40 @@ This is mostly useful when Helix runs in a [tmux](https://tmux.github.io/) sessi
 - Helix integration (recommended): bind a key to pipe the current selection to `hexai-tmux-action` and replace it with the output.
   - Example: `C-a = ":pipe hexai-tmux-action"`
 - Default behavior:
-  - Inline TUI when run in a real terminal (TTY).
-  - When invoked via Helix `:pipe`, `hexai-tmux-action` opens a split pane to render the menu and returns the result on stdout for Helix to apply.
-  - If no TTY and no tmux are available, it falls back to echoing the input.
+  - When invoked via Helix `:pipe`, `hexai-tmux-action` opens a tmux popup to render the menu and returns the result on stdout for Helix to apply.
 - Flags:
   - `--infile`  Read input from the given file instead of stdin.
   - `--outfile` Write output to the given file instead of stdout (truncates/creates).
-  - `--tmux-target` tmux target pane/window (advanced).
-  - `--tmux-split v|h` split orientation (default: `v`).
-  - `--tmux-percent N` split size percentage (default: `33`).
+  - `--tmux-target` tmux target pane (advanced).
+  - `--tmux-popup-width` popup width (default: `60%`).
+  - `--tmux-popup-height` popup height (default: `50%`).
   - `--ui-child` internal; used by the parent process when spawning inside tmux.
+
+Configurable menu
+
+By default `hexai-tmux-action` shows all built-in actions. Define `[[tmux_action.menu]]` in `config.toml` to fully replace the menu — reorder, remove, rename, rebind hotkeys, or embed custom actions directly in the main menu instead of the submenu:
+
+```toml
+[[tmux_action.menu]]
+kind   = "rewrite"
+hotkey = "r"
+
+[[tmux_action.menu]]
+kind   = "fix_typos"
+hotkey = "f"
+title  = "Proofread"   # optional title override
+
+[[tmux_action.menu]]
+kind      = "custom"
+custom_id = "extract-function"   # references [[prompts.code_action.custom]]
+hotkey    = "e"
+
+[[tmux_action.menu]]
+kind   = "skip"
+hotkey = "s"
+```
+
+Valid built-in kinds: `rewrite`, `simplify`, `document`, `gotest`, `fix_typos`, `custom_prompt`, `skip`.
 
 Editor integration
 
@@ -110,9 +134,18 @@ See the [tmux integration guide](docs/tmux.md) for details on configuring the st
 
 Code action prompts
 
-- All prompts can be customized under `[prompts.code_action]` in `config.toml`. In addition to `rewrite_*`, `diagnostics_*`, `document_*`, and `go_test_*`, the following templates control the \u201cSimplify and improve\u201d action:
-  - `simplify_system`
-  - `simplify_user` (uses `{{selection}}`)
+All prompts used by `hexai-tmux-action` (and the LSP code actions) can be overridden under `[prompts.code_action]` in `config.toml`. Each action has a `*_system` and a `*_user` template. Specifying a value completely replaces the built-in default; omitting it leaves the default in place.
+
+| Key prefix | Action |
+|---|---|
+| `rewrite_*` | Rewrite selection |
+| `diagnostics_*` | Resolve diagnostics |
+| `document_*` | Document code |
+| `go_test_*` | Generate Go unit test(s) |
+| `simplify_*` | Simplify and improve |
+| `fix_typos_*` | Fix typos and improve grammar and clarity |
+
+User templates support `{{selection}}` (always available) and `{{diagnostics}}` (diagnostics scope). See [config.toml.example](../config.toml.example) for the full defaults.
 
 Hexai Tmux Edit (popup editor)
 

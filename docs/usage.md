@@ -215,12 +215,23 @@ ask done 0
 
 ## Hexai Action (TUI)
 
-`hexai-tmux-action` runs code actions over a selection or diagnostics+selection piped from stdin, or read from a file.
+`hexai-tmux-action` runs code actions over a selection or diagnostics+selection piped from stdin, or read from a file. When invoked from Helix `:pipe`, it opens a tmux popup to display the menu and returns the result on stdout.
 
-- Choose an action with arrow keys, `j/k`, `g/G`, Enter, or hotkeys `[s] [r] [c] [t]`.
-  - Includes: Rewrite selection, Simplify and improve, Document code, Generate Go unit test(s), Skip.
-  - “Custom prompt” (hotkey `[p]`) opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary `.md` file to write a free-form instruction.
+- Choose an action with arrow keys, `j/k`, `g/G`, Enter, or single-character hotkeys.
+- Default built-in actions and hotkeys:
+
+| Hotkey | Action |
+|---|---|
+| `r` | Rewrite selection |
+| `i` | Simplify and improve |
+| `c` | Document code |
+| `t` | Generate Go unit test(s) |
+| `f` | Fix typos and improve grammar and clarity |
+| `p` | Custom prompt (opens `$HEXAI_EDITOR` / `$EDITOR` on a temporary `.md` file) |
+| `s` | Skip |
+
 - Output is written to stdout by default, or to a file via `--outfile`.
+- The menu can be fully replaced via `[[tmux_action.menu]]` in `config.toml` — see the [configuration guide](configuration.md) for details.
 
 Input formats
 

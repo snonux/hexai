@@ -31,7 +31,11 @@ It has got improved capabilities for Go code understanding (for example, create 
   - File-based storage with JSONL format (git-friendly)
   - Built-in meta-prompts for interactive prompt creation and management
 * TUI AI code-action runner (`hexai-tmux-action`) with Bubble Tea
-  - Includes a "Custom prompt" action (hotkey `p`) that opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary Markdown file.
+  - Opens as a tmux popup when invoked from Helix `:pipe`
+  - Built-in actions: Rewrite (`r`), Simplify (`i`), Document (`c`), Go tests (`t`), Fix typos (`f`), Custom prompt (`p`), Skip (`s`)
+  - Fully configurable menu via `[[tmux_action.menu]]` — reorder, remove, rename, rebind hotkeys, embed custom actions directly in main menu
+  - All action prompts overridable via `[prompts.code_action]` in `config.toml`
+  - Custom prompt action opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary Markdown file
 * Tmux popup editor (`hexai-tmux-edit`) for composing longer AI agent prompts
   - Opens `$EDITOR` in a tmux popup, pre-filled with the current prompt text
   - Auto-detects Cursor, Amp, Aider (WIP), and other agents
