@@ -103,5 +103,11 @@ func NewClientFromApp(cfg appconfig.App) (llm.Client, error) {
 	if strings.TrimSpace(anKey) == "" {
 		anKey = os.Getenv("ANTHROPIC_API_KEY")
 	}
-	return llm.NewFromConfig(llmCfg, oaKey, orKey, anKey)
+	// Ollama API key is optional: only needed for Ollama Cloud (ollama.ai).
+	// A local Ollama server keeps working when this is empty.
+	olKey := os.Getenv("HEXAI_OLLAMA_API_KEY")
+	if strings.TrimSpace(olKey) == "" {
+		olKey = os.Getenv("OLLAMA_API_KEY")
+	}
+	return llm.NewFromConfig(llmCfg, oaKey, orKey, anKey, olKey)
 }

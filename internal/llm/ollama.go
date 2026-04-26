@@ -1,4 +1,6 @@
-// Ollama client against a local server; supports chat responses and streaming via /api/chat.
+// Ollama client supporting both a local server and Ollama Cloud (ollama.ai).
+// The optional API key is sent as a Bearer token; when empty, requests are
+// unauthenticated so a local Ollama server keeps working unchanged.
 package llm
 
 import (
@@ -14,11 +16,13 @@ import (
 	"codeberg.org/snonux/hexai/internal/logging"
 )
 
-// ollamaClient implements Client against a local Ollama server.
+// ollamaClient implements Client against a local Ollama server or Ollama Cloud.
+// apiKey is optional: empty for local, non-empty enables Bearer auth for cloud.
 type ollamaClient struct {
 	httpClient         *http.Client
 	baseURL            string
 	defaultModel       string
+	apiKey             string
 	chatLogger         logging.ChatLogger
 	defaultTemperature *float64
 }
@@ -45,21 +49,23 @@ type ollamaChatResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
-func ollamaProviderFactory(cfg Config, _ ProviderKeys) (Client, error) {
+func ollamaProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	return newOllamaWithTimeout(
 		cfg.OllamaBaseURL,
 		cfg.OllamaModel,
+		keys.OllamaAPIKey,
 		withDefaultTemperature(cfg.OllamaTemperature, 0.2),
 		cfg.RequestTimeout,
 	), nil
 }
 
-// Constructor (kept among the first functions by convention)
-func newOllama(baseURL, model string, defaultTemp *float64) Client {
-	return newOllamaWithTimeout(baseURL, model, defaultTemp, 0)
+// Constructor (kept among the first functions by convention).
+// apiKey may be empty for local Ollama; pass a non-empty key for Ollama Cloud.
+func newOllama(baseURL, model string, defaultTemp *float64, apiKey string) Client {
+	return newOllamaWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
 }
 
-func newOllamaWithTimeout(baseURL, model string, defaultTemp *float64, timeoutSec int) Client {
+func newOllamaWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "http://localhost:11434"
 	}
@@ -73,6 +79,7 @@ func newOllamaWithTimeout(baseURL, model string, defaultTemp *float64, timeoutSe
 		httpClient:         &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 		baseURL:            strings.TrimRight(baseURL, "/"),
 		defaultModel:       model,
+		apiKey:             strings.TrimSpace(apiKey),
 		chatLogger:         logging.NewChatLogger("ollama"),
 		defaultTemperature: defaultTemp,
 	}
@@ -228,7 +235,17 @@ func buildOllamaRequest(o Options, messages []Message, defaultTemp *float64, str
 }
 
 func (c ollamaClient) doJSON(ctx context.Context, url string, body []byte) (*http.Response, error) {
-	return doJSONRequest(ctx, c.httpClient, url, body, nil, "")
+	return doJSONRequest(ctx, c.httpClient, url, body, c.authHeaders(), "")
+}
+
+// authHeaders returns Bearer auth for Ollama Cloud, or nil for unauthenticated
+// local Ollama. Returning nil keeps the local request shape byte-identical to
+// the previous implementation.
+func (c ollamaClient) authHeaders() map[string]string {
+	if c.apiKey == "" {
+		return nil
+	}
+	return map[string]string{"Authorization": "Bearer " + c.apiKey}
 }
 
 func handleOllamaNon2xx(resp *http.Response, start time.Time) error {

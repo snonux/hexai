@@ -16,7 +16,7 @@ func TestWithOptions_Apply(t *testing.T) {
 func TestNewFromConfig_Success_OpenAI(t *testing.T) {
 	// OpenAI success
 	oc := Config{Provider: "openai", OpenAIBaseURL: "http://x", OpenAIModel: "gpt"}
-	c, err := NewFromConfig(oc, "KEY", "", "")
+	c, err := NewFromConfig(oc, "KEY", "", "", "")
 	if err != nil || c == nil || c.Name() != "openai" || c.DefaultModel() == "" {
 		t.Fatalf("openai new: %v %v", c, err)
 	}

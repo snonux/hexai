@@ -94,10 +94,13 @@ type Config struct {
 }
 
 // ProviderKeys contains API credentials used by provider factories.
+// OllamaAPIKey is optional: it enables auth against Ollama Cloud while a local
+// Ollama server still works with an empty key.
 type ProviderKeys struct {
 	OpenAIAPIKey     string
 	OpenRouterAPIKey string
 	AnthropicAPIKey  string
+	OllamaAPIKey     string
 }
 
 // ProviderFactory builds an LLM client for a named provider.
@@ -143,9 +146,10 @@ func RegisterAllProviders() {
 }
 
 // NewFromConfig creates an LLM client using only the supplied configuration.
-// The OpenAI API key is supplied separately and may be read from the environment
-// by the caller; other environment-based configuration is not used.
-func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, anthropicAPIKey string) (Client, error) {
+// API keys are supplied separately and may be read from the environment by the
+// caller. ollamaAPIKey is optional and only used when targeting Ollama Cloud;
+// a local Ollama server works with an empty value.
+func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, anthropicAPIKey, ollamaAPIKey string) (Client, error) {
 	provider := normalizeProvider(cfg.Provider)
 	if provider == "" {
 		provider = "openai"
@@ -160,6 +164,7 @@ func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, anthropicAPIKey s
 		OpenAIAPIKey:     openAIAPIKey,
 		OpenRouterAPIKey: openRouterAPIKey,
 		AnthropicAPIKey:  anthropicAPIKey,
+		OllamaAPIKey:     ollamaAPIKey,
 	})
 }
 

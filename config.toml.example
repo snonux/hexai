@@ -83,6 +83,11 @@ temperature = 0.2
 [ollama]
 model       = "qwen3-coder:30b-a3b-q4_K_M"
 base_url    = "http://localhost:11434"
+# For Ollama Cloud (ollama.ai subscription), point at the cloud endpoint and
+# export an API key in the environment. The key is optional: leave it unset
+# for a local Ollama server.
+#   base_url = "https://ollama.com"
+#   export HEXAI_OLLAMA_API_KEY=...   # or OLLAMA_API_KEY
 temperature = 0.2
 
 [anthropic]

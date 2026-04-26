@@ -49,13 +49,73 @@ func TestBuildOllamaRequest_TempOverride(t *testing.T) {
 }
 
 func TestOllama_NameAndModel(t *testing.T) {
-	c := newOllama("http://x", "model-x", nil).(ollamaClient)
+	c := newOllama("http://x", "model-x", nil, "").(ollamaClient)
 	if c.Name() != "ollama" {
 		t.Fatalf("name: %q", c.Name())
 	}
 	if c.DefaultModel() != "model-x" {
 		t.Fatalf("default model: %q", c.DefaultModel())
 	}
+}
+
+// Local Ollama (no key) must not send an Authorization header — the existing
+// unauthenticated server would reject or misinterpret one.
+func TestOllamaChat_NoAuthHeaderWhenKeyEmpty(t *testing.T) {
+	if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" {
+		t.Skip("skip network-bound tests in restricted environments")
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "" {
+			t.Fatalf("expected no Authorization header, got %q", got)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"message": map[string]string{"role": "assistant", "content": "ok"}, "done": true})
+	}))
+	defer ts.Close()
+	c := newOllama(ts.URL, "m", nil, "").(ollamaClient)
+	c.httpClient = ts.Client()
+	if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}}); err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+}
+
+// Ollama Cloud usage: when an API key is configured, both Chat and ChatStream
+// must send "Authorization: Bearer <key>".
+func TestOllamaChat_AuthHeaderWhenKeySet(t *testing.T) {
+	if os.Getenv("HEXAI_TEST_SKIP_NET") == "1" {
+		t.Skip("skip network-bound tests in restricted environments")
+	}
+	const key = "test-key-xyz"
+	const want = "Bearer " + key
+
+	t.Run("chat", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if got := r.Header.Get("Authorization"); got != want {
+				t.Fatalf("Authorization: got %q, want %q", got, want)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"message": map[string]string{"role": "assistant", "content": "ok"}, "done": true})
+		}))
+		defer ts.Close()
+		c := newOllama(ts.URL, "m", f64p(0.1), key).(ollamaClient)
+		c.httpClient = ts.Client()
+		if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}}); err != nil {
+			t.Fatalf("unexpected: %v", err)
+		}
+	})
+
+	t.Run("stream", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if got := r.Header.Get("Authorization"); got != want {
+				t.Fatalf("Authorization: got %q, want %q", got, want)
+			}
+			_, _ = w.Write([]byte(`{"message":{"role":"assistant","content":"ok"},"done":true}`))
+		}))
+		defer ts.Close()
+		c := newOllama(ts.URL, "m", nil, key).(ollamaClient)
+		c.httpClient = ts.Client()
+		if err := c.ChatStream(context.Background(), []Message{{Role: "user", Content: "hi"}}, func(string) {}); err != nil {
+			t.Fatalf("unexpected: %v", err)
+		}
+	})
 }
 
 func TestOllamaChat_Success(t *testing.T) {
@@ -70,7 +130,7 @@ func TestOllamaChat_Success(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"message": map[string]string{"role": "assistant", "content": "Hello"}, "done": true})
 	}))
 	defer ts.Close()
-	c := newOllama(ts.URL, "m", f64p(0.1)).(ollamaClient)
+	c := newOllama(ts.URL, "m", f64p(0.1), "").(ollamaClient)
 	c.httpClient = ts.Client()
 	out, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}})
 	if err != nil {
@@ -89,7 +149,7 @@ func TestOllamaChat_EmptyContent(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"message": map[string]string{"role": "assistant", "content": ""}, "done": true})
 	}))
 	defer ts.Close()
-	c := newOllama(ts.URL, "m", nil).(ollamaClient)
+	c := newOllama(ts.URL, "m", nil, "").(ollamaClient)
 	c.httpClient = ts.Client()
 	if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "x"}}); err == nil {
 		t.Fatalf("expected error for empty content")
@@ -106,7 +166,7 @@ func TestOllamaChat_Non2xx(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": "bad"})
 	}))
 	defer ts1.Close()
-	c1 := newOllama(ts1.URL, "m", nil).(ollamaClient)
+	c1 := newOllama(ts1.URL, "m", nil, "").(ollamaClient)
 	c1.httpClient = ts1.Client()
 	if _, err := c1.Chat(context.Background(), []Message{{Role: "user", Content: "x"}}); err == nil {
 		t.Fatalf("expected error for 400 with api body")
@@ -117,7 +177,7 @@ func TestOllamaChat_Non2xx(t *testing.T) {
 		_, _ = w.Write([]byte("{}"))
 	}))
 	defer ts2.Close()
-	c2 := newOllama(ts2.URL, "m", nil).(ollamaClient)
+	c2 := newOllama(ts2.URL, "m", nil, "").(ollamaClient)
 	c2.httpClient = ts2.Client()
 	if _, err := c2.Chat(context.Background(), []Message{{Role: "user", Content: "x"}}); err == nil {
 		t.Fatalf("expected error for 500")
@@ -129,7 +189,7 @@ type rtFunc func(*http.Request) (*http.Response, error)
 func (f rtFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestOllamaChat_HTTPError(t *testing.T) {
-	c := newOllama("http://127.0.0.1:0", "m", nil).(ollamaClient)
+	c := newOllama("http://127.0.0.1:0", "m", nil, "").(ollamaClient)
 	c.httpClient = &http.Client{Transport: rtFunc(func(*http.Request) (*http.Response, error) { return nil, fmt.Errorf("boom") })}
 	if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "x"}}); err == nil {
 		t.Fatalf("expected http error path")
@@ -144,7 +204,7 @@ func TestOllamaChat_DecodeError(t *testing.T) {
 		_, _ = w.Write([]byte("{bad json}"))
 	}))
 	defer ts.Close()
-	c := newOllama(ts.URL, "m", nil).(ollamaClient)
+	c := newOllama(ts.URL, "m", nil, "").(ollamaClient)
 	c.httpClient = ts.Client()
 	if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "x"}}); err == nil {
 		t.Fatalf("expected decode error")
@@ -169,7 +229,7 @@ func TestOllamaChatStream_Success(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message":{"role":"assistant","content":"!"},"done":true}`))
 	}))
 	defer ts.Close()
-	c := newOllama(ts.URL, "m", nil).(ollamaClient)
+	c := newOllama(ts.URL, "m", nil, "").(ollamaClient)
 	c.httpClient = ts.Client()
 	var got strings.Builder
 	if err := c.ChatStream(context.Background(), []Message{{Role: "user", Content: "x"}}, func(s string) { got.WriteString(s) }); err != nil {
@@ -188,7 +248,7 @@ func TestOllamaChatStream_ErrorEvent(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": "oops"})
 	}))
 	defer ts.Close()
-	c := newOllama(ts.URL, "m", nil).(ollamaClient)
+	c := newOllama(ts.URL, "m", nil, "").(ollamaClient)
 	c.httpClient = ts.Client()
 	if err := c.ChatStream(context.Background(), []Message{{Role: "user", Content: "x"}}, func(string) {}); err == nil {
 		t.Fatalf("expected stream error")
@@ -203,7 +263,7 @@ func TestOllamaChatStream_DecodeError(t *testing.T) {
 		_, _ = w.Write([]byte("{not json}"))
 	}))
 	defer ts.Close()
-	c := newOllama(ts.URL, "m", nil).(ollamaClient)
+	c := newOllama(ts.URL, "m", nil, "").(ollamaClient)
 	c.httpClient = ts.Client()
 	if err := c.ChatStream(context.Background(), []Message{{Role: "user", Content: "x"}}, func(string) {}); err == nil {
 		t.Fatalf("expected decode error")
