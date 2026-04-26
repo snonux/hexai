@@ -152,7 +152,7 @@ func RegisterAllProviders() {
 func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, anthropicAPIKey, ollamaAPIKey string) (Client, error) {
 	provider := normalizeProvider(cfg.Provider)
 	if provider == "" {
-		provider = "openai"
+		provider = "ollama"
 	}
 
 	factory, ok := lookupProviderFactory(provider)

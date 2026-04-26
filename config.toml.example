@@ -68,7 +68,18 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 # temperature = 0.6
 
 [provider]
-name = "openai"                      # openai | openrouter | anthropic | ollama
+# Ollama Cloud (ollama.ai) is the recommended default. The API key is read
+# from HEXAI_OLLAMA_API_KEY (falling back to OLLAMA_API_KEY).
+name = "ollama"                      # ollama | openai | openrouter | anthropic
+
+[ollama]
+model       = "kimi-k2.6"
+base_url    = "https://ollama.com"
+# To run against a local Ollama server instead, point at it and pick a local
+# model. No API key is required when targeting localhost.
+#   model    = "qwen3-coder:30b-a3b-q4_K_M"
+#   base_url = "http://localhost:11434"
+temperature = 0.2
 
 [openai]
 model       = "gpt-4.1"
@@ -78,16 +89,6 @@ temperature = 0.2
 [openrouter]
 model       = "openrouter/auto"
 base_url    = "https://openrouter.ai/api/v1"
-temperature = 0.2
-
-[ollama]
-model       = "qwen3-coder:30b-a3b-q4_K_M"
-base_url    = "http://localhost:11434"
-# For Ollama Cloud (ollama.ai subscription), point at the cloud endpoint and
-# export an API key in the environment. The key is optional: leave it unset
-# for a local Ollama server.
-#   base_url = "https://ollama.com"
-#   export HEXAI_OLLAMA_API_KEY=...   # or OLLAMA_API_KEY
 temperature = 0.2
 
 [anthropic]

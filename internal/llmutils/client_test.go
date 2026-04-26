@@ -37,7 +37,7 @@ func TestCanonicalProvider(t *testing.T) {
 	if got := CanonicalProvider("  OpenRouter "); got != "openrouter" {
 		t.Fatalf("CanonicalProvider(openrouter) = %q", got)
 	}
-	if got := CanonicalProvider(" "); got != "openai" {
+	if got := CanonicalProvider(" "); got != "ollama" {
 		t.Fatalf("CanonicalProvider(empty) = %q", got)
 	}
 }
@@ -73,7 +73,7 @@ func TestDefaultModelForProvider_Fallbacks(t *testing.T) {
 	if got := DefaultModelForProvider(cfg, "openrouter"); got != "openrouter/auto" {
 		t.Fatalf("openrouter fallback = %q", got)
 	}
-	if got := DefaultModelForProvider(cfg, "ollama"); got != "qwen3-coder:30b-a3b-q4_K_M" {
+	if got := DefaultModelForProvider(cfg, "ollama"); got != "kimi-k2.6" {
 		t.Fatalf("ollama fallback = %q", got)
 	}
 	if got := DefaultModelForProvider(cfg, "anthropic"); got != "claude-3-5-sonnet-20240620" {

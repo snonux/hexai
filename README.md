@@ -41,7 +41,7 @@ It has got improved capabilities for Go code understanding (for example, create 
   - Auto-detects Cursor, Amp, Aider (WIP), and other agents
   - OpenAI Codex CLI and Claude Code CLI have native external-editor support via `Ctrl+G`
   - Config-driven: add new agents via `[tmux_edit]` in config.toml
-* Support for OpenAI, OpenRouter, Anthropic, and Ollama
+* Support for Ollama (local + Ollama Cloud), OpenAI, OpenRouter, and Anthropic — Ollama Cloud (`kimi-k2.6` at `https://ollama.com`) is the default
 
 > **Note on hexai-mcp-server:** This component is currently experimental and not actively maintained. The author manages prompts through slash commands and meta-commands in the hexai agent system, making the MCP server redundant for its original purpose. The code is preserved for potential future enhancements with different functionality beyond prompt management. See the [MCP documentation](docs/mcp-setup.md) for reference only.
 

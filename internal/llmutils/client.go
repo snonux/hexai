@@ -8,11 +8,12 @@ import (
 	"codeberg.org/snonux/hexai/internal/llm"
 )
 
-// CanonicalProvider normalizes provider names and defaults to openai.
+// CanonicalProvider normalizes provider names and defaults to ollama (Ollama
+// Cloud at https://ollama.com when paired with the default base URL).
 func CanonicalProvider(name string) string {
 	provider := strings.ToLower(strings.TrimSpace(name))
 	if provider == "" {
-		return "openai"
+		return "ollama"
 	}
 	return provider
 }
@@ -29,7 +30,7 @@ func DefaultModelForProvider(cfg appconfig.App, provider string) string {
 		if model := strings.TrimSpace(cfg.OllamaModel); model != "" {
 			return model
 		}
-		return "qwen3-coder:30b-a3b-q4_K_M"
+		return "kimi-k2.6"
 	case "anthropic":
 		if model := strings.TrimSpace(cfg.AnthropicModel); model != "" {
 			return model

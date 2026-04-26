@@ -24,6 +24,9 @@ func TestRequestSpec_Gpt5_ForcesTemp1(t *testing.T) {
 	s := newTestServer()
 	one := 0.2
 	s.cfg.CodingTemperature = &one
+	// Pin Provider explicitly: the in-code default is now ollama, but the
+	// gpt-5 temperature-force rule only fires for openai.
+	s.cfg.Provider = "openai"
 	s.llmClient = fakeClient{name: "openai", model: "gpt-5.0"}
 	s.cfg.OpenAIModel = "gpt-5.0"
 

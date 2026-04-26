@@ -66,11 +66,14 @@ func newOllama(baseURL, model string, defaultTemp *float64, apiKey string) Clien
 }
 
 func newOllamaWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
+	// Defaults target Ollama Cloud (ollama.ai); a local server is opted into
+	// by setting base_url = "http://localhost:11434" (or HEXAI_OLLAMA_BASE_URL)
+	// and an appropriate model.
 	if strings.TrimSpace(baseURL) == "" {
-		baseURL = "http://localhost:11434"
+		baseURL = "https://ollama.com"
 	}
 	if strings.TrimSpace(model) == "" {
-		model = "qwen3-coder:30b-a3b-q4_K_M"
+		model = "kimi-k2.6"
 	}
 	if timeoutSec <= 0 {
 		timeoutSec = 30

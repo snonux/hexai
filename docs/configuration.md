@@ -65,20 +65,22 @@ Runtime reloads
 
 API keys:
 
+- Ollama Cloud (recommended default): prefer `HEXAI_OLLAMA_API_KEY`, falling back to `OLLAMA_API_KEY`. The key is optional — leave it unset to talk to a local Ollama server.
 - OpenAI: prefer `HEXAI_OPENAI_API_KEY`, falling back to `OPENAI_API_KEY`.
 - OpenRouter: prefer `HEXAI_OPENROUTER_API_KEY`, falling back to `OPENROUTER_API_KEY`.
+- Anthropic: prefer `HEXAI_ANTHROPIC_API_KEY`, falling back to `ANTHROPIC_API_KEY`.
 
 Selecting a provider
 
-- Sectioned: set `[provider] name = "openai" | "openrouter" | "anthropic" | "ollama"`.
-- If omitted, Hexai defaults to `openai`.
+- Sectioned: set `[provider] name = "ollama" | "openai" | "openrouter" | "anthropic"`.
+- If omitted, Hexai defaults to `ollama` (Ollama Cloud at `https://ollama.com` with model `kimi-k2.6`).
 - Selecting `openrouter` uses https://openrouter.ai/api/v1 by default and automatically sends the required `HTTP-Referer` (`https://github.com/snonux/hexai`) and `X-Title` (`Hexai`) headers. Override the base URL via `[openrouter]` or environment variables when needed.
 
 Notes on Ollama:
 
-- Ensure the model is available locally (e.g., `ollama pull qwen3-coder:30b-a3b-q4_K_M`).
-- Alternatively, run Ollama in OpenAI‑compatible mode and use the OpenAI provider with
-  `openai_base_url` pointed at your local endpoint.
+- The default Ollama base URL is `https://ollama.com` (Ollama Cloud). Set `HEXAI_OLLAMA_API_KEY` (or `OLLAMA_API_KEY`) to authenticate.
+- To use a local Ollama server instead, set `[ollama] base_url = "http://localhost:11434"` and pick a locally pulled model (e.g. `ollama pull qwen3-coder:30b-a3b-q4_K_M`). No API key is required when targeting localhost.
+- Alternatively, run Ollama in OpenAI‑compatible mode and use the OpenAI provider with `openai_base_url` pointed at your local endpoint.
 
 Hexai Action (TUI) configuration
 

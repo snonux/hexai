@@ -75,6 +75,9 @@ func TestRun_UsesCachedResponseWithoutClientCall(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	// This test asserts an "openai/gpt-4.1" cache-hit label, so pin the provider
+	// (the in-code default switched to ollama when no config is present).
+	t.Setenv("HEXAI_PROVIDER", "openai")
 
 	oldNew := newClientFromApp
 	defer func() { newClientFromApp = oldNew }()

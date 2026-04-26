@@ -38,6 +38,11 @@ func TestRunWithFactory_UsesDefaultsAndCallsServer(t *testing.T) {
 	var stderr bytes.Buffer
 	logger := log.New(&stderr, "hexai-lsp-server ", 0)
 	cfg := appconfig.Load(nil) // defaults
+	// Pin provider to openai: the in-code default is now ollama, which would
+	// happily build a client without a key and short-circuit the missing-key
+	// assertion below. Load(nil) returns raw defaults and ignores env vars,
+	// so set the field directly on the struct.
+	cfg.Provider = "openai"
 	var gotOpts lsp.ServerOptions
 	factory := func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.ServerOptions) ServerRunner {
 		gotOpts = opts
@@ -75,7 +80,10 @@ func TestRunWithFactory_BuildsClientWhenKeysPresent(t *testing.T) {
 
 	var stderr bytes.Buffer
 	logger := log.New(&stderr, "hexai-lsp-server ", 0)
-	cfg := appconfig.Load(nil) // defaults, provider=openai by default
+	cfg := appconfig.Load(nil) // defaults
+	// Pin provider to openai (the in-code default is now ollama). Load(nil)
+	// returns raw defaults and ignores env vars, so set this on the struct.
+	cfg.Provider = "openai"
 	var got llm.Client
 	factory := func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.ServerOptions) ServerRunner {
 		got = opts.Client
