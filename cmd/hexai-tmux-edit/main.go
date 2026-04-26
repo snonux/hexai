@@ -14,6 +14,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -24,18 +25,28 @@ import (
 // runTmuxEdit is the seam for testing: override in tests to avoid real tmux.
 var runTmuxEdit = tmuxedit.Run
 
-func main() {
+func main() { os.Exit(runMain(os.Args[1:], os.Stderr)) }
+
+// runMain parses flags from args and runs the tmux edit popup. It returns
+// the process exit code; flag errors return 2 (matching stdlib convention),
+// runtime failures return 1.
+func runMain(args []string, stderr io.Writer) int {
 	defaultPath := appconfig.DefaultConfigPath()
-	configPath := flag.String("config", "", fmt.Sprintf("path to config file (default: %s)", defaultPath))
-	agent := flag.String("agent", "", "AI agent name (auto-detected if omitted)")
-	pane := flag.String("pane", "", "tmux target pane ID (e.g. %%5)")
-	flag.Parse()
+	fs := flag.NewFlagSet("hexai-tmux-edit", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	configPath := fs.String("config", "", fmt.Sprintf("path to config file (default: %s)", defaultPath))
+	agent := fs.String("agent", "", "AI agent name (auto-detected if omitted)")
+	pane := fs.String("pane", "", "tmux target pane ID (e.g. %5)")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
 
 	opts := buildOptions(*configPath, *agent, *pane)
 	if err := runTmuxEdit(opts); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(stderr, err)
+		return 1
 	}
+	return 0
 }
 
 // buildOptions constructs tmuxedit.Options from the parsed flag values,

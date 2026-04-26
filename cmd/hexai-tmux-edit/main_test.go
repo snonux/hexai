@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"errors"
+	"strings"
 	"testing"
 
 	"codeberg.org/snonux/hexai/internal/tmuxedit"
@@ -55,5 +57,68 @@ func TestRunTmuxEdit_Error(t *testing.T) {
 
 	if err := runTmuxEdit(tmuxedit.Options{}); !errors.Is(err, wantErr) {
 		t.Fatalf("expected error, got: %v", err)
+	}
+}
+
+// runMain happy path: flags parse, runTmuxEdit returns nil, exit code 0.
+// We capture the resolved Options to confirm flags map onto fields correctly.
+func TestRunMain_FlagsForwardedToTmuxedit(t *testing.T) {
+	old := runTmuxEdit
+	t.Cleanup(func() { runTmuxEdit = old })
+
+	var got tmuxedit.Options
+	runTmuxEdit = func(opts tmuxedit.Options) error {
+		got = opts
+		return nil
+	}
+
+	var stderr bytes.Buffer
+	code := runMain([]string{"-config", "  /tmp/cfg.toml ", "-agent", "claude", "-pane", "%9"}, &stderr)
+	if code != 0 {
+		t.Fatalf("runMain code = %d, want 0", code)
+	}
+	if got.ConfigPath != "/tmp/cfg.toml" || got.Agent != "claude" || got.Pane != "%9" {
+		t.Fatalf("unexpected opts: %+v", got)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr should be empty on success, got %q", stderr.String())
+	}
+}
+
+// runMain reports tmuxedit.Run failures by writing to stderr and returning 1
+// — the production exit code that the shipped binary uses.
+func TestRunMain_RunErrorReturnsOne(t *testing.T) {
+	old := runTmuxEdit
+	t.Cleanup(func() { runTmuxEdit = old })
+	runTmuxEdit = func(tmuxedit.Options) error { return errors.New("boom") }
+
+	var stderr bytes.Buffer
+	code := runMain(nil, &stderr)
+	if code != 1 {
+		t.Fatalf("runMain code = %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "boom") {
+		t.Fatalf("stderr missing error: %q", stderr.String())
+	}
+}
+
+// Unknown flags must yield exit 2 (the convention used by stdlib `flag` when
+// ExitOnError aborts) without ever invoking runTmuxEdit.
+func TestRunMain_BadFlagReturnsTwo(t *testing.T) {
+	old := runTmuxEdit
+	t.Cleanup(func() { runTmuxEdit = old })
+	called := false
+	runTmuxEdit = func(tmuxedit.Options) error {
+		called = true
+		return nil
+	}
+
+	var stderr bytes.Buffer
+	code := runMain([]string{"--no-such-flag"}, &stderr)
+	if code != 2 {
+		t.Fatalf("runMain code = %d, want 2", code)
+	}
+	if called {
+		t.Fatal("runTmuxEdit must not be called on flag-parse failure")
 	}
 }

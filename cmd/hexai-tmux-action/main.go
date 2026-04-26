@@ -16,26 +16,38 @@ import (
 // the real tmux action.
 var runCommand = hexaiaction.RunCommand
 
-func main() {
-	infile := flag.String("infile", "", "Read input from this file instead of stdin")
-	outfile := flag.String("outfile", "", "Write output to this file instead of stdout")
-	uiChild := flag.Bool("ui-child", false, "INTERNAL: run interactive UI and write to -outfile atomically")
+func main() { os.Exit(runMain(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
+
+// runMain parses command-line flags from args, builds actionOptions, and
+// delegates to run. It returns the process exit code: 2 for flag-parse
+// errors (matching stdlib `flag.ExitOnError`), 1 for runtime failures, 0 on
+// success. Splitting the body out of main keeps it testable without
+// touching package-level flag state.
+func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("hexai-tmux-action", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	infile := fs.String("infile", "", "Read input from this file instead of stdin")
+	outfile := fs.String("outfile", "", "Write output to this file instead of stdout")
+	uiChild := fs.Bool("ui-child", false, "INTERNAL: run interactive UI and write to -outfile atomically")
 	defaultPath := appconfig.DefaultConfigPath()
-	configPath := flag.String("config", "", fmt.Sprintf("path to config file (default: %s)", defaultPath))
-	tmuxTarget := flag.String("tmux-target", "", "tmux popup target pane (advanced)")
-	tmuxPopupWidth := flag.String("tmux-popup-width", "60%", "tmux popup width, e.g. 60% or 120")
-	tmuxPopupHeight := flag.String("tmux-popup-height", "50%", "tmux popup height, e.g. 50% or 30")
-	flag.Parse()
+	configPath := fs.String("config", "", fmt.Sprintf("path to config file (default: %s)", defaultPath))
+	tmuxTarget := fs.String("tmux-target", "", "tmux popup target pane (advanced)")
+	tmuxPopupWidth := fs.String("tmux-popup-width", "60%", "tmux popup width, e.g. 60% or 120")
+	tmuxPopupHeight := fs.String("tmux-popup-height", "50%", "tmux popup height, e.g. 50% or 30")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
 
 	opts := actionOptions{
 		infile: *infile, outfile: *outfile,
 		uiChild: *uiChild, configPath: *configPath,
 		tmuxTarget: *tmuxTarget, tmuxPopupWidth: *tmuxPopupWidth, tmuxPopupHeight: *tmuxPopupHeight,
 	}
-	if err := run(opts, os.Stdin, os.Stdout, os.Stderr); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	if err := run(opts, stdin, stdout, stderr); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
 	}
+	return 0
 }
 
 // actionOptions holds the parsed command-line flags for hexai-tmux-action.

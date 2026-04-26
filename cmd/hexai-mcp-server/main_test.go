@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -12,31 +11,12 @@ import (
 	"codeberg.org/snonux/hexai/internal/hexaimcp"
 )
 
-func TestPrintDeprecationWarning(t *testing.T) {
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create pipe: %v", err)
-	}
-
-	oldStderr := os.Stderr
-	os.Stderr = w
-	defer func() { os.Stderr = oldStderr }()
-
-	printDeprecationWarning()
-
-	if err := w.Close(); err != nil {
-		t.Fatalf("failed to close pipe writer: %v", err)
-	}
-
-	b, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatalf("failed to read pipe: %v", err)
-	}
-
-	output := string(b)
+// The deprecation banner is unconditional: it must reach stderr on every
+// invocation so users notice this binary is unmaintained.
+func TestDeprecationWarning_Content(t *testing.T) {
 	for _, want := range []string{"DEPRECATION NOTICE", "EXPERIMENTAL", "NOT ACTIVELY MAINTAINED"} {
-		if !strings.Contains(output, want) {
-			t.Errorf("expected %q in output, got %q", want, output)
+		if !strings.Contains(deprecationWarning, want) {
+			t.Errorf("expected %q in deprecationWarning", want)
 		}
 	}
 }
@@ -166,5 +146,82 @@ func TestRun_MCPServerError(t *testing.T) {
 
 	if err := run(mcpOptions{}, nil, nil, nil); !errors.Is(err, wantErr) {
 		t.Fatalf("expected server error, got: %v", err)
+	}
+}
+
+// runMain version path: -version must short-circuit and write the version
+// to stdout (not stderr, so it stays scriptable). Stderr still gets the
+// deprecation banner — that's correct since the binary is leaving anyway.
+func TestRunMain_VersionFlag(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := runMain([]string{"-version"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("runMain code = %d, want 0", code)
+	}
+	if got := strings.TrimSpace(stdout.String()); got != internal.Version {
+		t.Fatalf("stdout = %q, want version %q", got, internal.Version)
+	}
+	if !strings.Contains(stderr.String(), "DEPRECATION NOTICE") {
+		t.Fatalf("stderr missing deprecation banner: %q", stderr.String())
+	}
+}
+
+// runMain --sync-all path: forwards parsed options to runBackfill and
+// returns 0 on success.
+func TestRunMain_SyncAllSuccess(t *testing.T) {
+	old := runBackfill
+	t.Cleanup(func() { runBackfill = old })
+
+	var gotLog string
+	runBackfill = func(logPath string, _ string, _ hexaimcp.MCPOverrides) error {
+		gotLog = logPath
+		return nil
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := runMain([]string{"-sync-all", "-log", "/tmp/sync.log"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("runMain code = %d, want 0; stderr=%q", code, stderr.String())
+	}
+	if gotLog != "/tmp/sync.log" {
+		t.Fatalf("logPath forwarded = %q, want /tmp/sync.log", gotLog)
+	}
+}
+
+// runMain run-error path: when the underlying server fails, runMain must
+// return 1 (the production exit code) and write the error to stderr.
+func TestRunMain_ServerErrorReturnsOne(t *testing.T) {
+	old := runMCP
+	t.Cleanup(func() { runMCP = old })
+	runMCP = func(string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
+		return errors.New("mcp boom")
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := runMain(nil, nil, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("runMain code = %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "mcp boom") {
+		t.Fatalf("stderr missing error: %q", stderr.String())
+	}
+}
+
+// Bad flag must yield exit 2 without ever invoking the server stub.
+func TestRunMain_BadFlagReturnsTwo(t *testing.T) {
+	old := runMCP
+	t.Cleanup(func() { runMCP = old })
+	called := false
+	runMCP = func(string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
+		called = true
+		return nil
+	}
+	var stdout, stderr bytes.Buffer
+	code := runMain([]string{"--bogus"}, nil, &stdout, &stderr)
+	if code != 2 {
+		t.Fatalf("runMain code = %d, want 2", code)
+	}
+	if called {
+		t.Fatal("runMCP must not be called on flag-parse failure")
 	}
 }

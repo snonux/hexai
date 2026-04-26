@@ -29,10 +29,10 @@ var (
 	runBackfill = hexaimcp.RunBackfill
 )
 
-// printDeprecationWarning outputs a deprecation notice to stderr explaining
-// that hexai-mcp-server is experimental and not actively maintained.
-func printDeprecationWarning() {
-	warning := `
+// deprecationWarning is the notice runMain emits on every startup so users
+// see this binary is experimental. Kept as a constant (not printf'd) so
+// tests can assert on its contents directly.
+const deprecationWarning = `
 ⚠️  DEPRECATION NOTICE ⚠️
 
 hexai-mcp-server is currently EXPERIMENTAL and NOT ACTIVELY MAINTAINED.
@@ -50,8 +50,6 @@ Use at your own risk.
 
 ────────────────────────────────────────────────────────────────────────
 `
-	fmt.Fprintln(os.Stderr, warning)
-}
 
 // mcpOptions holds the parsed command-line flags for the MCP server.
 type mcpOptions struct {
@@ -64,22 +62,34 @@ type mcpOptions struct {
 	showVersion      bool
 }
 
-func main() {
-	printDeprecationWarning()
+func main() { os.Exit(runMain(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
+
+// runMain prints the deprecation warning, parses flags, and delegates to
+// run. It returns the process exit code: 2 for flag-parse errors (matching
+// stdlib `flag.ExitOnError`), 1 for state-dir or run failures, 0 on success.
+// Pulling this out of main keeps it testable without touching package-level
+// flag state.
+func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	fmt.Fprint(stderr, deprecationWarning)
 
 	defaultLog, err := defaultLogPath()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		return 1
 	}
-	logPath := flag.String("log", defaultLog, "path to log file (optional)")
-	configPath := flag.String("config", "", "path to config file (optional)")
-	promptsDir := flag.String("prompts-dir", "", "path to prompts directory (optional)")
-	slashCommandSync := flag.Bool("slashcommand-sync", false, "enable slash command sync")
-	slashCommandDir := flag.String("slashcommand-dir", "", "directory for slash command files")
-	syncAll := flag.Bool("sync-all", false, "backfill all existing prompts and exit")
-	showVersion := flag.Bool("version", false, "print version and exit")
-	flag.Parse()
+
+	fs := flag.NewFlagSet("hexai-mcp-server", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	logPath := fs.String("log", defaultLog, "path to log file (optional)")
+	configPath := fs.String("config", "", "path to config file (optional)")
+	promptsDir := fs.String("prompts-dir", "", "path to prompts directory (optional)")
+	slashCommandSync := fs.Bool("slashcommand-sync", false, "enable slash command sync")
+	slashCommandDir := fs.String("slashcommand-dir", "", "directory for slash command files")
+	syncAll := fs.Bool("sync-all", false, "backfill all existing prompts and exit")
+	showVersion := fs.Bool("version", false, "print version and exit")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
 
 	opts := mcpOptions{
 		logPath:          *logPath,
@@ -90,10 +100,11 @@ func main() {
 		syncAll:          *syncAll,
 		showVersion:      *showVersion,
 	}
-	if err := run(opts, os.Stdin, os.Stdout, os.Stderr); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	if err := run(opts, stdin, stdout, stderr); err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		return 1
 	}
+	return 0
 }
 
 // run executes the MCP server logic with the given options and I/O streams.
