@@ -73,7 +73,7 @@ func TestDefaultModelForProvider_Fallbacks(t *testing.T) {
 	if got := DefaultModelForProvider(cfg, "openrouter"); got != "openrouter/auto" {
 		t.Fatalf("openrouter fallback = %q", got)
 	}
-	if got := DefaultModelForProvider(cfg, "ollama"); got != "gemma4" {
+	if got := DefaultModelForProvider(cfg, "ollama"); got != "gemma4:31b-cloud" {
 		t.Fatalf("ollama fallback = %q", got)
 	}
 	if got := DefaultModelForProvider(cfg, "anthropic"); got != "claude-3-5-sonnet-20240620" {
