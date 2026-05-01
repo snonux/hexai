@@ -168,7 +168,7 @@ func TestPrintProviderInfo(t *testing.T) {
 
 func TestRun_SingleProviderHeaderUsesStderr(t *testing.T) {
 	// This test asserts an "openai:gpt-4.1:" header, so pin the provider/model
-	// explicitly (the in-code default switched to ollama/kimi-k2.6).
+	// explicitly (the in-code default switched to ollama/gemma4).
 	t.Setenv("HEXAI_PROVIDER", "openai")
 	t.Setenv("HEXAI_OPENAI_MODEL", "gpt-4.1")
 	oldNew := newClientFromApp

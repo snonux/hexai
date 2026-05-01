@@ -73,7 +73,7 @@ func newOllamaWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, t
 		baseURL = "https://ollama.com"
 	}
 	if strings.TrimSpace(model) == "" {
-		model = "kimi-k2.6"
+		model = "gemma4"
 	}
 	if timeoutSec <= 0 {
 		timeoutSec = 30
