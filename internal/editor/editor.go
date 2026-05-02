@@ -68,3 +68,23 @@ func OpenTempAndEdit(initial []byte) (string, error) {
 	}
 	return strings.TrimSpace(string(b)), nil
 }
+
+// OpenFile ensures the parent directory exists, then opens path in the editor
+// from Resolve() (HEXAI_EDITOR or EDITOR).
+func OpenFile(path string) error {
+	ed, err := Resolve()
+	if err != nil {
+		return err
+	}
+	path = filepath.Clean(strings.TrimSpace(path))
+	if path == "" || path == "." {
+		return errors.New("config path is empty")
+	}
+	dir := filepath.Dir(path)
+	if dir != "" && dir != "." {
+		if mkErr := os.MkdirAll(dir, 0o700); mkErr != nil {
+			return mkErr
+		}
+	}
+	return RunEditor(ed, path)
+}

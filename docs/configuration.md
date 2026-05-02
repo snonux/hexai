@@ -5,6 +5,7 @@ This page explains where the config lives and how to choose a style; the authori
 Global config file
 
 - Location: `$XDG_CONFIG_HOME/hexai/config.toml` (usually `~/.config/hexai/config.toml`).
+- Edit from a terminal: `hexai config` opens that file in `$HEXAI_EDITOR` or `$EDITOR` (or `hexai --config /path/to.toml config` for a specific file).
 - Style: sectioned tables only — see [config.toml.example](../config.toml.example) for a complete, commented reference.
 
 Per-project config file

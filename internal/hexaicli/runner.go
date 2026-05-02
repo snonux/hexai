@@ -67,6 +67,31 @@ func NewRunner() *Runner {
 
 func (r *Runner) Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	runner := normalizeRunner(r)
+	if len(args) > 0 {
+		sub := args[0]
+		if sub == "config" {
+			if len(args) > 1 {
+				err := fmt.Errorf(`hexai %s: unexpected arguments (use only %q)`, sub, sub)
+				_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"%v"+logging.AnsiReset+"\n", err)
+				return err
+			}
+			cfgPath := strings.TrimSpace(configPathFromContext(ctx))
+			if cfgPath == "" {
+				p, pathErr := appconfig.ConfigPath()
+				if pathErr != nil {
+					err := fmt.Errorf("hexai %s: %w", sub, pathErr)
+					_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"%v"+logging.AnsiReset+"\n", err)
+					return err
+				}
+				cfgPath = p
+			}
+			if err := editor.OpenFile(cfgPath); err != nil {
+				_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai %s: %v"+logging.AnsiReset+"\n", sub, err)
+				return err
+			}
+			return nil
+		}
+	}
 	if spec, ok, err := tpsSimulationFromContext(ctx); err != nil {
 		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+err.Error()+logging.AnsiReset)
 		return err

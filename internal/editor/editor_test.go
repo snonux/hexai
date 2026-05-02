@@ -182,3 +182,45 @@ func TestOpenTempAndEdit_TempFileCleanup(t *testing.T) {
 		t.Fatalf("temp file was not cleaned up: %s", capturedPath)
 	}
 }
+
+func TestOpenFile_CreatesParentAndInvokesEditor(t *testing.T) {
+	old := RunEditor
+	t.Cleanup(func() { RunEditor = old })
+	t.Setenv("HEXAI_EDITOR", "dummy")
+	target := filepath.Join(t.TempDir(), "nested", "config.toml")
+	var gotEditor, gotPath string
+	RunEditor = func(editorCmd, path string) error {
+		gotEditor = editorCmd
+		gotPath = path
+		return nil
+	}
+	if err := OpenFile(target); err != nil {
+		t.Fatalf("OpenFile: %v", err)
+	}
+	if gotEditor != "dummy" {
+		t.Fatalf("editor = %q", gotEditor)
+	}
+	if gotPath != target {
+		t.Fatalf("path = %q, want %q", gotPath, target)
+	}
+	if _, err := os.Stat(filepath.Dir(target)); err != nil {
+		t.Fatalf("parent dir: %v", err)
+	}
+}
+
+func TestOpenFile_NoEditor(t *testing.T) {
+	t.Setenv("HEXAI_EDITOR", "")
+	t.Setenv("EDITOR", "")
+	err := OpenFile(filepath.Join(t.TempDir(), "x.toml"))
+	if err == nil {
+		t.Fatal("expected error when no editor is set")
+	}
+}
+
+func TestOpenFile_EmptyPath(t *testing.T) {
+	t.Setenv("HEXAI_EDITOR", "true")
+	err := OpenFile("  ")
+	if err == nil {
+		t.Fatal("expected error for empty path")
+	}
+}

@@ -81,6 +81,7 @@ Process text via the configured LLM:
 - `cat SOMEFILE.txt | hexai`
 - `hexai 'some prompt text here'`
 - `cat SOMEFILE.txt | hexai 'some prompt text here'` (stdin and arg are concatenated)
+- `hexai config` opens the global config file in `$HEXAI_EDITOR` or `$EDITOR` (use `hexai --config /path/to.toml config` for another file)
 - `hexai --tps-simulation 12-18` to simulate model output speed without calling a provider
 
 Defaults: concise answers. If the prompt asks for commands, Hexai outputs only commands. Add the word `explain` to request a verbose explanation. Exit codes: `0` success, `1` provider/config error, `2` no input`.

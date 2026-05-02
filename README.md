@@ -12,6 +12,7 @@ It has got improved capabilities for Go code understanding (for example, create 
 * LSP AI Code actions
 * LSP in-editor chat with the LLM
 * Stand-alone command line tool for LLM interaction
+  - `hexai config` opens the global `config.toml` in `$HEXAI_EDITOR` or `$EDITOR` (supports `--config` for an alternate file)
   - Includes `--tps-simulation` to preview how fast a model would feel by streaming placeholder text or piped stdin at a chosen token-per-second rate
 * Task management CLI for agent-managed project work
   - Entrypoint: `ask` (the binary was briefly named `do`; use `ask` in scripts and documentation)

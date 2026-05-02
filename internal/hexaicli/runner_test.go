@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"log"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/editor"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/stats"
 )
@@ -57,5 +59,58 @@ func TestRunner_UsesInjectedDependencies(t *testing.T) {
 	}
 	if sink.globalCalls != 1 {
 		t.Fatalf("expected one global status update, got %d", sink.globalCalls)
+	}
+}
+
+func TestRunner_ConfigSubcommand_OpensConfigFromContext(t *testing.T) {
+	old := editor.RunEditor
+	t.Cleanup(func() { editor.RunEditor = old })
+	t.Setenv("EDITOR", "true")
+	var gotPath string
+	editor.RunEditor = func(_, path string) error {
+		gotPath = path
+		return nil
+	}
+	cfgFile := filepath.Join(t.TempDir(), "hexai", "config.toml")
+	ctx := WithCLIConfigPath(context.Background(), cfgFile)
+	runner := NewRunner()
+	if err := runner.Run(ctx, []string{"config"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if gotPath != cfgFile {
+		t.Fatalf("opened %q, want %q", gotPath, cfgFile)
+	}
+}
+
+func TestRunner_ConfigSubcommand_UsesXDGWhenNoOverride(t *testing.T) {
+	old := editor.RunEditor
+	t.Cleanup(func() { editor.RunEditor = old })
+	t.Setenv("HEXAI_EDITOR", "true")
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	var gotPath string
+	editor.RunEditor = func(_, path string) error {
+		gotPath = path
+		return nil
+	}
+	runner := NewRunner()
+	want := filepath.Join(xdg, "hexai", "config.toml")
+	if err := runner.Run(context.Background(), []string{"config"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if gotPath != want {
+		t.Fatalf("opened %q, want %q", gotPath, want)
+	}
+}
+
+func TestRunner_ConfigSubcommand_RejectsExtraArgs(t *testing.T) {
+	runner := NewRunner()
+	var stderr bytes.Buffer
+	err := runner.Run(context.Background(), []string{"config", "nope"}, strings.NewReader(""), &bytes.Buffer{}, &stderr)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unexpected arguments") {
+		t.Fatalf("err = %v", err)
 	}
 }
