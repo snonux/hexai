@@ -2,8 +2,10 @@ package askcli
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -289,6 +291,87 @@ func TestEnsureTaskAliases_RejectsNextIDReuse(t *testing.T) {
 
 	if _, err := ensureTaskAliases([]TaskExport{{UUID: "uuid-2"}}); err == nil {
 		t.Fatal("expected error when next_id would reuse an alias")
+	}
+}
+
+func TestEnsureTaskAliases_ConcurrentCallsDoNotRaceOnTempFile(t *testing.T) {
+	dir := t.TempDir()
+
+	oldNow := nowTaskAliasCache
+	oldRoot := taskAliasCacheRoot
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	defer func() {
+		nowTaskAliasCache = oldNow
+		taskAliasCacheRoot = oldRoot
+	}()
+
+	const goroutines = 16
+	uuids := make([]string, goroutines)
+	for i := range uuids {
+		uuids[i] = fmt.Sprintf("uuid-%02d", i)
+	}
+
+	// Release all goroutines simultaneously to maximise the chance of a race
+	// before the fix (shared .tmp filename + concurrent rename) and to prove
+	// the fix's locking serialises load/modify/save correctly.
+	var start sync.WaitGroup
+	start.Add(1)
+	var done sync.WaitGroup
+	errs := make([]error, goroutines)
+	for i := 0; i < goroutines; i++ {
+		done.Add(1)
+		go func(idx int) {
+			defer done.Done()
+			start.Wait()
+			_, err := ensureTaskAliases([]TaskExport{{UUID: uuids[idx]}})
+			errs[idx] = err
+		}(i)
+	}
+	start.Done()
+	done.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("goroutine %d: ensureTaskAliases returned error: %v", i, err)
+		}
+	}
+
+	path, err := taskAliasCachePath()
+	if err != nil {
+		t.Fatalf("taskAliasCachePath: %v", err)
+	}
+	cache := readTaskAliasCacheForTest(t, path)
+	if got, want := len(cache.Entries), goroutines; got != want {
+		t.Fatalf("len(Entries) = %d, want %d (cache lost updates under concurrency)", got, want)
+	}
+	if got, want := cache.NextID, uint64(goroutines); got != want {
+		t.Fatalf("NextID = %d, want %d", got, want)
+	}
+	for _, uuid := range uuids {
+		if !hasTaskAliasEntry(cache, uuid) {
+			t.Fatalf("expected entry for %s after concurrent writes", uuid)
+		}
+	}
+	// Aliases must be unique — if save() is racy, two UUIDs could share an
+	// alias because both processes saw the same NextID.
+	seen := make(map[string]string, len(cache.Entries))
+	for _, entry := range cache.Entries {
+		if existing, ok := seen[entry.Alias]; ok {
+			t.Fatalf("alias %q assigned to both %s and %s", entry.Alias, existing, entry.UUID)
+		}
+		seen[entry.Alias] = entry.UUID
+	}
+
+	// No leftover .tmp files should remain in the cache directory.
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) == ".tmp" {
+			t.Fatalf("leftover temp file: %s", e.Name())
+		}
 	}
 }
 

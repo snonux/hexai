@@ -1,17 +1,24 @@
 package askcli
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"time"
 
+	"codeberg.org/snonux/hexai/internal/filelock"
 	"codeberg.org/snonux/hexai/internal/stats"
 )
 
-const taskAliasCacheTTL = 120 * 24 * time.Hour
+const (
+	taskAliasCacheTTL          = 120 * 24 * time.Hour
+	taskAliasCacheLockFileName = "task-aliases-v2.json.lock"
+	taskAliasCacheLockTimeout  = 30 * time.Second
+)
 
 var (
 	nowTaskAliasCache  = time.Now
@@ -39,7 +46,20 @@ type taskAliasCacheEntry struct {
 }
 
 func ensureTaskAliases(tasks []TaskExport) (map[string]string, error) {
-	cache, path, err := loadTaskAliasCache()
+	path, err := taskAliasCachePath()
+	if err != nil {
+		return nil, err
+	}
+	// Hold an advisory lock for the full load/modify/save cycle so concurrent
+	// ask invocations cannot race on the cache file (lost-update or
+	// rename-against-missing-tempfile).
+	unlock, err := acquireTaskAliasCacheLock(filepath.Dir(path))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = unlock() }()
+
+	cache, err := loadTaskAliasCacheAt(path)
 	if err != nil {
 		return nil, err
 	}
@@ -76,17 +96,13 @@ func ensureTaskAliasesForUUIDs(uuids []string) (map[string]string, error) {
 	return ensureTaskAliases(tasks)
 }
 
-func loadTaskAliasCache() (taskAliasCache, string, error) {
-	path, err := taskAliasCachePath()
-	if err != nil {
-		return taskAliasCache{}, "", err
-	}
+func loadTaskAliasCacheAt(path string) (taskAliasCache, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return taskAliasCache{}, path, nil
+		return taskAliasCache{}, nil
 	}
 	if err != nil {
-		return taskAliasCache{}, "", fmt.Errorf("read task alias cache: %w", err)
+		return taskAliasCache{}, fmt.Errorf("read task alias cache: %w", err)
 	}
 
 	var cache taskAliasCache
@@ -95,15 +111,42 @@ func loadTaskAliasCache() (taskAliasCache, string, error) {
 		// corruption). Discard and start fresh — tasks will get new alias IDs on
 		// the next run, which is preferable to a hard failure.
 		_ = os.Remove(path)
-		return taskAliasCache{}, path, nil
+		return taskAliasCache{}, nil
 	}
 	if err := cache.validate(); err != nil {
-		return taskAliasCache{}, "", fmt.Errorf("validate task alias cache: %w", err)
+		return taskAliasCache{}, fmt.Errorf("validate task alias cache: %w", err)
 	}
 	// Rebuild lookup maps from the deserialized entries so that all subsequent
 	// operations use O(1) map access rather than a linear scan.
 	cache.rebuildMaps()
-	return cache, path, nil
+	return cache, nil
+}
+
+// acquireTaskAliasCacheLock takes an exclusive advisory lock on a sentinel
+// file in dir so that concurrent ask invocations serialize their
+// load/modify/save of the alias cache. The returned closure releases the lock
+// and closes the underlying file.
+func acquireTaskAliasCacheLock(dir string) (func() error, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("create task alias cache dir: %w", err)
+	}
+	lockPath := filepath.Join(dir, taskAliasCacheLockFileName)
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open task alias cache lock: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), taskAliasCacheLockTimeout)
+	release, err := filelock.AcquireExclusive(ctx, f)
+	cancel()
+	if err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("lock task alias cache: %w", err)
+	}
+	return func() error {
+		rerr := release()
+		cerr := f.Close()
+		return errors.Join(rerr, cerr)
+	}, nil
 }
 
 func taskAliasCachePath() (string, error) {
@@ -242,7 +285,8 @@ func (c *taskAliasCache) lookupAliasByUUID(uuid string, now time.Time) (string, 
 }
 
 func (c *taskAliasCache) save(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create task alias cache dir: %w", err)
 	}
 	data, err := json.MarshalIndent(c, "", "  ")
@@ -250,12 +294,36 @@ func (c *taskAliasCache) save(path string) error {
 		return fmt.Errorf("marshal task alias cache: %w", err)
 	}
 
-	tempPath := path + ".tmp"
-	if err := os.WriteFile(tempPath, data, 0o600); err != nil {
-		return fmt.Errorf("write task alias cache: %w", err)
+	// Use a unique temp filename per invocation so two concurrent saves cannot
+	// clobber each other's tempfile and produce a "rename: no such file or
+	// directory" error on the loser.
+	tempFile, err := os.CreateTemp(dir, filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return fmt.Errorf("create task alias cache temp: %w", err)
+	}
+	tempPath := tempFile.Name()
+	if err := writeAndCloseTaskAliasTemp(tempFile, tempPath, data); err != nil {
+		_ = os.Remove(tempPath)
+		return err
 	}
 	if err := os.Rename(tempPath, path); err != nil {
+		_ = os.Remove(tempPath)
 		return fmt.Errorf("replace task alias cache: %w", err)
+	}
+	return nil
+}
+
+func writeAndCloseTaskAliasTemp(f *os.File, path string, data []byte) error {
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("write task alias cache: %w", err)
+	}
+	if err := f.Chmod(0o600); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("chmod task alias cache: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("close task alias cache temp %s: %w", path, err)
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 )
 
@@ -57,7 +58,17 @@ func resolveTaskSelectorFromCache(selector string, allowAlias bool) (resolvedTas
 		return resolved, nil
 	}
 
-	cache, path, err := loadTaskAliasCache()
+	path, err := taskAliasCachePath()
+	if err != nil {
+		return resolvedTaskSelector{}, err
+	}
+	unlock, err := acquireTaskAliasCacheLock(filepath.Dir(path))
+	if err != nil {
+		return resolvedTaskSelector{}, err
+	}
+	defer func() { _ = unlock() }()
+
+	cache, err := loadTaskAliasCacheAt(path)
 	if err != nil {
 		return resolvedTaskSelector{}, err
 	}
@@ -65,52 +76,50 @@ func resolveTaskSelectorFromCache(selector string, allowAlias bool) (resolvedTas
 	now := nowTaskAliasCache().UTC()
 	changed := cache.prune(now)
 	uuidFromAlias, aliasFound, aliasChanged := cache.lookupUUIDByAlias(selector, now)
-	changed = changed || aliasChanged
 	aliasForUUID, uuidFound, uuidChanged := cache.lookupAliasByUUID(selector, now)
-	changed = changed || uuidChanged
+	changed = changed || aliasChanged || uuidChanged
 
+	return finalizeResolvedTaskSelector(&cache, path, selector,
+		uuidFromAlias, aliasForUUID, aliasFound, uuidFound, changed)
+}
+
+// finalizeResolvedTaskSelector applies the lookup results, persisting any
+// LastAccessedAt updates first when changed is true.
+func finalizeResolvedTaskSelector(
+	cache *taskAliasCache,
+	path, selector, uuidFromAlias, aliasForUUID string,
+	aliasFound, uuidFound, changed bool,
+) (resolvedTaskSelector, error) {
+	saveIfChanged := func() error {
+		if !changed {
+			return nil
+		}
+		return cache.save(path)
+	}
 	switch {
 	case aliasFound && uuidFound && uuidFromAlias != selector:
-		if changed {
-			if err := cache.save(path); err != nil {
-				return resolvedTaskSelector{}, err
-			}
+		if err := saveIfChanged(); err != nil {
+			return resolvedTaskSelector{}, err
 		}
 		return resolvedTaskSelector{}, fmt.Errorf("task selector %q is ambiguous: it matches alias for %s and UUID %s; use uuid:%s to force UUID", selector, uuidFromAlias, selector, selector)
 	case aliasFound:
-		if changed {
-			if err := cache.save(path); err != nil {
-				return resolvedTaskSelector{}, err
-			}
+		if err := saveIfChanged(); err != nil {
+			return resolvedTaskSelector{}, err
 		}
-		return resolvedTaskSelector{
-			Input:     selector,
-			UUID:      uuidFromAlias,
-			Alias:     selector,
-			UsedAlias: true,
-		}, nil
+		return resolvedTaskSelector{Input: selector, UUID: uuidFromAlias, Alias: selector, UsedAlias: true}, nil
 	case uuidFound:
-		if changed {
-			if err := cache.save(path); err != nil {
-				return resolvedTaskSelector{}, err
-			}
+		if err := saveIfChanged(); err != nil {
+			return resolvedTaskSelector{}, err
 		}
-		return resolvedTaskSelector{
-			Input: selector,
-			UUID:  selector,
-			Alias: aliasForUUID,
-		}, nil
-	default:
-		if IsNumericID(selector) {
-			return resolvedTaskSelector{}, fmt.Errorf(strings.TrimSpace(RejectNumericID()))
-		}
-		if changed {
-			if err := cache.save(path); err != nil {
-				return resolvedTaskSelector{}, err
-			}
-		}
-		return resolvedTaskSelector{}, fmt.Errorf("task selector %q did not match a known alias; use uuid:%s to force UUID", selector, selector)
+		return resolvedTaskSelector{Input: selector, UUID: selector, Alias: aliasForUUID}, nil
 	}
+	if IsNumericID(selector) {
+		return resolvedTaskSelector{}, fmt.Errorf(strings.TrimSpace(RejectNumericID()))
+	}
+	if err := saveIfChanged(); err != nil {
+		return resolvedTaskSelector{}, err
+	}
+	return resolvedTaskSelector{}, fmt.Errorf("task selector %q did not match a known alias; use uuid:%s to force UUID", selector, selector)
 }
 
 func looksLikeTaskAlias(selector string) bool {
