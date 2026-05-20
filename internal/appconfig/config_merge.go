@@ -141,6 +141,9 @@ func (a *App) mergeProviderFields(other *App) {
 	if other.AnthropicTemperature != nil { // allow explicit 0.0
 		a.AnthropicTemperature = other.AnthropicTemperature
 	}
+	if s := strings.TrimSpace(other.YouSearchResearchEffort); s != "" {
+		a.YouSearchResearchEffort = s
+	}
 }
 
 // mergeSurfaceModels copies per-surface model and temperature overrides.

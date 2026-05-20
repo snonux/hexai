@@ -163,6 +163,7 @@ type fileConfig struct {
 	OpenRouter sectionOpenRouter `toml:"openrouter"`
 	Ollama     sectionOllama     `toml:"ollama"`
 	Anthropic  sectionAnthropic  `toml:"anthropic"`
+	YouSearch  sectionYouSearch  `toml:"yousearch"`
 	Prompts    sectionPrompts    `toml:"prompts"`
 	Tmux       sectionTmux       `toml:"tmux"`
 	Stats      sectionStats      `toml:"stats"`
@@ -303,6 +304,10 @@ type sectionAnthropic struct {
 	Model       string   `toml:"model"`
 	BaseURL     string   `toml:"base_url"`
 	Temperature *float64 `toml:"temperature"`
+}
+
+type sectionYouSearch struct {
+	ResearchEffort string `toml:"research_effort"` // lite|standard|deep|exhaustive
 }
 
 // Prompts sections

@@ -57,6 +57,8 @@ type ProviderConfig struct {
 	AnthropicModel    string   `json:"anthropic_model"`
 	// Default temperature for Anthropic requests (nil means use provider default)
 	AnthropicTemperature *float64 `json:"anthropic_temperature"`
+	// YouSearch options
+	YouSearchResearchEffort string `json:"yousearch_research_effort"` // lite|standard|deep|exhaustive
 	// Per-surface provider/model configurations (ordered; first entry is primary)
 	CompletionConfigs []SurfaceConfig `json:"-"`
 	CodeActionConfigs []SurfaceConfig `json:"-"`
