@@ -29,6 +29,7 @@ Environment overrides
   - `HEXAI_OPENAI_MODEL`, `HEXAI_OPENAI_BASE_URL`, `HEXAI_OPENAI_TEMPERATURE`
   - `HEXAI_OPENROUTER_MODEL`, `HEXAI_OPENROUTER_BASE_URL`, `HEXAI_OPENROUTER_TEMPERATURE`
   - `HEXAI_OLLAMA_MODEL`, `HEXAI_OLLAMA_BASE_URL`, `HEXAI_OLLAMA_TEMPERATURE`
+  - `HEXAI_YOUSEARCH_RESEARCH_EFFORT` (`lite` | `standard` | `deep` | `exhaustive`)
   - Per-surface overrides: `HEXAI_MODEL_COMPLETION`, `HEXAI_MODEL_CODE_ACTION`, `HEXAI_MODEL_CHAT`, `HEXAI_MODEL_CLI`
   - Per-surface temperatures: `HEXAI_TEMPERATURE_COMPLETION`, `HEXAI_TEMPERATURE_CODE_ACTION`, `HEXAI_TEMPERATURE_CHAT`, `HEXAI_TEMPERATURE_CLI`
 
@@ -54,7 +55,7 @@ Per-surface models
 
 - Repeating the table (`[[models.<surface>]]`) configures multiple provider/model pairs. Completion requests and the Hexai CLI fan out to every configured entry concurrently and label the responses with `provider:model`. Code actions continue to use the first entry only; any extra [[models.code_action]] tables are ignored at runtime and the loader logs a warning so you know an additional entry was skipped.
 
-- When a per-surface value is omitted, Hexai falls back to the provider’s configured default. Temperatures inherit from `coding_temperature` unless explicitly set, and OpenAI `gpt-5*` models automatically raise an unspecified coding temperature to `1.0` for exploratory behavior. Provider overrides support `"openai"`, `"openrouter"`, `"anthropic"`, or `"ollama"` and read the matching credential variables.
+- When a per-surface value is omitted, Hexai falls back to the provider’s configured default. Temperatures inherit from `coding_temperature` unless explicitly set, and OpenAI `gpt-5*` models automatically raise an unspecified coding temperature to `1.0` for exploratory behavior. Provider overrides support `"openai"`, `"openrouter"`, `"anthropic"`, `"ollama"`, or `"yousearch"` and read the matching credential variables.
 
 Runtime reloads
 
@@ -70,10 +71,11 @@ API keys:
 - OpenAI: prefer `HEXAI_OPENAI_API_KEY`, falling back to `OPENAI_API_KEY`.
 - OpenRouter: prefer `HEXAI_OPENROUTER_API_KEY`, falling back to `OPENROUTER_API_KEY`.
 - Anthropic: prefer `HEXAI_ANTHROPIC_API_KEY`, falling back to `ANTHROPIC_API_KEY`.
+- You.com (YouSearch): prefer `HEXAI_YOUSEARCH_API_KEY`, falling back to `YOU_API_KEY`.
 
 Selecting a provider
 
-- Sectioned: set `[provider] name = "ollama" | "openai" | "openrouter" | "anthropic"`.
+- Sectioned: set `[provider] name = "ollama" | "openai" | "openrouter" | "anthropic" | "yousearch"`.
 - If omitted, Hexai defaults to `ollama` (Ollama Cloud at `https://ollama.com` with model `kimi-k2.6`).
 - Selecting `openrouter` uses https://openrouter.ai/api/v1 by default and automatically sends the required `HTTP-Referer` (`https://github.com/snonux/hexai`) and `X-Title` (`Hexai`) headers. Override the base URL via `[openrouter]` or environment variables when needed.
 
@@ -82,6 +84,12 @@ Notes on Ollama:
 - The default Ollama base URL is `https://ollama.com` (Ollama Cloud). Set `HEXAI_OLLAMA_API_KEY` (or `OLLAMA_API_KEY`) to authenticate.
 - To use a local Ollama server instead, set `[ollama] base_url = "http://localhost:11434"` and pick a locally pulled model (e.g. `ollama pull qwen3-coder:30b-a3b-q4_K_M`). No API key is required when targeting localhost.
 - Alternatively, run Ollama in OpenAI‑compatible mode and use the OpenAI provider with `openai_base_url` pointed at your local endpoint.
+
+Notes on YouSearch (You.com Research API):
+
+- Calls `https://api.you.com/v1/research` with the last user message as the research query; system messages are ignored because the Research API has its own reasoning pipeline.
+- Configure the research effort under `[yousearch]` (or via `HEXAI_YOUSEARCH_RESEARCH_EFFORT`): `lite`, `standard` (default), `deep`, or `exhaustive`.
+- Sources returned by the API are appended to the response as a `**Sources:**` markdown section.
 
 Hexai Action (TUI) configuration
 

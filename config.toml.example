@@ -70,7 +70,7 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 [provider]
 # Ollama Cloud (ollama.ai) is the recommended default. The API key is read
 # from HEXAI_OLLAMA_API_KEY (falling back to OLLAMA_API_KEY).
-name = "ollama"                      # ollama | openai | openrouter | anthropic
+name = "ollama"                      # ollama | openai | openrouter | anthropic | yousearch
 
 [ollama]
 model       = "kimi-k2.6"
@@ -95,6 +95,12 @@ temperature = 0.2
 model       = "claude-3-5-sonnet-20241022"
 base_url    = "https://api.anthropic.com/v1"
 temperature = 0.2
+
+[yousearch]
+# You.com Research API (https://api.you.com/v1/research). The API key is read
+# from HEXAI_YOUSEARCH_API_KEY (falling back to YOU_API_KEY).
+# research_effort accepts: lite | standard | deep | exhaustive (default: standard).
+research_effort = "standard"
 
 # Prompt templates (optional). Leave commented to use defaults.
 [prompts]
