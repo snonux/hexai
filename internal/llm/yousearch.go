@@ -20,6 +20,7 @@ const youSearchResearchURL = "https://api.you.com/v1/research"
 type youSearchClient struct {
 	httpClient     *http.Client
 	apiKey         string
+	baseURL        string // research endpoint URL (overridable for tests)
 	researchEffort string // lite|standard|deep|exhaustive
 	chatLogger     logging.ChatLogger
 }
@@ -56,9 +57,17 @@ func youSearchProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	return youSearchClient{
 		httpClient:     &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
 		apiKey:         strings.TrimSpace(keys.YouSearchAPIKey),
+		baseURL:        youSearchResearchURL,
 		researchEffort: strings.TrimSpace(cfg.YouSearchResearchEffort),
 		chatLogger:     logging.NewChatLogger("yousearch"),
 	}, nil
+}
+
+func (c youSearchClient) endpoint() string {
+	if c.baseURL != "" {
+		return c.baseURL
+	}
+	return youSearchResearchURL
 }
 
 func (c youSearchClient) Name() string         { return "yousearch" }
@@ -89,14 +98,15 @@ func (c youSearchClient) Chat(ctx context.Context, messages []Message, opts ...R
 		return "", err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, youSearchResearchURL, bytes.NewReader(payload))
+	url := c.endpoint()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("X-API-Key", c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	logging.Logf("llm/yousearch", "POST %s effort=%s", youSearchResearchURL, c.effectiveEffort())
+	logging.Logf("llm/yousearch", "POST %s effort=%s", url, c.effectiveEffort())
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		logging.Logf("llm/yousearch", "%shttp error after %s: %v%s", logging.AnsiRed, time.Since(start), err, logging.AnsiBase)
