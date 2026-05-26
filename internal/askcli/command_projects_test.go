@@ -1,0 +1,144 @@
+package askcli
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"strings"
+	"testing"
+)
+
+func TestHandleProjects_ListsUniqueProjects(t *testing.T) {
+	oldFind := projectsFindTaskBinary
+	oldRun := projectsRunTaskCommand
+	t.Cleanup(func() {
+		projectsFindTaskBinary = oldFind
+		projectsRunTaskCommand = oldRun
+	})
+
+	projectsFindTaskBinary = func() (string, error) { return "task", nil }
+	projectsRunTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+		tasks := []TaskExport{
+			{UUID: "1", Project: "hexai", Status: "pending", Urgency: 1},
+			{UUID: "2", Project: "dtail", Status: "pending", Urgency: 2, Start: "2026-01-01T00:00:00Z"},
+			{UUID: "3", Project: "hexai", Status: "pending", Urgency: 3},
+			{UUID: "4", Project: "", Status: "pending", Urgency: 4},
+		}
+		_, _ = io.WriteString(stdout, taskExportJSON(tasks))
+		return nil
+	}
+
+	ctx := context.Background()
+	d := NewDispatcher(nil)
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(ctx, []string{"projects"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("unexpected exit code: %d", code)
+	}
+
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	if len(lines) != 1 || lines[0] != "hexai" {
+		t.Fatalf("expected [hexai], got %q", lines)
+	}
+}
+
+func TestHandleProjects_JSONOutput(t *testing.T) {
+	oldFind := projectsFindTaskBinary
+	oldRun := projectsRunTaskCommand
+	t.Cleanup(func() {
+		projectsFindTaskBinary = oldFind
+		projectsRunTaskCommand = oldRun
+	})
+
+	projectsFindTaskBinary = func() (string, error) { return "task", nil }
+	projectsRunTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+		tasks := []TaskExport{
+			{UUID: "1", Project: "hexai", Status: "pending", Urgency: 1},
+			{UUID: "2", Project: "dtail", Status: "pending", Urgency: 2},
+		}
+		_, _ = io.WriteString(stdout, taskExportJSON(tasks))
+		return nil
+	}
+
+	ctx := context.Background()
+	d := NewDispatcher(nil)
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(ctx, []string{"--json", "projects"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("unexpected exit code: %d", code)
+	}
+
+	if !strings.Contains(stdout.String(), `"dtail"`) || !strings.Contains(stdout.String(), `"hexai"`) {
+		t.Fatalf("unexpected JSON output: %s", stdout.String())
+	}
+}
+
+func TestHandleProjects_EmptyResult(t *testing.T) {
+	oldFind := projectsFindTaskBinary
+	oldRun := projectsRunTaskCommand
+	t.Cleanup(func() {
+		projectsFindTaskBinary = oldFind
+		projectsRunTaskCommand = oldRun
+	})
+
+	projectsFindTaskBinary = func() (string, error) { return "task", nil }
+	projectsRunTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+		_, _ = io.WriteString(stdout, "[]")
+		return nil
+	}
+
+	ctx := context.Background()
+	d := NewDispatcher(nil)
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(ctx, []string{"projects"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("unexpected exit code: %d", code)
+	}
+	if stdout.String() != "" {
+		t.Fatalf("expected no output, got %q", stdout.String())
+	}
+}
+
+func TestHandleProjects_ForwardsTaskExportError(t *testing.T) {
+	oldFind := projectsFindTaskBinary
+	oldRun := projectsRunTaskCommand
+	t.Cleanup(func() {
+		projectsFindTaskBinary = oldFind
+		projectsRunTaskCommand = oldRun
+	})
+
+	projectsFindTaskBinary = func() (string, error) { return "task", nil }
+	projectsRunTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+		return fmt.Errorf("some error")
+	}
+
+	ctx := context.Background()
+	d := NewDispatcher(nil)
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(ctx, []string{"projects"}, nil, &stdout, &stderr)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if code != 1 {
+		t.Fatalf("expected exit code 1, got %d", code)
+	}
+}
+
+func taskExportJSON(tasks []TaskExport) string {
+	data, err := json.Marshal(tasks)
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
+}

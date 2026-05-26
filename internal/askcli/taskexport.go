@@ -9,6 +9,7 @@ import (
 // TaskExport mirrors the JSON structure returned by Taskwarrior export commands.
 type TaskExport struct {
 	UUID        string   `json:"uuid"`
+	Project     string   `json:"project,omitempty"`
 	Description string   `json:"description"`
 	Status      string   `json:"status"`
 	Priority    string   `json:"priority"`

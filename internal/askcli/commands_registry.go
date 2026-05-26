@@ -187,6 +187,13 @@ var commandRegistry = newCommandTable([]commandEntry{
 
 func init() {
 	commandRegistry.add(commandEntry{
+		name:                "projects",
+		description:         "List projects with pending, not-yet-started tasks",
+		handler:             wrapSimpleCommand((*Dispatcher).handleProjects),
+		includeInCompletion: true,
+		readOnly:            true,
+	})
+	commandRegistry.add(commandEntry{
 		name:                "watch",
 		description:         "Repeatedly run a subcommand and redraw when output changes",
 		handler:             wrapSimpleCommand((*Dispatcher).handleWatch),
