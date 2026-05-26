@@ -47,7 +47,7 @@ func (d *Dispatcher) resolveTaskSelector(ctx context.Context, selector string, s
 func normalizeTaskSelectorInput(selector string) (string, bool, error) {
 	normalized := NormalizeUUID(selector)
 	if selector != normalized && IsNumericID(normalized) {
-		return "", false, fmt.Errorf(strings.TrimSpace(RejectNumericID()))
+		return "", false, fmt.Errorf("%s", strings.TrimSpace(RejectNumericID()))
 	}
 	return normalized, selector == normalized, nil
 }
@@ -114,7 +114,7 @@ func finalizeResolvedTaskSelector(
 		return resolvedTaskSelector{Input: selector, UUID: selector, Alias: aliasForUUID}, nil
 	}
 	if IsNumericID(selector) {
-		return resolvedTaskSelector{}, fmt.Errorf(strings.TrimSpace(RejectNumericID()))
+		return resolvedTaskSelector{}, fmt.Errorf("%s", strings.TrimSpace(RejectNumericID()))
 	}
 	if err := saveIfChanged(); err != nil {
 		return resolvedTaskSelector{}, err
