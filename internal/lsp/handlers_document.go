@@ -456,8 +456,10 @@ func (s *Server) deferShowDocument(uri string, sel Range) {
 	s.inflight.Add(1)
 	go func() {
 		defer s.inflight.Done()
+		timer := time.NewTimer(120 * time.Millisecond)
+		defer timer.Stop()
 		select {
-		case <-time.After(120 * time.Millisecond):
+		case <-timer.C:
 			s.clientShowDocument(uri, &sel)
 		case <-ctx.Done():
 		}
