@@ -21,6 +21,7 @@ type commandEntry struct {
 	handler             commandHandler
 	includeInCompletion bool
 	singleSelector      bool
+	readOnly            bool
 }
 
 type commandTable struct {
@@ -82,18 +83,21 @@ var commandRegistry = newCommandTable([]commandEntry{
 		description:         "List active tasks",
 		handler:             wrapSimpleCommand((*Dispatcher).handleList),
 		includeInCompletion: true,
+		readOnly:            true,
 	},
 	{
 		name:                "all",
 		description:         "List all tasks",
 		handler:             wrapSimpleCommand((*Dispatcher).handleAll),
 		includeInCompletion: true,
+		readOnly:            true,
 	},
 	{
 		name:                "ready",
 		description:         "List READY tasks",
 		handler:             wrapSimpleCommand((*Dispatcher).handleReady),
 		includeInCompletion: true,
+		readOnly:            true,
 	},
 	{
 		name:                "info",
@@ -101,6 +105,7 @@ var commandRegistry = newCommandTable([]commandEntry{
 		handler:             wrapSimpleCommand((*Dispatcher).handleInfo),
 		includeInCompletion: true,
 		singleSelector:      true,
+		readOnly:            true,
 	},
 	{
 		name:                "annotate",
@@ -176,10 +181,17 @@ var commandRegistry = newCommandTable([]commandEntry{
 		description:         "List tasks sorted by urgency",
 		handler:             wrapSimpleCommand((*Dispatcher).handleUrgency),
 		includeInCompletion: true,
+		readOnly:            true,
 	},
 })
 
 func init() {
+	commandRegistry.add(commandEntry{
+		name:                "watch",
+		description:         "Repeatedly run a subcommand and redraw when output changes",
+		handler:             wrapSimpleCommand((*Dispatcher).handleWatch),
+		includeInCompletion: true,
+	})
 	commandRegistry.add(commandEntry{
 		name:                "fish",
 		description:         "Emit Fish shell completion script",
@@ -189,6 +201,7 @@ func init() {
 	commandRegistry.add(commandEntry{
 		name:        "help",
 		description: "Show help",
+		readOnly:    true,
 		handler: func(d *Dispatcher, ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 			_ = ctx
 			_ = args

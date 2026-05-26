@@ -203,7 +203,7 @@ func TestDispatcher_LongHelp(t *testing.T) {
 	var stdout bytes.Buffer
 	d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard)
 	output := stdout.String()
-	for _, sub := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "fish"} {
+	for _, sub := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "watch", "modify", "denotate", "delete", "fish"} {
 		if !strings.Contains(output, "ask "+sub) {
 			t.Errorf("help missing subcommand: ask %s", sub)
 		}

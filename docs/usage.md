@@ -170,6 +170,7 @@ You can combine the prefixes in either order, for example `ask proj:hexai na lis
 | `ask dep rm <id\|uuid> <dep-id\|dep-uuid>` | Remove dependency |
 | `ask dep list <id\|uuid>` | List dependencies |
 | `ask urgency` | List tasks by urgency |
+| `ask watch [subcommand...]` | Re-run a read-only subcommand every 2s and redraw when output changes; defaults to `ask list` |
 | `ask modify <id\|uuid> <args...>` | General-purpose modify |
 | `ask denotate <id\|uuid> "text"` | Remove annotation |
 | `ask delete <id\|uuid>` | Delete a task |
