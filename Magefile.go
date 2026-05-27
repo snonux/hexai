@@ -25,8 +25,8 @@ var (
 
 // Build builds binaries.
 func Build() error {
-	mg.Deps(BuildAsk, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit, BuildHexaiMCPServer)
 	printCoverage()
+	mg.Deps(BuildAsk, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit, BuildHexaiMCPServer)
 	return nil
 }
 
@@ -143,14 +143,15 @@ func RunTmuxAction() error {
 
 // printCoverage prints a warning if an existing coverage profile shows total < coverateThreshold.
 func printCoverage() {
-	// Ensure the top-level coverage profile is refreshed at least once per day.
-	ensureDailyCoverage(24 * time.Hour)
 	select {
 	case coveragePrinted <- struct{}{}:
 	default:
 		// Coverage already printed
 		return
 	}
+
+	// Ensure the top-level coverage profile is refreshed at most once per Mage invocation.
+	ensureDailyCoverage(24 * time.Hour)
 
 	profile := ""
 	if _, err := os.Stat("docs/coverage.out"); err == nil {
