@@ -38,11 +38,14 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 		// The dep modifier function must extract just the selector (before the
 		// tab) from each tab-separated "selector\tdescription" completion item.
 		"for item in (__ask_task_selectors)",
-		"set -l selector (string split -m1 '\\t' -- $item)[1]",
+		"set -l selector (string split -m1 \"\t\" -- $item)[1]",
 	} {
 		if !strings.Contains(script, line) {
 			t.Fatalf("script missing dep completion line %q", line)
 		}
+	}
+	if strings.Contains(script, "set -l selector (string split -m1 '\\t' -- $item)[1]") {
+		t.Fatalf("dep selector split must use a real tab delimiter, not literal \\\\t")
 	}
 	if strings.Contains(script, "ask export") {
 		t.Fatalf("script should not advertise non-existent export command")
