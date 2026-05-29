@@ -16,8 +16,6 @@ import (
 
 const askRepoLockFile = "hexai-ask.lock"
 
-var errAskLockReopen = errors.New("ask lock: reopen after stale file removal")
-
 func lockProcessLabel() string {
 	if exe, err := os.Executable(); err == nil {
 		if b := filepath.Base(exe); b != "" && b != "." {
@@ -70,11 +68,9 @@ func writeLockMetadata(f *os.File, pid int, comm string) error {
 
 // waitOrAcquireAskLockFD tries to take an exclusive lock on f, or blocks until ctx ends.
 // On success it writes lock metadata and returns an unlock function (which closes f).
-// errAskLockReopen means the caller should open the lock path again after stale removal.
 func waitOrAcquireAskLockFD(
 	ctx context.Context,
 	f *os.File,
-	lockPath string,
 	comm string,
 	retryTimer *time.Timer,
 ) (func() error, error) {
@@ -98,12 +94,10 @@ func waitOrAcquireAskLockFD(
 		}
 
 		pid := readLockHolderPID(f)
+		// Keep waiting even if metadata appears stale: removing a contended lock file can
+		// split ownership across different inodes and break serialization guarantees.
 		if pid > 0 && lockHolderIsStale(pid, comm) {
-			_ = f.Close()
-			if rerr := os.Remove(lockPath); rerr != nil && !errors.Is(rerr, os.ErrNotExist) {
-				return nil, fmt.Errorf("ask lock: remove stale %s: %w", lockPath, rerr)
-			}
-			return nil, errAskLockReopen
+			// Intentional no-op: contention is resolved only by waiting for flock release.
 		}
 
 		retryTimer.Reset(5 * time.Millisecond)
@@ -128,20 +122,9 @@ func acquireAskRepoLock(ctx context.Context, gitRoot string) (func() error, erro
 	retryTimer := time.NewTimer(5 * time.Millisecond)
 	defer retryTimer.Stop()
 
-	for removalAttempts := 0; removalAttempts < 16; removalAttempts++ {
-		f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
-		if err != nil {
-			return nil, fmt.Errorf("ask lock: open %s: %w", lockPath, err)
-		}
-		unlock, err := waitOrAcquireAskLockFD(ctx, f, lockPath, comm, retryTimer)
-		if err == nil {
-			return unlock, nil
-		}
-		if errors.Is(err, errAskLockReopen) {
-			continue
-		}
-		return nil, err
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("ask lock: open %s: %w", lockPath, err)
 	}
-
-	return nil, fmt.Errorf("ask lock: could not acquire %s after stale recovery attempts", lockPath)
+	return waitOrAcquireAskLockFD(ctx, f, comm, retryTimer)
 }
