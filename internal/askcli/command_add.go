@@ -45,10 +45,15 @@ func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stder
 		_, _ = io.WriteString(stderr, "error: could not parse UUID from task creation output\n")
 		return 1, nil
 	}
-	aliases, err := ensureTaskAliasesForUUIDs([]string{uuid})
-	if err != nil {
-		fmt.Fprintf(stderr, "error: failed to assign task alias: %v\n", err)
-		return 1, nil
+	// The task is already created in Taskwarrior. If alias assignment fails
+	// (e.g. cache lock timeout, validation error, disk full), surface the
+	// problem as a warning on stderr but still report success on stdout with
+	// exit 0 so the user does not retry and create a duplicate task. The
+	// displayed identifier falls back to the UUID when no alias is available.
+	aliases, aliasErr := ensureTaskAliasesForUUIDs([]string{uuid})
+	if aliasErr != nil {
+		fmt.Fprintf(stderr, "warning: failed to assign task alias: %v\n", aliasErr)
+		aliases = nil
 	}
 	_, _ = io.WriteString(stdout, FormatCreatedTask(displayTaskAlias(uuid, aliases)))
 	return 0, nil

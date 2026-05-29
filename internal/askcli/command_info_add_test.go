@@ -342,6 +342,12 @@ func TestHandleAdd_Success(t *testing.T) {
 	}
 }
 
+// TestHandleAdd_AliasAssignmentFailure verifies that when alias assignment
+// fails after the task is already created in Taskwarrior, the command still
+// exits 0 and prints "created task <uuid>" on stdout (with the UUID as
+// fallback identifier), while emitting the failure as a warning on stderr.
+// This prevents the previous bug where the user saw exit 1 and retried,
+// creating duplicate tasks.
 func TestHandleAdd_AliasAssignmentFailure(t *testing.T) {
 	oldRoot := taskAliasCacheRoot
 	taskAliasCacheRoot = func() (string, error) { return "", io.ErrUnexpectedEOF }
@@ -354,14 +360,17 @@ func TestHandleAdd_AliasAssignmentFailure(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"add", "New task description"}, nil, &stdout, &stderr)
-	if code != 1 {
-		t.Fatalf("add code = %d, want 1", code)
+	if code != 0 {
+		t.Fatalf("add code = %d, want 0 (task was created, alias failure is non-fatal)", code)
 	}
-	if stdout.Len() != 0 {
-		t.Fatalf("stdout = %q, want empty output on alias assignment failure", stdout.String())
+	if got := strings.TrimSpace(stdout.String()); got != "created task abc-123-def" {
+		t.Fatalf("stdout = %q, want \"created task abc-123-def\" (UUID fallback)", stdout.String())
 	}
-	if !strings.Contains(stderr.String(), "failed to assign task alias") {
-		t.Fatalf("stderr = %q, want alias assignment failure", stderr.String())
+	if !strings.Contains(stderr.String(), "warning: failed to assign task alias") {
+		t.Fatalf("stderr = %q, want warning about alias assignment failure", stderr.String())
+	}
+	if strings.Contains(stderr.String(), "error: failed to assign task alias") {
+		t.Fatalf("stderr = %q, alias failure should be a warning, not an error", stderr.String())
 	}
 }
 
