@@ -82,6 +82,7 @@ func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "  ask add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print created task <id>\n")
 	_, _ = io.WriteString(w, "  ask list [filters]           List active tasks (default)\n")
 	_, _ = io.WriteString(w, "  ask ready                   List READY tasks (not blocked)\n")
+	_, _ = io.WriteString(w, "  ask completed               List completed tasks\n")
 	_, _ = io.WriteString(w, "  ask all [filters]            List all tasks including completed/deleted\n")
 	_, _ = io.WriteString(w, "  ask info [id|uuid]            Show task details or current started task\n")
 	_, _ = io.WriteString(w, "  ask annotate <id|uuid> \"note\" Add annotation to task\n")

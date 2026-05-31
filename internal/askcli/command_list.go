@@ -21,6 +21,10 @@ func (d *Dispatcher) handleReady(ctx context.Context, args []string, stdout, std
 	return d.handleListWithFilters(ctx, []string{"+READY"}, args[1:], stdout, stderr)
 }
 
+func (d *Dispatcher) handleCompleted(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	return d.handleListWithFilters(ctx, []string{"status:completed"}, args[1:], stdout, stderr)
+}
+
 // handleListWithFilters is the shared implementation for list/all/ready.
 // initialFilters seeds the taskwarrior filter; extraArgs are user-supplied
 // filter modifiers (limit:, sort:, +tag, started).

@@ -188,6 +188,44 @@ func TestHandleReady_Success(t *testing.T) {
 	}
 }
 
+func TestHandleCompleted_Success(t *testing.T) {
+	dir := t.TempDir()
+	oldRoot := taskAliasCacheRoot
+	oldNow := nowTaskAliasCache
+	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
+	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
+	defer func() {
+		taskAliasCacheRoot = oldRoot
+		nowTaskAliasCache = oldNow
+	}()
+
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 1,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-done", Alias: "0", CreatedAt: nowTaskAliasCache()},
+		},
+	})
+
+	jsonData := `[{"uuid":"uuid-done","description":"Done task","status":"completed","priority":"M","tags":[],"urgency":0.0,"depends":[]}]`
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		for _, arg := range args {
+			if arg == "export" {
+				_, _ = io.WriteString(stdout, jsonData)
+				return 0, nil
+			}
+		}
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"completed"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("completed code = %d, want 0", code)
+	}
+	if !strings.Contains(stdout.String(), "0") || strings.Contains(stdout.String(), "uuid-done") {
+		t.Fatalf("output should show alias only: %s", stdout.String())
+	}
+}
+
 func TestHandleList_PassesFilters(t *testing.T) {
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {

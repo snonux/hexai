@@ -40,7 +40,7 @@ func (d *Dispatcher) handleWatch(ctx context.Context, args []string, stdout, std
 		watchArgs = []string{"list"}
 	}
 	if !watchCommandAllowed(watchArgs) {
-		_, _ = io.WriteString(stderr, "error: ask watch supports read-only subcommands: list, all, ready, info, dep list, urgency, help\n")
+		_, _ = io.WriteString(stderr, "error: ask watch supports read-only subcommands: list, all, ready, completed, info, dep list, urgency, help\n")
 		return 1, nil
 	}
 

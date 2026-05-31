@@ -12,7 +12,7 @@ func TestFishCompletion_IncludesCommandsAndExcludesExport(t *testing.T) {
 			t.Fatalf("script missing scope completion for %q", name)
 		}
 	}
-	for _, name := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "fish", "help"} {
+	for _, name := range []string{"add", "list", "all", "ready", "completed", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "modify", "denotate", "delete", "fish", "help"} {
 		if !strings.Contains(script, " -a '"+name+"' ") {
 			t.Fatalf("script missing root completion for %q", name)
 		}

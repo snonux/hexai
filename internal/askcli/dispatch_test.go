@@ -203,7 +203,7 @@ func TestDispatcher_LongHelp(t *testing.T) {
 	var stdout bytes.Buffer
 	d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard)
 	output := stdout.String()
-	for _, sub := range []string{"add", "list", "all", "ready", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "watch", "projects", "modify", "denotate", "delete", "fish"} {
+	for _, sub := range []string{"add", "list", "all", "ready", "completed", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "watch", "projects", "modify", "denotate", "delete", "fish"} {
 		if !strings.Contains(output, "ask "+sub) {
 			t.Errorf("help missing subcommand: ask %s", sub)
 		}
@@ -482,6 +482,11 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 			wantCalls: [][]string{{"+READY", "export"}},
 		},
 		{
+			name:      "completed",
+			args:      []string{"completed"},
+			wantCalls: [][]string{{"status:completed", "export"}},
+		},
+		{
 			name:      "urgency",
 			args:      []string{"urgency"},
 			wantCalls: [][]string{{"export"}},
@@ -574,7 +579,7 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 				calls = append(calls, append([]string(nil), args...))
 				switch strings.Join(args, " ") {
-				case "export", "status:pending export", "+READY export":
+				case "export", "status:pending export", "+READY export", "status:completed export":
 					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
 				case "uuid:test-uuid export":
 					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))

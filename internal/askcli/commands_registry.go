@@ -100,6 +100,13 @@ var commandRegistry = newCommandTable([]commandEntry{
 		readOnly:            true,
 	},
 	{
+		name:                "completed",
+		description:         "List completed tasks",
+		handler:             wrapSimpleCommand((*Dispatcher).handleCompleted),
+		includeInCompletion: true,
+		readOnly:            true,
+	},
+	{
 		name:                "info",
 		description:         "Show task details",
 		handler:             wrapSimpleCommand((*Dispatcher).handleInfo),
