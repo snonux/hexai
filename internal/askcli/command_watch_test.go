@@ -267,3 +267,29 @@ func TestHandleWatch_RejectsUnsafeSubcommands(t *testing.T) {
 		})
 	}
 }
+
+type mockFdWriter struct {
+	io.Writer
+	fd uintptr
+}
+
+func (m *mockFdWriter) Fd() uintptr { return m.fd }
+
+func TestDeferredWriter_PreservesFd(t *testing.T) {
+	w := &mockFdWriter{Writer: &bytes.Buffer{}, fd: 42}
+	dw := &deferredWriter{w: w}
+	if got := dw.Fd(); got != 42 {
+		t.Fatalf("Fd() = %d, want 42", got)
+	}
+	_, _ = dw.Write([]byte("hello"))
+	if !bytes.Equal(dw.buf.Bytes(), []byte("hello")) {
+		t.Fatalf("buf = %q, want hello", dw.buf.Bytes())
+	}
+}
+
+func TestDeferredWriter_FdZeroWhenUnsupported(t *testing.T) {
+	dw := &deferredWriter{w: &bytes.Buffer{}}
+	if got := dw.Fd(); got != 0 {
+		t.Fatalf("Fd() = %d, want 0", got)
+	}
+}

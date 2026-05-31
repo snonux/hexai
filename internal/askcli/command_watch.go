@@ -34,6 +34,25 @@ var newWatchTicker = func(interval time.Duration) watchTicker {
 	return realWatchTicker{ticker: time.NewTicker(interval)}
 }
 
+// deferredWriter buffers writes for capture while preserving terminal
+// width detection by delegating Fd to the underlying writer.
+type deferredWriter struct {
+	w   io.Writer
+	buf bytes.Buffer
+}
+
+func (dw *deferredWriter) Write(p []byte) (int, error) {
+	return dw.buf.Write(p)
+}
+
+func (dw *deferredWriter) Fd() uintptr {
+	type fder interface{ Fd() uintptr }
+	if f, ok := dw.w.(fder); ok {
+		return f.Fd()
+	}
+	return 0
+}
+
 func (d *Dispatcher) handleWatch(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	watchArgs := args[1:]
 	if len(watchArgs) == 0 {
@@ -49,7 +68,7 @@ func (d *Dispatcher) handleWatch(ctx context.Context, args []string, stdout, std
 
 	var lastOutput []byte
 	for {
-		output, code, err := d.watchOutput(ctx, watchArgs)
+		output, code, err := d.watchOutput(ctx, watchArgs, stdout, stderr)
 		if err != nil {
 			return code, err
 		}
@@ -85,16 +104,17 @@ func watchCommandAllowed(args []string) bool {
 	return false
 }
 
-func (d *Dispatcher) watchOutput(ctx context.Context, args []string) ([]byte, int, error) {
-	var stdout, stderr bytes.Buffer
-	code, err := d.dispatchCommand(ctx, append([]string(nil), args...), nil, &stdout, &stderr)
+func (d *Dispatcher) watchOutput(ctx context.Context, args []string, realStdout, realStderr io.Writer) ([]byte, int, error) {
+	outW := &deferredWriter{w: realStdout}
+	errW := &deferredWriter{w: realStderr}
+	code, err := d.dispatchCommand(ctx, append([]string(nil), args...), nil, outW, errW)
 	if err != nil {
 		return nil, code, fmt.Errorf("watch %s: %w", args[0], err)
 	}
 	// Combine stdout and stderr so warnings or errors emitted by the
 	// watched subcommand are visible in the watched display.
-	out := make([]byte, 0, stdout.Len()+stderr.Len())
-	out = append(out, stdout.Bytes()...)
-	out = append(out, stderr.Bytes()...)
+	out := make([]byte, 0, outW.buf.Len()+errW.buf.Len())
+	out = append(out, outW.buf.Bytes()...)
+	out = append(out, errW.buf.Bytes()...)
 	return out, code, nil
 }
