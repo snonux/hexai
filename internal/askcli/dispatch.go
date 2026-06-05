@@ -80,6 +80,7 @@ func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "  ask no-agent <subcommand...>   Alias for ask na\n")
 	_, _ = io.WriteString(w, "\nSubcommands:\n")
 	_, _ = io.WriteString(w, "  ask add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print created task <id>\n")
+	_, _ = io.WriteString(w, "  ask edit                     Open $EDITOR and create a task from its content\n")
 	_, _ = io.WriteString(w, "  ask list [filters]           List active tasks (default)\n")
 	_, _ = io.WriteString(w, "  ask ready                   List READY tasks (not blocked)\n")
 	_, _ = io.WriteString(w, "  ask completed               List completed tasks\n")

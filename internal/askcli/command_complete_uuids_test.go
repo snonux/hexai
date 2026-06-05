@@ -255,3 +255,31 @@ func TestTruncateDescription_Unicode(t *testing.T) {
 		t.Fatalf("truncateDescription = %q, want %q", got, "日本語…")
 	}
 }
+
+func TestTruncateDescription_CollapsesNewlines(t *testing.T) {
+	// Multi-line descriptions must collapse to a single line so the
+	// tab-separated completion output is not broken into bogus entries.
+	got := truncateDescription("first line\nsecond line\n\nfourth", 100)
+	if got != "first line second line fourth" {
+		t.Fatalf("truncateDescription = %q, want single-line collapse", got)
+	}
+	if strings.ContainsAny(got, "\r\n") {
+		t.Fatalf("truncateDescription left a newline in %q", got)
+	}
+}
+
+func TestOneLineDescription(t *testing.T) {
+	cases := map[string]string{
+		"plain":                   "plain",
+		"a\nb":                    "a b",
+		"a\r\nb":                  "a b",
+		"a\n\n\nb":                "a b",
+		"  leading\n  indented  ": "leading indented",
+		"keep  internal  spaces":  "keep  internal  spaces",
+	}
+	for in, want := range cases {
+		if got := oneLineDescription(in); got != want {
+			t.Fatalf("oneLineDescription(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

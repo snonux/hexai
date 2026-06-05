@@ -85,9 +85,11 @@ func taskCompletionAliasItems(tasks []TaskExport, aliases map[string]string) []s
 	return items
 }
 
-// truncateDescription shortens s to at most maxLen characters, appending "…"
-// when the string is cut, so the completion hint fits on one line.
+// truncateDescription collapses any embedded newlines to keep the completion
+// item on a single line, then shortens s to at most maxLen characters,
+// appending "…" when the string is cut, so the completion hint fits on one line.
 func truncateDescription(s string, maxLen int) string {
+	s = oneLineDescription(s)
 	runes := []rune(s)
 	if len(runes) <= maxLen {
 		return s

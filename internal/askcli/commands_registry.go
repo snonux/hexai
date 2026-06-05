@@ -207,6 +207,12 @@ func init() {
 		includeInCompletion: true,
 	})
 	commandRegistry.add(commandEntry{
+		name:                "edit",
+		description:         "Create a task from $EDITOR content",
+		handler:             wrapSimpleCommand((*Dispatcher).handleEdit),
+		includeInCompletion: true,
+	})
+	commandRegistry.add(commandEntry{
 		name:                "fish",
 		description:         "Emit Fish shell completion script",
 		handler:             wrapSimpleCommand((*Dispatcher).handleFish),

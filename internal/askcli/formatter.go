@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -55,14 +56,15 @@ func taskListWidthsFor(tasks []TaskExport, aliases map[string]string, terminalWi
 		widths.Status = max(widths.Status, len(t.Status))
 		widths.Started = max(widths.Started, len(formatTaskStarted(t)))
 		widths.Tags = max(widths.Tags, len(formatTaskTags(t.Tags)))
-		longestDescription = max(longestDescription, len(t.Description))
+		longestDescription = max(longestDescription, len(oneLineDescription(t.Description)))
 	}
 	widths.Description = taskListDescriptionWidth(widths, terminalWidth, longestDescription)
 	return widths
 }
 
 func writeTaskListHeader(b *strings.Builder, widths taskListWidths) {
-	fmt.Fprintf(b, "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n",
+	fmt.Fprintf(
+		b, "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n",
 		widths.Urgency, "Urg",
 		widths.Priority, "Pri",
 		widths.ID, "ID",
@@ -79,7 +81,8 @@ func writeTaskListSeparator(b *strings.Builder, widths taskListWidths) {
 }
 
 func writeTaskListRow(b *strings.Builder, widths taskListWidths, t TaskExport, aliases map[string]string) {
-	fmt.Fprintf(b, "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n",
+	fmt.Fprintf(
+		b, "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s\n",
 		widths.Urgency, fmt.Sprintf("%.1f", t.Urgency),
 		widths.Priority, t.Priority,
 		widths.ID, displayTaskAlias(t.UUID, aliases),
@@ -98,6 +101,7 @@ func formatTaskTags(tags []string) string {
 }
 
 func formatTaskDescription(desc string, width int) string {
+	desc = oneLineDescription(desc)
 	if width <= 0 || len(desc) <= width {
 		return desc
 	}
@@ -105,6 +109,20 @@ func formatTaskDescription(desc string, width int) string {
 		return desc[:width]
 	}
 	return desc[:width-3] + "..."
+}
+
+// newlineRun matches a run of one or more line breaks together with any inline
+// whitespace surrounding them.
+var newlineRun = regexp.MustCompile(`[ \t]*[\r\n]+[ \t]*`)
+
+// oneLineDescription collapses any embedded line breaks in a task description
+// into a single space so multi-line descriptions render on one line and never
+// break the tab-separated completion output or the task list table.
+func oneLineDescription(desc string) string {
+	if !strings.ContainsAny(desc, "\r\n") {
+		return desc
+	}
+	return strings.TrimSpace(newlineRun.ReplaceAllString(desc, " "))
 }
 
 func formatTaskStarted(t TaskExport) string {

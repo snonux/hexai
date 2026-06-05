@@ -27,6 +27,12 @@ func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stder
 		writeInfoError(stderr, err)
 		return code, nil
 	}
+	return d.createTask(ctx, modifiers, description, dependencyUUIDs, stdout, stderr)
+}
+
+// createTask creates a Taskwarrior task from the given modifiers, description,
+// and resolved dependency UUIDs, assigns an alias, and prints the created task.
+func (d *Dispatcher) createTask(ctx context.Context, modifiers []string, description string, dependencyUUIDs []string, stdout, stderr io.Writer) (int, error) {
 	var outBuf bytes.Buffer
 	// rc.verbose=nothing keeps Taskwarrior quiet by default. rc.verbose=new-uuid
 	// then re-enables the UUID-only confirmation we parse below.
@@ -36,7 +42,7 @@ func (d *Dispatcher) handleAdd(ctx context.Context, args []string, stdout, stder
 		taskArgs = append(taskArgs, "depends:"+strings.Join(dependencyUUIDs, ","))
 	}
 	taskArgs = append(taskArgs, description)
-	code, err = d.runner.Run(ctx, taskArgs, nil, &outBuf, stderr)
+	code, err := d.runner.Run(ctx, taskArgs, nil, &outBuf, stderr)
 	if code != 0 {
 		return code, err
 	}
