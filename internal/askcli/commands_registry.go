@@ -208,9 +208,10 @@ func init() {
 	})
 	commandRegistry.add(commandEntry{
 		name:                "edit",
-		description:         "Create a task from $EDITOR content",
+		description:         "Edit a task description in $EDITOR (or create one)",
 		handler:             wrapSimpleCommand((*Dispatcher).handleEdit),
 		includeInCompletion: true,
+		singleSelector:      true,
 	})
 	commandRegistry.add(commandEntry{
 		name:                "fish",
