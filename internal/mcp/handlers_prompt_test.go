@@ -885,8 +885,12 @@ func TestServer_Run_InvalidJSON(t *testing.T) {
 		done <- server.Run()
 	}()
 
-	// Give time for processing
-	time.Sleep(50 * time.Millisecond)
+	// Wait for processing to complete
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("server.Run() did not return in time")
+	}
 
 	// Should have written error response
 	if outBuf.Len() == 0 {
