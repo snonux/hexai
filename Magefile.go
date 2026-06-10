@@ -255,12 +255,12 @@ func atomicInstallBinary(src, dstDir string) error {
 	return nil
 }
 
-// Test runs the test suite.
+// Test runs the test suite with the race detector enabled to catch data races.
 func Test() error {
 	if err := sh.RunV("go", "clean", "-testcache"); err != nil {
 		return err
 	}
-	return sh.RunV("go", "test", "-v", "./...")
+	return sh.RunV("go", "test", "-race", "-v", "./...")
 }
 
 // Coverage generates a combined coverage profile across all packages (cross-package coverage).
