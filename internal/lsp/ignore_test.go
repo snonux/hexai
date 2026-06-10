@@ -28,9 +28,10 @@ func newIgnoreTestServer(gitRoot string, useGI bool, extra []string, notifyIgnor
 		docs:                make(map[string]*document),
 		cfg:                 cfg,
 		codeActionSubsystem: codeActionSubsystem{llmClientRegistry: llmClientRegistry{}},
-		completionSubsystem: completionSubsystem{completionState: completionState{}},
 		ignoreChecker:       ignore.New(gitRoot, useGI, extra),
 	}
+	s.chat = newChatService(s)
+	s.completion = newCompletionService(s)
 	return s
 }
 

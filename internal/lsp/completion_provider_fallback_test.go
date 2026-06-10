@@ -41,7 +41,7 @@ func TestCompletion_FallbackOnProviderError(t *testing.T) {
 	// Call handleCompletion and ensure it returns at least one item from chat fallback
 	var buf nopWriter
 	s.out = &buf
-	s.handleCompletion(Request{JSONRPC: "2.0", ID: json.RawMessage("6"), Method: "textDocument/completion", Params: mustJSON(p)})
+	s.completion.handleCompletion(Request{JSONRPC: "2.0", ID: json.RawMessage("6"), Method: "textDocument/completion", Params: mustJSON(p)})
 	// No panic implies path executed; detailed decode not needed here
 }
 

@@ -255,7 +255,7 @@ func (s *Server) chatWithStats(ctx context.Context, surface surfaceKind, spec re
 	}
 	s.incSentCounters(sent)
 	// Debounce/throttle if configured (reuse completion gates)
-	s.waitForDebounce(ctx)
+	s.completionSvc().waitForDebounce(ctx)
 	if !s.waitForThrottle(ctx) {
 		return "", context.Canceled
 	}

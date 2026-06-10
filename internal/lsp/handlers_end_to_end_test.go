@@ -227,7 +227,7 @@ func TestDetectAndHandleChat_InsertsReply(t *testing.T) {
 	// Place a prompt line with a supported trigger at EOL, then a blank line
 	s.setDocument(uri, "What time?>\n\n")
 	out.Reset()
-	s.detectAndHandleChat(uri)
+	s.chatSvc().detectAndHandleChat(uri)
 	// Wait for the background chat goroutine to finish writing.
 	s.inflight.Wait()
 	if out.Len() == 0 {

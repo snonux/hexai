@@ -19,10 +19,10 @@ func TestShouldSuppressForChatTriggerEOL_CustomConfig(t *testing.T) {
 	s.cfg = cfg
 
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x"}, Position: Position{Line: 0, Character: 6}}
-	if !s.shouldSuppressForChatTriggerEOL("ok)#", p) {
+	if !s.completion.shouldSuppressForChatTriggerEOL("ok)#", p) {
 		t.Fatalf("expected suppression for custom prefix+suffix at EOL")
 	}
-	if s.shouldSuppressForChatTriggerEOL("ok]#", p) {
+	if s.completion.shouldSuppressForChatTriggerEOL("ok]#", p) {
 		t.Fatalf("did not expect suppression for non-matching prefix")
 	}
 }
@@ -42,7 +42,7 @@ func TestNewServer_AssignsTriggerGlobals_AndParsingUsesThem(t *testing.T) {
 	if txt, l, r, ok := findStrictInlineTag("x<do>y", openStr, openChar, closeChar); !ok || txt != "do" || l != 1 || r != 5 {
 		t.Fatalf("findStrictInlineTag failed: ok=%v txt=%q l=%d r=%d", ok, txt, l, r)
 	}
-	if got := s.stripTrailingTrigger("note:)"); got != "note:" {
+	if got := s.chatSvc().stripTrailingTrigger("note:)"); got != "note:" {
 		t.Fatalf("stripTrailingTrigger failed: %q", got)
 	}
 }
@@ -73,7 +73,7 @@ func TestDetectAndHandleChat_CustomConfig_InsertsReply(t *testing.T) {
 	uri := "file:///chat2.go"
 	s.setDocument(uri, "ok)#\n\n")
 	out.Reset()
-	s.detectAndHandleChat(uri)
+	s.chatSvc().detectAndHandleChat(uri)
 	// Wait for the background chat goroutine to finish writing.
 	s.inflight.Wait()
 	if out.Len() == 0 {

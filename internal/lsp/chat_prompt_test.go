@@ -18,7 +18,7 @@ func TestDetectAndHandleChat_UsesConfiguredSystemPrompt(t *testing.T) {
 	s.out = &out
 	// Line that should trigger chat: ends with '>' and previous char in prefixes
 	s.setDocument(uri, "help?>\n")
-	s.detectAndHandleChat(uri)
+	s.chatSvc().detectAndHandleChat(uri)
 	// Wait for the background chat goroutine to finish.
 	s.inflight.Wait()
 	if len(cap.msgs) == 0 {

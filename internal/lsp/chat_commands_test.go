@@ -28,7 +28,7 @@ func TestFormatReloadSummary(t *testing.T) {
 
 func TestHandleHelpCommandListsReload(t *testing.T) {
 	s := newTestServer()
-	res := s.handleHelpCommand()
+	res := s.chatSvc().handleHelpCommand()
 	if !strings.Contains(res.message, "/reload?>") {
 		t.Fatalf("expected reload command in help output: %q", res.message)
 	}
@@ -70,7 +70,7 @@ func TestHandleReloadCommandReloadsStore(t *testing.T) {
 		t.Fatalf("update config: %v", err)
 	}
 
-	res := s.handleReloadCommand()
+	res := s.chatSvc().handleReloadCommand()
 	if !strings.Contains(res.message, "Reloaded config (1 changes):") {
 		t.Fatalf("unexpected reload summary: %q", res.message)
 	}
@@ -115,7 +115,7 @@ func TestDetectAndHandleChatExecutesSlashCommand(t *testing.T) {
 	uri := "file:///cmd.go"
 	s.setDocument(uri, "/reload>\n")
 
-	s.detectAndHandleChat(uri)
+	s.chatSvc().detectAndHandleChat(uri)
 
 	outStr := out.String()
 	if !strings.Contains(outStr, "Reloaded config") {
@@ -132,7 +132,7 @@ func TestDisableEnableCommandsToggleCompletions(t *testing.T) {
 		t.Fatalf("expected completions enabled initially")
 	}
 
-	if res, ok := s.chatCommandResponse("file:///x", 0, "/disable>"); !ok {
+	if res, ok := s.chatSvc().chatCommandResponse("file:///x", 0, "/disable>"); !ok {
 		t.Fatalf("expected disable command to be handled")
 	} else if !strings.Contains(res.message, "disabled") {
 		t.Fatalf("unexpected disable message: %q", res.message)
@@ -141,13 +141,13 @@ func TestDisableEnableCommandsToggleCompletions(t *testing.T) {
 		t.Fatalf("expected completions disabled after command")
 	}
 
-	if res, ok := s.chatCommandResponse("file:///x", 0, "/disable>"); !ok {
+	if res, ok := s.chatSvc().chatCommandResponse("file:///x", 0, "/disable>"); !ok {
 		t.Fatalf("expected repeated disable command to be handled")
 	} else if !strings.Contains(res.message, "already disabled") {
 		t.Fatalf("expected already-disabled message, got %q", res.message)
 	}
 
-	if res, ok := s.chatCommandResponse("file:///x", 0, "/enable>"); !ok {
+	if res, ok := s.chatSvc().chatCommandResponse("file:///x", 0, "/enable>"); !ok {
 		t.Fatalf("expected enable command to be handled")
 	} else if !strings.Contains(res.message, "enabled") {
 		t.Fatalf("unexpected enable message: %q", res.message)
@@ -156,7 +156,7 @@ func TestDisableEnableCommandsToggleCompletions(t *testing.T) {
 		t.Fatalf("expected completions enabled after command")
 	}
 
-	if res, ok := s.chatCommandResponse("file:///x", 0, "/enable>"); !ok {
+	if res, ok := s.chatSvc().chatCommandResponse("file:///x", 0, "/enable>"); !ok {
 		t.Fatalf("expected repeated enable command to be handled")
 	} else if !strings.Contains(res.message, "already enabled") {
 		t.Fatalf("expected already-enabled message, got %q", res.message)

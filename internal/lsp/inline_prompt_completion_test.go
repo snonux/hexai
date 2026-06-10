@@ -37,7 +37,7 @@ func TestHandleCompletionInlinePromptDoubleArrow(t *testing.T) {
 	bctx, _ := json.Marshal(ctx)
 	p.Context = json.RawMessage(bctx)
 
-	s.handleCompletion(Request{JSONRPC: "2.0", ID: json.RawMessage("1"), Method: "textDocument/completion", Params: mustJSON(p)})
+	s.completion.handleCompletion(Request{JSONRPC: "2.0", ID: json.RawMessage("1"), Method: "textDocument/completion", Params: mustJSON(p)})
 	resp := captureResponse(t, &out)
 	var list CompletionList
 	b, _ := json.Marshal(resp.Result)

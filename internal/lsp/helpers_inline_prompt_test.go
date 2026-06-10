@@ -33,7 +33,7 @@ func TestShouldSuppressForChatTriggerEOL_EmptySuffix_NoSuppression(t *testing.T)
 	cfg.ChatSuffix = ""
 	s.cfg = cfg
 	p := CompletionParams{Position: Position{Line: 0, Character: 5}}
-	if s.shouldSuppressForChatTriggerEOL("What?>", p) {
+	if s.completion.shouldSuppressForChatTriggerEOL("What?>", p) {
 		t.Fatalf("expected no suppression when chat suffix is empty")
 	}
 }

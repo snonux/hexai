@@ -7,13 +7,13 @@ func TestCompletionSuppressedOnChatTriggerEOL(t *testing.T) {
 	s := newTestServer()
 	s.cfg.MaxTokens = 32
 	s.cfg.TriggerCharacters = []string{".", ":", "/", "_"}
-	s.compCache = make(map[string]string)
+	s.completion.compCache = make(map[string]string)
 	initServerDefaults(s)
 	s.llmClient = &countingLLM{}
 	tests := []string{"What now?>", "Explain!>", "Refactor:>", "note ;>"}
 	for i, line := range tests {
 		p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://chat-suppr.go"}}
-		items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+		items, ok, _ := s.completion.tryLLMCompletion(p, "", line, "", "", "", false, "")
 		if !ok {
 			t.Fatalf("case %d: expected ok=true", i)
 		}

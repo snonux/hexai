@@ -1,4 +1,7 @@
-// Completion handlers split from handlers.go to reduce file size and isolate feature logic.
+// Completion request handling for the LSP server. These are methods on
+// completionService (the extracted code-completion subsystem), which owns the
+// cache/throttle state and reaches back into Server (via cs.srv, aliased to s)
+// for shared infrastructure such as LLM clients, document access and stats.
 package lsp
 
 import (
@@ -35,7 +38,8 @@ type completionJobResult struct {
 	ok    bool
 }
 
-func (s *Server) handleCompletion(req Request) {
+func (cs *completionService) handleCompletion(req Request) {
+	s := cs.srv
 	if s.completionDisabled() {
 		s.reply(req.ID, CompletionList{IsIncomplete: false, Items: nil}, nil)
 		return
@@ -60,14 +64,14 @@ func (s *Server) handleCompletion(req Request) {
 		logging.Logf("lsp ", "completion trigger kind=%d char=%q uri=%s line=%d char=%d",
 			tk, tch, p.TextDocument.URI, p.Position.Line, p.Position.Character)
 		above, current, below, funcCtx := s.lineContext(p.TextDocument.URI, p.Position)
-		docStr = s.buildDocString(p, above, current, below, funcCtx)
+		docStr = cs.buildDocString(p, above, current, below, funcCtx)
 		if s.logContext {
-			s.logCompletionContext(p, above, current, below, funcCtx)
+			cs.logCompletionContext(p, above, current, below, funcCtx)
 		}
 		if s.currentLLMClient() != nil {
 			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
 			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
-			items, ok, incomplete := s.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
+			items, ok, incomplete := cs.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
 			if ok {
 				s.reply(req.ID, CompletionList{IsIncomplete: incomplete, Items: items}, nil)
 				return
@@ -105,22 +109,23 @@ func extractTriggerInfo(p CompletionParams) (kind int, ch string) {
 
 // --- completion helpers ---
 
-func (s *Server) buildDocString(p CompletionParams, above, current, below, funcCtx string) string {
+func (cs *completionService) buildDocString(p CompletionParams, above, current, below, funcCtx string) string {
 	return fmt.Sprintf("file: %s\nline: %d\nabove: %s\ncurrent: %s\nbelow: %s\nfunction: %s",
 		p.TextDocument.URI, p.Position.Line, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
 }
 
-func (s *Server) logCompletionContext(p CompletionParams, above, current, below, funcCtx string) {
+func (cs *completionService) logCompletionContext(p CompletionParams, above, current, below, funcCtx string) {
 	logging.Logf("lsp ", "completion ctx uri=%s line=%d char=%d above=%q current=%q below=%q function=%q",
 		p.TextDocument.URI, p.Position.Line, p.Position.Character, trimLen(above), trimLen(current), trimLen(below), trimLen(funcCtx))
 }
 
-func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool, bool) {
+func (cs *completionService) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool, bool) {
+	s := cs.srv
 	ctx, cancel := s.requestTimeoutContext(12 * time.Second)
 	var cancelOnce sync.Once
 	end := func() { cancelOnce.Do(cancel) }
 
-	plan, items, handled := s.prepareCompletionPlan(p, above, current, below, funcCtx, docStr, hasExtra, extraText)
+	plan, items, handled := cs.prepareCompletionPlan(p, above, current, below, funcCtx, docStr, hasExtra, extraText)
 	if handled {
 		end()
 		return items, true, false
@@ -130,7 +135,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		end()
 		return nil, false, false
 	}
-	results, started, ok := s.startCompletionJobs(ctx, plan, specs)
+	results, started, ok := cs.startCompletionJobs(ctx, plan, specs)
 	if !ok || started == 0 {
 		end()
 		return nil, false, false
@@ -155,7 +160,7 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 		return combined, true, false
 	}
 
-	firstItems, ok := s.firstCompletionAndStore(results, plan.cacheKey, end)
+	firstItems, ok := cs.firstCompletionAndStore(results, plan.cacheKey, end)
 	if !ok {
 		end()
 		return nil, false, false
@@ -163,9 +168,10 @@ func (s *Server) tryLLMCompletion(p CompletionParams, above, current, below, fun
 	return firstItems, true, true
 }
 
-func (s *Server) startCompletionJobs(ctx context.Context, plan completionPlan, specs []requestSpec) (<-chan completionJobResult, int, bool) {
+func (cs *completionService) startCompletionJobs(ctx context.Context, plan completionPlan, specs []requestSpec) (<-chan completionJobResult, int, bool) {
+	s := cs.srv
 	results := make(chan completionJobResult, len(specs))
-	s.waitForDebounce(ctx)
+	cs.waitForDebounce(ctx)
 	if !s.waitForThrottle(ctx) {
 		close(results)
 		return results, 0, false
@@ -182,7 +188,7 @@ func (s *Server) startCompletionJobs(ctx context.Context, plan completionPlan, s
 		wg.Add(1)
 		go func(spec requestSpec, client llm.Client) {
 			defer wg.Done()
-			items, ok := s.runCompletionForSpec(ctx, plan, spec, client)
+			items, ok := cs.runCompletionForSpec(ctx, plan, spec, client)
 			results <- completionJobResult{items: items, ok: ok}
 		}(spec, client)
 	}
@@ -216,14 +222,15 @@ func collectCompletionResults(results <-chan completionJobResult) []CompletionIt
 	return combined
 }
 
-func (s *Server) firstCompletionAndStore(results <-chan completionJobResult, cacheKey string, end func()) ([]CompletionItem, bool) {
+func (cs *completionService) firstCompletionAndStore(results <-chan completionJobResult, cacheKey string, end func()) ([]CompletionItem, bool) {
+	s := cs.srv
 	firstCh := make(chan []CompletionItem, 1)
 	// Track this goroutine in inflight so Run's deferred Wait() catches it
 	// and prevents use-after-close writes on shutdown.
 	s.inflight.Add(1)
 	go func() {
 		defer s.inflight.Done()
-		s.collectFirstCompletion(results, cacheKey, firstCh, end)
+		cs.collectFirstCompletion(results, cacheKey, firstCh, end)
 	}()
 	firstItems, ok := <-firstCh
 	if !ok || len(firstItems) == 0 {
@@ -232,7 +239,8 @@ func (s *Server) firstCompletionAndStore(results <-chan completionJobResult, cac
 	return firstItems, true
 }
 
-func (s *Server) collectFirstCompletion(results <-chan completionJobResult, cacheKey string, firstCh chan<- []CompletionItem, end func()) {
+func (cs *completionService) collectFirstCompletion(results <-chan completionJobResult, cacheKey string, firstCh chan<- []CompletionItem, end func()) {
+	s := cs.srv
 	defer end()
 	combined := make([]CompletionItem, 0)
 	firstSent := false
@@ -254,7 +262,8 @@ func (s *Server) collectFirstCompletion(results <-chan completionJobResult, cach
 	close(firstCh)
 }
 
-func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) {
+func (cs *completionService) prepareCompletionPlan(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) (completionPlan, []CompletionItem, bool) {
+	s := cs.srv
 	plan := completionPlan{
 		params:    p,
 		above:     above,
@@ -271,7 +280,7 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 		logging.Logf("lsp ", "%scompletion skip=no-trigger line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return plan, []CompletionItem{}, true
 	}
-	if s.shouldSuppressForChatTriggerEOL(current, p) {
+	if cs.shouldSuppressForChatTriggerEOL(current, p) {
 		return plan, []CompletionItem{}, true
 	}
 	plan.inParams = inParamList(current, p.Position.Character)
@@ -284,14 +293,15 @@ func (s *Server) prepareCompletionPlan(p CompletionParams, above, current, below
 		logging.Logf("lsp ", "%scompletion skip=empty-double-semicolon line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return plan, []CompletionItem{}, true
 	}
-	if !plan.inParams && !s.prefixHeuristicAllows(plan.inlinePrompt, current, p, plan.manualInvoke) {
+	if !plan.inParams && !cs.prefixHeuristicAllows(plan.inlinePrompt, current, p, plan.manualInvoke) {
 		logging.Logf("lsp ", "%scompletion skip=short-prefix line=%d char=%d current=%q%s", logging.AnsiYellow, p.Position.Line, p.Position.Character, trimLen(current), logging.AnsiBase)
 		return plan, []CompletionItem{}, true
 	}
 	return plan, nil, false
 }
 
-func (s *Server) runCompletionForSpec(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client) ([]CompletionItem, bool) {
+func (cs *completionService) runCompletionForSpec(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client) ([]CompletionItem, bool) {
+	s := cs.srv
 	sortPrefix := fmt.Sprintf("%04d", spec.index)
 	modelKey := spec.effectiveModel(client.DefaultModel())
 	providerKey := spec.provider
@@ -307,14 +317,15 @@ func (s *Server) runCompletionForSpec(ctx context.Context, plan completionPlan, 
 		items := s.makeCompletionItems(cached, plan.inParams, plan.current, plan.params, plan.docStr, detail, sortPrefix)
 		return items, true
 	}
-	if items, ok := s.tryProviderNativeCompletion(ctx, plan, spec, client, sortPrefix); ok {
+	if items, ok := cs.tryProviderNativeCompletion(ctx, plan, spec, client, sortPrefix); ok {
 		return items, true
 	}
-	return s.executeChatCompletion(ctx, plan, spec, client, sortPrefix)
+	return cs.executeChatCompletion(ctx, plan, spec, client, sortPrefix)
 }
 
-func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
-	messages := s.buildCompletionMessages(plan.inlinePrompt, plan.hasExtra, plan.extraText, plan.inParams, plan.params, plan.above, plan.current, plan.below, plan.funcCtx)
+func (cs *completionService) executeChatCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
+	s := cs.srv
+	messages := cs.buildCompletionMessages(plan.inlinePrompt, plan.hasExtra, plan.extraText, plan.inParams, plan.params, plan.above, plan.current, plan.below, plan.funcCtx)
 	sentSize := 0
 	for _, m := range messages {
 		sentSize += len(m.Content)
@@ -334,7 +345,7 @@ func (s *Server) executeChatCompletion(ctx context.Context, plan completionPlan,
 	s.logLLMStats(modelUsed)
 	trimmed := strings.TrimSpace(text)
 	cursorByte := utf16OffsetToByteOffset(plan.current, plan.params.Position.Character)
-	cleaned := s.postProcessCompletion(trimmed, plan.current[:cursorByte], plan.current)
+	cleaned := cs.postProcessCompletion(trimmed, plan.current[:cursorByte], plan.current)
 	if cleaned == "" {
 		return nil, false
 	}
@@ -373,7 +384,8 @@ func parseManualInvoke(ctx any) bool {
 }
 
 // shouldSuppressForChatTriggerEOL returns true when a chat trigger like ">" follows ?, !, :, or ; at EOL.
-func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionParams) bool {
+func (cs *completionService) shouldSuppressForChatTriggerEOL(current string, p CompletionParams) bool {
+	s := cs.srv
 	t := strings.TrimRight(current, " \t")
 	suffix, prefixes, _ := s.chatConfig()
 	if suffix == "" {
@@ -395,7 +407,8 @@ func (s *Server) shouldSuppressForChatTriggerEOL(current string, p CompletionPar
 }
 
 // prefixHeuristicAllows applies minimal prefix rules unless inlinePrompt or structural triggers apply.
-func (s *Server) prefixHeuristicAllows(inlinePrompt bool, current string, p CompletionParams, manualInvoke bool) bool {
+func (cs *completionService) prefixHeuristicAllows(inlinePrompt bool, current string, p CompletionParams, manualInvoke bool) bool {
+	s := cs.srv
 	// Convert UTF-16 offset to byte offset for correct multi-byte handling,
 	// then clamp to the line length.
 	idx := utf16OffsetToByteOffset(current, p.Position.Character)
@@ -443,7 +456,8 @@ func buildNativeCompletionCacheKey(planCacheKey, provider, modelUsed string, cli
 
 // postProcessNativeCompletion strips duplicates and applies indentation to the raw suggestion.
 // Returns the cleaned text, or an empty string when the suggestion should be discarded.
-func (s *Server) postProcessNativeCompletion(raw, current string, charOffset int) string {
+func (cs *completionService) postProcessNativeCompletion(raw, current string, charOffset int) string {
+	s := cs.srv
 	cleaned := strings.TrimSpace(raw)
 	if cleaned == "" {
 		return ""
@@ -472,7 +486,8 @@ func (s *Server) postProcessNativeCompletion(raw, current string, charOffset int
 }
 
 // tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
-func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
+func (cs *completionService) tryProviderNativeCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
+	s := cs.srv
 	cc, ok := client.(llm.CodeCompleter)
 	if !ok {
 		return nil, false
@@ -513,7 +528,7 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 		logging.Logf("lsp ", "stats update error: %v", err)
 	}
 	s.logLLMStats(modelUsed)
-	cleaned := s.postProcessNativeCompletion(suggestions[0], current, p.Position.Character)
+	cleaned := cs.postProcessNativeCompletion(suggestions[0], current, p.Position.Character)
 	if cleaned == "" {
 		return nil, false
 	}
@@ -526,15 +541,14 @@ func (s *Server) tryProviderNativeCompletion(ctx context.Context, plan completio
 
 // waitForDebounce sleeps until there has been no input activity for at least
 // completionDebounce. If debounce is zero or ctx is done, it returns promptly.
-func (s *Server) waitForDebounce(ctx context.Context) {
+func (cs *completionService) waitForDebounce(ctx context.Context) {
+	s := cs.srv
 	d := s.completionDebounce()
 	if d <= 0 {
 		return
 	}
 	for {
-		s.mu.RLock()
-		last := s.lastInput
-		s.mu.RUnlock()
+		last := s.chatSvc().lastActivity()
 		if last.IsZero() {
 			return
 		}
@@ -555,7 +569,8 @@ func (s *Server) waitForDebounce(ctx context.Context) {
 }
 
 // buildCompletionMessages constructs the LLM messages for completion.
-func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText string, inParams bool, p CompletionParams, above, current, below, funcCtx string) []llm.Message {
+func (cs *completionService) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText string, inParams bool, p CompletionParams, above, current, below, funcCtx string) []llm.Message {
+	s := cs.srv
 	vars := map[string]string{
 		"file":     p.TextDocument.URI,
 		"function": funcCtx,
@@ -587,7 +602,8 @@ func (s *Server) buildCompletionMessages(inlinePrompt, hasExtra bool, extraText 
 }
 
 // postProcessCompletion normalizes and deduplicates completion text and applies indentation rules.
-func (s *Server) postProcessCompletion(text string, leftOfCursor string, currentLine string) string {
+func (cs *completionService) postProcessCompletion(text string, leftOfCursor string, currentLine string) string {
+	s := cs.srv
 	cleaned := stripCodeFences(text)
 	if cleaned != "" && strings.ContainsRune(cleaned, '`') {
 		if inline := stripInlineCodeSpan(cleaned); strings.TrimSpace(inline) != "" {

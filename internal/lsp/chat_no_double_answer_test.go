@@ -15,7 +15,7 @@ func TestDetectAndHandleChat_NoDoubleAnswer(t *testing.T) {
 	uri := "file:///x.go"
 	// Question line with trigger, followed by an existing answer line starting with '>'
 	s.setDocument(uri, "What?>\n> already answered\n")
-	s.detectAndHandleChat(uri)
+	s.chatSvc().detectAndHandleChat(uri)
 	if out.Len() != 0 {
 		t.Fatalf("expected no applyEdit request when answer exists; got %d bytes", out.Len())
 	}

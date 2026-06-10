@@ -42,13 +42,13 @@ func TestTryLLMCompletion_PrefersCodeCompleterOverChat(t *testing.T) {
 	s := newTestServer()
 	s.cfg.MaxTokens = 32
 	s.cfg.TriggerCharacters = []string{"."}
-	s.compCache = make(map[string]string)
+	s.completion.compCache = make(map[string]string)
 	initServerDefaults(s)
 	fake := &fakeCodeLLM{result: "DoThing()"}
 	s.llmClient = fake
 	line := "obj."
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://x.go"}}
-	items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+	items, ok, _ := s.completion.tryLLMCompletion(p, "", line, "", "", "", false, "")
 	if !ok || len(items) == 0 {
 		t.Fatalf("expected completion items via CodeCompleter path")
 	}
@@ -64,13 +64,13 @@ func TestTryLLMCompletion_FallsBackToChatOnCodeCompleterError(t *testing.T) {
 	s := newTestServer()
 	s.cfg.MaxTokens = 32
 	s.cfg.TriggerCharacters = []string{"."}
-	s.compCache = make(map[string]string)
+	s.completion.compCache = make(map[string]string)
 	initServerDefaults(s)
 	fake := &fakeCodeLLM{result: "DoThing()", codeErr: errors.New("boom")}
 	s.llmClient = fake
 	line := "obj."
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://y.go"}}
-	items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+	items, ok, _ := s.completion.tryLLMCompletion(p, "", line, "", "", "", false, "")
 	if !ok {
 		t.Fatalf("expected ok=true even on fallback path")
 	}

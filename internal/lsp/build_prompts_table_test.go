@@ -13,7 +13,7 @@ func TestBuildPrompts_Table(t *testing.T) {
 	}
 	for _, c := range cases {
 		s := newTestServer()
-		msgs := s.buildCompletionMessages(false, false, "", c.inParams, p, "above", "current", "below", "func ctx")
+		msgs := s.completion.buildCompletionMessages(false, false, "", c.inParams, p, "above", "current", "below", "func ctx")
 		if len(msgs) < 2 || msgs[0].Role != "system" || msgs[1].Role != "user" {
 			t.Fatalf("%s: unexpected messages", c.name)
 		}

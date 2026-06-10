@@ -90,7 +90,7 @@ func TestServerStoreAndTakePendingCompletion(t *testing.T) {
 	s := newTestServer()
 	items := []CompletionItem{{Label: "foo"}}
 	s.storePendingCompletion("key", items)
-	if len(s.pendingCompletions) != 1 {
+	if len(s.completion.pendingCompletions) != 1 {
 		t.Fatalf("expected pending map to be populated")
 	}
 	items[0].Label = "bar" // ensure copy stored
@@ -98,7 +98,7 @@ func TestServerStoreAndTakePendingCompletion(t *testing.T) {
 	if len(got) != 1 || got[0].Label != "foo" {
 		t.Fatalf("expected preserved copy of completion, got %+v", got)
 	}
-	if len(s.pendingCompletions) != 0 {
+	if len(s.completion.pendingCompletions) != 0 {
 		t.Fatalf("expected pending map to be cleared after take")
 	}
 }

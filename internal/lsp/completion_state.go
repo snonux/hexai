@@ -141,31 +141,3 @@ func (s *completionState) waitForThrottle(ctx context.Context, interval time.Dur
 		return true
 	}
 }
-
-func (s *Server) storePendingCompletion(key string, items []CompletionItem) {
-	s.completionState.storePendingCompletion(key, items)
-}
-
-func (s *Server) setCompletionsDisabled(disabled bool) bool {
-	return s.completionState.setCompletionsDisabled(disabled)
-}
-
-func (s *Server) completionDisabled() bool {
-	return s.completionState.completionDisabled()
-}
-
-func (s *Server) takePendingCompletion(key string) []CompletionItem {
-	return s.completionState.takePendingCompletion(key)
-}
-
-func (s *Server) completionCacheGet(key string) (string, bool) {
-	return s.completionState.cacheGet(key)
-}
-
-func (s *Server) completionCachePut(key, value string) {
-	s.completionState.cachePut(key, value)
-}
-
-func (s *Server) waitForThrottle(ctx context.Context) bool {
-	return s.completionState.waitForThrottle(ctx, s.completionThrottle())
-}

@@ -3,7 +3,6 @@ package lsp
 
 import (
 	"strings"
-	"time"
 )
 
 type document struct {
@@ -25,9 +24,7 @@ func (s *Server) deleteDocument(uri string) {
 }
 
 func (s *Server) markActivity() {
-	s.mu.Lock()
-	s.lastInput = time.Now()
-	s.mu.Unlock()
+	s.chatSvc().markActivity()
 }
 
 func (s *Server) getDocument(uri string) *document {

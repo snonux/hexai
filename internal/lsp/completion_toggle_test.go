@@ -18,7 +18,7 @@ func TestHandleCompletionRespectsDisableCommand(t *testing.T) {
 	params := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///test.go"}, Position: Position{Line: 0, Character: 0}}
 	req := Request{JSONRPC: "2.0", ID: json.RawMessage("1"), Method: "textDocument/completion", Params: mustJSON(params)}
 
-	s.handleCompletion(req)
+	s.completion.handleCompletion(req)
 
 	payload := buf.String()
 	parts := strings.SplitN(payload, "\r\n\r\n", 2)

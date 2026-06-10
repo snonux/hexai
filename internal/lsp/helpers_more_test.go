@@ -108,7 +108,7 @@ func TestInParamListAndBuildCompletionMessages(t *testing.T) {
 	}
 	s := newTestServer()
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x.go"}, Position: Position{Line: 0, Character: 5}}
-	msgs := s.buildCompletionMessages(false, false, "", false, p, "above", "current", "below", "func add")
+	msgs := s.completion.buildCompletionMessages(false, false, "", false, p, "above", "current", "below", "func add")
 	if len(msgs) < 2 || msgs[0].Content == "" || msgs[1].Content == "" {
 		t.Fatalf("messages empty")
 	}

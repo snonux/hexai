@@ -42,7 +42,7 @@ func TestStripDuplicateAssignmentPrefix_AssignAndWalrus(t *testing.T) {
 
 func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
 	s := newTestServer()
-	s.compCache = make(map[string]string)
+	s.completion.compCache = make(map[string]string)
 	cfg := s.cfg
 	cfg.MaxTokens = 32
 	cfg.TriggerCharacters = []string{".", ":", "/", "_"}
@@ -52,7 +52,7 @@ func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://x.go"}}
 	// Simulate manual user invocation (TriggerKind=1)
 	p.Context = json.RawMessage([]byte(`{"triggerKind":1}`))
-	items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+	items, ok, _ := s.completion.tryLLMCompletion(p, "", line, "", "", "", false, "")
 	if !ok {
 		t.Fatalf("expected ok=true for manual invoke after whitespace")
 	}
@@ -63,7 +63,7 @@ func TestTryLLMCompletion_ManualInvokeAfterWhitespace_Allows(t *testing.T) {
 
 func TestTryLLMCompletion_InlinePromptAlwaysTriggers(t *testing.T) {
 	s := newTestServer()
-	s.compCache = make(map[string]string)
+	s.completion.compCache = make(map[string]string)
 	cfg := s.cfg
 	cfg.MaxTokens = 32
 	cfg.TriggerCharacters = []string{".", ":", "/", "_"}
@@ -72,7 +72,7 @@ func TestTryLLMCompletion_InlinePromptAlwaysTriggers(t *testing.T) {
 	line := "prefix >!do something> suffix"
 	// No trigger char immediately before cursor; place cursor at end
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://inline.go"}}
-	items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+	items, ok, _ := s.completion.tryLLMCompletion(p, "", line, "", "", "", false, "")
 	if !ok || len(items) == 0 {
 		t.Fatalf("expected completion to trigger on inline >!text> prompt")
 	}
@@ -80,7 +80,7 @@ func TestTryLLMCompletion_InlinePromptAlwaysTriggers(t *testing.T) {
 
 func TestTryLLMCompletion_DoubleOpenEmpty_DoesNotAutoTrigger(t *testing.T) {
 	s := newTestServer()
-	s.compCache = make(map[string]string)
+	s.completion.compCache = make(map[string]string)
 	cfg := s.cfg
 	cfg.MaxTokens = 32
 	cfg.TriggerCharacters = []string{".", ":", "/", "_"}
@@ -89,7 +89,7 @@ func TestTryLLMCompletion_DoubleOpenEmpty_DoesNotAutoTrigger(t *testing.T) {
 	s.llmClient = fake
 	line := ">>!   " // empty content after double-open should not force-trigger
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://empty-inline.go"}}
-	items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+	items, ok, _ := s.completion.tryLLMCompletion(p, "", line, "", "", "", false, "")
 	if !ok {
 		t.Fatalf("expected ok=true for non-trigger path")
 	}
@@ -118,7 +118,7 @@ func TestHasDoubleSemicolonTrigger_Variants(t *testing.T) {
 
 func TestBareDoubleOpenPreventsAutoTriggerEvenWithOtherTriggers(t *testing.T) {
 	s := newTestServer()
-	s.compCache = make(map[string]string)
+	s.completion.compCache = make(map[string]string)
 	cfg := s.cfg
 	cfg.MaxTokens = 32
 	cfg.TriggerCharacters = []string{".", ":", "/", "_"}
@@ -128,7 +128,7 @@ func TestBareDoubleOpenPreventsAutoTriggerEvenWithOtherTriggers(t *testing.T) {
 	// Place a '.' earlier but also include bare double-open at end; should not auto-trigger
 	line := "obj. call >>!"
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://bare-ds.go"}}
-	items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+	items, ok, _ := s.completion.tryLLMCompletion(p, "", line, "", "", "", false, "")
 	if !ok {
 		t.Fatalf("expected ok=true (handled), but not auto-triggering")
 	}
@@ -142,7 +142,7 @@ func TestBareDoubleOpenPreventsAutoTriggerEvenWithOtherTriggers(t *testing.T) {
 
 func TestBareDoubleOpenOnNextLine_PreventsAutoTrigger(t *testing.T) {
 	s := newTestServer()
-	s.compCache = make(map[string]string)
+	s.completion.compCache = make(map[string]string)
 	cfg := s.cfg
 	cfg.MaxTokens = 32
 	cfg.TriggerCharacters = []string{".", ":", "/", "_"}
@@ -152,7 +152,7 @@ func TestBareDoubleOpenOnNextLine_PreventsAutoTrigger(t *testing.T) {
 	current := "expression := flag.String(\"expression\", \"\", \"Expression to evaluate\")"
 	below := ">>!"
 	p := CompletionParams{Position: Position{Line: 0, Character: len(current)}, TextDocument: TextDocumentIdentifier{URI: "file://nextline.go"}}
-	items, ok, _ := s.tryLLMCompletion(p, "", current, below, "", "", false, "")
+	items, ok, _ := s.completion.tryLLMCompletion(p, "", current, below, "", "", false, "")
 	if !ok {
 		t.Fatalf("expected ok=true handled")
 	}
@@ -166,7 +166,7 @@ func TestBareDoubleOpenOnNextLine_PreventsAutoTrigger(t *testing.T) {
 
 func TestBareDoubleOpenPreventsManualInvoke(t *testing.T) {
 	s := newTestServer()
-	s.compCache = make(map[string]string)
+	s.completion.compCache = make(map[string]string)
 	cfg := s.cfg
 	cfg.MaxTokens = 32
 	cfg.TriggerCharacters = []string{".", ":", "/", "_"}
@@ -177,7 +177,7 @@ func TestBareDoubleOpenPreventsManualInvoke(t *testing.T) {
 	p := CompletionParams{Position: Position{Line: 0, Character: len(line)}, TextDocument: TextDocumentIdentifier{URI: "file://bare-ds-manual.go"}}
 	// Simulate manual invoke
 	p.Context = json.RawMessage([]byte(`{"triggerKind":1}`))
-	items, ok, _ := s.tryLLMCompletion(p, "", line, "", "", "", false, "")
+	items, ok, _ := s.completion.tryLLMCompletion(p, "", line, "", "", "", false, "")
 	if !ok {
 		t.Fatalf("expected ok=true (handled)")
 	}

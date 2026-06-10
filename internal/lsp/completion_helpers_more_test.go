@@ -26,10 +26,10 @@ func TestShouldSuppressForChatTriggerEOL(t *testing.T) {
 	s := newTestServer()
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: "file:///x"}, Position: Position{Line: 0, Character: 10}}
 	line := "say hi;>"
-	if !s.shouldSuppressForChatTriggerEOL(line, p) {
+	if !s.completion.shouldSuppressForChatTriggerEOL(line, p) {
 		t.Fatalf("expected suppression when ;> at EOL")
 	}
-	if s.shouldSuppressForChatTriggerEOL("plain>", p) {
+	if s.completion.shouldSuppressForChatTriggerEOL("plain>", p) {
 		t.Fatalf("should not suppress for plain >")
 	}
 }
@@ -37,15 +37,15 @@ func TestShouldSuppressForChatTriggerEOL(t *testing.T) {
 func TestPrefixHeuristicAllows(t *testing.T) {
 	s := newTestServer()
 	// inline prompt allows zero prefix
-	if !s.prefixHeuristicAllows(true, "", CompletionParams{Position: Position{Line: 0, Character: 0}}, false) {
+	if !s.completion.prefixHeuristicAllows(true, "", CompletionParams{Position: Position{Line: 0, Character: 0}}, false) {
 		t.Fatalf("inline prompt should allow")
 	}
 	// structural triggers like '.' allow without prefix
-	if !s.prefixHeuristicAllows(false, "fmt.", CompletionParams{Position: Position{Line: 0, Character: 4}}, false) {
+	if !s.completion.prefixHeuristicAllows(false, "fmt.", CompletionParams{Position: Position{Line: 0, Character: 4}}, false) {
 		t.Fatalf("dot trigger should allow")
 	}
 	// otherwise need at least minimal prefix (default min=1)
-	if s.prefixHeuristicAllows(false, " ", CompletionParams{Position: Position{Line: 0, Character: 0}}, false) {
+	if s.completion.prefixHeuristicAllows(false, " ", CompletionParams{Position: Position{Line: 0, Character: 0}}, false) {
 		t.Fatalf("should not allow with no prefix")
 	}
 }

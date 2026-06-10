@@ -32,18 +32,24 @@ type Server struct {
 	statusSink   StatusSink
 	exited       atomic.Bool
 	inflight     sync.WaitGroup // tracks background goroutines (inline prompt, chat, etc.)
-	// mu protects docs, cfg, logContext, configLoadOpts, nextID, and chatSubsystem.lastInput.
-	// It is never held while completionState.stateMu is held, and vice versa,
-	// so there is no lock ordering concern between them.
+	// mu protects docs, cfg, logContext, configLoadOpts, and nextID.
+	// It is never held while completionState.stateMu (owned by the completion
+	// service) is held, and vice versa, so there is no lock ordering concern
+	// between them.
 	mu          sync.RWMutex
 	docs        map[string]*document
 	logContext  bool
 	configStore *runtimeconfig.Store
 	cfg         appconfig.App
 	codeActionSubsystem
-	chatSubsystem
 	llmStatsSubsystem
-	completionSubsystem
+	// chat and completion own the two large feature subsystems that were
+	// previously inlined on Server (the "God Object"). Server now delegates
+	// in-editor chat and code-completion behavior to these cohesive services,
+	// each of which holds a back-reference to the Server for shared
+	// infrastructure (config, LLM clients, stats, document access).
+	chat           *chatService
+	completion     *completionService
 	configLoadOpts appconfig.LoadOptions
 	// Outgoing JSON-RPC id counter for server-initiated requests
 	nextID int64
@@ -53,14 +59,6 @@ type Server struct {
 
 	// Dispatch table for JSON-RPC methods → handler functions
 	handlers map[string]func(Request)
-}
-
-type completionSubsystem struct {
-	completionState
-}
-
-type chatSubsystem struct {
-	lastInput time.Time
 }
 
 type codeActionSubsystem struct {
@@ -125,10 +123,12 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 		codeActionSubsystem: codeActionSubsystem{
 			llmClientRegistry: llmClientRegistry{},
 		},
-		completionSubsystem: completionSubsystem{
-			completionState: completionState{},
-		},
 	}
+	// Wire up the chat and completion services with a back-reference to the
+	// server so they can reach shared infrastructure while owning their own
+	// feature-specific state and logic.
+	s.chat = newChatService(s)
+	s.completion = newCompletionService(s)
 	s.startTime = time.Now()
 	s.applyOptions(opts)
 	// Initialize dispatch table
@@ -140,7 +140,7 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, opts ServerOptions)
 		"textDocument/didOpen":     s.handleDidOpen,
 		"textDocument/didChange":   s.handleDidChange,
 		"textDocument/didClose":    s.handleDidClose,
-		"textDocument/completion":  s.handleCompletion,
+		"textDocument/completion":  s.completion.handleCompletion,
 		"textDocument/codeAction":  s.handleCodeAction,
 		"codeAction/resolve":       s.handleCodeActionResolve,
 		"workspace/executeCommand": s.handleExecuteCommand,
