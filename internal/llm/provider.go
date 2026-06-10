@@ -3,6 +3,7 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -116,37 +117,57 @@ var (
 	providerRegistryMu    sync.RWMutex
 	providerRegistry      = map[string]ProviderFactory{}
 	registerProvidersOnce sync.Once
+	// registerProvidersErr caches the outcome of the one-time built-in
+	// registration so repeated RegisterAllProviders calls return it too.
+	registerProvidersErr error
 )
 
-// RegisterProvider registers a provider factory by normalized name.
-// Panics on empty name, nil factory, or duplicate registration.
-func RegisterProvider(name string, factory ProviderFactory) {
+// RegisterProvider registers a provider factory by normalized name. It returns
+// an error on an empty name, a nil factory, or a duplicate registration instead
+// of panicking, so callers can decide how to handle misconfiguration. Returning
+// an error keeps registration composable and testable without recover().
+func RegisterProvider(name string, factory ProviderFactory) error {
 	normalized := normalizeProvider(name)
 	if normalized == "" {
-		panic("llm: provider name cannot be empty")
+		return errors.New("llm: provider name cannot be empty")
 	}
 	if factory == nil {
-		panic("llm: provider factory cannot be nil")
+		return errors.New("llm: provider factory cannot be nil")
 	}
 	providerRegistryMu.Lock()
 	defer providerRegistryMu.Unlock()
 	if _, exists := providerRegistry[normalized]; exists {
-		panic("llm: provider already registered: " + normalized)
+		return fmt.Errorf("llm: provider already registered: %s", normalized)
 	}
 	providerRegistry[normalized] = factory
+	return nil
 }
 
 // RegisterAllProviders registers all built-in LLM providers (anthropic, openai,
 // openrouter, ollama, yousearch). It is safe to call from multiple entry points
-// because the actual registration runs only once via sync.Once.
-func RegisterAllProviders() {
+// because the actual registration runs only once via sync.Once. The error from
+// the one-time registration is cached so every caller observes the same result,
+// even though sync.Once only runs the closure once.
+func RegisterAllProviders() error {
 	registerProvidersOnce.Do(func() {
-		RegisterProvider("anthropic", anthropicProviderFactory)
-		RegisterProvider("openai", openAIProviderFactory)
-		RegisterProvider("openrouter", openRouterProviderFactory)
-		RegisterProvider("ollama", ollamaProviderFactory)
-		RegisterProvider("yousearch", youSearchProviderFactory)
+		builtins := []struct {
+			name    string
+			factory ProviderFactory
+		}{
+			{"anthropic", anthropicProviderFactory},
+			{"openai", openAIProviderFactory},
+			{"openrouter", openRouterProviderFactory},
+			{"ollama", ollamaProviderFactory},
+			{"yousearch", youSearchProviderFactory},
+		}
+		for _, b := range builtins {
+			if err := RegisterProvider(b.name, b.factory); err != nil {
+				registerProvidersErr = err
+				return
+			}
+		}
 	})
+	return registerProvidersErr
 }
 
 // NewFromConfig creates an LLM client using only the supplied configuration.

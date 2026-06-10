@@ -18,7 +18,9 @@ import (
 // TestMain registers all built-in LLM providers before tests run, mirroring
 // the explicit registration done in production binaries via RunWithConfig.
 func TestMain(m *testing.M) {
-	llm.RegisterAllProviders()
+	if err := llm.RegisterAllProviders(); err != nil {
+		panic(err)
+	}
 	os.Exit(m.Run())
 }
 

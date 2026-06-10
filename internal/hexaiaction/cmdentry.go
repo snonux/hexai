@@ -25,7 +25,9 @@ type Options struct {
 // RunCommand is the CLI orchestrator used by cmd/hexai-tmux-action. It runs in tmux
 // split-pane mode by default, or child mode when -ui-child is set.
 func RunCommand(ctx context.Context, opts Options, stdin io.Reader, stdout, stderr io.Writer) error {
-	llm.RegisterAllProviders()
+	if err := llm.RegisterAllProviders(); err != nil {
+		return fmt.Errorf("failed to register LLM providers: %w", err)
+	}
 	if opts.UIChild {
 		return runChild(ctx, opts.Infile, opts.Outfile, stdout, stderr)
 	}

@@ -54,7 +54,9 @@ func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) er
 
 // RunWithConfig is like Run but accepts an explicit config file path.
 func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	llm.RegisterAllProviders()
+	if err := llm.RegisterAllProviders(); err != nil {
+		return fmt.Errorf("failed to register LLM providers: %w", err)
+	}
 	return runWithConfigDependencies(logPath, configPath, stdin, stdout, stderr, defaultRunDependencies())
 }
 

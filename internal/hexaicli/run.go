@@ -92,7 +92,9 @@ func cliTemperatureFromEntry(cfg appconfig.App, provider string, entry appconfig
 // Run executes the Hexai CLI behavior given arguments and I/O streams.
 // It assumes flags have already been parsed by the caller.
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	llm.RegisterAllProviders()
+	if err := llm.RegisterAllProviders(); err != nil {
+		return fmt.Errorf("failed to register LLM providers: %w", err)
+	}
 	return NewRunner().Run(ctx, args, stdin, stdout, stderr)
 }
 
