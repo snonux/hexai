@@ -17,11 +17,24 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
+// binaryName is the name of the project's primary CLI binary. It is also used
+// as the build output name for the main hexai command so that the literal is
+// defined in a single place instead of being repeated across targets.
+const binaryName = "hexai"
+
 var (
-	Default                   = Build // Default target: build all binaries.
 	coverageThreshold float64 = 80
 	coveragePrinted           = make(chan struct{}, 1)
 )
+
+// Default is the default Mage target (runs when `mage` is invoked without a
+// target). It is declared as a function rather than a `Default = Build`
+// variable so that it can carry documentation and any future setup logic; Mage
+// supports both forms but the function form keeps the target consistent with
+// the other documented targets in this file.
+func Default() error {
+	return Build()
+}
 
 // Build builds binaries.
 func Build() error {
@@ -45,7 +58,7 @@ func BuildHexaiLSP() error {
 // BuildHexaiCLI builds the CLI binary.
 func BuildHexaiCLI() error {
 	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai", "./cmd/hexai")
+	return sh.RunV("go", "build", "-o", binaryName, "./cmd/hexai")
 }
 
 // BuildHexaiTmuxAction builds the hexai-tmux-action TUI binary.
@@ -76,7 +89,7 @@ func Dev() error {
 	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp-server", "./cmd/hexai-lsp-server"); err != nil {
 		return err
 	}
-	if err := sh.RunV("go", "build", "-race", "-o", "hexai", "./cmd/hexai"); err != nil {
+	if err := sh.RunV("go", "build", "-race", "-o", binaryName, "./cmd/hexai"); err != nil {
 		return err
 	}
 	if err := sh.RunV("go", "build", "-race", "-o", "hexai-tmux-action", "./cmd/hexai-tmux-action"); err != nil {
@@ -122,7 +135,7 @@ func Install() error {
 	for _, name := range []string{
 		"ask",
 		"hexai-lsp-server",
-		"hexai",
+		binaryName,
 		"hexai-tmux-action",
 		"hexai-tmux-edit",
 		"hexai-mcp-server",
