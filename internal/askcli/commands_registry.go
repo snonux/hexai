@@ -29,16 +29,22 @@ type commandTable struct {
 	lookup  map[string]int
 }
 
-func newCommandTable(entries []commandEntry) commandTable {
+// newCommandTable builds a command table and returns a pointer to it. A
+// pointer is used because add mutates the table (it grows the entries slice
+// and updates the lookup map), and all methods therefore share the same
+// pointer-receiver convention to keep the receiver type consistent.
+func newCommandTable(entries []commandEntry) *commandTable {
 	lookup := make(map[string]int, len(entries))
 	for i := range entries {
 		entry := entries[i]
 		lookup[entry.name] = i
 	}
-	return commandTable{entries: entries, lookup: lookup}
+	return &commandTable{entries: entries, lookup: lookup}
 }
 
-func (t commandTable) get(name string) (*commandEntry, bool) {
+// get returns the entry registered under name. Uses a pointer receiver to
+// match add, which must mutate the table.
+func (t *commandTable) get(name string) (*commandEntry, bool) {
 	idx, ok := t.lookup[name]
 	if !ok {
 		return nil, false
@@ -46,7 +52,9 @@ func (t commandTable) get(name string) (*commandEntry, bool) {
 	return &t.entries[idx], true
 }
 
-func (t commandTable) rootCompletionEntries() []commandEntry {
+// rootCompletionEntries returns the entries that should appear in top-level
+// shell completion. Pointer receiver for consistency with the rest of the type.
+func (t *commandTable) rootCompletionEntries() []commandEntry {
 	var entries []commandEntry
 	for _, entry := range t.entries {
 		if entry.includeInCompletion {
@@ -56,7 +64,9 @@ func (t commandTable) rootCompletionEntries() []commandEntry {
 	return entries
 }
 
-func (t commandTable) singleSelectorNames() []string {
+// singleSelectorNames returns the names of commands that take a single task
+// selector. Pointer receiver for consistency with the rest of the type.
+func (t *commandTable) singleSelectorNames() []string {
 	var names []string
 	for _, entry := range t.entries {
 		if entry.singleSelector {
@@ -66,6 +76,8 @@ func (t commandTable) singleSelectorNames() []string {
 	return names
 }
 
+// add appends an entry and records its index in the lookup map. This mutates
+// the receiver, which is why the whole type uses pointer receivers.
 func (t *commandTable) add(entry commandEntry) {
 	t.entries = append(t.entries, entry)
 	t.lookup[entry.name] = len(t.entries) - 1
