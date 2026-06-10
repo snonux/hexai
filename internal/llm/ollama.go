@@ -61,11 +61,14 @@ func ollamaProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 
 // Constructor (kept among the first functions by convention).
 // apiKey may be empty for local Ollama; pass a non-empty key for Ollama Cloud.
-func newOllama(baseURL, model string, defaultTemp *float64, apiKey string) Client {
+// Following the Go idiom "return concrete types, accept interfaces", this
+// returns ollamaClient directly; the provider registry wraps it back into a
+// Client at registration time.
+func newOllama(baseURL, model string, defaultTemp *float64, apiKey string) ollamaClient {
 	return newOllamaWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
 }
 
-func newOllamaWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
+func newOllamaWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) ollamaClient {
 	// Defaults target Ollama Cloud (ollama.ai); a local server is opted into
 	// by setting base_url = "http://localhost:11434" (or HEXAI_OLLAMA_BASE_URL)
 	// and an appropriate model.

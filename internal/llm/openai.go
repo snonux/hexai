@@ -110,11 +110,14 @@ func resolveOpenAITemperature(model string, configured *float64) *float64 {
 // Constructor (kept among the first functions by convention)
 // newOpenAI constructs an OpenAI client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
-func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) Client {
+// Following the Go idiom "return concrete types, accept interfaces", this
+// returns openAIClient directly so callers keep full type information; the
+// provider registry wraps it back into a Client at registration time.
+func newOpenAI(baseURL, model, apiKey string, defaultTemp *float64) openAIClient {
 	return newOpenAIWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
 }
 
-func newOpenAIWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
+func newOpenAIWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) openAIClient {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "https://api.openai.com/v1"
 	}

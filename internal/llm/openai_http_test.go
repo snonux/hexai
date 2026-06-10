@@ -23,7 +23,7 @@ func TestOpenAI_Chat_Success(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"index": 0, "message": map[string]string{"role": "assistant", "content": "OK"}}}})
 	}))
 	defer srv.Close()
-	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	out, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}})
 	if err != nil || out != "OK" {
@@ -32,7 +32,7 @@ func TestOpenAI_Chat_Success(t *testing.T) {
 }
 
 func TestOpenAI_Chat_MissingKey(t *testing.T) {
-	c := newOpenAI("http://x", "g", "", f64p(0.2)).(openAIClient)
+	c := newOpenAI("http://x", "g", "", f64p(0.2))
 	if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}}); err == nil {
 		t.Fatalf("expected error for missing key")
 	}
@@ -49,7 +49,7 @@ func TestOpenAI_ChatStream_SSE(t *testing.T) {
 		_, _ = io.WriteString(w, "data: [DONE]\n")
 	}))
 	defer srv.Close()
-	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	var got string
 	err := c.ChatStream(context.Background(), []Message{{Role: "user", Content: "hi"}}, func(s string) { got += s })
@@ -75,7 +75,7 @@ func TestOpenAI_ChatStream_SSE_ErrorChunk(t *testing.T) {
 		_, _ = io.WriteString(w, "data: [DONE]\n")
 	}))
 	defer srv.Close()
-	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	var got string
 	if err := c.ChatStream(context.Background(), []Message{{Role: "user", Content: "hi"}}, func(s string) { got += s }); err == nil {
@@ -91,7 +91,7 @@ func TestOpenAI_Chat_NoChoices_Error(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{}})
 	}))
 	defer srv.Close()
-	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}}); err == nil {
 		t.Fatalf("expected error when choices empty")
@@ -108,7 +108,7 @@ func TestOpenAI_ChatStream_SSE_EmptyDelta_NoError(t *testing.T) {
 		_, _ = io.WriteString(w, "data: [DONE]\\n")
 	}))
 	defer srv.Close()
-	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	var got string
 	if err := c.ChatStream(context.Background(), []Message{{Role: "user", Content: "hi"}}, func(s string) { got += s }); err != nil {
@@ -129,7 +129,7 @@ func TestOpenAI_Chat_DecodeError_StatusOK(t *testing.T) {
 		_, _ = io.WriteString(w, "{invalid")
 	}))
 	defer srv.Close()
-	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}}); err == nil {
 		t.Fatalf("expected decode error for invalid JSON body")
@@ -150,7 +150,7 @@ func TestOpenAI_Chat_MultiChoiceAndErrorBody(t *testing.T) {
 		})
 	}))
 	defer srv.Close()
-	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	out, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}})
 	if err != nil || out != "FIRST" {
@@ -163,7 +163,7 @@ func TestOpenAI_Chat_MultiChoiceAndErrorBody(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"message": "bad", "type": "invalid"}})
 	}))
 	defer srv2.Close()
-	c2 := newOpenAI(srv2.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+	c2 := newOpenAI(srv2.URL, "g", "KEY", f64p(0.2))
 	c2.httpClient = srv2.Client()
 	if _, err := c2.Chat(context.Background(), []Message{{Role: "user", Content: "hi"}}); err == nil {
 		t.Fatalf("expected error from non-2xx with error body")

@@ -81,8 +81,8 @@ type anthropicStreamError struct {
 
 // Ensure anthropicClient implements Client and Streamer.
 var (
-	_ Client   = (*anthropicClient)(nil)
-	_ Streamer = (*anthropicClient)(nil)
+	_ Client   = anthropicClient{}
+	_ Streamer = anthropicClient{}
 )
 
 func anthropicProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
@@ -101,11 +101,14 @@ func anthropicProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 // Constructor
 // newAnthropic constructs an Anthropic client using explicit configuration values.
 // The apiKey may be empty; calls will fail until a valid key is supplied.
-func newAnthropic(baseURL, model, apiKey string, defaultTemp *float64) Client {
+// Following the Go idiom "return concrete types, accept interfaces", this
+// returns anthropicClient directly; the provider registry wraps it back into a
+// Client at registration time.
+func newAnthropic(baseURL, model, apiKey string, defaultTemp *float64) anthropicClient {
 	return newAnthropicWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
 }
 
-func newAnthropicWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
+func newAnthropicWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) anthropicClient {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "https://api.anthropic.com/v1"
 	}

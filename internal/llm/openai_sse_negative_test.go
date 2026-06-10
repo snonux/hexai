@@ -20,7 +20,7 @@ func TestOpenAI_ChatStream_SSE_MalformedChunk(t *testing.T) {
 		_, _ = io.WriteString(w, "data: [DONE]\n")
 	}))
 	defer srv.Close()
-	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2)).(openAIClient)
+	c := newOpenAI(srv.URL, "g", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	var got string
 	if err := c.ChatStream(context.Background(), []Message{{Role: "user", Content: "hi"}}, func(s string) { got += s }); err != nil {

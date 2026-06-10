@@ -40,11 +40,15 @@ func openRouterProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	), nil
 }
 
-func newOpenRouter(baseURL, model, apiKey string, defaultTemp *float64) Client {
+// newOpenRouter constructs an OpenRouter client using explicit configuration
+// values. Following the Go idiom "return concrete types, accept interfaces",
+// this returns openRouterClient directly; the provider registry wraps it back
+// into a Client at registration time.
+func newOpenRouter(baseURL, model, apiKey string, defaultTemp *float64) openRouterClient {
 	return newOpenRouterWithTimeout(baseURL, model, apiKey, defaultTemp, 0)
 }
 
-func newOpenRouterWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) Client {
+func newOpenRouterWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, timeoutSec int) openRouterClient {
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "https://openrouter.ai/api/v1"
 	}

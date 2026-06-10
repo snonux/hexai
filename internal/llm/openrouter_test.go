@@ -35,7 +35,7 @@ func TestOpenRouter_Chat_SendsHeadersAndBody(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := newOpenRouter(srv.URL, "anthropic/claude-test", "KEY", f64p(0.2)).(openRouterClient)
+	c := newOpenRouter(srv.URL, "anthropic/claude-test", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	out, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "ping"}})
 	if err != nil {
@@ -81,7 +81,7 @@ func TestOpenRouter_ChatStream_SendsHeaders(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := newOpenRouter(srv.URL, "anthropic/claude-test", "KEY", f64p(0.2)).(openRouterClient)
+	c := newOpenRouter(srv.URL, "anthropic/claude-test", "KEY", f64p(0.2))
 	c.httpClient = srv.Client()
 	var got string
 	err := c.ChatStream(context.Background(), []Message{{Role: "user", Content: "ping"}}, func(s string) { got += s })
@@ -100,7 +100,7 @@ func TestOpenRouter_ChatStream_SendsHeaders(t *testing.T) {
 }
 
 func TestOpenRouter_Chat_MissingKey(t *testing.T) {
-	c := newOpenRouter("http://example", "anthropic/claude-test", "", f64p(0.2)).(openRouterClient)
+	c := newOpenRouter("http://example", "anthropic/claude-test", "", f64p(0.2))
 	if _, err := c.Chat(context.Background(), []Message{{Role: "user", Content: "ping"}}); err == nil {
 		t.Fatalf("expected error for missing api key")
 	} else if !strings.Contains(err.Error(), "OPENROUTER_API_KEY") || !strings.Contains(err.Error(), "HEXAI_OPENROUTER_API_KEY") {
@@ -111,7 +111,7 @@ func TestOpenRouter_Chat_MissingKey(t *testing.T) {
 func TestOpenRouter_DefaultsAndMetadata(t *testing.T) {
 	logger := log.New(io.Discard, "", 0)
 	logging.Bind(logger)
-	c := newOpenRouter("", "", "KEY", nil).(openRouterClient)
+	c := newOpenRouter("", "", "KEY", nil)
 	if c.baseURL != "https://openrouter.ai/api/v1" {
 		t.Fatalf("default baseURL mismatch: %s", c.baseURL)
 	}

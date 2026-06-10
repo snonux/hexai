@@ -59,7 +59,7 @@ func TestAnthropicChat_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "test-key", nil).(anthropicClient)
+	c := newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "test-key", nil)
 	response, err := c.Chat(context.Background(), []Message{
 		{Role: "user", Content: "Hello"},
 	})
@@ -100,7 +100,7 @@ func TestAnthropicChat_APIError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "invalid-key", nil).(anthropicClient)
+	c := newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "invalid-key", nil)
 	_, err := c.Chat(context.Background(), []Message{
 		{Role: "user", Content: "Hello"},
 	})
@@ -128,7 +128,7 @@ func TestAnthropicChat_EmptyResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "test-key", nil).(anthropicClient)
+	c := newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "test-key", nil)
 	_, err := c.Chat(context.Background(), []Message{
 		{Role: "user", Content: "Hello"},
 	})
@@ -163,7 +163,7 @@ func TestAnthropicChat_WithTemperature(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "test-key", nil).(anthropicClient)
+	c := newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "test-key", nil)
 	_, err := c.Chat(context.Background(), []Message{
 		{Role: "user", Content: "Hello"},
 	}, WithTemperature(0.5))
@@ -190,7 +190,9 @@ func TestAnthropicStream_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "test-key", nil)
+	// newAnthropic now returns the concrete anthropicClient; assert via a Client
+	// interface value to keep verifying the optional Streamer capability.
+	var c Client = newAnthropic(srv.URL, "claude-3-5-sonnet-20241022", "test-key", nil)
 	streamer, ok := c.(Streamer)
 	if !ok {
 		t.Fatalf("Anthropic client does not implement Streamer interface")
@@ -213,7 +215,7 @@ func TestAnthropicStream_Success(t *testing.T) {
 }
 
 func TestAnthropicStream_NoAPIKey(t *testing.T) {
-	c := newAnthropic("https://api.anthropic.com/v1", "claude-3-5-sonnet-20241022", "", nil)
+	var c Client = newAnthropic("https://api.anthropic.com/v1", "claude-3-5-sonnet-20241022", "", nil)
 	streamer, ok := c.(Streamer)
 	if !ok {
 		t.Fatalf("Anthropic client does not implement Streamer interface")
@@ -238,21 +240,21 @@ func TestAnthropicClient_Name(t *testing.T) {
 
 func TestAnthropicClient_DefaultModel(t *testing.T) {
 	model := "claude-3-opus-20250219"
-	c := newAnthropic("https://api.anthropic.com/v1", model, "test-key", nil).(anthropicClient)
+	c := newAnthropic("https://api.anthropic.com/v1", model, "test-key", nil)
 	if c.DefaultModel() != model {
 		t.Fatalf("expected '%s', got '%s'", model, c.DefaultModel())
 	}
 }
 
 func TestAnthropicClient_DefaultBaseURL(t *testing.T) {
-	c := newAnthropic("", "claude-3-5-sonnet-20241022", "test-key", nil).(anthropicClient)
+	c := newAnthropic("", "claude-3-5-sonnet-20241022", "test-key", nil)
 	if c.baseURL != "https://api.anthropic.com/v1" {
 		t.Fatalf("expected default base URL, got '%s'", c.baseURL)
 	}
 }
 
 func TestAnthropicClient_DefaultModel_Empty(t *testing.T) {
-	c := newAnthropic("https://api.anthropic.com/v1", "", "test-key", nil).(anthropicClient)
+	c := newAnthropic("https://api.anthropic.com/v1", "", "test-key", nil)
 	if c.defaultModel != "claude-3-5-sonnet-20240620" {
 		t.Fatalf("expected default model, got '%s'", c.defaultModel)
 	}
