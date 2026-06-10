@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/chatrun"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
@@ -503,51 +504,16 @@ func effectiveModel(req requestArgs, client llm.Client) string {
 	return model
 }
 
+// runChatRequest invokes the LLM via the shared chatrun.Invoke helper, which
+// prefers streaming when the provider supports it and mirrors chunks to out.
 func runChatRequest(ctx context.Context, client llm.Client, req requestArgs, msgs []llm.Message, out io.Writer) (string, error) {
-	if streamer, ok := client.(llm.Streamer); ok {
-		return runStreamingChat(ctx, streamer, msgs, req.options, out)
-	}
-	return runSimpleChat(ctx, client, msgs, req.options, out)
-}
-
-func runStreamingChat(ctx context.Context, client llm.Streamer, msgs []llm.Message, options []llm.RequestOption, out io.Writer) (string, error) {
-	var output strings.Builder
-	var writeErr error
-	if err := client.ChatStream(ctx, msgs, func(chunk string) {
-		if writeErr != nil {
-			return
-		}
-		output.WriteString(chunk)
-		if _, err := fmt.Fprint(out, chunk); err != nil {
-			writeErr = err
-		}
-	}, options...); err != nil {
-		return "", err
-	}
-	if writeErr != nil {
-		return "", writeErr
-	}
-	return output.String(), nil
-}
-
-func runSimpleChat(ctx context.Context, client llm.Client, msgs []llm.Message, options []llm.RequestOption, out io.Writer) (string, error) {
-	output, err := client.Chat(ctx, msgs, options...)
-	if err != nil {
-		return "", err
-	}
-	if _, err := fmt.Fprint(out, output); err != nil {
-		return "", err
-	}
-	return output, nil
+	return chatrun.Invoke(ctx, client, msgs, req.options, out)
 }
 
 func summarizeChatRun(ctx context.Context, client llm.Client, model string, msgs []llm.Message, output string) chatRunSummary {
 	summary := chatRunSummary{snapshot: stats.Snapshot{Window: time.Hour}}
-	for _, m := range msgs {
-		summary.sent += len(m.Content)
-	}
-	summary.recv = len(output)
-	_ = stats.Update(ctx, client.Name(), model, summary.sent, summary.recv)
+	// Byte accounting + stats.Update are shared via chatrun.Account.
+	summary.sent, summary.recv = chatrun.Account(ctx, client.Name(), model, msgs, output)
 	snap, err := stats.TakeSnapshot()
 	if err == nil {
 		summary.snapshot = snap

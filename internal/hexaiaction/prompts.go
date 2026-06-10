@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/chatrun"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/stats"
@@ -115,25 +116,27 @@ func runCustom(ctx context.Context, cfg actionConfig, client chatDoer, ca appcon
 // runOnce sends a single system+user prompt pair to the LLM, strips code
 // fences from the response, records stats, and updates the tmux status line.
 // Pass a zero-value requestArgs{} when no extra options are needed.
+//
+// The LLM invocation and byte/stats accounting are delegated to the shared
+// chatrun package so this surface stays in lock-step with the CLI and LSP. The
+// tmux status update is kept here because it is specific to the action tool's
+// reporting style.
 func runOnce(ctx context.Context, client chatDoer, sys, user string, req requestArgs) (string, error) {
 	msgs := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
-	txt, err := client.Chat(ctx, msgs, req.options...)
+	// runOnce never streams to a writer, so pass nil out.
+	txt, err := chatrun.Invoke(ctx, client, msgs, req.options, nil)
 	if err != nil {
 		return "", err
 	}
 	out := strings.TrimSpace(StripFences(txt))
-	// Contribute to global stats and update tmux status
-	sent := 0
-	for _, m := range msgs {
-		sent += len(m.Content)
-	}
-	recv := len(out)
 	model := strings.TrimSpace(req.model)
 	if model == "" {
 		model = client.DefaultModel()
 	}
 	provider := providerOf(client)
-	_ = stats.Update(ctx, provider, model, sent, recv)
+	// Account for the exchange against the post-fence-strip response so the
+	// recorded recv bytes match what the user actually receives.
+	chatrun.Account(ctx, provider, model, msgs, out)
 	if snap, err := stats.TakeSnapshot(); err == nil {
 		scopeReqs := snap.ScopeReqs(provider, model)
 		scopeRPM := snap.ScopeRPM(provider, model)

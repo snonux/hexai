@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/snonux/hexai/internal/chatrun"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
@@ -326,12 +327,11 @@ func (cs *completionService) runCompletionForSpec(ctx context.Context, plan comp
 func (cs *completionService) executeChatCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
 	s := cs.srv
 	messages := cs.buildCompletionMessages(plan.inlinePrompt, plan.hasExtra, plan.extraText, plan.inParams, plan.params, plan.above, plan.current, plan.below, plan.funcCtx)
-	sentSize := 0
-	for _, m := range messages {
-		sentSize += len(m.Content)
-	}
+	sentSize := chatrun.SentBytes(messages)
 	s.incSentCounters(sentSize)
-	text, err := client.Chat(ctx, messages, spec.options...)
+	// Completion never streams to a writer; Invoke collects the full text and
+	// keeps this path aligned with chatWithStats and the other surfaces.
+	text, err := chatrun.Invoke(ctx, client, messages, spec.options, nil)
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
 		return nil, false

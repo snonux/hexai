@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
+	"codeberg.org/snonux/hexai/internal/chatrun"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/llmutils"
 	"codeberg.org/snonux/hexai/internal/logging"
@@ -246,44 +247,52 @@ func isIdentChar(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
 }
 
-// chatWithStats wraps llmClient.Chat to increment counters and emit a tmux heartbeat.
+// chatWithStats wraps the LLM request to increment counters and emit a tmux
+// heartbeat. The byte counting and the actual LLM invocation are delegated to
+// the shared chatrun package so the LSP stays in lock-step with the CLI and
+// code-action surfaces; the debounce/throttle gating, in-memory counters and
+// stats-error logging remain here because they are LSP-specific.
 func (s *Server) chatWithStats(ctx context.Context, surface surfaceKind, spec requestSpec, msgs []llm.Message) (string, error) {
-	// Count bytes sent
-	sent := 0
-	for _, m := range msgs {
-		sent += len(m.Content)
-	}
+	sent := chatrun.SentBytes(msgs)
 	s.incSentCounters(sent)
 	// Debounce/throttle if configured (reuse completion gates)
 	s.completionSvc().waitForDebounce(ctx)
 	if !s.waitForThrottle(ctx) {
 		return "", context.Canceled
 	}
-	// Perform request
+	// Resolve the client for this surface/spec.
 	client := s.clientFor(spec)
 	if client == nil {
-		provider := strings.TrimSpace(spec.provider)
-		if provider == "" {
-			provider = strings.TrimSpace(s.currentConfig().Provider)
-		}
-		if provider == "" {
-			return "", fmt.Errorf("llm client unavailable; check the configured provider and required API key")
-		}
-		return "", fmt.Errorf("llm client unavailable for provider %q; check the configured provider and required API key", provider)
+		return "", s.unavailableClientError(spec)
 	}
 	modelUsed := spec.effectiveModel(client.DefaultModel())
-	txt, err := client.Chat(ctx, msgs, spec.options...)
+	// chatWithStats never streams to a writer; pass nil out. Invoke prefers
+	// streaming providers but collects the full text either way.
+	txt, err := chatrun.Invoke(ctx, client, msgs, spec.options, nil)
 	if err != nil {
 		s.logLLMStats(modelUsed)
 		return "", err
 	}
 	s.incRecvCounters(len(txt))
-	// Update global stats cache; log but don't fail on stats errors
+	// Update global stats cache; log but don't fail on stats errors.
 	if err := stats.Update(ctx, client.Name(), modelUsed, sent, len(txt)); err != nil {
 		logging.Logf("lsp ", "stats update error: %v", err)
 	}
 	s.logLLMStats(modelUsed)
 	return txt, nil
+}
+
+// unavailableClientError builds the descriptive error returned when no LLM
+// client could be resolved for spec, naming the configured provider when known.
+func (s *Server) unavailableClientError(spec requestSpec) error {
+	provider := strings.TrimSpace(spec.provider)
+	if provider == "" {
+		provider = strings.TrimSpace(s.currentConfig().Provider)
+	}
+	if provider == "" {
+		return fmt.Errorf("llm client unavailable; check the configured provider and required API key")
+	}
+	return fmt.Errorf("llm client unavailable for provider %q; check the configured provider and required API key", provider)
 }
 
 // Inline prompt utilities

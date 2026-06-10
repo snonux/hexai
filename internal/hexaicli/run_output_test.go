@@ -227,7 +227,7 @@ func TestRunStreamingChat_StreamError(t *testing.T) {
 		streamErr:  fmt.Errorf("stream broken"),
 	}
 	var out bytes.Buffer
-	_, err := runStreamingChat(context.Background(), client, nil, nil, &out)
+	_, err := runChatRequest(context.Background(), client, requestArgs{}, nil, &out)
 	if err == nil || !strings.Contains(err.Error(), "stream broken") {
 		t.Fatalf("expected stream error, got %v", err)
 	}
@@ -247,7 +247,7 @@ func (s *streamWriteErrClient) ChatStream(_ context.Context, _ []llm.Message, on
 func TestRunStreamingChat_WriteError(t *testing.T) {
 	client := &streamWriteErrClient{fakeClient: fakeClient{name: "p", model: "m"}}
 	w := errWriter{err: errors.New("write fail")}
-	_, err := runStreamingChat(context.Background(), client, nil, nil, w)
+	_, err := runChatRequest(context.Background(), client, requestArgs{}, nil, w)
 	if err == nil || !strings.Contains(err.Error(), "write fail") {
 		t.Fatalf("expected write error, got %v", err)
 	}
@@ -298,7 +298,7 @@ func TestEffectiveModel_Whitespace(t *testing.T) {
 func TestRunSimpleChat_WriteError(t *testing.T) {
 	client := &fakeClient{name: "p", model: "m", resp: "ok"}
 	w := errWriter{err: errors.New("write fail")}
-	_, err := runSimpleChat(context.Background(), client, nil, nil, w)
+	_, err := runChatRequest(context.Background(), client, requestArgs{}, nil, w)
 	if err == nil || !strings.Contains(err.Error(), "write fail") {
 		t.Fatalf("expected write error, got %v", err)
 	}
@@ -448,7 +448,7 @@ func TestRunSimpleChat_ChatError(t *testing.T) {
 		chatErr:    fmt.Errorf("chat broken"),
 	}
 	var out bytes.Buffer
-	_, err := runSimpleChat(context.Background(), client, nil, nil, &out)
+	_, err := runChatRequest(context.Background(), client, requestArgs{}, nil, &out)
 	if err == nil || !strings.Contains(err.Error(), "chat broken") {
 		t.Fatalf("expected chat error, got %v", err)
 	}
