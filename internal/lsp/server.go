@@ -273,25 +273,28 @@ func (s *Server) completionWaitAll() bool {
 	return *cfg.CompletionWaitAll
 }
 
-func (s *Server) inlineMarkers() (open string, close string, openChar byte, closeChar byte) {
+// inlineMarkers returns the configured inline open/close marker strings along
+// with their leading bytes. The close marker is named closeStr rather than
+// close so it does not shadow the Go builtin close used for channels.
+func (s *Server) inlineMarkers() (open string, closeStr string, openChar byte, closeChar byte) {
 	cfg := s.currentConfig()
 	open = strings.TrimSpace(cfg.InlineOpen)
 	if open == "" {
 		open = ">!"
 	}
-	close = strings.TrimSpace(cfg.InlineClose)
-	if close == "" {
-		close = ">"
+	closeStr = strings.TrimSpace(cfg.InlineClose)
+	if closeStr == "" {
+		closeStr = ">"
 	}
 	openChar = '>'
 	if len(open) > 0 {
 		openChar = open[0]
 	}
 	closeChar = '>'
-	if len(close) > 0 {
-		closeChar = close[0]
+	if len(closeStr) > 0 {
+		closeChar = closeStr[0]
 	}
-	return open, close, openChar, closeChar
+	return open, closeStr, openChar, closeChar
 }
 
 func (s *Server) chatConfig() (suffix string, prefixes []string, suffixChar byte) {
