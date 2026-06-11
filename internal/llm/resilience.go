@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"codeberg.org/snonux/hexai/internal/llm/policy"
 	"codeberg.org/snonux/hexai/internal/logging"
 )
 
@@ -37,15 +38,17 @@ type retryPolicy struct {
 	randFloat func() float64
 }
 
-// defaultRetryPolicy returns the policy used for all LLM HTTP calls. Three
-// total attempts (two retries) with 200ms base backoff keeps recovery fast for
+// defaultRetryPolicy returns the policy used for all LLM HTTP calls. The
+// concrete tuning values (attempts, backoff, jitter) live in the policy package
+// so the whole resilience policy has a single source of truth. Three total
+// attempts (two retries) with a 200ms base backoff keeps recovery fast for
 // transient errors while staying well within typical request timeouts.
 func defaultRetryPolicy() retryPolicy {
 	return retryPolicy{
-		maxAttempts:    3,
-		baseDelay:      200 * time.Millisecond,
-		maxDelay:       2 * time.Second,
-		jitterFraction: 0.2,
+		maxAttempts:    policy.RetryMaxAttempts,
+		baseDelay:      policy.RetryBaseDelay,
+		maxDelay:       policy.RetryMaxDelay,
+		jitterFraction: policy.RetryJitterFraction,
 		sleep:          sleepWithContext,
 		randFloat:      rand.Float64,
 	}
@@ -54,7 +57,8 @@ func defaultRetryPolicy() retryPolicy {
 // sharedBreaker guards the whole LLM HTTP path. It trips after several
 // consecutive transient failures and stays open briefly so a single unhealthy
 // upstream does not cause every caller to wait out full retry+timeout cycles.
-var sharedBreaker = newCircuitBreaker(5, 30*time.Second)
+// Its threshold and cooldown come from the policy package.
+var sharedBreaker = newCircuitBreaker(policy.CircuitFailureThreshold, policy.CircuitCooldown)
 
 // sleepWithContext sleeps for d unless ctx is cancelled first, in which case it
 // returns ctx.Err(). This keeps backoff waits responsive to cancellation and

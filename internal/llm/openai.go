@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/snonux/hexai/internal/llm/policy"
 	"codeberg.org/snonux/hexai/internal/logging"
 )
 
@@ -125,7 +126,8 @@ func newOpenAIWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, t
 		model = "gpt-4.1"
 	}
 	if timeoutSec <= 0 {
-		timeoutSec = 30
+		// Fall back to the shared default chat timeout from the policy package.
+		timeoutSec = policy.DefaultRequestTimeoutSeconds
 	}
 	return openAIClient{
 		httpClient:         &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},

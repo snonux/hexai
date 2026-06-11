@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/snonux/hexai/internal/llm/policy"
 	"codeberg.org/snonux/hexai/internal/logging"
 )
 
@@ -52,7 +53,10 @@ func youSearchProviderFactory(cfg Config, keys ProviderKeys) (Client, error) {
 	}
 	timeoutSec := cfg.RequestTimeout
 	if timeoutSec <= 0 {
-		timeoutSec = 120
+		// The Research API runs a long multi-step pipeline, so it uses the
+		// larger research timeout from the policy package rather than the
+		// default chat timeout.
+		timeoutSec = policy.ResearchRequestTimeoutSeconds
 	}
 	return youSearchClient{
 		httpClient:     &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},

@@ -75,7 +75,7 @@ func WithStop(stop ...string) RequestOption {
 // Config defines provider configuration read from the Hexai config file.
 type Config struct {
 	Provider       string
-	RequestTimeout int // seconds; 0 means use default (30s)
+	RequestTimeout int // seconds; 0 means use the provider default (see internal/llm/policy)
 	// OpenAI options
 	OpenAIBaseURL     string
 	OpenAIModel       string

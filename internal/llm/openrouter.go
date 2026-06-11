@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/snonux/hexai/internal/llm/policy"
 	"codeberg.org/snonux/hexai/internal/logging"
 )
 
@@ -56,7 +57,8 @@ func newOpenRouterWithTimeout(baseURL, model, apiKey string, defaultTemp *float6
 		model = "openrouter/auto"
 	}
 	if timeoutSec <= 0 {
-		timeoutSec = 30
+		// Fall back to the shared default chat timeout from the policy package.
+		timeoutSec = policy.DefaultRequestTimeoutSeconds
 	}
 	return openRouterClient{
 		httpClient:         &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
