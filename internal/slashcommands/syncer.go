@@ -30,7 +30,8 @@ type Syncer struct {
 
 // NewSyncer creates a new syncer and validates the commands directory.
 // Returns error if directory cannot be created or is not writable.
-func NewSyncer(cfg appconfig.App) (*Syncer, error) {
+// It depends only on the MCP subsystem config rather than the whole App.
+func NewSyncer(cfg appconfig.MCPConfig) (*Syncer, error) {
 	if !cfg.MCPSlashCommandSync {
 		return &Syncer{enabled: false}, nil
 	}

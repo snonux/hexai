@@ -106,10 +106,12 @@ func newDefaultConfig() App {
 		},
 		PromptConfig: defaultPromptConfig(),
 		FeatureConfig: FeatureConfig{
-			StatsWindowMinutes: 60,
+			StatsConfig: StatsConfig{StatsWindowMinutes: 60},
 			// Ignore: respect .gitignore by default, notify in LSP by default
-			IgnoreGitignore: boolPtr(true),
-			IgnoreLSPNotify: boolPtr(true),
+			IgnoreConfig: IgnoreConfig{
+				IgnoreGitignore: boolPtr(true),
+				IgnoreLSPNotify: boolPtr(true),
+			},
 		},
 	}
 }

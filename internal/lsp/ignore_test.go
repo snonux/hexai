@@ -21,7 +21,7 @@ func newIgnoreTestServer(gitRoot string, useGI bool, extra []string, notifyIgnor
 			ChatSuffix:   ">",
 			ChatPrefixes: []string{"?", "!", ":", ";"},
 		},
-		FeatureConfig: appconfig.FeatureConfig{IgnoreLSPNotify: notifyIgnored},
+		FeatureConfig: appconfig.FeatureConfig{IgnoreConfig: appconfig.IgnoreConfig{IgnoreLSPNotify: notifyIgnored}},
 	}
 	s := &Server{
 		logger:              log.New(io.Discard, "", 0),

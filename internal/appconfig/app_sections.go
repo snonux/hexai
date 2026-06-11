@@ -102,26 +102,18 @@ type PromptConfig struct {
 	TmuxCustomMenuHotkey string         `json:"-"`
 }
 
-// FeatureConfig contains non-LLM feature toggles/integration settings.
-// It is embedded in App; fields use json:"-" since features are not exposed via JSON.
+// FeatureConfig groups the non-LLM feature subsystems. Rather than a flat
+// grab-bag, it now embeds one cohesive struct per subsystem (see
+// feature_sections.go). Embedding keeps field promotion intact so existing flat
+// access (e.g. cfg.MCPPromptsDir) and the JSON shape are unchanged; the split
+// just makes the subsystem boundaries explicit and lets callers depend on a
+// single subsystem via the App.*Section accessors.
 type FeatureConfig struct {
-	// Stats
-	StatsWindowMinutes int `json:"-"`
-	// Ignore: gitignore-aware file filtering for LSP
-	IgnoreGitignore     *bool    `json:"-"`
-	IgnoreExtraPatterns []string `json:"-"`
-	IgnoreLSPNotify     *bool    `json:"-"`
-	// TmuxEdit: popup editor settings for hexai-tmux-edit
-	TmuxEditPopupWidth   string             `json:"-"`
-	TmuxEditPopupHeight  string             `json:"-"`
-	TmuxEditDefaultAgent string             `json:"-"`
-	TmuxEditAgents       []TmuxEditAgentCfg `json:"-"`
-	// TmuxAction: configurable main menu for hexai-tmux-action
-	TmuxActionMenu []TmuxActionMenuEntry `json:"-"`
-	// MCP: Model Context Protocol server settings
-	MCPPromptsDir       string `json:"-"` // Directory for prompt storage
-	MCPSlashCommandSync bool   `json:"-"` // Enable slash command sync
-	MCPSlashCommandDir  string `json:"-"` // Directory for slash command files
+	StatsConfig      // usage statistics window
+	IgnoreConfig     // gitignore-aware file filtering for LSP
+	TmuxEditConfig   // popup editor settings for hexai-tmux-edit
+	TmuxActionConfig // configurable main menu for hexai-tmux-action
+	MCPConfig        // Model Context Protocol server settings
 }
 
 // AppSections is the focused split of App into subsystem-specific config groups.

@@ -169,28 +169,34 @@ func testPromptConfig() PromptConfig {
 
 func testFeatureConfig() FeatureConfig {
 	return FeatureConfig{
-		StatsWindowMinutes:   15,
-		IgnoreGitignore:      sectionBoolPtr(true),
-		IgnoreExtraPatterns:  []string{"vendor/**", "tmp/**"},
-		IgnoreLSPNotify:      sectionBoolPtr(false),
-		TmuxEditPopupWidth:   "80%",
-		TmuxEditPopupHeight:  "75%",
-		TmuxEditDefaultAgent: "codex",
-		TmuxEditAgents: []TmuxEditAgentCfg{{
-			Name:           "codex",
-			DisplayName:    "Codex",
-			DetectPattern:  "(?i)codex",
-			SectionPattern: "section",
-			PromptPattern:  "prompt",
-			StripPatterns:  []string{"x", "y"},
-			ClearFirst:     sectionBoolPtr(true),
-			ClearKeys:      "C-u",
-			NewlineKeys:    "S-Enter",
-			SubmitKeys:     "Enter",
-		}},
-		MCPPromptsDir:       ".hexai/prompts",
-		MCPSlashCommandSync: true,
-		MCPSlashCommandDir:  ".hexai/slash",
+		StatsConfig: StatsConfig{StatsWindowMinutes: 15},
+		IgnoreConfig: IgnoreConfig{
+			IgnoreGitignore:     sectionBoolPtr(true),
+			IgnoreExtraPatterns: []string{"vendor/**", "tmp/**"},
+			IgnoreLSPNotify:     sectionBoolPtr(false),
+		},
+		TmuxEditConfig: TmuxEditConfig{
+			TmuxEditPopupWidth:   "80%",
+			TmuxEditPopupHeight:  "75%",
+			TmuxEditDefaultAgent: "codex",
+			TmuxEditAgents: []TmuxEditAgentCfg{{
+				Name:           "codex",
+				DisplayName:    "Codex",
+				DetectPattern:  "(?i)codex",
+				SectionPattern: "section",
+				PromptPattern:  "prompt",
+				StripPatterns:  []string{"x", "y"},
+				ClearFirst:     sectionBoolPtr(true),
+				ClearKeys:      "C-u",
+				NewlineKeys:    "S-Enter",
+				SubmitKeys:     "Enter",
+			}},
+		},
+		MCPConfig: MCPConfig{
+			MCPPromptsDir:       ".hexai/prompts",
+			MCPSlashCommandSync: true,
+			MCPSlashCommandDir:  ".hexai/slash",
+		},
 	}
 }
 

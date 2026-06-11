@@ -13,10 +13,10 @@ import (
 
 func TestNewSyncer_Disabled(t *testing.T) {
 	cfg := appconfig.App{
-		FeatureConfig: appconfig.FeatureConfig{MCPSlashCommandSync: false},
+		FeatureConfig: appconfig.FeatureConfig{MCPConfig: appconfig.MCPConfig{MCPSlashCommandSync: false}},
 	}
 
-	syncer, err := NewSyncer(cfg)
+	syncer, err := NewSyncer(cfg.MCPSection())
 	if err != nil {
 		t.Fatalf("NewSyncer() with disabled sync failed: %v", err)
 	}
@@ -28,13 +28,13 @@ func TestNewSyncer_Disabled(t *testing.T) {
 
 func TestNewSyncer_NoDirectory(t *testing.T) {
 	cfg := appconfig.App{
-		FeatureConfig: appconfig.FeatureConfig{
+		FeatureConfig: appconfig.FeatureConfig{MCPConfig: appconfig.MCPConfig{
 			MCPSlashCommandSync: true,
 			MCPSlashCommandDir:  "",
-		},
+		}},
 	}
 
-	_, err := NewSyncer(cfg)
+	_, err := NewSyncer(cfg.MCPSection())
 	if err == nil {
 		t.Error("NewSyncer() should fail when directory is not configured")
 	}
@@ -45,13 +45,13 @@ func TestNewSyncer_CreatesDirectory(t *testing.T) {
 	testDir := filepath.Join(tmpDir, "test-commands")
 
 	cfg := appconfig.App{
-		FeatureConfig: appconfig.FeatureConfig{
+		FeatureConfig: appconfig.FeatureConfig{MCPConfig: appconfig.MCPConfig{
 			MCPSlashCommandSync: true,
 			MCPSlashCommandDir:  testDir,
-		},
+		}},
 	}
 
-	syncer, err := NewSyncer(cfg)
+	syncer, err := NewSyncer(cfg.MCPSection())
 	if err != nil {
 		t.Fatalf("NewSyncer() failed: %v", err)
 	}
@@ -75,13 +75,13 @@ func TestNewSyncer_ExpandsHomeDirectory(t *testing.T) {
 	defer os.Setenv("HOME", home)
 
 	cfg := appconfig.App{
-		FeatureConfig: appconfig.FeatureConfig{
+		FeatureConfig: appconfig.FeatureConfig{MCPConfig: appconfig.MCPConfig{
 			MCPSlashCommandSync: true,
 			MCPSlashCommandDir:  "~/test-commands",
-		},
+		}},
 	}
 
-	syncer, err := NewSyncer(cfg)
+	syncer, err := NewSyncer(cfg.MCPSection())
 	if err != nil {
 		t.Fatalf("NewSyncer() failed: %v", err)
 	}

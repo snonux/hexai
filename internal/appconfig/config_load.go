@@ -388,11 +388,11 @@ func applyIgnoreSection(fc *fileConfig, out *App) {
 	if fc.Ignore.Gitignore == nil && len(fc.Ignore.ExtraPatterns) == 0 && fc.Ignore.LSPNotifyIgnored == nil {
 		return
 	}
-	tmp := App{FeatureConfig: FeatureConfig{
+	tmp := App{FeatureConfig: FeatureConfig{IgnoreConfig: IgnoreConfig{
 		IgnoreGitignore:     fc.Ignore.Gitignore,
 		IgnoreExtraPatterns: fc.Ignore.ExtraPatterns,
 		IgnoreLSPNotify:     fc.Ignore.LSPNotifyIgnored,
-	}}
+	}}}
 	out.mergeBasics(&tmp)
 }
 

@@ -205,7 +205,7 @@ func expandPath(path string) (string, error) {
 // createSyncer creates a slash command syncer from config.
 // Returns nil syncer if sync is disabled.
 func createSyncer(cfg appconfig.App, logger *log.Logger) (*slashcommands.Syncer, error) {
-	syncer, err := slashcommands.NewSyncer(cfg)
+	syncer, err := slashcommands.NewSyncer(cfg.MCPSection())
 	if err != nil {
 		return nil, err
 	}
