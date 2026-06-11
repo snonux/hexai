@@ -91,7 +91,10 @@ func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Wri
 	if err := runFn(ctx, in, out, stderr); err != nil {
 		closeOut()
 		if copyErr := echoThrough(infile, tmp, os.Stdin, stdout); copyErr != nil {
-			return fmt.Errorf("hexai-tmux-action child: %v; echo failed: %v", err, copyErr)
+			// Wrap the primary child error with %w so callers can inspect it
+			// via errors.Is/As; the echo failure is secondary context and
+			// stays as %v (fmt.Errorf supports only a single %w).
+			return fmt.Errorf("hexai-tmux-action child: %w; echo failed: %v", err, copyErr)
 		}
 	} else {
 		closeOut()
