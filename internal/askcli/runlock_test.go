@@ -91,6 +91,36 @@ func TestAcquireAskRepoLock_StaleMetadataDoesNotRotateContendedLockFile(t *testi
 	}
 }
 
+// TestAcquireAskRepoLock_ContextCancelledWhileBlocked verifies the retry loop
+// honors context cancellation while it is parked on the per-iteration timer.
+// This guards the time.After-based wait that replaced the unsafe timer reuse:
+// cancellation must win the select and return ctx.Err() promptly.
+func TestAcquireAskRepoLock_ContextCancelledWhileBlocked(t *testing.T) {
+	tmp := t.TempDir()
+	holder, _, _ := prepareContendedStaleLock(t, tmp)
+	defer releaseContendedLock(t, holder)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	resultCh := acquireLockAsync(ctx, tmp)
+
+	// Let the contender enter the retry loop, then cancel while it waits.
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+
+	select {
+	case result := <-resultCh:
+		if result.unlock != nil {
+			_ = result.unlock()
+			t.Fatal("lock acquired despite cancellation")
+		}
+		if result.err != context.Canceled {
+			t.Fatalf("err = %v, want context.Canceled", result.err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("acquireAskRepoLock did not return after cancellation")
+	}
+}
+
 func prepareContendedStaleLock(t *testing.T, gitRoot string) (*os.File, string, os.FileInfo) {
 	t.Helper()
 	lockDir := filepath.Join(gitRoot, ".git")

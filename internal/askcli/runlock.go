@@ -66,13 +66,15 @@ func writeLockMetadata(f *os.File, pid int, comm string) error {
 	return f.Sync()
 }
 
+// askLockRetryInterval is the backoff between successive non-blocking lock attempts.
+const askLockRetryInterval = 5 * time.Millisecond
+
 // waitOrAcquireAskLockFD tries to take an exclusive lock on f, or blocks until ctx ends.
 // On success it writes lock metadata and returns an unlock function (which closes f).
 func waitOrAcquireAskLockFD(
 	ctx context.Context,
 	f *os.File,
 	comm string,
-	retryTimer *time.Timer,
 ) (func() error, error) {
 	for {
 		err := filelock.TryExclusive(f)
@@ -100,12 +102,16 @@ func waitOrAcquireAskLockFD(
 			// Intentional no-op: contention is resolved only by waiting for flock release.
 		}
 
-		retryTimer.Reset(5 * time.Millisecond)
+		// Use a fresh timer per iteration via time.After instead of reusing and
+		// Reset()-ing a single timer. Reset() on a timer that may still be pending is
+		// the documented Go timer hazard: a stale value can already be queued on the
+		// channel and trigger a spurious early wake-up. A new timer each loop guarantees
+		// a clean, full askLockRetryInterval delay (or ctx cancellation).
 		select {
 		case <-ctx.Done():
 			_ = f.Close()
 			return nil, ctx.Err()
-		case <-retryTimer.C:
+		case <-time.After(askLockRetryInterval):
 		}
 	}
 }
@@ -119,12 +125,10 @@ func acquireAskRepoLock(ctx context.Context, gitRoot string) (func() error, erro
 	}
 
 	comm := lockProcessLabel()
-	retryTimer := time.NewTimer(5 * time.Millisecond)
-	defer retryTimer.Stop()
 
 	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("ask lock: open %s: %w", lockPath, err)
 	}
-	return waitOrAcquireAskLockFD(ctx, f, comm, retryTimer)
+	return waitOrAcquireAskLockFD(ctx, f, comm)
 }
