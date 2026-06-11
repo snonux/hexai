@@ -28,7 +28,8 @@ type ollamaClient struct {
 	defaultTemperature *float64
 }
 
-// Ensure ollamaClient implements Client and Streamer.
+// Ensure ollamaClient implements Client and Streamer. All of its methods use
+// value receivers, so the assertions use a zero-value struct (not a pointer).
 var (
 	_ Client   = ollamaClient{}
 	_ Streamer = ollamaClient{}

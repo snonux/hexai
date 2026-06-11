@@ -26,6 +26,10 @@ type youSearchClient struct {
 	chatLogger     logging.ChatLogger
 }
 
+// Ensure youSearchClient implements Client. It does not implement Streamer
+// because the You.com research API returns a single completed result rather
+// than a token stream. Methods use value receivers, so the assertion uses a
+// zero-value struct (not a pointer).
 var _ Client = youSearchClient{}
 
 type youSearchRequest struct {

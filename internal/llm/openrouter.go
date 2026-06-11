@@ -22,7 +22,8 @@ type openRouterClient struct {
 	defaultTemperature *float64
 }
 
-// Ensure openRouterClient implements Client and Streamer.
+// Ensure openRouterClient implements Client and Streamer. All of its methods
+// use value receivers, so the assertions use a zero-value struct (not a pointer).
 var (
 	_ Client   = openRouterClient{}
 	_ Streamer = openRouterClient{}

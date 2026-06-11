@@ -25,7 +25,8 @@ type openAIClient struct {
 	defaultTemperature *float64
 }
 
-// Ensure openAIClient implements Client and Streamer.
+// Ensure openAIClient implements Client and Streamer. All of its methods use
+// value receivers, so the assertions use a zero-value struct (not a pointer).
 var (
 	_ Client   = openAIClient{}
 	_ Streamer = openAIClient{}

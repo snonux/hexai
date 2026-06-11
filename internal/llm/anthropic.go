@@ -25,6 +25,13 @@ type anthropicClient struct {
 	defaultTemperature *float64
 }
 
+// Ensure anthropicClient implements Client and Streamer. All of its methods use
+// value receivers, so the assertions use a zero-value struct (not a pointer).
+var (
+	_ Client   = anthropicClient{}
+	_ Streamer = anthropicClient{}
+)
+
 type anthropicChatRequest struct {
 	Model       string             `json:"model"`
 	Messages    []anthropicMessage `json:"messages"`
