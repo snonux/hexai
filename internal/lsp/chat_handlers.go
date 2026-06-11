@@ -171,6 +171,17 @@ func (c *chatService) applyChatEdits(uri string, lineIdx int, lastNonSpace int, 
 	if d == nil {
 		return
 	}
+	// Guard against a stale line index. The chat response is produced
+	// asynchronously: handleChatPrompt detects the trigger line, then a goroutine
+	// calls requestChatResponse -> applyChatEdits. In the meantime a didChange
+	// notification may have shrunk the document, so lineIdx can now point past the
+	// end of d.lines. Indexing d.lines[lineIdx] in that case panics with
+	// index-out-of-range. We bail out (skip the stale edit) rather than risk
+	// corrupting the (already-changed) document at the wrong position.
+	if lineIdx < 0 || lineIdx >= len(d.lines) {
+		logging.Logf("lsp ", "chat skip stale edit: lineIdx=%d len=%d", lineIdx, len(d.lines))
+		return
+	}
 	// 1) Delete the trailing punctuation (1 or 2 chars)
 	delStart := Position{Line: lineIdx, Character: lastNonSpace + 1 - removeCount}
 	delEnd := Position{Line: lineIdx, Character: lastNonSpace + 1}
@@ -238,7 +249,16 @@ func (c *chatService) buildChatHistory(uri string, lineIdx int, currentPrompt st
 	}
 	type pair struct{ q, a string }
 	pairs := []pair{}
+	// Clamp the starting index to the current document bounds. lineIdx is derived
+	// from a position captured when the chat prompt was detected, but the chat
+	// response is applied asynchronously (see applyChatEdits): a concurrent
+	// didChange may have shrunk the document so that lineIdx-1 now exceeds
+	// len(d.lines)-1. Without clamping, the d.lines[i] accesses below would panic
+	// with index-out-of-range. We start from the last valid line instead.
 	i := lineIdx - 1
+	if i >= len(d.lines) {
+		i = len(d.lines) - 1
+	}
 	for i >= 0 && len(pairs) < 3 {
 		for i >= 0 && strings.TrimSpace(d.lines[i]) == "" {
 			i--

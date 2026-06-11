@@ -1,6 +1,9 @@
 package lsp
 
-import "testing"
+import (
+	"io"
+	"testing"
+)
 
 func TestStripTrailingTrigger(t *testing.T) {
 	s := newTestServer()
@@ -35,4 +38,42 @@ func TestBuildChatHistory_OrderAndLimit(t *testing.T) {
 	if msgs[0].Content != "q1" || msgs[1].Content != "a1" || msgs[2].Content != "q2" || msgs[3].Content != "a2" || msgs[4].Content != "q3" {
 		t.Fatalf("unexpected contents: %+v", msgs)
 	}
+}
+
+// TestChatEdits_StaleLineIndexAfterShrink is a regression test for the LSP
+// server panic that occurred when an async chat response was applied after a
+// concurrent didChange shrank the document. The chat prompt was detected at a
+// line index that is now past the end of the (smaller) document, so the stale
+// lineIdx exceeds len(d.lines). Before the fix, both applyChatEdits and
+// buildChatHistory indexed d.lines without an upper-bound check and panicked
+// with index-out-of-range. The fix makes applyChatEdits skip the stale edit and
+// buildChatHistory clamp its starting index, so neither must panic.
+func TestChatEdits_StaleLineIndexAfterShrink(t *testing.T) {
+	s := newTestServer()
+	// io.Discard avoids a nil-writer panic on the (valid-index) clientApplyEdit
+	// path; the stale-index path bails out before reaching it.
+	s.out = io.Discard
+	uri := "file:///shrink.txt"
+	// Originally the prompt sat on line 8, but the document has since shrunk to
+	// just three lines. lineIdx=8 is now well past len(d.lines).
+	s.setDocument(uri, "line0\nline1\nline2\n")
+	staleLineIdx := 8
+
+	// applyChatEdits must not panic on a stale (out-of-range) line index.
+	s.chatSvc().applyChatEdits(uri, staleLineIdx, 12, 1, "> reply")
+
+	// buildChatHistory must not panic and must still return the current prompt.
+	msgs := s.chatSvc().buildChatHistory(uri, staleLineIdx, "current?")
+	if len(msgs) == 0 || msgs[len(msgs)-1].Content != "current?" {
+		t.Fatalf("expected history to end with current prompt, got: %+v", msgs)
+	}
+
+	// Boundary case: lineIdx exactly equals len(d.lines) (one past the last line).
+	s.chatSvc().applyChatEdits(uri, 3, 4, 1, "> reply")
+	if msgs := s.chatSvc().buildChatHistory(uri, 3, "q"); len(msgs) == 0 {
+		t.Fatalf("expected non-empty history at boundary index")
+	}
+
+	// Negative index must also be handled gracefully.
+	s.chatSvc().applyChatEdits(uri, -1, 0, 1, "> reply")
 }
