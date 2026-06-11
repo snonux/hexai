@@ -48,7 +48,9 @@ func (c *chatService) handleReloadCommand() chatCommandResult {
 	}
 	loadOpts := s.configLoadOpts
 	loadOpts.IgnoreEnv = true
-	changes, err := s.configStore.Reload(s.logger, loadOpts)
+	// Tie the reload's blocking file reads to the server context so an
+	// in-progress reload is abandoned if the server is shutting down.
+	changes, err := s.configStore.Reload(s.serverCtx, s.logger, loadOpts)
 	if err != nil {
 		s.logger.Printf("config reload failed: %v", err)
 		return chatCommandResult{message: fmt.Sprintf("Reload failed: %v", err)}

@@ -30,7 +30,7 @@ func TestActionCustom_UsesEditorPrompt(t *testing.T) {
 	runner.newClient = func(_ appconfig.App) (actionClient, error) { return llmFake2{}, nil }
 
 	oldRunEd := editor.RunEditor
-	editor.RunEditor = func(_ string, path string) error {
+	editor.RunEditor = func(_ context.Context, _ string, path string) error {
 		return os.WriteFile(path, []byte("make it done"), 0o600)
 	}
 	t.Cleanup(func() { editor.RunEditor = oldRunEd })

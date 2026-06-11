@@ -1,8 +1,12 @@
 package lsp
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"log"
 	"testing"
+	"time"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
 	"codeberg.org/snonux/hexai/internal/llm"
@@ -83,6 +87,60 @@ func TestServerApplyOptions(t *testing.T) {
 	}
 	if got := s.currentConfig().MaxTokens; got != 88 {
 		t.Fatalf("expected config to update, got %d", got)
+	}
+}
+
+// TestRunReturnsOnEOF verifies the serve loop exits cleanly when the input
+// stream reaches EOF, regardless of the parent context being active.
+func TestRunReturnsOnEOF(t *testing.T) {
+	srv := NewServer(bytes.NewReader(nil), &bytes.Buffer{}, log.New(io.Discard, "", 0), ServerOptions{})
+	if err := srv.Run(context.Background()); err != nil {
+		t.Fatalf("Run on EOF returned error: %v", err)
+	}
+}
+
+// TestRunCancelsServerContextOnParentCancel verifies that cancelling the
+// caller-provided context propagates into the server's own context (so
+// in-flight LLM/network work is aborted) via watchParentContext.
+func TestRunCancelsServerContextOnParentCancel(t *testing.T) {
+	// A pipe whose write end is never written blocks the serve loop's read,
+	// so Run only returns once the parent context cancellation unblocks it by
+	// the input being closed.
+	pr, pw := io.Pipe()
+	srv := NewServer(pr, &bytes.Buffer{}, log.New(io.Discard, "", 0), ServerOptions{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- srv.Run(ctx) }()
+
+	// Cancel the parent: watchParentContext should cancel the server context.
+	cancel()
+	// Allow the watcher goroutine to observe cancellation.
+	deadline := time.After(2 * time.Second)
+	for srv.serverCtx.Err() == nil {
+		select {
+		case <-deadline:
+			t.Fatal("server context was not cancelled after parent cancel")
+		default:
+		}
+	}
+	// Unblock the read so Run can return.
+	_ = pw.Close()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after input closed")
+	}
+}
+
+// TestWatchParentContextNilIsNoOp verifies a nil/background context yields a
+// no-op stop function and never cancels the server.
+func TestWatchParentContextNilIsNoOp(t *testing.T) {
+	srv := NewServer(bytes.NewReader(nil), &bytes.Buffer{}, log.New(io.Discard, "", 0), ServerOptions{})
+	stop := srv.watchParentContext(nil)
+	stop()
+	if srv.serverCtx.Err() != nil {
+		t.Fatalf("server context should remain active for nil parent ctx")
 	}
 }
 

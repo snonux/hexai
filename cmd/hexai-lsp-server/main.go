@@ -2,12 +2,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/appconfig"
@@ -26,8 +29,13 @@ func main() {
 		return
 	}
 
+	// Cancel the run when the process receives an interrupt/terminate signal so
+	// the LSP serve loop and any in-flight LLM requests are torn down cleanly.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	path := strings.TrimSpace(*configPath)
-	if err := hexailsp.RunWithConfig(*logPath, path, os.Stdin, os.Stdout, os.Stderr); err != nil {
+	if err := hexailsp.RunWithConfig(ctx, *logPath, path, os.Stdin, os.Stdout, os.Stderr); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

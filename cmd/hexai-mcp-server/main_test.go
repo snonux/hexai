@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -37,7 +38,7 @@ func TestDefaultLogPath(t *testing.T) {
 func TestRun_ShowVersion(t *testing.T) {
 	var stdout bytes.Buffer
 	opts := mcpOptions{showVersion: true}
-	if err := run(opts, nil, &stdout, nil); err != nil {
+	if err := run(context.Background(), opts, nil, &stdout, nil); err != nil {
 		t.Fatalf("run --version: %v", err)
 	}
 	got := strings.TrimSpace(stdout.String())
@@ -70,7 +71,7 @@ func TestRun_SyncAll(t *testing.T) {
 
 	var gotLog, gotConfig string
 	var gotOverrides hexaimcp.MCPOverrides
-	runBackfill = func(logPath, configPath string, overrides hexaimcp.MCPOverrides) error {
+	runBackfill = func(_ context.Context, logPath, configPath string, overrides hexaimcp.MCPOverrides) error {
 		gotLog = logPath
 		gotConfig = configPath
 		gotOverrides = overrides
@@ -85,7 +86,7 @@ func TestRun_SyncAll(t *testing.T) {
 		slashCommandSync: true,
 		slashCommandDir:  "/tmp/cmds",
 	}
-	if err := run(opts, nil, nil, nil); err != nil {
+	if err := run(context.Background(), opts, nil, nil, nil); err != nil {
 		t.Fatalf("run syncAll: %v", err)
 	}
 	if gotLog != "/tmp/test.log" {
@@ -110,10 +111,10 @@ func TestRun_SyncAllError(t *testing.T) {
 	t.Cleanup(func() { runBackfill = old })
 
 	wantErr := errors.New("backfill failed")
-	runBackfill = func(_, _ string, _ hexaimcp.MCPOverrides) error { return wantErr }
+	runBackfill = func(_ context.Context, _, _ string, _ hexaimcp.MCPOverrides) error { return wantErr }
 
 	opts := mcpOptions{syncAll: true}
-	if err := run(opts, nil, nil, nil); !errors.Is(err, wantErr) {
+	if err := run(context.Background(), opts, nil, nil, nil); !errors.Is(err, wantErr) {
 		t.Fatalf("expected backfill error, got: %v", err)
 	}
 }
@@ -123,13 +124,13 @@ func TestRun_MCPServer(t *testing.T) {
 	t.Cleanup(func() { runMCP = old })
 
 	called := false
-	runMCP = func(logPath, configPath string, overrides hexaimcp.MCPOverrides, stdin io.Reader, stdout, stderr io.Writer) error {
+	runMCP = func(_ context.Context, logPath, configPath string, overrides hexaimcp.MCPOverrides, stdin io.Reader, stdout, stderr io.Writer) error {
 		called = true
 		return nil
 	}
 
 	opts := mcpOptions{logPath: "/tmp/mcp.log"}
-	if err := run(opts, nil, nil, nil); err != nil {
+	if err := run(context.Background(), opts, nil, nil, nil); err != nil {
 		t.Fatalf("run MCP: %v", err)
 	}
 	if !called {
@@ -142,9 +143,11 @@ func TestRun_MCPServerError(t *testing.T) {
 	t.Cleanup(func() { runMCP = old })
 
 	wantErr := errors.New("server failed")
-	runMCP = func(_, _ string, _ hexaimcp.MCPOverrides, _ io.Reader, _, _ io.Writer) error { return wantErr }
+	runMCP = func(_ context.Context, _, _ string, _ hexaimcp.MCPOverrides, _ io.Reader, _, _ io.Writer) error {
+		return wantErr
+	}
 
-	if err := run(mcpOptions{}, nil, nil, nil); !errors.Is(err, wantErr) {
+	if err := run(context.Background(), mcpOptions{}, nil, nil, nil); !errors.Is(err, wantErr) {
 		t.Fatalf("expected server error, got: %v", err)
 	}
 }
@@ -173,7 +176,7 @@ func TestRunMain_SyncAllSuccess(t *testing.T) {
 	t.Cleanup(func() { runBackfill = old })
 
 	var gotLog string
-	runBackfill = func(logPath string, _ string, _ hexaimcp.MCPOverrides) error {
+	runBackfill = func(_ context.Context, logPath string, _ string, _ hexaimcp.MCPOverrides) error {
 		gotLog = logPath
 		return nil
 	}
@@ -193,7 +196,7 @@ func TestRunMain_SyncAllSuccess(t *testing.T) {
 func TestRunMain_ServerErrorReturnsOne(t *testing.T) {
 	old := runMCP
 	t.Cleanup(func() { runMCP = old })
-	runMCP = func(string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
+	runMCP = func(context.Context, string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
 		return errors.New("mcp boom")
 	}
 
@@ -212,7 +215,7 @@ func TestRunMain_BadFlagReturnsTwo(t *testing.T) {
 	old := runMCP
 	t.Cleanup(func() { runMCP = old })
 	called := false
-	runMCP = func(string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
+	runMCP = func(context.Context, string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
 		called = true
 		return nil
 	}

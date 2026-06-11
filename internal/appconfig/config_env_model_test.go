@@ -1,6 +1,7 @@
 package appconfig
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -12,14 +13,14 @@ func TestEnv_GenericModelOverrideAndPrecedence(t *testing.T) {
 	t.Setenv("HEXAI_MODEL", "gpt-5-codex")
 	t.Setenv("HEXAI_PROVIDER", "openai")
 	// No provider-specific env set yet: HEXAI_MODEL should flow into OpenAIModel
-	cfg := Load(log.New(os.Stderr, "test ", 0))
+	cfg := Load(context.Background(), log.New(os.Stderr, "test ", 0))
 	if cfg.OpenAIModel != "gpt-5-codex" {
 		t.Fatalf("expected OpenAIModel=gpt-5-codex via HEXAI_MODEL, got %q", cfg.OpenAIModel)
 	}
 
 	// Now set a provider-specific model; it should win over HEXAI_MODEL
 	t.Setenv("HEXAI_OPENAI_MODEL", "gpt-5-thinking")
-	cfg2 := Load(log.New(os.Stderr, "test ", 0))
+	cfg2 := Load(context.Background(), log.New(os.Stderr, "test ", 0))
 	if cfg2.OpenAIModel != "gpt-5-thinking" {
 		t.Fatalf("expected OpenAIModel from HEXAI_OPENAI_MODEL to win, got %q", cfg2.OpenAIModel)
 	}
@@ -30,7 +31,7 @@ func TestEnv_ModelForce_OverridesProviderSpecific(t *testing.T) {
 	t.Setenv("HEXAI_OPENAI_MODEL", "gpt-5-main")
 	t.Setenv("HEXAI_MODEL_FORCE", "gpt-5-codex")
 	t.Setenv("HEXAI_PROVIDER", "openai")
-	cfg := Load(log.New(os.Stderr, "test ", 0))
+	cfg := Load(context.Background(), log.New(os.Stderr, "test ", 0))
 	if cfg.OpenAIModel != "gpt-5-codex" {
 		t.Fatalf("expected OpenAIModel forced to gpt-5-codex, got %q", cfg.OpenAIModel)
 	}
@@ -43,7 +44,7 @@ func TestEnv_SurfaceModelOverrides(t *testing.T) {
 	t.Setenv("HEXAI_MODEL_CLI", "gpt-cli")
 	t.Setenv("HEXAI_TEMPERATURE_CLI", "0.22")
 	t.Setenv("HEXAI_PROVIDER_CLI", "ollama")
-	cfg := Load(log.New(os.Stderr, "test ", 0))
+	cfg := Load(context.Background(), log.New(os.Stderr, "test ", 0))
 	if len(cfg.CompletionConfigs) != 1 {
 		t.Fatalf("expected single completion entry, got %+v", cfg.CompletionConfigs)
 	}

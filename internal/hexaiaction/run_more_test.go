@@ -31,7 +31,7 @@ func TestRun_MissingAPIKey(t *testing.T) {
 
 func TestRun_NoInput_IsActionable(t *testing.T) {
 	runner := NewRunner()
-	runner.loadConfig = func(context.Context, *log.Logger) appconfig.App { return appconfig.Load(nil) }
+	runner.loadConfig = func(context.Context, *log.Logger) appconfig.App { return appconfig.Load(context.Background(), nil) }
 	runner.newClient = func(appconfig.App) (actionClient, error) { return llmFake{}, nil }
 	runner.chooseAction = func(appconfig.App) (actionChoice, error) {
 		return actionChoice{kind: ActionSkip}, nil
@@ -62,7 +62,7 @@ func TestHandleDiagnosticsActionInvokesLLM(t *testing.T) {
 	t.Setenv("HEXAI_TMUX_STATUS", "0")
 	parts := InputParts{Diagnostics: []string{"warn1"}, Selection: "code"}
 	client := &stubChatDoer{}
-	cfg := appconfig.Load(nil)
+	cfg := appconfig.Load(context.Background(), nil)
 	if _, err := handleDiagnosticsAction(context.Background(), parts, &cfg, client); err != nil {
 		t.Fatalf("handleDiagnosticsAction: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestHandleSimplifyActionPassesSelection(t *testing.T) {
 	t.Setenv("HEXAI_TMUX_STATUS", "0")
 	parts := InputParts{Selection: "value := 1"}
 	client := &stubChatDoer{}
-	cfg := appconfig.Load(nil)
+	cfg := appconfig.Load(context.Background(), nil)
 	if _, err := handleSimplifyAction(context.Background(), parts, &cfg, client); err != nil {
 		t.Fatalf("handleSimplifyAction: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestHandleCustomActionUsesProvidedCustom(t *testing.T) {
 	sel := appconfig.CustomAction{ID: "custom", Title: "Do", Instruction: "do it"}
 	parts := InputParts{Selection: "text"}
 	client := &stubChatDoer{}
-	cfg := appconfig.Load(nil)
+	cfg := appconfig.Load(context.Background(), nil)
 	if _, err := handleCustomAction(context.Background(), parts, &cfg, client, &sel); err != nil {
 		t.Fatalf("handleCustomAction: %v", err)
 	}

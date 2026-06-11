@@ -1,6 +1,7 @@
 package appconfig
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,7 +20,7 @@ instruction = "x"
 id = "no-title"
 instruction = "x"
 `)
-	cfg := Load(newLogger())
+	cfg := Load(context.Background(), newLogger())
 	if err := cfg.Validate(); err == nil || (!strings.Contains(err.Error(), "missing required field id") && !strings.Contains(err.Error(), "missing required field title")) {
 		t.Fatalf("expected missing field error, got %v", err)
 	}
@@ -40,7 +41,7 @@ hotkey = "too"
 [tmux]
 custom_menu_hotkey = "ab"
 `)
-	cfg := Load(newLogger())
+	cfg := Load(context.Background(), newLogger())
 	if err := cfg.Validate(); err == nil || (!strings.Contains(err.Error(), "hotkey must be a single character") && !strings.Contains(err.Error(), "invalid tmux.custom_menu_hotkey")) {
 		t.Fatalf("expected invalid hotkey error, got %v", err)
 	}

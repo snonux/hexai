@@ -1,6 +1,7 @@
 package hexailsp
 
 import (
+	"context"
 	"log"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
@@ -12,7 +13,7 @@ import (
 	"codeberg.org/snonux/hexai/internal/runtimeconfig"
 )
 
-type configLoader func(*log.Logger, appconfig.LoadOptions) appconfig.App
+type configLoader func(context.Context, *log.Logger, appconfig.LoadOptions) appconfig.App
 
 type clientBuilder func(appconfig.App, llm.Client) llm.Client
 

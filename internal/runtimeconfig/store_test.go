@@ -2,6 +2,7 @@ package runtimeconfig
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log"
 	"os"
@@ -28,7 +29,7 @@ func TestStoreReloadSkipsEnvOverrides(t *testing.T) {
 	t.Setenv("HEXAI_MAX_TOKENS", "321")
 	t.Setenv("HEXAI_PROVIDER", "")
 
-	initial := appconfig.Load(logger)
+	initial := appconfig.Load(context.Background(), logger)
 	if initial.MaxTokens != 321 {
 		t.Fatalf("expected env override to win initial load, got %d", initial.MaxTokens)
 	}
@@ -38,7 +39,7 @@ func TestStoreReloadSkipsEnvOverrides(t *testing.T) {
 		t.Fatalf("failed to update config file: %v", err)
 	}
 
-	changes, err := store.Reload(logger, appconfig.LoadOptions{IgnoreEnv: true})
+	changes, err := store.Reload(context.Background(), logger, appconfig.LoadOptions{IgnoreEnv: true})
 	if err != nil {
 		t.Fatalf("reload failed: %v", err)
 	}
@@ -78,13 +79,13 @@ func TestStoreReloadLogsSummary(t *testing.T) {
 	t.Setenv("HEXAI_MAX_TOKENS", "321")
 	t.Setenv("HEXAI_PROVIDER", "")
 
-	initial := appconfig.Load(logger)
+	initial := appconfig.Load(context.Background(), logger)
 	store := New(initial)
 	if err := os.WriteFile(configPath, []byte("[general]\nmax_tokens = 128\n"), 0o644); err != nil {
 		t.Fatalf("update config: %v", err)
 	}
 
-	_, err := store.Reload(logger, appconfig.LoadOptions{IgnoreEnv: true})
+	_, err := store.Reload(context.Background(), logger, appconfig.LoadOptions{IgnoreEnv: true})
 	if err != nil {
 		t.Fatalf("reload failed: %v", err)
 	}
@@ -182,7 +183,7 @@ func TestReload_NilLogger(t *testing.T) {
 	// in Reload (skipping logger.Print). LoadWithOptions returns defaults when
 	// logger is nil, so the store gets default config applied.
 	store := New(appconfig.App{CoreConfig: appconfig.CoreConfig{MaxTokens: 1}})
-	changes, err := store.Reload(nil, appconfig.LoadOptions{IgnoreEnv: true})
+	changes, err := store.Reload(context.Background(), nil, appconfig.LoadOptions{IgnoreEnv: true})
 	if err != nil {
 		t.Fatalf("reload failed: %v", err)
 	}

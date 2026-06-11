@@ -3,6 +3,7 @@ package mcp
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,9 +68,20 @@ func NewServer(r io.Reader, w io.Writer, logger *log.Logger, store promptstore.P
 }
 
 // Run starts the server main loop, reading and dispatching requests.
-// Returns on EOF or fatal error, after waiting for all in-flight handlers.
-func (s *Server) Run() error {
+// Returns on EOF, on a cancelled ctx, or on a fatal error, after waiting for
+// all in-flight handlers.
+//
+// ctx ties the serve loop to the process lifecycle: once it is cancelled (e.g.
+// SIGINT/SIGTERM at main) the loop stops accepting further requests after the
+// current blocking read returns and drains outstanding handlers before exiting.
+func (s *Server) Run(ctx context.Context) error {
 	for {
+		// Stop promptly when the caller cancels (shutdown signal); the loop
+		// otherwise blocks in readMessage until the next request or EOF.
+		if ctx != nil && ctx.Err() != nil {
+			s.inflight.Wait()
+			return nil
+		}
 		body, err := s.readMessage()
 		if errors.Is(err, io.EOF) {
 			s.inflight.Wait() // drain handlers before signalling callers

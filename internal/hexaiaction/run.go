@@ -114,7 +114,7 @@ func (tmuxActionStatusSink) SetLLMStart(provider, model string) error {
 }
 
 func loadActionConfig(ctx context.Context, logger *log.Logger) appconfig.App {
-	return appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
+	return appconfig.LoadWithOptions(ctx, logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
 }
 
 type actionPlan struct {
@@ -381,7 +381,7 @@ func handleCustomAction(ctx context.Context, parts InputParts, cfg actionConfig,
 }
 
 func handleCustomPromptAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (string, error) {
-	prompt, err := editor.OpenTempAndEdit(nil)
+	prompt, err := editor.OpenTempAndEdit(ctx, nil)
 	if err != nil || strings.TrimSpace(prompt) == "" {
 		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
 		return parts.Selection, nil

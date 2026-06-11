@@ -1,6 +1,7 @@
 package runtimeconfig
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"reflect"
@@ -79,9 +80,11 @@ func (s *Store) Set(cfg appconfig.App) []Change {
 	return changes
 }
 
-// Reload re-reads configuration using the supplied options and applies it when valid.
-func (s *Store) Reload(logger *log.Logger, opts appconfig.LoadOptions) ([]Change, error) {
-	cfg := appconfig.LoadWithOptions(logger, opts)
+// Reload re-reads configuration using the supplied options and applies it when
+// valid. ctx is forwarded to the config loader so a cancelled caller (e.g. a
+// shutting-down server) aborts the blocking file reads.
+func (s *Store) Reload(ctx context.Context, logger *log.Logger, opts appconfig.LoadOptions) ([]Change, error) {
+	cfg := appconfig.LoadWithOptions(ctx, logger, opts)
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}

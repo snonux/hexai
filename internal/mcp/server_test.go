@@ -3,6 +3,7 @@ package mcp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -397,9 +398,25 @@ func TestServer_Run(t *testing.T) {
 		logger := log.New(io.Discard, "", 0)
 		server := NewServer(inBuf, outBuf, logger, store, nil)
 
-		err := server.Run()
+		err := server.Run(context.Background())
 		if err != nil {
 			t.Errorf("Run() error = %v, want nil on EOF", err)
+		}
+	})
+
+	t.Run("exits on cancelled context", func(t *testing.T) {
+		store := &mockPromptStore{prompts: make(map[string]*promptstore.Prompt)}
+		// A pipe with no data would otherwise block in readMessage; an
+		// already-cancelled context makes Run return before reading.
+		pr, _ := io.Pipe()
+		outBuf := &bytes.Buffer{}
+		logger := log.New(io.Discard, "", 0)
+		server := NewServer(pr, outBuf, logger, store, nil)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		if err := server.Run(ctx); err != nil {
+			t.Errorf("Run() error = %v, want nil on cancelled ctx", err)
 		}
 	})
 
@@ -434,7 +451,7 @@ func TestServer_Run(t *testing.T) {
 		// so Run() will complete naturally once it has written the response.
 		done := make(chan error, 1)
 		go func() {
-			done <- server.Run()
+			done <- server.Run(context.Background())
 		}()
 
 		// Wait for Run() to return (signalled by EOF on the input buffer).

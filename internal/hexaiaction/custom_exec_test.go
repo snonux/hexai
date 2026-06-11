@@ -9,7 +9,7 @@ import (
 )
 
 func TestExecuteAction_CustomConfigured_Instruction(t *testing.T) {
-	cfg := appconfig.Load(nil)
+	cfg := appconfig.Load(context.Background(), nil)
 	parts := InputParts{Selection: "code"}
 	selectedCustom := &appconfig.CustomAction{ID: "x", Title: "X", Instruction: "Do it"}
 	out, err := executeAction(context.Background(), ActionCustom, parts, &cfg, fakeDoer{"OK"}, nil, selectedCustom)
@@ -19,7 +19,7 @@ func TestExecuteAction_CustomConfigured_Instruction(t *testing.T) {
 }
 
 func TestExecuteAction_CustomConfigured_User(t *testing.T) {
-	cfg := appconfig.Load(nil)
+	cfg := appconfig.Load(context.Background(), nil)
 	parts := InputParts{Selection: "sel"}
 	selectedCustom := &appconfig.CustomAction{ID: "y", Title: "Y", User: "Apply to: {{selection}}"}
 	out, err := executeAction(context.Background(), ActionCustom, parts, &cfg, fakeDoer{"OK2"}, nil, selectedCustom)

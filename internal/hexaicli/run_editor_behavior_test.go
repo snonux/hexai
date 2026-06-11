@@ -25,7 +25,7 @@ func TestRun_DoesNotOpenEditorWhenStdinPresent(t *testing.T) {
 	// Guard: make editor invocation fatal if called
 	oldRunEd := editor.RunEditor
 	defer func() { editor.RunEditor = oldRunEd }()
-	editor.RunEditor = func(_ string, _ string) error {
+	editor.RunEditor = func(_ context.Context, _ string, _ string) error {
 		t.Fatalf("editor should not be invoked when stdin has content")
 		return nil
 	}

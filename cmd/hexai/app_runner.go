@@ -69,7 +69,9 @@ func normalizeAppRunner(r appRunner) appRunner {
 
 func loadAppConfig(configPath string) appconfig.App {
 	logger := log.New(io.Discard, "", 0)
-	return appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPath})
+	// Config is loaded before the signal-aware CLI context exists, so use a
+	// background context here; the load is a quick local file read.
+	return appconfig.LoadWithOptions(context.Background(), logger, appconfig.LoadOptions{ConfigPath: configPath})
 }
 
 func parseAppArgs(cfg appconfig.App, configPath string, args []string, stderr io.Writer) (parsedAppArgs, error) {

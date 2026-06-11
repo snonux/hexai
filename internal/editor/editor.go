@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -21,9 +22,11 @@ func Resolve() (string, error) {
 }
 
 // RunEditor is the seam that invokes the editor on the given file path.
-// Override in tests to avoid launching a real editor.
-var RunEditor = func(editor, path string) error {
-	cmd := exec.Command(editor, path)
+// Override in tests to avoid launching a real editor. It uses
+// exec.CommandContext so a cancelled ctx (e.g. process shutdown) kills the
+// editor subprocess instead of leaving it blocking on terminal input.
+var RunEditor = func(ctx context.Context, editor, path string) error {
+	cmd := exec.CommandContext(ctx, editor, path)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -32,8 +35,9 @@ var RunEditor = func(editor, path string) error {
 
 // OpenTempAndEdit creates a temporary .md file, writes initial content if provided,
 // opens it in the resolved editor, then reads the final content and removes the file.
-// Returns the trimmed content.
-func OpenTempAndEdit(initial []byte) (string, error) {
+// Returns the trimmed content. ctx is forwarded to the editor subprocess so it
+// can be cancelled along with the surrounding command.
+func OpenTempAndEdit(ctx context.Context, initial []byte) (string, error) {
 	ed, err := Resolve()
 	if err != nil {
 		return "", err
@@ -59,7 +63,7 @@ func OpenTempAndEdit(initial []byte) (string, error) {
 	if err := f.Close(); err != nil {
 		return "", err
 	}
-	if err := RunEditor(ed, path); err != nil {
+	if err := RunEditor(ctx, ed, path); err != nil {
 		return "", err
 	}
 	b, err := os.ReadFile(filepath.Clean(path))
@@ -70,8 +74,9 @@ func OpenTempAndEdit(initial []byte) (string, error) {
 }
 
 // OpenFile ensures the parent directory exists, then opens path in the editor
-// from Resolve() (HEXAI_EDITOR or EDITOR).
-func OpenFile(path string) error {
+// from Resolve() (HEXAI_EDITOR or EDITOR). ctx is forwarded to the editor
+// subprocess so it can be cancelled with the surrounding command.
+func OpenFile(ctx context.Context, path string) error {
 	ed, err := Resolve()
 	if err != nil {
 		return err
@@ -86,5 +91,5 @@ func OpenFile(path string) error {
 			return mkErr
 		}
 	}
-	return RunEditor(ed, path)
+	return RunEditor(ctx, ed, path)
 }

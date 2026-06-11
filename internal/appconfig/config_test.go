@@ -2,6 +2,7 @@ package appconfig
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"log"
@@ -13,6 +14,24 @@ import (
 )
 
 func newLogger() *log.Logger { return log.New(io.Discard, "", 0) }
+
+// TestLoadWithOptions_CancelledContextReturnsDefaults verifies that a
+// pre-cancelled context short-circuits config loading (skipping the blocking
+// file reads) and returns the default config instead.
+func TestLoadWithOptions_CancelledContextReturnsDefaults(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	writeFile(t, cfgPath, "[core]\nmax_tokens = 9999\n")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	cfg := LoadWithOptions(ctx, newLogger(), LoadOptions{ConfigPath: cfgPath})
+	def := newDefaultConfig()
+	if cfg.MaxTokens != def.MaxTokens {
+		t.Fatalf("expected default config on cancelled ctx, got MaxTokens=%d", cfg.MaxTokens)
+	}
+}
 
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
@@ -46,7 +65,7 @@ func withEnv(t *testing.T, k, v string) {
 }
 
 func TestLoad_Defaults_NoLogger(t *testing.T) {
-	cfg := Load(nil)
+	cfg := Load(context.Background(), nil)
 	if cfg.MaxTokens == 0 || cfg.ContextMode == "" || cfg.ContextWindowLines == 0 || cfg.MaxContextTokens == 0 {
 		t.Fatalf("expected defaults populated, got %+v", cfg)
 	}
@@ -60,7 +79,7 @@ func TestLoad_Defaults_WithLogger_NoFile_NoEnv(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	logger := newLogger()
-	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: dir})
+	cfg := LoadWithOptions(context.Background(), logger, LoadOptions{ProjectRoot: dir})
 	def := newDefaultConfig()
 	if cfg.MaxTokens != def.MaxTokens || cfg.ContextMode != def.ContextMode || cfg.ContextWindowLines != def.ContextWindowLines {
 		t.Fatalf("expected defaults; got %+v want %+v", cfg, def)
@@ -186,7 +205,7 @@ temperature = 0.0
 	withEnv(t, "HEXAI_PROVIDER_CLI", "ollama")
 
 	logger := newLogger()
-	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: dir})
+	cfg := LoadWithOptions(context.Background(), logger, LoadOptions{ProjectRoot: dir})
 
 	// Check overrides
 	if cfg.MaxTokens != 321 || cfg.ContextMode != "always-full" || cfg.ContextWindowLines != 77 || cfg.MaxContextTokens != 888 {
@@ -255,7 +274,7 @@ temperature = 0.0
 	} {
 		t.Setenv(k, "")
 	}
-	cfg2 := LoadWithOptions(logger, LoadOptions{ProjectRoot: dir})
+	cfg2 := LoadWithOptions(context.Background(), logger, LoadOptions{ProjectRoot: dir})
 	if cfg2.MaxTokens != 123 || cfg2.ContextMode != "file-on-new-func" || cfg2.ContextWindowLines != 50 || cfg2.MaxContextTokens != 999 || cfg2.LogPreviewLimit != 0 {
 		t.Fatalf("file merge not applied: %+v", cfg2)
 	}
@@ -434,7 +453,7 @@ temperature = 0.0
 	// Ensure no env override interferes with manual_invoke_min_prefix in this test
 	t.Setenv("HEXAI_MANUAL_INVOKE_MIN_PREFIX", "")
 	logger := newLogger()
-	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: dir})
+	cfg := LoadWithOptions(context.Background(), logger, LoadOptions{ProjectRoot: dir})
 
 	if cfg.MaxTokens != 111 || cfg.ContextMode != "window" || cfg.ContextWindowLines != 42 || cfg.MaxContextTokens != 777 {
 		t.Fatalf("sectioned basics wrong: %+v", cfg)
@@ -495,7 +514,7 @@ explain_system = "CLI-EXPLAIN"
 `
 	writeFile(t, cfgPath, content)
 
-	cfg := Load(newLogger())
+	cfg := Load(context.Background(), newLogger())
 
 	// completion
 	if cfg.PromptCompletionSystemGeneral != "SYS-GENERAL" || cfg.PromptCompletionSystemParams != "SYS-PARAMS" || cfg.PromptCompletionSystemInline != "SYS-INLINE" {
@@ -557,7 +576,7 @@ user = "Diagnostics to resolve (selection only):\n{{diagnostics}}\n\nSelected co
 custom_menu_hotkey = "a"
 `
 	writeFile(t, cfgPath, content)
-	cfg := Load(newLogger())
+	cfg := Load(context.Background(), newLogger())
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("validate: %v", err)
 	}
@@ -592,7 +611,7 @@ id = "DUP"
 title = "B"
 instruction = "y"
 `)
-	cfg := Load(newLogger())
+	cfg := Load(context.Background(), newLogger())
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "duplicate custom action id") {
 		t.Fatalf("expected duplicate id error, got %v", err)
 	}
@@ -616,7 +635,7 @@ title = "B"
 instruction = "y"
 hotkey = "E"
 `)
-	cfg := Load(newLogger())
+	cfg := Load(context.Background(), newLogger())
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "duplicate custom action hotkey") {
 		t.Fatalf("expected duplicate hotkey error, got %v", err)
 	}
@@ -635,7 +654,7 @@ title = "A"
 instruction = "x"
 scope = "bad"
 `)
-	cfg := Load(newLogger())
+	cfg := Load(context.Background(), newLogger())
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "invalid scope") {
 		t.Fatalf("expected invalid scope error, got %v", err)
 	}
@@ -650,7 +669,7 @@ func TestTmuxMenuHotkey_Clash_Error(t *testing.T) {
 [tmux]
 custom_menu_hotkey = "r"
 `)
-	cfg := Load(newLogger())
+	cfg := Load(context.Background(), newLogger())
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "clashes with built-in") {
 		t.Fatalf("expected clash error, got %v", err)
 	}
@@ -727,7 +746,7 @@ name = "anthropic"
 
 	// Load using explicit ProjectRoot (avoids needing to chdir)
 	logger := newLogger()
-	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: projectDir})
+	cfg := LoadWithOptions(context.Background(), logger, LoadOptions{ProjectRoot: projectDir})
 
 	// Project config should override global values
 	if cfg.MaxTokens != 8000 {
@@ -768,7 +787,7 @@ max_tokens = 8000
 	withEnv(t, "HEXAI_MAX_TOKENS", "9999")
 
 	logger := newLogger()
-	cfg := LoadWithOptions(logger, LoadOptions{ProjectRoot: projectDir})
+	cfg := LoadWithOptions(context.Background(), logger, LoadOptions{ProjectRoot: projectDir})
 
 	if cfg.MaxTokens != 9999 {
 		t.Fatalf("expected env max_tokens=9999 to override project, got %d", cfg.MaxTokens)
@@ -799,7 +818,7 @@ max_tokens = 2000
 	}
 
 	logger := newLogger()
-	cfg := LoadWithOptions(logger, LoadOptions{})
+	cfg := LoadWithOptions(context.Background(), logger, LoadOptions{})
 
 	// Should get global config values, not defaults
 	if cfg.MaxTokens != 2000 {

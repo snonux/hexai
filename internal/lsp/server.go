@@ -345,6 +345,27 @@ func (s *Server) cancelRequests() {
 	}
 }
 
+// watchParentContext propagates cancellation from the caller-provided ctx into
+// the server's own context. When ctx is cancelled we call cancelRequests so any
+// in-flight LLM/network work tied to s.serverCtx is aborted; the main loop then
+// returns once the current blocking read unblocks. It returns a stop function
+// that tears down the watcher goroutine when Run exits normally (EOF), so the
+// goroutine never leaks. A nil ctx (or context.Background) yields a no-op.
+func (s *Server) watchParentContext(ctx context.Context) func() {
+	if ctx == nil || ctx.Done() == nil {
+		return func() {}
+	}
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			s.cancelRequests()
+		case <-done:
+		}
+	}()
+	return func() { close(done) }
+}
+
 func (s *Server) emitLLMStartStatus(provider, model string) {
 	if s.statusSink != nil {
 		if err := s.statusSink.SetLLMStart(provider, model); err != nil {
@@ -363,7 +384,14 @@ func (s *Server) emitGlobalStatus(gs GlobalStatus) {
 
 // Run starts the server's main loop, reading and dispatching LSP messages until EOF or exit.
 // On shutdown it cancels the server context and waits for in-flight goroutines.
-func (s *Server) Run() error {
+//
+// The supplied ctx ties the serve loop to the process lifecycle: when the
+// caller's context is cancelled (e.g. SIGINT/SIGTERM at main), we cancel the
+// internal server context so in-flight LLM/network requests are aborted and the
+// blocking stdin read is unblocked, letting Run return promptly.
+func (s *Server) Run(ctx context.Context) error {
+	stopWatch := s.watchParentContext(ctx)
+	defer stopWatch()
 	defer func() {
 		s.cancelRequests()
 		s.inflight.Wait()

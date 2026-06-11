@@ -3,6 +3,7 @@ package hexailsp
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log"
 	"os"
@@ -30,7 +31,7 @@ type fakeServer struct {
 	opts lsp.ServerOptions
 }
 
-func (f *fakeServer) Run() error { f.ran = true; return nil }
+func (f *fakeServer) Run(context.Context) error { f.ran = true; return nil }
 
 func TestRunWithFactory_UsesDefaultsAndCallsServer(t *testing.T) {
 	old := os.Getenv("OPENAI_API_KEY")
@@ -39,7 +40,7 @@ func TestRunWithFactory_UsesDefaultsAndCallsServer(t *testing.T) {
 
 	var stderr bytes.Buffer
 	logger := log.New(&stderr, "hexai-lsp-server ", 0)
-	cfg := appconfig.Load(nil) // defaults
+	cfg := appconfig.Load(context.Background(), nil) // defaults
 	// Pin provider to openai: the in-code default is now ollama, which would
 	// happily build a client without a key and short-circuit the missing-key
 	// assertion below. Load(nil) returns raw defaults and ignores env vars,
@@ -50,7 +51,7 @@ func TestRunWithFactory_UsesDefaultsAndCallsServer(t *testing.T) {
 		gotOpts = opts
 		return &fakeServer{opts: opts}
 	}
-	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory(context.Background(), "", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if gotOpts.Config == nil {
@@ -82,7 +83,7 @@ func TestRunWithFactory_BuildsClientWhenKeysPresent(t *testing.T) {
 
 	var stderr bytes.Buffer
 	logger := log.New(&stderr, "hexai-lsp-server ", 0)
-	cfg := appconfig.Load(nil) // defaults
+	cfg := appconfig.Load(context.Background(), nil) // defaults
 	// Pin provider to openai (the in-code default is now ollama). Load(nil)
 	// returns raw defaults and ignores env vars, so set this on the struct.
 	cfg.Provider = "openai"
@@ -91,7 +92,7 @@ func TestRunWithFactory_BuildsClientWhenKeysPresent(t *testing.T) {
 		got = opts.Client
 		return &fakeServer{opts: opts}
 	}
-	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory(context.Background(), "", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if got == nil {
@@ -103,7 +104,7 @@ func TestRun_RespectsLogPathFlag(t *testing.T) {
 	tmp := t.TempDir()
 	logFile := filepath.Join(tmp, "hexai-lsp-server.log")
 	// Run with real Run but nil env key so client disabled; ensure no panic and file created
-	if err := Run(logFile, bytes.NewBuffer(nil), bytes.NewBuffer(nil), bytes.NewBuffer(nil)); err != nil {
+	if err := Run(context.Background(), logFile, bytes.NewBuffer(nil), bytes.NewBuffer(nil), bytes.NewBuffer(nil)); err != nil {
 		t.Fatalf("Run error: %v", err)
 	}
 	if _, err := os.Stat(logFile); err != nil {
@@ -126,7 +127,7 @@ func TestRunWithFactory_NormalizesContextMode_AndSetsPreviewLimit(t *testing.T) 
 		gotOpts = opts
 		return &fakeServer{opts: opts}
 	}
-	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory(context.Background(), "", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if gotOpts.Config == nil {
@@ -155,13 +156,13 @@ func TestRunWithFactory_LogContextFlag(t *testing.T) {
 		}
 		return &fakeServer{opts: opts}
 	}
-	if err := RunWithFactory("/tmp/some.log", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory(context.Background(), "/tmp/some.log", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if !got1.LogContext {
 		t.Fatalf("expected LogContext true when logPath is non-empty")
 	}
-	if err := RunWithFactory("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory(context.Background(), "", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if got2.LogContext {

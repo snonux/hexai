@@ -3,6 +3,7 @@ package hexaimcp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ type mockServerRunner struct {
 	runFunc func() error
 }
 
-func (m *mockServerRunner) Run() error {
+func (m *mockServerRunner) Run(context.Context) error {
 	if m.runFunc != nil {
 		return m.runFunc()
 	}
@@ -66,7 +67,7 @@ func TestFullProtocolFlow(t *testing.T) {
 		overrides := MCPOverrides{PromptsDir: tmpDir}
 
 		// Note: This will hang waiting for more input, which is expected
-		_ = RunWithFactory("", "", overrides, inBuf, outBuf, errBuf, serverFactory)
+		_ = RunWithFactory(context.Background(), "", "", overrides, inBuf, outBuf, errBuf, serverFactory)
 	}()
 
 	// Give server time to process
@@ -231,14 +232,14 @@ func TestLoadConfig(t *testing.T) {
 	logger := log.New(io.Discard, "", 0)
 
 	t.Run("loads default config when path empty", func(t *testing.T) {
-		cfg := loadConfig(logger, "")
+		cfg := loadConfig(context.Background(), logger, "")
 		// Should return a valid config (may be defaults)
 		// Just verify it returns without panic
 		_ = cfg
 	})
 
 	t.Run("loads config with nonexistent path", func(t *testing.T) {
-		cfg := loadConfig(logger, "/nonexistent/config.yaml")
+		cfg := loadConfig(context.Background(), logger, "/nonexistent/config.yaml")
 		// Should return default config without error
 		// Just verify it returns without panic
 		_ = cfg
@@ -281,7 +282,7 @@ func TestRun(t *testing.T) {
 	// Pass prompts dir via overrides instead of environment variable
 	overrides := MCPOverrides{PromptsDir: tmpDir}
 
-	err := RunWithFactory(logPath, "", overrides, inBuf, outBuf, errBuf, mockFactory)
+	err := RunWithFactory(context.Background(), logPath, "", overrides, inBuf, outBuf, errBuf, mockFactory)
 	if err != nil {
 		t.Fatalf("RunWithFactory() error = %v", err)
 	}
@@ -312,7 +313,7 @@ func TestRunWithFactory_ServerError(t *testing.T) {
 	// Pass prompts dir via overrides instead of environment variable
 	overrides := MCPOverrides{PromptsDir: tmpDir}
 
-	err := RunWithFactory(logPath, "", overrides, inBuf, outBuf, errBuf, mockFactory)
+	err := RunWithFactory(context.Background(), logPath, "", overrides, inBuf, outBuf, errBuf, mockFactory)
 	if err == nil {
 		t.Fatal("RunWithFactory() expected error, got nil")
 	}
@@ -331,7 +332,7 @@ func TestRunWithFactory_LoggerError(t *testing.T) {
 		return &mockServerRunner{}
 	}
 
-	err := RunWithFactory(badLogPath, "", MCPOverrides{}, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
+	err := RunWithFactory(context.Background(), badLogPath, "", MCPOverrides{}, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
 	if err == nil {
 		t.Fatal("expected error for invalid log path, got nil")
 	}
@@ -353,7 +354,7 @@ func TestRunWithFactory_StderrLogger(t *testing.T) {
 	overrides := MCPOverrides{PromptsDir: tmpDir}
 
 	// Empty logPath causes logger to write to stderr (no file to close)
-	err := RunWithFactory("", "", overrides, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
+	err := RunWithFactory(context.Background(), "", "", overrides, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, mockFactory)
 	if err != nil {
 		t.Fatalf("RunWithFactory() error = %v", err)
 	}
@@ -371,7 +372,7 @@ func TestRun_CallsDefaultFactory(t *testing.T) {
 
 	// Run with empty stdin — the real server hits EOF and exits cleanly.
 	// This exercises the full Run -> RunWithFactory -> defaultServerFactory path.
-	err := Run(logPath, "", overrides, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{})
+	err := Run(context.Background(), logPath, "", overrides, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{})
 	// The server may return nil or an error depending on how it handles EOF;
 	// the important thing is that Run() itself does not panic.
 	_ = err
@@ -524,7 +525,7 @@ func TestRunBackfill_FullHappyPath(t *testing.T) {
 
 	// RunBackfill should succeed: config sets MCPSlashCommandDir, prompts
 	// dir exists, and SyncAll on an empty store is a no-op.
-	err := RunBackfill(logPath, cfgPath, overrides)
+	err := RunBackfill(context.Background(), logPath, cfgPath, overrides)
 	if err != nil {
 		t.Fatalf("RunBackfill() error = %v", err)
 	}
@@ -550,7 +551,7 @@ func TestRunBackfill_CreateSyncerError(t *testing.T) {
 		t.Fatalf("cannot write config: %v", err)
 	}
 
-	err := RunBackfill(logPath, cfgPath, MCPOverrides{})
+	err := RunBackfill(context.Background(), logPath, cfgPath, MCPOverrides{})
 	if err == nil {
 		t.Fatal("expected error for invalid slash command dir, got nil")
 	}
@@ -580,7 +581,7 @@ func TestRunBackfill_StderrLogger(t *testing.T) {
 	overrides := MCPOverrides{PromptsDir: promptsDir}
 
 	// Empty logPath — logger writes to stderr, defer close is a no-op
-	err := RunBackfill("", cfgPath, overrides)
+	err := RunBackfill(context.Background(), "", cfgPath, overrides)
 	if err != nil {
 		t.Fatalf("RunBackfill() error = %v", err)
 	}
@@ -589,7 +590,7 @@ func TestRunBackfill_StderrLogger(t *testing.T) {
 // TestRunBackfill_LoggerError verifies RunBackfill returns an error when
 // the log path is invalid.
 func TestRunBackfill_LoggerError(t *testing.T) {
-	err := RunBackfill("/dev/null/impossible/test.log", "", MCPOverrides{})
+	err := RunBackfill(context.Background(), "/dev/null/impossible/test.log", "", MCPOverrides{})
 	if err == nil {
 		t.Fatal("expected error for invalid log path, got nil")
 	}
@@ -617,7 +618,7 @@ func TestRunBackfill_NoCmdDir(t *testing.T) {
 	defer os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", oldEnv)
 	os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", "")
 
-	err := RunBackfill(logPath, emptyCfgPath, MCPOverrides{})
+	err := RunBackfill(context.Background(), logPath, emptyCfgPath, MCPOverrides{})
 	if err == nil {
 		t.Fatal("expected error for empty slash command dir, got nil")
 	}

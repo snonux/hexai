@@ -28,7 +28,9 @@ func TestRun_NoArgs_OpensEditor(t *testing.T) {
 	newClientFromApp = func(_ appconfig.App) (llm.Client, error) { return cliFake{}, nil }
 	t.Cleanup(func() { newClientFromApp = oldNew })
 	oldRun := editor.RunEditor
-	editor.RunEditor = func(_ string, path string) error { return os.WriteFile(path, []byte("PROMPT"), 0o600) }
+	editor.RunEditor = func(_ context.Context, _ string, path string) error {
+		return os.WriteFile(path, []byte("PROMPT"), 0o600)
+	}
 	t.Cleanup(func() { editor.RunEditor = oldRun })
 	t.Setenv("HEXAI_EDITOR", "dummy")
 
@@ -50,7 +52,7 @@ func TestRun_WithArgs_DoesNotOpenEditor(t *testing.T) {
 	// Stub editor and detect if called (should not be)
 	called := false
 	oldRun := editor.RunEditor
-	editor.RunEditor = func(_ string, _ string) error { called = true; return nil }
+	editor.RunEditor = func(_ context.Context, _ string, _ string) error { called = true; return nil }
 	t.Cleanup(func() { editor.RunEditor = oldRun })
 	var stdout, stderr bytes.Buffer
 	if err := Run(context.Background(), []string{"ARG"}, bytes.NewBufferString("SEL"), &stdout, &stderr); err != nil {

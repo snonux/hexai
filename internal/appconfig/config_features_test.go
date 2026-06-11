@@ -3,6 +3,7 @@
 package appconfig
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,7 +12,7 @@ import (
 
 func TestIgnoreConfig_Defaults(t *testing.T) {
 	clearHexaiEnv(t)
-	cfg := Load(nil)
+	cfg := Load(context.Background(), nil)
 	if cfg.IgnoreGitignore == nil || !*cfg.IgnoreGitignore {
 		t.Error("expected IgnoreGitignore default true")
 	}
@@ -33,7 +34,7 @@ gitignore = false
 extra_patterns = ["*.min.js", "dist/**"]
 lsp_notify_ignored = false
 `)
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
+	cfg := LoadWithOptions(context.Background(), newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
 		t.Error("expected IgnoreGitignore false from file")
 	}
@@ -58,7 +59,7 @@ lsp_notify_ignored = true
 	withEnv(t, "HEXAI_IGNORE_GITIGNORE", "false")
 	withEnv(t, "HEXAI_IGNORE_LSP_NOTIFY", "0")
 	withEnv(t, "HEXAI_IGNORE_EXTRA_PATTERNS", "*.bak,*.tmp")
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
+	cfg := LoadWithOptions(context.Background(), newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
 		t.Error("expected IgnoreGitignore false from env override")
 	}
@@ -90,7 +91,7 @@ gitignore = true
 gitignore = false
 extra_patterns = ["build/**"]
 `)
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: projectDir})
+	cfg := LoadWithOptions(context.Background(), newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: projectDir})
 	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
 		t.Error("expected project override to set IgnoreGitignore false")
 	}
@@ -108,7 +109,7 @@ func TestIgnoreConfig_DisableGitignore(t *testing.T) {
 [ignore]
 gitignore = false
 `)
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
+	cfg := LoadWithOptions(context.Background(), newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if cfg.IgnoreGitignore == nil || *cfg.IgnoreGitignore {
 		t.Error("expected IgnoreGitignore false")
 	}
@@ -149,7 +150,7 @@ clear_keys = "C-u"
 newline_keys = "S-Enter"
 submit_keys = "Enter"
 `)
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
+	cfg := LoadWithOptions(context.Background(), newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if cfg.TmuxEditPopupWidth != "90%" {
 		t.Errorf("PopupWidth = %q, want 90%%", cfg.TmuxEditPopupWidth)
 	}
@@ -212,7 +213,7 @@ func TestTmuxEditConfig_SkipsEmptyName(t *testing.T) {
 name = ""
 display_name = "Empty"
 `)
-	cfg := LoadWithOptions(newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
+	cfg := LoadWithOptions(context.Background(), newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
 	if len(cfg.TmuxEditAgents) != 0 {
 		t.Errorf("got %d agents, want 0 (empty name should be skipped)", len(cfg.TmuxEditAgents))
 	}

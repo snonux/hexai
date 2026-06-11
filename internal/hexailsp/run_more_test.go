@@ -15,11 +15,11 @@ import (
 
 type recRunner struct{ ran bool }
 
-func (r *recRunner) Run() error { r.ran = true; return nil }
+func (r *recRunner) Run(context.Context) error { r.ran = true; return nil }
 
 type applyRunner struct{ opts []lsp.ServerOptions }
 
-func (r *applyRunner) Run() error                          { return nil }
+func (r *applyRunner) Run(context.Context) error           { return nil }
 func (r *applyRunner) ApplyOptions(opts lsp.ServerOptions) { r.opts = append(r.opts, opts) }
 
 type stubClient struct{}
@@ -43,13 +43,13 @@ func TestRunWithFactory_BuildsOptionsAndClient(t *testing.T) {
 	}
 	var in, out bytes.Buffer
 	logger := log.New(&out, "", 0)
-	cfg := appconfig.Load(logger)
+	cfg := appconfig.Load(context.Background(), logger)
 	// Use ollama to avoid API keys
 	cfg.Provider = "ollama"
 	cfg.MaxTokens = 123
 	cfg.PromptCodeActionRewriteSystem = "RSYS"
 	cfg.PromptCodeActionRewriteUser = "RUSER"
-	if err := RunWithFactory("", "", &in, &out, logger, cfg, nil, factory); err != nil {
+	if err := RunWithFactory(context.Background(), "", "", &in, &out, logger, cfg, nil, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if captured.Config == nil {
@@ -76,10 +76,10 @@ func TestRunWithFactory_SubscriptionAppliesUpdates(t *testing.T) {
 		runner.opts = append(runner.opts, opts)
 		return runner
 	}
-	cfg := appconfig.Load(nil)
+	cfg := appconfig.Load(context.Background(), nil)
 	cfg.StatsWindowMinutes = 0
 	cfg.ContextMode = " WINDOW "
-	if err := RunWithFactory("", "", &in, &out, logger, cfg, stubClient{}, factory); err != nil {
+	if err := RunWithFactory(context.Background(), "", "", &in, &out, logger, cfg, stubClient{}, factory); err != nil {
 		t.Fatalf("RunWithFactory error: %v", err)
 	}
 	if capturedStore == nil {
@@ -115,8 +115,8 @@ func TestRunWithDependencies_UsesInjectedClientBuilderAndStatusSink(t *testing.T
 		captured = opts
 		return &recRunner{}
 	}
-	cfg := appconfig.Load(nil)
-	if err := runWithDependencies("", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), log.New(io.Discard, "", 0), cfg, nil, factory, runDependencies{
+	cfg := appconfig.Load(context.Background(), nil)
+	if err := runWithDependencies(context.Background(), "", "", bytes.NewBuffer(nil), bytes.NewBuffer(nil), log.New(io.Discard, "", 0), cfg, nil, factory, runDependencies{
 		buildClient: func(appconfig.App, llm.Client) llm.Client {
 			buildCalls++
 			return stubClient{}

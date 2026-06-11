@@ -2,6 +2,7 @@
 package hexaimcp
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -25,8 +26,10 @@ type MCPOverrides struct {
 }
 
 // ServerRunner interface allows dependency injection for testing.
+// Run takes a context so the serve loop is cancelled when the process shuts
+// down (e.g. on SIGINT/SIGTERM from the top-level caller).
 type ServerRunner interface {
-	Run() error
+	Run(ctx context.Context) error
 }
 
 // ServerFactory creates a server instance (testable).
@@ -45,14 +48,17 @@ func defaultServerFactory(r io.Reader, w io.Writer, logger *log.Logger, store pr
 
 // Run starts the MCP server with the given configuration and overrides.
 // This is the main entry point called from cmd/hexai-mcp-server/main.go.
-func Run(logPath, configPath string, overrides MCPOverrides, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	return RunWithFactory(logPath, configPath, overrides, stdin, stdout, stderr, defaultServerFactory)
+// ctx is threaded through config loading and the serve loop so the run is
+// cancellable from the process entry point.
+func Run(ctx context.Context, logPath, configPath string, overrides MCPOverrides, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	return RunWithFactory(ctx, logPath, configPath, overrides, stdin, stdout, stderr, defaultServerFactory)
 }
 
 // RunWithFactory allows test injection of server factory.
 // Overrides are applied to the loaded config before use, allowing CLI flags
 // to take precedence over config file and environment variable settings.
 func RunWithFactory(
+	ctx context.Context,
 	logPath string,
 	configPath string,
 	overrides MCPOverrides,
@@ -76,14 +82,14 @@ func RunWithFactory(
 	logger.Printf("WARNING: hexai-mcp-server is DEPRECATED and experimental - not actively maintained")
 
 	// Load configuration and apply CLI overrides
-	cfg := loadConfig(logger, configPath)
+	cfg := loadConfig(ctx, logger, configPath)
 	applyOverrides(&cfg, overrides)
 
-	return runServer(cfg, logger, stdin, stdout, factory)
+	return runServer(ctx, cfg, logger, stdin, stdout, factory)
 }
 
 // runServer creates the prompt store, syncer, and runs the MCP server.
-func runServer(cfg appconfig.App, logger *log.Logger, stdin io.Reader, stdout io.Writer, factory ServerFactory) error {
+func runServer(ctx context.Context, cfg appconfig.App, logger *log.Logger, stdin io.Reader, stdout io.Writer, factory ServerFactory) error {
 	// Determine prompts directory from config (overrides already applied)
 	promptsDir, err := getPromptsDir(cfg)
 	if err != nil {
@@ -105,7 +111,7 @@ func runServer(cfg appconfig.App, logger *log.Logger, stdin io.Reader, stdout io
 
 	// Create and run server
 	server := factory(stdin, stdout, logger, store, syncer)
-	if err := server.Run(); err != nil {
+	if err := server.Run(ctx); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}
 
@@ -136,13 +142,13 @@ func setupLogger(logPath string) (*log.Logger, error) {
 }
 
 // loadConfig loads the hexai configuration.
-// Returns default config if loading fails.
-func loadConfig(logger *log.Logger, configPath string) appconfig.App {
+// Returns default config if loading fails or ctx is already cancelled.
+func loadConfig(ctx context.Context, logger *log.Logger, configPath string) appconfig.App {
 	opts := appconfig.LoadOptions{
 		ConfigPath: configPath,
 		IgnoreEnv:  false,
 	}
-	return appconfig.LoadWithOptions(logger, opts)
+	return appconfig.LoadWithOptions(ctx, logger, opts)
 }
 
 // applyOverrides applies CLI flag overrides to the loaded config.
@@ -212,8 +218,9 @@ func createSyncer(cfg appconfig.App, logger *log.Logger) (*slashcommands.Syncer,
 }
 
 // RunBackfill performs a one-time sync of all prompts and exits.
-// Overrides are applied to the loaded config before use.
-func RunBackfill(logPath, configPath string, overrides MCPOverrides) error {
+// Overrides are applied to the loaded config before use. ctx lets a cancelled
+// caller abort config loading before the (blocking) sync work begins.
+func RunBackfill(ctx context.Context, logPath, configPath string, overrides MCPOverrides) error {
 	logger, err := setupLogger(logPath)
 	if err != nil {
 		return fmt.Errorf("cannot setup logger: %w", err)
@@ -227,7 +234,7 @@ func RunBackfill(logPath, configPath string, overrides MCPOverrides) error {
 	logger.Printf("hexai-mcp-server backfill starting")
 
 	// Load configuration and apply CLI overrides
-	cfg := loadConfig(logger, configPath)
+	cfg := loadConfig(ctx, logger, configPath)
 	applyOverrides(&cfg, overrides)
 
 	// Force enable sync for backfill

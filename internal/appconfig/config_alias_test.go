@@ -1,6 +1,7 @@
 package appconfig
 
 import (
+	"context"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,7 +29,7 @@ codex = "gpt-5-codex"
 	if err := os.WriteFile(path, []byte(toml), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	cfg := Load(log.New(os.Stderr, "test ", 0))
+	cfg := Load(context.Background(), log.New(os.Stderr, "test ", 0))
 	if cfg.OpenAIModel != "gpt-5-codex" {
 		t.Fatalf("expected alias to resolve to gpt-5-codex, got %q", cfg.OpenAIModel)
 	}

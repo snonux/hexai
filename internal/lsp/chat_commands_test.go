@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"bytes"
+	"context"
 	"log"
 	"os"
 	"path/filepath"
@@ -55,7 +56,7 @@ func TestHandleReloadCommandReloadsStore(t *testing.T) {
 	var logBuf bytes.Buffer
 	logger := log.New(&logBuf, "", 0)
 
-	initial := appconfig.Load(logger)
+	initial := appconfig.Load(context.Background(), logger)
 	if initial.MaxTokens != 321 {
 		t.Fatalf("expected env override to win initial load, got %d", initial.MaxTokens)
 	}
@@ -102,7 +103,7 @@ func TestDetectAndHandleChatExecutesSlashCommand(t *testing.T) {
 	var logBuf bytes.Buffer
 	logger := log.New(&logBuf, "", 0)
 
-	initial := appconfig.Load(logger)
+	initial := appconfig.Load(context.Background(), logger)
 	store := runtimeconfig.New(initial)
 
 	s := newTestServer()

@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -14,16 +15,28 @@ func TestRunEditor_Default(t *testing.T) {
 	if err := os.WriteFile(tmp, []byte("hello"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := RunEditor("true", tmp); err != nil {
+	if err := RunEditor(context.Background(), "true", tmp); err != nil {
 		t.Fatalf("RunEditor with 'true': %v", err)
 	}
 }
 
 // TestRunEditor_Default_BadCommand verifies RunEditor returns an error for a nonexistent command.
 func TestRunEditor_Default_BadCommand(t *testing.T) {
-	err := RunEditor("nonexistent-editor-cmd-12345", "/dev/null")
+	err := RunEditor(context.Background(), "nonexistent-editor-cmd-12345", "/dev/null")
 	if err == nil {
 		t.Fatal("expected error for nonexistent editor command")
+	}
+}
+
+// TestRunEditor_CancelledContextKillsProcess verifies that a cancelled context
+// terminates the editor subprocess (via exec.CommandContext) so RunEditor
+// returns an error rather than blocking forever.
+func TestRunEditor_CancelledContextKillsProcess(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // already cancelled: CommandContext refuses to start the process
+	// "sleep 60" would otherwise block; the cancelled ctx kills it immediately.
+	if err := RunEditor(ctx, "sleep", "60"); err == nil {
+		t.Fatal("expected error when context is cancelled")
 	}
 }
 
@@ -67,12 +80,12 @@ func TestOpenTempAndEdit_UsesRunEditor(t *testing.T) {
 	// Ensure Resolve() succeeds
 	t.Setenv("HEXAI_EDITOR", "dummy")
 	var capturedPath string
-	RunEditor = func(editor, path string) error {
+	RunEditor = func(_ context.Context, editor, path string) error {
 		capturedPath = path
 		// simulate user writing content
 		return os.WriteFile(path, []byte("Hello\nWorld\n"), 0o600)
 	}
-	out, err := OpenTempAndEdit([]byte("# Start\n\n"))
+	out, err := OpenTempAndEdit(context.Background(), []byte("# Start\n\n"))
 	if err != nil {
 		t.Fatalf("OpenTempAndEdit: %v", err)
 	}
@@ -88,7 +101,7 @@ func TestOpenTempAndEdit_UsesRunEditor(t *testing.T) {
 func TestOpenTempAndEdit_NoEditor(t *testing.T) {
 	t.Setenv("HEXAI_EDITOR", "")
 	t.Setenv("EDITOR", "")
-	_, err := OpenTempAndEdit(nil)
+	_, err := OpenTempAndEdit(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error when no editor is set")
 	}
@@ -99,11 +112,11 @@ func TestOpenTempAndEdit_NilInitial(t *testing.T) {
 	old := RunEditor
 	t.Cleanup(func() { RunEditor = old })
 	t.Setenv("HEXAI_EDITOR", "dummy")
-	RunEditor = func(editor, path string) error {
+	RunEditor = func(_ context.Context, editor, path string) error {
 		// simulate user writing content into a file that started empty
 		return os.WriteFile(path, []byte("result"), 0o600)
 	}
-	out, err := OpenTempAndEdit(nil)
+	out, err := OpenTempAndEdit(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("OpenTempAndEdit with nil initial: %v", err)
 	}
@@ -118,10 +131,10 @@ func TestOpenTempAndEdit_EmptyInitial(t *testing.T) {
 	old := RunEditor
 	t.Cleanup(func() { RunEditor = old })
 	t.Setenv("HEXAI_EDITOR", "dummy")
-	RunEditor = func(editor, path string) error {
+	RunEditor = func(_ context.Context, editor, path string) error {
 		return os.WriteFile(path, []byte("  trimmed  "), 0o600)
 	}
-	out, err := OpenTempAndEdit([]byte{})
+	out, err := OpenTempAndEdit(context.Background(), []byte{})
 	if err != nil {
 		t.Fatalf("OpenTempAndEdit with empty initial: %v", err)
 	}
@@ -136,10 +149,10 @@ func TestOpenTempAndEdit_EditorError(t *testing.T) {
 	t.Cleanup(func() { RunEditor = old })
 	t.Setenv("HEXAI_EDITOR", "dummy")
 	editorErr := errors.New("editor crashed")
-	RunEditor = func(editor, path string) error {
+	RunEditor = func(_ context.Context, editor, path string) error {
 		return editorErr
 	}
-	_, err := OpenTempAndEdit([]byte("some content"))
+	_, err := OpenTempAndEdit(context.Background(), []byte("some content"))
 	if err == nil {
 		t.Fatal("expected error when editor fails")
 	}
@@ -153,11 +166,11 @@ func TestOpenTempAndEdit_EditorDeletesFile(t *testing.T) {
 	old := RunEditor
 	t.Cleanup(func() { RunEditor = old })
 	t.Setenv("HEXAI_EDITOR", "dummy")
-	RunEditor = func(editor, path string) error {
+	RunEditor = func(_ context.Context, editor, path string) error {
 		// simulate the editor deleting the file
 		return os.Remove(path)
 	}
-	_, err := OpenTempAndEdit([]byte("content"))
+	_, err := OpenTempAndEdit(context.Background(), []byte("content"))
 	if err == nil {
 		t.Fatal("expected error when temp file is deleted by editor")
 	}
@@ -169,11 +182,11 @@ func TestOpenTempAndEdit_TempFileCleanup(t *testing.T) {
 	t.Cleanup(func() { RunEditor = old })
 	t.Setenv("HEXAI_EDITOR", "dummy")
 	var capturedPath string
-	RunEditor = func(editor, path string) error {
+	RunEditor = func(_ context.Context, editor, path string) error {
 		capturedPath = path
 		return os.WriteFile(path, []byte("done"), 0o600)
 	}
-	_, err := OpenTempAndEdit(nil)
+	_, err := OpenTempAndEdit(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("OpenTempAndEdit: %v", err)
 	}
@@ -189,12 +202,12 @@ func TestOpenFile_CreatesParentAndInvokesEditor(t *testing.T) {
 	t.Setenv("HEXAI_EDITOR", "dummy")
 	target := filepath.Join(t.TempDir(), "nested", "config.toml")
 	var gotEditor, gotPath string
-	RunEditor = func(editorCmd, path string) error {
+	RunEditor = func(_ context.Context, editorCmd, path string) error {
 		gotEditor = editorCmd
 		gotPath = path
 		return nil
 	}
-	if err := OpenFile(target); err != nil {
+	if err := OpenFile(context.Background(), target); err != nil {
 		t.Fatalf("OpenFile: %v", err)
 	}
 	if gotEditor != "dummy" {
@@ -211,7 +224,7 @@ func TestOpenFile_CreatesParentAndInvokesEditor(t *testing.T) {
 func TestOpenFile_NoEditor(t *testing.T) {
 	t.Setenv("HEXAI_EDITOR", "")
 	t.Setenv("EDITOR", "")
-	err := OpenFile(filepath.Join(t.TempDir(), "x.toml"))
+	err := OpenFile(context.Background(), filepath.Join(t.TempDir(), "x.toml"))
 	if err == nil {
 		t.Fatal("expected error when no editor is set")
 	}
@@ -219,7 +232,7 @@ func TestOpenFile_NoEditor(t *testing.T) {
 
 func TestOpenFile_EmptyPath(t *testing.T) {
 	t.Setenv("HEXAI_EDITOR", "true")
-	err := OpenFile("  ")
+	err := OpenFile(context.Background(), "  ")
 	if err == nil {
 		t.Fatal("expected error for empty path")
 	}

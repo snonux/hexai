@@ -1,6 +1,7 @@
 package appconfig
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -15,14 +16,25 @@ import (
 const ProjectConfigFilename = ".hexaiconfig.toml"
 
 // Load reads configuration from a file and merges with defaults.
-// It respects the XDG Base Directory Specification.
-func Load(logger *log.Logger) App { return LoadWithOptions(logger, LoadOptions{}) }
+// It respects the XDG Base Directory Specification. The context lets callers
+// abort the (blocking) file reads on shutdown/cancellation.
+func Load(ctx context.Context, logger *log.Logger) App {
+	return LoadWithOptions(ctx, logger, LoadOptions{})
+}
 
 // LoadWithOptions reads configuration and applies the requested loading options.
-func LoadWithOptions(logger *log.Logger, opts LoadOptions) App {
+// ctx is honored before performing the blocking file I/O so a cancelled caller
+// gets a clean default config back instead of stalling on disk access.
+func LoadWithOptions(ctx context.Context, logger *log.Logger, opts LoadOptions) App {
 	cfg := newDefaultConfig()
 	if logger == nil {
 		return cfg // Return defaults if no logger is provided (e.g. in tests)
+	}
+	// Respect cancellation up front: config loading touches several files and
+	// there is no value in starting that work once the caller has given up.
+	if ctx != nil && ctx.Err() != nil {
+		logger.Printf("config load cancelled: %v", ctx.Err())
+		return cfg
 	}
 
 	// Step 1: Load global config file

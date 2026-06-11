@@ -26,7 +26,7 @@ func TestExecuteAction_Skip(t *testing.T) {
 }
 
 func TestExecuteAction_Rewrite_Document_GoTest(t *testing.T) {
-	cfg := appconfig.Load(nil) // defaults
+	cfg := appconfig.Load(context.Background(), nil) // defaults
 	// Use fenced output to exercise StripFences
 	client := fakeDoer{"```\nDONE\n```"}
 

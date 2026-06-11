@@ -65,7 +65,7 @@ func TestRun_WithInjectedConfigAndStatusSink(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	sink := &recordingActionStatusSink{}
 	runner := NewRunner()
-	runner.loadConfig = func(context.Context, *log.Logger) appconfig.App { return appconfig.Load(nil) }
+	runner.loadConfig = func(context.Context, *log.Logger) appconfig.App { return appconfig.Load(context.Background(), nil) }
 	runner.newClient = func(_ appconfig.App) (actionClient, error) { return llmFake{}, nil }
 	runner.chooseAction = func(_ appconfig.App) (actionChoice, error) {
 		return actionChoice{kind: ActionSkip}, nil

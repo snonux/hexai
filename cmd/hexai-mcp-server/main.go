@@ -2,11 +2,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"codeberg.org/snonux/hexai/internal"
 	"codeberg.org/snonux/hexai/internal/appconfig"
@@ -100,7 +103,11 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		syncAll:          *syncAll,
 		showVersion:      *showVersion,
 	}
-	if err := run(opts, stdin, stdout, stderr); err != nil {
+	// Cancel the run on interrupt/terminate so the serve loop exits cleanly.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := run(ctx, opts, stdin, stdout, stderr); err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
@@ -109,7 +116,8 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 // run executes the MCP server logic with the given options and I/O streams.
 // CLI flag values are passed via MCPOverrides instead of environment variables.
-func run(opts mcpOptions, stdin io.Reader, stdout, stderr io.Writer) error {
+// ctx is threaded into the server/backfill so they stop on shutdown signals.
+func run(ctx context.Context, opts mcpOptions, stdin io.Reader, stdout, stderr io.Writer) error {
 	if opts.showVersion {
 		fmt.Fprintln(stdout, internal.Version)
 		return nil
@@ -119,10 +127,10 @@ func run(opts mcpOptions, stdin io.Reader, stdout, stderr io.Writer) error {
 
 	// Handle backfill operation
 	if opts.syncAll {
-		return runBackfill(opts.logPath, opts.configPath, overrides)
+		return runBackfill(ctx, opts.logPath, opts.configPath, overrides)
 	}
 
-	return runMCP(opts.logPath, opts.configPath, overrides, stdin, stdout, stderr)
+	return runMCP(ctx, opts.logPath, opts.configPath, overrides, stdin, stdout, stderr)
 }
 
 // defaultLogPath returns the default MCP log file path in the state directory.

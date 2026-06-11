@@ -40,7 +40,7 @@ func TestRunner_UsesInjectedDependencies(t *testing.T) {
 				PromptConfig: appconfig.PromptConfig{PromptCLIDefaultSystem: "SYS"},
 			}
 		},
-		openEditor: func([]byte) (string, error) { return "PROMPT", nil },
+		openEditor: func(context.Context, []byte) (string, error) { return "PROMPT", nil },
 		newClient: func(appconfig.App) (client llm.Client, err error) {
 			return &fakeClient{name: "fake", model: "m", resp: "OUT"}, nil
 		},
@@ -67,7 +67,7 @@ func TestRunner_ConfigSubcommand_OpensConfigFromContext(t *testing.T) {
 	t.Cleanup(func() { editor.RunEditor = old })
 	t.Setenv("EDITOR", "true")
 	var gotPath string
-	editor.RunEditor = func(_, path string) error {
+	editor.RunEditor = func(_ context.Context, _, path string) error {
 		gotPath = path
 		return nil
 	}
@@ -89,7 +89,7 @@ func TestRunner_ConfigSubcommand_UsesXDGWhenNoOverride(t *testing.T) {
 	xdg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", xdg)
 	var gotPath string
-	editor.RunEditor = func(_, path string) error {
+	editor.RunEditor = func(_ context.Context, _, path string) error {
 		gotPath = path
 		return nil
 	}

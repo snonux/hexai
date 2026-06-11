@@ -19,7 +19,7 @@ func (c *capDoer) Chat(_ context.Context, msgs []llm.Message, _ ...llm.RequestOp
 func (*capDoer) DefaultModel() string { return "m" }
 
 func TestExecuteAction_Custom_DoesNotMutateProvidedSelection(t *testing.T) {
-	cfg := appconfig.Load(nil)
+	cfg := appconfig.Load(context.Background(), nil)
 	parts := InputParts{Selection: "code"}
 	selectedCustom := &appconfig.CustomAction{ID: "x", Title: "X", Instruction: "Do it"}
 	_, _ = executeAction(context.Background(), ActionCustom, parts, &cfg, fakeDoer{"OK"}, nil, selectedCustom)
@@ -29,7 +29,7 @@ func TestExecuteAction_Custom_DoesNotMutateProvidedSelection(t *testing.T) {
 }
 
 func TestRunCustom_UserTemplate_InjectsDiagnostics(t *testing.T) {
-	cfg := appconfig.Load(nil)
+	cfg := appconfig.Load(context.Background(), nil)
 	parts := InputParts{Selection: "code", Diagnostics: []string{"L1", "L2"}}
 	ca := appconfig.CustomAction{ID: "y", Title: "Y", User: "{{diagnostics}}\n{{selection}}"}
 	cap := &capDoer{}

@@ -1,6 +1,7 @@
 package tmuxedit
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -105,7 +106,9 @@ func Run(opts Options) error {
 func loadConfig(configPath string) appconfig.App {
 	logger := log.New(os.Stderr, "[hexai-tmux-edit] ", log.LstdFlags)
 	lopts := appconfig.LoadOptions{ConfigPath: configPath}
-	return appconfig.LoadWithOptions(logger, lopts)
+	// This runner has no signal-aware context of its own; the load is a quick
+	// local file read, so a background context is sufficient.
+	return appconfig.LoadWithOptions(context.Background(), logger, lopts)
 }
 
 // debugLog is the debug logger. Set to a real logger via initDebugLog().

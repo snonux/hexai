@@ -18,7 +18,7 @@ import (
 
 type cliConfigLoader func(context.Context, *log.Logger) appconfig.App
 
-type cliEditorOpener func([]byte) (string, error)
+type cliEditorOpener func(context.Context, []byte) (string, error)
 
 type cliClientFactory func(appconfig.App) (llm.Client, error)
 
@@ -85,7 +85,7 @@ func (r *Runner) Run(ctx context.Context, args []string, stdin io.Reader, stdout
 				}
 				cfgPath = p
 			}
-			if err := editor.OpenFile(cfgPath); err != nil {
+			if err := editor.OpenFile(ctx, cfgPath); err != nil {
 				_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai %s: %v"+logging.AnsiReset+"\n", sub, err)
 				return err
 			}
@@ -127,7 +127,7 @@ func (r *Runner) Run(ctx context.Context, args []string, stdin io.Reader, stdout
 
 	input, rerr := readInput(stdin, args)
 	if rerr != nil && len(args) == 0 {
-		if prompt, eerr := runner.openEditor(nil); eerr == nil && strings.TrimSpace(prompt) != "" {
+		if prompt, eerr := runner.openEditor(ctx, nil); eerr == nil && strings.TrimSpace(prompt) != "" {
 			args = []string{prompt}
 			input, rerr = readInput(stdin, args)
 		}
@@ -182,5 +182,5 @@ func normalizeRunner(r *Runner) Runner {
 }
 
 func loadConfigFromContext(ctx context.Context, logger *log.Logger) appconfig.App {
-	return appconfig.LoadWithOptions(logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
+	return appconfig.LoadWithOptions(ctx, logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
 }

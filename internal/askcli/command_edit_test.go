@@ -12,7 +12,7 @@ import (
 func stubEditorCapture(t *testing.T, content string, err error) {
 	t.Helper()
 	old := captureFromEditor
-	captureFromEditor = func(initial []byte) (string, error) {
+	captureFromEditor = func(_ context.Context, initial []byte) (string, error) {
 		return content, err
 	}
 	t.Cleanup(func() { captureFromEditor = old })
@@ -60,7 +60,7 @@ func TestHandleEdit_ExistingTaskModifiesDescription(t *testing.T) {
 
 	var initialContent []byte
 	old := captureFromEditor
-	captureFromEditor = func(initial []byte) (string, error) {
+	captureFromEditor = func(_ context.Context, initial []byte) (string, error) {
 		initialContent = initial
 		return "updated description", nil
 	}

@@ -16,7 +16,7 @@ func (simplifyClient) Chat(_ context.Context, _ []llm.Message, _ ...llm.RequestO
 func (simplifyClient) DefaultModel() string { return "m" }
 
 func TestRunSimplify_Smoke(t *testing.T) {
-	cfg := appconfig.Load(nil)
+	cfg := appconfig.Load(context.Background(), nil)
 	out, err := runSimplify(context.Background(), &cfg, simplifyClient{}, "code")
 	if err != nil {
 		t.Fatalf("runSimplify: %v", err)

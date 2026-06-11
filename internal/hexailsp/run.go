@@ -3,6 +3,7 @@
 package hexailsp
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -20,7 +21,11 @@ import (
 )
 
 // ServerRunner is the minimal interface satisfied by lsp.Server.
-type ServerRunner interface{ Run() error }
+// Run takes a context so the serve loop is cancelled when the process is
+// shutting down (e.g. on SIGINT/SIGTERM from the top-level caller).
+type ServerRunner interface {
+	Run(ctx context.Context) error
+}
 
 // ConfigurableServerRunner supports runtime option updates.
 type ConfigurableServerRunner interface {
@@ -48,19 +53,21 @@ type ServerFactory func(r io.Reader, w io.Writer, logger *log.Logger, opts lsp.S
 // Run configures logging, loads config, builds the LLM client and runs the LSP server.
 // It is thin and delegates to RunWithFactory for testability.
 
-func Run(logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	return RunWithConfig(logPath, "", stdin, stdout, stderr)
+func Run(ctx context.Context, logPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	return RunWithConfig(ctx, logPath, "", stdin, stdout, stderr)
 }
 
 // RunWithConfig is like Run but accepts an explicit config file path.
-func RunWithConfig(logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+// ctx is threaded through config loading and the LSP serve loop so the whole
+// run is cancellable from the process entry point.
+func RunWithConfig(ctx context.Context, logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	if err := llm.RegisterAllProviders(); err != nil {
 		return fmt.Errorf("failed to register LLM providers: %w", err)
 	}
-	return runWithConfigDependencies(logPath, configPath, stdin, stdout, stderr, defaultRunDependencies())
+	return runWithConfigDependencies(ctx, logPath, configPath, stdin, stdout, stderr, defaultRunDependencies())
 }
 
-func runWithConfigDependencies(logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer, deps runDependencies) error {
+func runWithConfigDependencies(ctx context.Context, logPath string, configPath string, stdin io.Reader, stdout io.Writer, stderr io.Writer, deps runDependencies) error {
 	deps = normalizeRunDependencies(deps)
 	logger := log.New(stderr, "hexai-lsp-server ", log.LstdFlags|log.Lmsgprefix)
 	if strings.TrimSpace(logPath) != "" {
@@ -77,23 +84,23 @@ func runWithConfigDependencies(logPath string, configPath string, stdin io.Reade
 	}
 	logging.Bind(logger)
 	loadOpts := appconfig.LoadOptions{ConfigPath: configPath}
-	cfg := deps.loadConfig(logger, loadOpts)
+	cfg := deps.loadConfig(ctx, logger, loadOpts)
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 	if cfg.StatsWindowMinutes > 0 {
 		stats.SetWindow(time.Duration(cfg.StatsWindowMinutes) * time.Minute)
 	}
-	return runWithDependencies(logPath, configPath, stdin, stdout, logger, cfg, nil, nil, deps)
+	return runWithDependencies(ctx, logPath, configPath, stdin, stdout, logger, cfg, nil, nil, deps)
 }
 
 // RunWithFactory is the testable entrypoint. When client is nil, it is built from cfg+env.
 // When factory is nil, lsp.NewServer is used.
-func RunWithFactory(logPath string, configPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory) error {
-	return runWithDependencies(logPath, configPath, stdin, stdout, logger, cfg, client, factory, defaultRunDependencies())
+func RunWithFactory(ctx context.Context, logPath string, configPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory) error {
+	return runWithDependencies(ctx, logPath, configPath, stdin, stdout, logger, cfg, client, factory, defaultRunDependencies())
 }
 
-func runWithDependencies(logPath string, configPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory, deps runDependencies) error {
+func runWithDependencies(ctx context.Context, logPath string, configPath string, stdin io.Reader, stdout io.Writer, logger *log.Logger, cfg appconfig.App, client llm.Client, factory ServerFactory, deps runDependencies) error {
 	deps = normalizeRunDependencies(deps)
 	normalizeLoggingConfig(&cfg)
 	if err := cfg.Validate(); err != nil {
@@ -128,7 +135,7 @@ func runWithDependencies(logPath string, configPath string, stdin io.Reader, std
 			configurable.ApplyOptions(opts)
 		})
 	}
-	if err := server.Run(); err != nil {
+	if err := server.Run(ctx); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}
 	return nil

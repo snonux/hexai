@@ -3,6 +3,7 @@ package mcp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -882,14 +883,14 @@ func TestServer_Run_InvalidJSON(t *testing.T) {
 	// Run in background
 	done := make(chan error, 1)
 	go func() {
-		done <- server.Run()
+		done <- server.Run(context.Background())
 	}()
 
 	// Wait for processing to complete
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("server.Run() did not return in time")
+		t.Fatal("server.Run(context.Background()) did not return in time")
 	}
 
 	// Should have written error response
