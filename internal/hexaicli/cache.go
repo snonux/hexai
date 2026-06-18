@@ -1,6 +1,7 @@
 package hexaicli
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,7 +15,38 @@ import (
 
 const cliResponseCacheTTL = 24 * time.Hour
 
-var nowCLIResponseCache = time.Now
+// responseCache carries the injectable dependencies for the on-disk CLI
+// response cache. The only dependency is the clock used to stamp entries and
+// decide expiry. Production code uses defaultResponseCache (backed by
+// time.Now); tests construct a responseCache with a fake clock to exercise TTL
+// expiry without sleeping.
+type responseCache struct {
+	now func() time.Time
+}
+
+// defaultResponseCache is the production cache used by the package-level
+// lookup/store wrappers. It reads the real wall clock.
+var defaultResponseCache = responseCache{now: time.Now}
+
+// cacheNowContextKey carries an injected clock through the request context so
+// the cache TTL logic can be driven deterministically (e.g. in tests) without
+// mutating package state.
+type cacheNowContextKey struct{}
+
+// withCLIResponseCacheNow returns a context carrying now as the clock the CLI
+// response cache should use for stamping and expiring entries.
+func withCLIResponseCacheNow(ctx context.Context, now func() time.Time) context.Context {
+	return context.WithValue(ctx, cacheNowContextKey{}, now)
+}
+
+// responseCacheFromContext builds a responseCache using the clock injected via
+// withCLIResponseCacheNow, falling back to the real wall clock.
+func responseCacheFromContext(ctx context.Context) responseCache {
+	if now, ok := ctx.Value(cacheNowContextKey{}).(func() time.Time); ok && now != nil {
+		return responseCache{now: now}
+	}
+	return defaultResponseCache
+}
 
 type cliResponseCacheKey struct {
 	Provider    string        `json:"provider"`
@@ -39,7 +71,21 @@ func newCLIResponseCacheKey(provider, model string, req requestArgs, msgs []llm.
 	}
 }
 
-func lookupCLIResponseCache(key cliResponseCacheKey) (string, time.Duration, bool) {
+// lookupCLIResponseCache reads a cached response using the clock injected into
+// ctx (defaulting to the real wall clock).
+func lookupCLIResponseCache(ctx context.Context, key cliResponseCacheKey) (string, time.Duration, bool) {
+	return responseCacheFromContext(ctx).lookup(key)
+}
+
+// storeCLIResponseCache writes a cached response using the clock injected into
+// ctx (defaulting to the real wall clock).
+func storeCLIResponseCache(ctx context.Context, key cliResponseCacheKey, output string) {
+	responseCacheFromContext(ctx).store(key, output)
+}
+
+// lookup returns the cached output for key, its age, and whether it is a valid
+// (non-expired) hit. Expired entries are removed.
+func (c responseCache) lookup(key cliResponseCacheKey) (string, time.Duration, bool) {
 	path, ok := cliResponseCachePath(key)
 	if !ok {
 		return "", 0, false
@@ -48,7 +94,7 @@ func lookupCLIResponseCache(key cliResponseCacheKey) (string, time.Duration, boo
 	if !ok {
 		return "", 0, false
 	}
-	age := nowCLIResponseCache().Sub(entry.CreatedAt)
+	age := c.now().Sub(entry.CreatedAt)
 	if age > cliResponseCacheTTL {
 		_ = os.Remove(path)
 		return "", 0, false
@@ -56,7 +102,8 @@ func lookupCLIResponseCache(key cliResponseCacheKey) (string, time.Duration, boo
 	return entry.Output, age, true
 }
 
-func storeCLIResponseCache(key cliResponseCacheKey, output string) {
+// store persists output for key, stamping it with the injected clock.
+func (c responseCache) store(key cliResponseCacheKey, output string) {
 	path, ok := cliResponseCachePath(key)
 	if !ok {
 		return
@@ -64,7 +111,7 @@ func storeCLIResponseCache(key cliResponseCacheKey, output string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return
 	}
-	entry := cliResponseCacheEntry{CreatedAt: nowCLIResponseCache().UTC(), Output: output}
+	entry := cliResponseCacheEntry{CreatedAt: c.now().UTC(), Output: output}
 	data, err := json.Marshal(entry)
 	if err != nil {
 		return

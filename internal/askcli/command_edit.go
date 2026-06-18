@@ -8,11 +8,11 @@ import (
 	"codeberg.org/snonux/hexai/internal/editor"
 )
 
-// captureFromEditor opens the user's editor on a temporary file pre-filled with
+// editorCapture opens the user's editor on a temporary file pre-filled with
 // the given initial content and returns its trimmed contents after the editor
 // exits. ctx is forwarded to the editor subprocess so it can be cancelled with
-// the surrounding command. It is a variable so tests can stub it.
-var captureFromEditor = func(ctx context.Context, initial []byte) (string, error) {
+// the surrounding command.
+func editorCapture(ctx context.Context, initial []byte) (string, error) {
 	return editor.OpenTempAndEdit(ctx, initial)
 }
 
@@ -23,7 +23,7 @@ func (d *Dispatcher) handleEdit(ctx context.Context, args []string, stdout, stde
 	if len(args) >= 2 {
 		return d.editTaskDescription(ctx, args[1], stdout, stderr)
 	}
-	description, err := captureFromEditor(ctx, nil)
+	description, err := d.capture(ctx, nil)
 	if err != nil {
 		writeInfoError(stderr, err)
 		return 1, nil
@@ -44,7 +44,7 @@ func (d *Dispatcher) editTaskDescription(ctx context.Context, selector string, s
 		return code, nil
 	}
 
-	description, err := captureFromEditor(ctx, []byte(tasks[0].Description))
+	description, err := d.capture(ctx, []byte(tasks[0].Description))
 	if err != nil {
 		writeInfoError(stderr, err)
 		return 1, nil

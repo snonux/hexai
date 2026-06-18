@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/editor"
 	"codeberg.org/snonux/hexai/internal/llm"
 	"codeberg.org/snonux/hexai/internal/stats"
 )
@@ -63,17 +62,14 @@ func TestRunner_UsesInjectedDependencies(t *testing.T) {
 }
 
 func TestRunner_ConfigSubcommand_OpensConfigFromContext(t *testing.T) {
-	old := editor.RunEditor
-	t.Cleanup(func() { editor.RunEditor = old })
-	t.Setenv("EDITOR", "true")
 	var gotPath string
-	editor.RunEditor = func(_ context.Context, _, path string) error {
+	runner := NewRunner()
+	runner.openConfigEditor = func(_ context.Context, path string) error {
 		gotPath = path
 		return nil
 	}
 	cfgFile := filepath.Join(t.TempDir(), "hexai", "config.toml")
 	ctx := WithCLIConfigPath(context.Background(), cfgFile)
-	runner := NewRunner()
 	if err := runner.Run(ctx, []string{"config"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -83,17 +79,14 @@ func TestRunner_ConfigSubcommand_OpensConfigFromContext(t *testing.T) {
 }
 
 func TestRunner_ConfigSubcommand_UsesXDGWhenNoOverride(t *testing.T) {
-	old := editor.RunEditor
-	t.Cleanup(func() { editor.RunEditor = old })
-	t.Setenv("HEXAI_EDITOR", "true")
 	xdg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", xdg)
 	var gotPath string
-	editor.RunEditor = func(_ context.Context, _, path string) error {
+	runner := NewRunner()
+	runner.openConfigEditor = func(_ context.Context, path string) error {
 		gotPath = path
 		return nil
 	}
-	runner := NewRunner()
 	want := filepath.Join(xdg, "hexai", "config.toml")
 	if err := runner.Run(context.Background(), []string{"config"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatalf("Run: %v", err)

@@ -3,11 +3,9 @@ package hexaicli
 import (
 	"bytes"
 	"context"
-	"os"
 	"testing"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/editor"
 	"codeberg.org/snonux/hexai/internal/llm"
 )
 
@@ -23,20 +21,13 @@ func (cliFake) CodeCompletion(context.Context, string, string, int, string, floa
 }
 
 func TestRun_NoArgs_OpensEditor(t *testing.T) {
-	// Seam: fake client and editor
-	oldNew := newClientFromApp
-	newClientFromApp = func(_ appconfig.App) (llm.Client, error) { return cliFake{}, nil }
-	t.Cleanup(func() { newClientFromApp = oldNew })
-	oldRun := editor.RunEditor
-	editor.RunEditor = func(_ context.Context, _ string, path string) error {
-		return os.WriteFile(path, []byte("PROMPT"), 0o600)
-	}
-	t.Cleanup(func() { editor.RunEditor = oldRun })
-	t.Setenv("HEXAI_EDITOR", "dummy")
+	runner := NewRunner()
+	runner.newClient = func(_ appconfig.App) (llm.Client, error) { return cliFake{}, nil }
+	runner.openEditor = func(context.Context, []byte) (string, error) { return "PROMPT", nil }
 
 	// Provide stdin selection
 	var stdout, stderr bytes.Buffer
-	if err := Run(context.Background(), nil, bytes.NewBufferString("SELECTION"), &stdout, &stderr); err != nil {
+	if err := runner.Run(context.Background(), nil, bytes.NewBufferString("SELECTION"), &stdout, &stderr); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if stdout.String() == "" {
@@ -45,17 +36,15 @@ func TestRun_NoArgs_OpensEditor(t *testing.T) {
 }
 
 func TestRun_WithArgs_DoesNotOpenEditor(t *testing.T) {
-	// Provide args; still use fake client
-	oldNew := newClientFromApp
-	newClientFromApp = func(_ appconfig.App) (llm.Client, error) { return cliFake{}, nil }
-	t.Cleanup(func() { newClientFromApp = oldNew })
-	// Stub editor and detect if called (should not be)
+	runner := NewRunner()
+	runner.newClient = func(_ appconfig.App) (llm.Client, error) { return cliFake{}, nil }
 	called := false
-	oldRun := editor.RunEditor
-	editor.RunEditor = func(_ context.Context, _ string, _ string) error { called = true; return nil }
-	t.Cleanup(func() { editor.RunEditor = oldRun })
+	runner.openEditor = func(context.Context, []byte) (string, error) {
+		called = true
+		return "", nil
+	}
 	var stdout, stderr bytes.Buffer
-	if err := Run(context.Background(), []string{"ARG"}, bytes.NewBufferString("SEL"), &stdout, &stderr); err != nil {
+	if err := runner.Run(context.Background(), []string{"ARG"}, bytes.NewBufferString("SEL"), &stdout, &stderr); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if called {

@@ -30,7 +30,10 @@ func (t realWatchTicker) Stop() {
 	t.ticker.Stop()
 }
 
-var newWatchTicker = func(interval time.Duration) watchTicker {
+// newRealWatchTicker is the default watchTicker factory wired into a
+// Dispatcher by NewDispatcher. It is injected as Dispatcher.newTicker so tests
+// can substitute a fake ticker instead of mutating package state.
+func newRealWatchTicker(interval time.Duration) watchTicker {
 	return realWatchTicker{ticker: time.NewTicker(interval)}
 }
 
@@ -63,7 +66,7 @@ func (d *Dispatcher) handleWatch(ctx context.Context, args []string, stdout, std
 		return 1, nil
 	}
 
-	ticker := newWatchTicker(watchInterval)
+	ticker := d.newTicker(watchInterval)
 	defer ticker.Stop()
 
 	var lastOutput []byte

@@ -68,14 +68,11 @@ func (f *fakeDispatcher) Dispatch(_ context.Context, args []string, _ io.Reader,
 // Driving runMain through a fake dispatcher proves the wiring (args
 // forwarded, exit code returned) without touching the real ask CLI.
 func TestRunMain_DelegatesAndReturnsCode(t *testing.T) {
-	old := dispatcherFactory
-	t.Cleanup(func() { dispatcherFactory = old })
-
 	fake := &fakeDispatcher{code: 0}
-	dispatcherFactory = func() dispatcher { return fake }
+	a := &app{newDispatcher: func() dispatcher { return fake }}
 
 	var stdout, stderr bytes.Buffer
-	got := runMain([]string{"list", "limit:1"}, nil, &stdout, &stderr)
+	got := a.runMain([]string{"list", "limit:1"}, nil, &stdout, &stderr)
 	if got != 0 {
 		t.Fatalf("runMain code = %d, want 0", got)
 	}
@@ -87,30 +84,27 @@ func TestRunMain_DelegatesAndReturnsCode(t *testing.T) {
 	}
 }
 
-// The default dispatcherFactory must return a working real dispatcher (this
-// is the path main() uses in production); fakes used elsewhere don't cover
-// it, so verify it explicitly.
-func TestDispatcherFactory_DefaultReturnsRealDispatcher(t *testing.T) {
-	d := dispatcherFactory()
+// The default app dispatcher factory must return a working real dispatcher
+// (this is the path main() uses in production); fakes used elsewhere don't
+// cover it, so verify it explicitly.
+func TestNewApp_DefaultReturnsRealDispatcher(t *testing.T) {
+	d := newApp().newDispatcher()
 	if d == nil {
-		t.Fatal("default dispatcherFactory returned nil")
+		t.Fatal("default dispatcher factory returned nil")
 	}
 	if _, ok := d.(*askcli.Dispatcher); !ok {
-		t.Fatalf("default dispatcherFactory returned %T, want *askcli.Dispatcher", d)
+		t.Fatalf("default dispatcher factory returned %T, want *askcli.Dispatcher", d)
 	}
 }
 
 // On a dispatcher error, runMain must print the error to stderr AND surface
 // the dispatcher's exit code so the shell sees Taskwarrior's own status.
 func TestRunMain_PrintsErrorAndPropagatesExitCode(t *testing.T) {
-	old := dispatcherFactory
-	t.Cleanup(func() { dispatcherFactory = old })
-
 	fake := &fakeDispatcher{code: 7, err: errors.New("dispatch boom")}
-	dispatcherFactory = func() dispatcher { return fake }
+	a := &app{newDispatcher: func() dispatcher { return fake }}
 
 	var stdout, stderr bytes.Buffer
-	got := runMain(nil, nil, &stdout, &stderr)
+	got := a.runMain(nil, nil, &stdout, &stderr)
 	if got != 7 {
 		t.Fatalf("runMain code = %d, want 7", got)
 	}

@@ -154,19 +154,16 @@ func TestHandleKey_ChosenCustomIsSet(t *testing.T) {
 }
 
 func TestRunTUIFromConfig_ViaTmuxActionSeam(t *testing.T) {
-	old := teaNewProgram
-	t.Cleanup(func() { teaNewProgram = old })
-
-	teaNewProgram = func(m model) teaProgram {
+	r := tuiRunner{newProgram: func(m model) teaProgram {
 		return fakeProg{m: m, onRun: func(mm *model) {
 			mm.chosen = ActionSkip
 		}}
-	}
+	}}
 
 	entries := []appconfig.TmuxActionMenuEntry{
 		{Kind: "skip", Hotkey: "s"},
 	}
-	kind, custom, err := RunTUIFromConfig(entries, nil)
+	kind, custom, err := r.RunTUIFromConfig(entries, nil)
 	if err != nil {
 		t.Fatalf("RunTUIFromConfig: %v", err)
 	}

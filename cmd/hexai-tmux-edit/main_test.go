@@ -30,17 +30,14 @@ func TestBuildOptions_TrimsWhitespace(t *testing.T) {
 }
 
 func TestRunTmuxEdit_Success(t *testing.T) {
-	old := runTmuxEdit
-	t.Cleanup(func() { runTmuxEdit = old })
-
 	var gotOpts tmuxedit.Options
-	runTmuxEdit = func(opts tmuxedit.Options) error {
+	a := &app{runTmuxEdit: func(opts tmuxedit.Options) error {
 		gotOpts = opts
 		return nil
-	}
+	}}
 
 	opts := buildOptions("/tmp/cfg.toml", "cursor", "%3")
-	if err := runTmuxEdit(opts); err != nil {
+	if err := a.runTmuxEdit(opts); err != nil {
 		t.Fatalf("runTmuxEdit: %v", err)
 	}
 	if gotOpts.ConfigPath != "/tmp/cfg.toml" || gotOpts.Agent != "cursor" || gotOpts.Pane != "%3" {
@@ -49,13 +46,10 @@ func TestRunTmuxEdit_Success(t *testing.T) {
 }
 
 func TestRunTmuxEdit_Error(t *testing.T) {
-	old := runTmuxEdit
-	t.Cleanup(func() { runTmuxEdit = old })
-
 	wantErr := errors.New("tmux not found")
-	runTmuxEdit = func(_ tmuxedit.Options) error { return wantErr }
+	a := &app{runTmuxEdit: func(_ tmuxedit.Options) error { return wantErr }}
 
-	if err := runTmuxEdit(tmuxedit.Options{}); !errors.Is(err, wantErr) {
+	if err := a.runTmuxEdit(tmuxedit.Options{}); !errors.Is(err, wantErr) {
 		t.Fatalf("expected error, got: %v", err)
 	}
 }
@@ -63,17 +57,14 @@ func TestRunTmuxEdit_Error(t *testing.T) {
 // runMain happy path: flags parse, runTmuxEdit returns nil, exit code 0.
 // We capture the resolved Options to confirm flags map onto fields correctly.
 func TestRunMain_FlagsForwardedToTmuxedit(t *testing.T) {
-	old := runTmuxEdit
-	t.Cleanup(func() { runTmuxEdit = old })
-
 	var got tmuxedit.Options
-	runTmuxEdit = func(opts tmuxedit.Options) error {
+	a := &app{runTmuxEdit: func(opts tmuxedit.Options) error {
 		got = opts
 		return nil
-	}
+	}}
 
 	var stderr bytes.Buffer
-	code := runMain([]string{"-config", "  /tmp/cfg.toml ", "-agent", "claude", "-pane", "%9"}, &stderr)
+	code := a.runMain([]string{"-config", "  /tmp/cfg.toml ", "-agent", "claude", "-pane", "%9"}, &stderr)
 	if code != 0 {
 		t.Fatalf("runMain code = %d, want 0", code)
 	}
@@ -88,12 +79,10 @@ func TestRunMain_FlagsForwardedToTmuxedit(t *testing.T) {
 // runMain reports tmuxedit.Run failures by writing to stderr and returning 1
 // — the production exit code that the shipped binary uses.
 func TestRunMain_RunErrorReturnsOne(t *testing.T) {
-	old := runTmuxEdit
-	t.Cleanup(func() { runTmuxEdit = old })
-	runTmuxEdit = func(tmuxedit.Options) error { return errors.New("boom") }
+	a := &app{runTmuxEdit: func(tmuxedit.Options) error { return errors.New("boom") }}
 
 	var stderr bytes.Buffer
-	code := runMain(nil, &stderr)
+	code := a.runMain(nil, &stderr)
 	if code != 1 {
 		t.Fatalf("runMain code = %d, want 1", code)
 	}
@@ -105,16 +94,14 @@ func TestRunMain_RunErrorReturnsOne(t *testing.T) {
 // Unknown flags must yield exit 2 (the convention used by stdlib `flag` when
 // ExitOnError aborts) without ever invoking runTmuxEdit.
 func TestRunMain_BadFlagReturnsTwo(t *testing.T) {
-	old := runTmuxEdit
-	t.Cleanup(func() { runTmuxEdit = old })
 	called := false
-	runTmuxEdit = func(tmuxedit.Options) error {
+	a := &app{runTmuxEdit: func(tmuxedit.Options) error {
 		called = true
 		return nil
-	}
+	}}
 
 	var stderr bytes.Buffer
-	code := runMain([]string{"--no-such-flag"}, &stderr)
+	code := a.runMain([]string{"--no-such-flag"}, &stderr)
 	if code != 2 {
 		t.Fatalf("runMain code = %d, want 2", code)
 	}

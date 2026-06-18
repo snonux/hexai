@@ -82,24 +82,19 @@ func TestCursorAgent_ExtractPrompt(t *testing.T) {
 }
 
 func TestCursorAgent_ClearInput(t *testing.T) {
-	noSleep(t)
 	var calls []string
-	oldSend := sendKeys
-	oldRepeat := sendRepeatedKey
-	defer func() {
-		sendKeys = oldSend
-		sendRepeatedKey = oldRepeat
-	}()
-	sendKeys = func(paneID string, keys ...string) error {
+	deps := noSleepDeps()
+	deps.sendKeys = func(paneID string, keys ...string) error {
 		calls = append(calls, fmt.Sprintf("send:%s:%s", paneID, strings.Join(keys, ",")))
 		return nil
 	}
-	sendRepeatedKey = func(paneID, key string, count int) error {
+	deps.sendRepeatedKey = func(paneID, key string, count int) error {
 		calls = append(calls, fmt.Sprintf("repeat:%s:%s*%d", paneID, key, count))
 		return nil
 	}
 
 	agent := newCursorAgent()
+	agent.deps = deps
 	err := agent.ClearInput("%5")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -154,14 +149,13 @@ func TestCursorAgent_ClearInput_EmptyKeys(t *testing.T) {
 }
 
 func TestCursorAgent_ClearInput_Error(t *testing.T) {
-	noSleep(t)
-	oldSend := sendKeys
-	defer func() { sendKeys = oldSend }()
-	sendKeys = func(string, ...string) error {
+	deps := noSleepDeps()
+	deps.sendKeys = func(string, ...string) error {
 		return fmt.Errorf("send failed")
 	}
 
 	agent := newCursorAgent()
+	agent.deps = deps
 	err := agent.ClearInput("%1")
 	if err == nil {
 		t.Fatal("expected error from sendClearSequence failure")

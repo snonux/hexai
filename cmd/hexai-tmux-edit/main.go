@@ -22,15 +22,18 @@ import (
 	"codeberg.org/snonux/hexai/internal/tmuxedit"
 )
 
-// runTmuxEdit is the seam for testing: override in tests to avoid real tmux.
-var runTmuxEdit = tmuxedit.Run
+type app struct {
+	runTmuxEdit func(tmuxedit.Options) error
+}
 
-func main() { os.Exit(runMain(os.Args[1:], os.Stderr)) }
+func newApp() *app { return &app{runTmuxEdit: tmuxedit.Run} }
+
+func main() { os.Exit(newApp().runMain(os.Args[1:], os.Stderr)) }
 
 // runMain parses flags from args and runs the tmux edit popup. It returns
 // the process exit code; flag errors return 2 (matching stdlib convention),
 // runtime failures return 1.
-func runMain(args []string, stderr io.Writer) int {
+func (a *app) runMain(args []string, stderr io.Writer) int {
 	defaultPath := appconfig.DefaultConfigPath()
 	fs := flag.NewFlagSet("hexai-tmux-edit", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -42,7 +45,7 @@ func runMain(args []string, stderr io.Writer) int {
 	}
 
 	opts := buildOptions(*configPath, *agent, *pane)
-	if err := runTmuxEdit(opts); err != nil {
+	if err := a.runTmuxEdit(opts); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}

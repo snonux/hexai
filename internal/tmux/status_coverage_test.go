@@ -50,14 +50,12 @@ func TestSetUserOption_DisabledByEnv(t *testing.T) {
 func TestSetUserOption_EmptyKey(t *testing.T) {
 	t.Setenv("HEXAI_TMUX_STATUS", "1")
 	t.Setenv("TMUX", "/tmp/tmux-1,1,1")
-	old := lookPath
-	t.Cleanup(func() { lookPath = old })
-	lookPath = func(string) (string, error) { return "/bin/tmux", nil }
+	r := Runner{lookPath: func(string) (string, error) { return "/bin/tmux", nil }}
 	// Empty key after trimming should return nil
-	if err := SetUserOption("  @  ", "test"); err != nil {
+	if err := r.SetUserOption("  @  ", "test"); err != nil {
 		t.Fatalf("expected nil for empty key, got %v", err)
 	}
-	if err := SetUserOption("  ", "test"); err != nil {
+	if err := r.SetUserOption("  ", "test"); err != nil {
 		t.Fatalf("expected nil for blank key, got %v", err)
 	}
 }

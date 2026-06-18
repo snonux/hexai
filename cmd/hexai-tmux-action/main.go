@@ -12,18 +12,20 @@ import (
 	"codeberg.org/snonux/hexai/internal/hexaiaction"
 )
 
-// runCommand is the seam for testing: override in tests to avoid launching
-// the real tmux action.
-var runCommand = hexaiaction.RunCommand
+// actionRunner is the dependency that performs the tmux action. Production
+// code uses hexaiaction.RunCommand; tests inject a stub to avoid launching the
+// real tmux popup.
+type actionRunner func(context.Context, hexaiaction.Options, io.Reader, io.Writer, io.Writer) error
 
-func main() { os.Exit(runMain(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
+func main() { os.Exit(newApp().runMain(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 // runMain parses command-line flags from args, builds actionOptions, and
 // delegates to run. It returns the process exit code: 2 for flag-parse
 // errors (matching stdlib `flag.ExitOnError`), 1 for runtime failures, 0 on
 // success. Splitting the body out of main keeps it testable without
-// touching package-level flag state.
-func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+// touching package-level flag state. It is a method on app so tests can inject
+// a stub runCommand.
+func (a *app) runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("hexai-tmux-action", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	infile := fs.String("infile", "", "Read input from this file instead of stdin")
@@ -43,7 +45,7 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		uiChild: *uiChild, configPath: *configPath,
 		tmuxTarget: *tmuxTarget, tmuxPopupWidth: *tmuxPopupWidth, tmuxPopupHeight: *tmuxPopupHeight,
 	}
-	if err := run(opts, stdin, stdout, stderr); err != nil {
+	if err := a.run(opts, stdin, stdout, stderr); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
@@ -61,8 +63,18 @@ type actionOptions struct {
 	tmuxPopupHeight string
 }
 
-// run builds the hexaiaction.Options and context, then delegates to runCommand.
-func run(opts actionOptions, stdin io.Reader, stdout, stderr io.Writer) error {
+// app wires the injected dependencies for the command. runCommand defaults to
+// hexaiaction.RunCommand in production and is replaced by tests.
+type app struct {
+	runCommand actionRunner
+}
+
+// newApp returns an app with the production action runner installed.
+func newApp() *app { return &app{runCommand: hexaiaction.RunCommand} }
+
+// run builds the hexaiaction.Options and context, then delegates to the
+// injected runCommand dependency.
+func (a *app) run(opts actionOptions, stdin io.Reader, stdout, stderr io.Writer) error {
 	haOpts := hexaiaction.Options{
 		Infile: opts.infile, Outfile: opts.outfile,
 		UIChild: opts.uiChild, TmuxTarget: opts.tmuxTarget,
@@ -72,5 +84,5 @@ func run(opts actionOptions, stdin io.Reader, stdout, stderr io.Writer) error {
 	if path := strings.TrimSpace(opts.configPath); path != "" {
 		ctx = hexaiaction.WithConfigPath(ctx, path)
 	}
-	return runCommand(ctx, haOpts, stdin, stdout, stderr)
+	return a.runCommand(ctx, haOpts, stdin, stdout, stderr)
 }

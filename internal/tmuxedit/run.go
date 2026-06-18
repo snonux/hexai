@@ -21,10 +21,16 @@ type Options struct {
 	Pane       string // --pane flag (target pane ID)
 }
 
-// openEditorPopup is the seam for opening an editor in a tmux popup.
-// It creates a temp file, opens it in a tmux popup with the user's editor,
-// waits for completion, and returns the edited content. Override in tests.
-var openEditorPopup = func(initial, popupW, popupH string) (string, error) {
+func openEditorPopup(initial, popupW, popupH string) (string, error) {
+	return tmuxEditDeps{}.openEditor(initial, popupW, popupH)
+}
+
+// openEditor creates a temp file, opens it in a tmux popup with the user's
+// editor, waits for completion, and returns the edited content.
+func (d tmuxEditDeps) openEditor(initial, popupW, popupH string) (string, error) {
+	if d.openEditorPopup != nil {
+		return d.openEditorPopup(initial, popupW, popupH)
+	}
 	ed, err := editor.Resolve()
 	if err != nil {
 		return "", err
@@ -48,7 +54,7 @@ var openEditorPopup = func(initial, popupW, popupH string) (string, error) {
 	}
 
 	// Build the tmux display-popup command to launch the editor
-	if err := launchPopup(ed, path, popupW, popupH); err != nil {
+	if err := d.launch(ed, path, popupW, popupH); err != nil {
 		return "", fmt.Errorf("popup editor: %w", err)
 	}
 
@@ -59,11 +65,17 @@ var openEditorPopup = func(initial, popupW, popupH string) (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
-// launchPopup is the seam for running `tmux display-popup` with the editor.
-// The -E flag makes the popup close when the editor exits. The -d flag sets
-// the working directory for the popup. Uses .Run() (not .Output()) so the
-// popup blocks until the user closes the editor.
-var launchPopup = func(ed, path, width, height string) error {
+func launchPopup(ed, path, width, height string) error {
+	return tmuxEditDeps{}.launch(ed, path, width, height)
+}
+
+// launch runs `tmux display-popup` with the editor. The -E flag makes the
+// popup close when the editor exits. The -d flag sets the working directory
+// for the popup. Uses .Run() so the popup blocks until the user closes it.
+func (d tmuxEditDeps) launch(ed, path, width, height string) error {
+	if d.launchPopup != nil {
+		return d.launchPopup(ed, path, width, height)
+	}
 	args := []string{"display-popup", "-E"}
 
 	// Get current working directory to pass to the popup
@@ -144,6 +156,10 @@ func dbg(format string, args ...any) {
 // It resolves the agent (by name or auto-detect), extracts the current
 // prompt, opens the editor popup, then clears and sends the result.
 func runWithConfig(opts Options, cfg appconfig.App) error {
+	return tmuxEditDeps{}.runWithConfig(opts, cfg)
+}
+
+func (d tmuxEditDeps) runWithConfig(opts Options, cfg appconfig.App) error {
 	closeLog, err := initDebugLog()
 	if err != nil {
 		return fmt.Errorf("init debug log: %w", err)
@@ -152,14 +168,14 @@ func runWithConfig(opts Options, cfg appconfig.App) error {
 	dbg("=== hexai-tmux-edit start ===")
 	dbg("opts: pane=%q agent=%q config=%q", opts.Pane, opts.Agent, opts.ConfigPath)
 
-	paneID, err := resolveTargetPane(opts.Pane)
+	paneID, err := d.resolveTargetPane(opts.Pane)
 	if err != nil {
 		dbg("resolveTargetPane error: %v", err)
 		return err
 	}
 	dbg("resolved pane: %q", paneID)
 
-	content, err := capturePane(paneID)
+	content, err := d.capture(paneID)
 	if err != nil {
 		dbg("capturePane error: %v", err)
 		return err
@@ -167,8 +183,9 @@ func runWithConfig(opts Options, cfg appconfig.App) error {
 	dbg("captured %d bytes from pane", len(content))
 	logPaneLines(content)
 
-	agents := resolveAgents(cfg.TmuxEditAgents)
+	agents := withAgentDeps(resolveAgents(cfg.TmuxEditAgents), d)
 	agent := pickAgent(opts.Agent, content, agents)
+	agent = withAgentDep(agent, d)
 	dbg("agent: name=%q", agent.Name())
 
 	original := agent.ExtractPrompt(content)
@@ -177,7 +194,7 @@ func runWithConfig(opts Options, cfg appconfig.App) error {
 	popupW, popupH := popupDimensions(cfg)
 	dbg("opening editor popup: w=%s h=%s initial=%q", popupW, popupH, original)
 
-	edited, err := openEditorPopup(original, popupW, popupH)
+	edited, err := d.openEditor(original, popupW, popupH)
 	if err != nil {
 		dbg("openEditorPopup error: %v", err)
 		return err

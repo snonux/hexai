@@ -199,16 +199,14 @@ func TestParseKeyRepeat(t *testing.T) {
 
 func TestSendClearSequence_EscapeKey(t *testing.T) {
 	var calls []string
-	oldSend := sendKeys
-	defer func() { sendKeys = oldSend }()
-	sendKeys = func(paneID string, keys ...string) error {
+	deps := tmuxEditDeps{sendKeys: func(paneID string, keys ...string) error {
 		calls = append(calls, strings.Join(keys, ","))
 		return nil
-	}
+	}}
 
 	// sendClearSequence with "Escape" should succeed and send the key.
 	// The 150ms Escape delay is real but acceptable in tests.
-	err := sendClearSequence("%1", "Escape C-k")
+	err := deps.sendClearSequence("%1", "Escape C-k")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -224,13 +222,11 @@ func TestSendClearSequence_EscapeKey(t *testing.T) {
 }
 
 func TestSendClearSequence_SingleKeyError(t *testing.T) {
-	oldSend := sendKeys
-	defer func() { sendKeys = oldSend }()
-	sendKeys = func(string, ...string) error {
+	deps := tmuxEditDeps{sendKeys: func(string, ...string) error {
 		return fmt.Errorf("send failed")
-	}
+	}}
 
-	err := sendClearSequence("%1", "C-u")
+	err := deps.sendClearSequence("%1", "C-u")
 	if err == nil {
 		t.Fatal("expected error from sendKeys failure")
 	}
@@ -240,13 +236,11 @@ func TestSendClearSequence_SingleKeyError(t *testing.T) {
 }
 
 func TestSendClearSequence_RepeatedKeyError(t *testing.T) {
-	oldRepeat := sendRepeatedKey
-	defer func() { sendRepeatedKey = oldRepeat }()
-	sendRepeatedKey = func(string, string, int) error {
+	deps := tmuxEditDeps{sendRepeatedKey: func(string, string, int) error {
 		return fmt.Errorf("repeat failed")
-	}
+	}}
 
-	err := sendClearSequence("%1", "BSpace*200")
+	err := deps.sendClearSequence("%1", "BSpace*200")
 	if err == nil {
 		t.Fatal("expected error from sendRepeatedKey failure")
 	}

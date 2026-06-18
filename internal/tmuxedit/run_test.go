@@ -10,21 +10,10 @@ import (
 )
 
 func TestRunWithConfig_HappyPath(t *testing.T) {
-	noSleep(t)
-	// Save and restore all seams
-	oldCapture := capturePane
-	oldSendKeys := sendKeys
-	oldEditorPopup := openEditorPopup
-	oldRunCmd := runCommand
-	defer func() {
-		capturePane = oldCapture
-		sendKeys = oldSendKeys
-		openEditorPopup = oldEditorPopup
-		runCommand = oldRunCmd
-	}()
+	deps := noSleepDeps()
 
 	// Mock: pane resolution via tmux query
-	runCommand = func(name string, args ...string) ([]byte, error) {
+	deps.runCommand = func(name string, args ...string) ([]byte, error) {
 		if name == "tmux" && args[0] == "display-message" {
 			return []byte("%5"), nil
 		}
@@ -32,12 +21,12 @@ func TestRunWithConfig_HappyPath(t *testing.T) {
 	}
 
 	// Mock: capture pane content with Aider agent detected; aider uses "> prompt" pattern
-	capturePane = func(paneID string) (string, error) {
+	deps.capturePane = func(paneID string) (string, error) {
 		return "aider v0.50\n> fix the bug", nil
 	}
 
 	// Mock: editor popup returns modified text
-	openEditorPopup = func(initial, w, h string) (string, error) {
+	deps.openEditorPopup = func(initial, w, h string) (string, error) {
 		if initial != "fix the bug" {
 			t.Errorf("initial = %q, want 'fix the bug'", initial)
 		}
@@ -49,13 +38,13 @@ func TestRunWithConfig_HappyPath(t *testing.T) {
 
 	// Track send-keys calls
 	var sent []string
-	sendKeys = func(paneID string, keys ...string) error {
+	deps.sendKeys = func(paneID string, keys ...string) error {
 		sent = append(sent, strings.Join(keys, ","))
 		return nil
 	}
 
 	cfg := appconfig.App{}
-	err := runWithConfig(Options{}, cfg)
+	err := deps.runWithConfig(Options{}, cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -75,96 +64,65 @@ func TestRunWithConfig_HappyPath(t *testing.T) {
 }
 
 func TestRunWithConfig_ExplicitAgent(t *testing.T) {
-	noSleep(t)
-	oldCapture := capturePane
-	oldSendKeys := sendKeys
-	oldEditorPopup := openEditorPopup
-	oldRunCmd := runCommand
-	defer func() {
-		capturePane = oldCapture
-		sendKeys = oldSendKeys
-		openEditorPopup = oldEditorPopup
-		runCommand = oldRunCmd
-	}()
-
-	runCommand = func(name string, args ...string) ([]byte, error) {
+	deps := noSleepDeps()
+	deps.runCommand = func(name string, args ...string) ([]byte, error) {
 		return []byte("%1"), nil
 	}
-	capturePane = func(string) (string, error) {
+	deps.capturePane = func(string) (string, error) {
 		return "some generic content\n> hello", nil
 	}
-	openEditorPopup = func(initial, w, h string) (string, error) {
+	deps.openEditorPopup = func(initial, w, h string) (string, error) {
 		// With cursor agent, prompt extraction uses │ pattern, so initial should be empty
 		if initial != "" {
 			t.Errorf("initial = %q, want empty (cursor agent doesn't match > pattern)", initial)
 		}
 		return "new prompt", nil
 	}
-	sendKeys = func(string, ...string) error { return nil }
+	deps.sendKeys = func(string, ...string) error { return nil }
 
 	cfg := appconfig.App{}
-	err := runWithConfig(Options{Agent: "cursor"}, cfg)
+	err := deps.runWithConfig(Options{Agent: "cursor"}, cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestRunWithConfig_EditorEmpty(t *testing.T) {
-	oldCapture := capturePane
-	oldSendKeys := sendKeys
-	oldEditorPopup := openEditorPopup
-	oldRunCmd := runCommand
-	defer func() {
-		capturePane = oldCapture
-		sendKeys = oldSendKeys
-		openEditorPopup = oldEditorPopup
-		runCommand = oldRunCmd
-	}()
-
-	runCommand = func(name string, args ...string) ([]byte, error) {
+	deps := noSleepDeps()
+	deps.runCommand = func(name string, args ...string) ([]byte, error) {
 		return []byte("%1"), nil
 	}
-	capturePane = func(string) (string, error) {
+	deps.capturePane = func(string) (string, error) {
 		return "aider v0.50\n> ", nil
 	}
-	openEditorPopup = func(string, string, string) (string, error) {
+	deps.openEditorPopup = func(string, string, string) (string, error) {
 		return "", nil // user saved empty file
 	}
-	sendKeys = func(string, ...string) error {
+	deps.sendKeys = func(string, ...string) error {
 		t.Fatal("sendKeys should not be called when editor returns empty")
 		return nil
 	}
 
 	cfg := appconfig.App{}
-	err := runWithConfig(Options{}, cfg)
+	err := deps.runWithConfig(Options{}, cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestRunWithConfig_CustomDimensions(t *testing.T) {
-	oldCapture := capturePane
-	oldSendKeys := sendKeys
-	oldEditorPopup := openEditorPopup
-	oldRunCmd := runCommand
-	defer func() {
-		capturePane = oldCapture
-		sendKeys = oldSendKeys
-		openEditorPopup = oldEditorPopup
-		runCommand = oldRunCmd
-	}()
-
-	runCommand = func(name string, args ...string) ([]byte, error) {
+	deps := noSleepDeps()
+	deps.runCommand = func(name string, args ...string) ([]byte, error) {
 		return []byte("%1"), nil
 	}
-	capturePane = func(string) (string, error) { return "", nil }
-	openEditorPopup = func(initial, w, h string) (string, error) {
+	deps.capturePane = func(string) (string, error) { return "", nil }
+	deps.openEditorPopup = func(initial, w, h string) (string, error) {
 		if w != "90%" || h != "85%" {
 			t.Errorf("dimensions = %sx%s, want 90%%x85%%", w, h)
 		}
 		return "test", nil
 	}
-	sendKeys = func(string, ...string) error { return nil }
+	deps.sendKeys = func(string, ...string) error { return nil }
 
 	cfg := appconfig.App{
 		FeatureConfig: appconfig.FeatureConfig{TmuxEditConfig: appconfig.TmuxEditConfig{
@@ -172,7 +130,7 @@ func TestRunWithConfig_CustomDimensions(t *testing.T) {
 			TmuxEditPopupHeight: "85%",
 		}},
 	}
-	err := runWithConfig(Options{}, cfg)
+	err := deps.runWithConfig(Options{}, cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -212,21 +170,18 @@ func TestShellQuote(t *testing.T) {
 }
 
 func TestLaunchPopup_CommandArgs(t *testing.T) {
-	oldLaunch := launchPopup
-	defer func() { launchPopup = oldLaunch }()
-
 	var capturedArgs struct {
 		ed, path, w, h string
 	}
-	launchPopup = func(ed, path, w, h string) error {
+	deps := tmuxEditDeps{launchPopup: func(ed, path, w, h string) error {
 		capturedArgs.ed = ed
 		capturedArgs.path = path
 		capturedArgs.w = w
 		capturedArgs.h = h
 		return nil
-	}
+	}}
 
-	err := launchPopup("vim", "/tmp/test.md", "90%", "85%")
+	err := deps.launch("vim", "/tmp/test.md", "90%", "85%")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -239,19 +194,16 @@ func TestLaunchPopup_CommandArgs(t *testing.T) {
 }
 
 func TestLaunchPopup_NoDimensions(t *testing.T) {
-	oldLaunch := launchPopup
-	defer func() { launchPopup = oldLaunch }()
-
 	var capturedArgs struct {
 		w, h string
 	}
-	launchPopup = func(ed, path, w, h string) error {
+	deps := tmuxEditDeps{launchPopup: func(ed, path, w, h string) error {
 		capturedArgs.w = w
 		capturedArgs.h = h
 		return nil
-	}
+	}}
 
-	err := launchPopup("nano", "/tmp/f.md", "", "")
+	err := deps.launch("nano", "/tmp/f.md", "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -261,49 +213,35 @@ func TestLaunchPopup_NoDimensions(t *testing.T) {
 }
 
 func TestRunWithConfig_CaptureError(t *testing.T) {
-	oldCapture := capturePane
-	oldRunCmd := runCommand
-	defer func() {
-		capturePane = oldCapture
-		runCommand = oldRunCmd
-	}()
-
-	runCommand = func(name string, args ...string) ([]byte, error) {
+	deps := tmuxEditDeps{}
+	deps.runCommand = func(name string, args ...string) ([]byte, error) {
 		return []byte("%1"), nil
 	}
-	capturePane = func(string) (string, error) {
+	deps.capturePane = func(string) (string, error) {
 		return "", fmt.Errorf("capture failed")
 	}
 
 	cfg := appconfig.App{}
-	err := runWithConfig(Options{Pane: "%1"}, cfg)
+	err := deps.runWithConfig(Options{Pane: "%1"}, cfg)
 	if err == nil || !strings.Contains(err.Error(), "capture failed") {
 		t.Errorf("expected capture error, got: %v", err)
 	}
 }
 
 func TestRunWithConfig_EditorError(t *testing.T) {
-	oldCapture := capturePane
-	oldEditorPopup := openEditorPopup
-	oldRunCmd := runCommand
-	defer func() {
-		capturePane = oldCapture
-		openEditorPopup = oldEditorPopup
-		runCommand = oldRunCmd
-	}()
-
-	runCommand = func(name string, args ...string) ([]byte, error) {
+	deps := tmuxEditDeps{}
+	deps.runCommand = func(name string, args ...string) ([]byte, error) {
 		return []byte("%1"), nil
 	}
-	capturePane = func(string) (string, error) {
+	deps.capturePane = func(string) (string, error) {
 		return "some content", nil
 	}
-	openEditorPopup = func(string, string, string) (string, error) {
+	deps.openEditorPopup = func(string, string, string) (string, error) {
 		return "", fmt.Errorf("editor crashed")
 	}
 
 	cfg := appconfig.App{}
-	err := runWithConfig(Options{Pane: "%1"}, cfg)
+	err := deps.runWithConfig(Options{Pane: "%1"}, cfg)
 	if err == nil || !strings.Contains(err.Error(), "editor crashed") {
 		t.Errorf("expected editor error, got: %v", err)
 	}
@@ -340,87 +278,62 @@ func TestLogPaneLines_WithoutDebugLog(t *testing.T) {
 }
 
 func TestRunWithConfig_ClearInputError(t *testing.T) {
-	noSleep(t)
-	oldCapture := capturePane
-	oldSendKeys := sendKeys
-	oldEditorPopup := openEditorPopup
-	oldRunCmd := runCommand
-	defer func() {
-		capturePane = oldCapture
-		sendKeys = oldSendKeys
-		openEditorPopup = oldEditorPopup
-		runCommand = oldRunCmd
-	}()
-
-	runCommand = func(name string, args ...string) ([]byte, error) {
+	deps := noSleepDeps()
+	deps.runCommand = func(name string, args ...string) ([]byte, error) {
 		return []byte("%1"), nil
 	}
 	// Use Aider (clearFirst=true, clearKeys="C-u") so ClearInput is exercised
-	capturePane = func(string) (string, error) {
+	deps.capturePane = func(string) (string, error) {
 		return "aider v0.50\n> fix the bug", nil
 	}
-	openEditorPopup = func(string, string, string) (string, error) {
+	deps.openEditorPopup = func(string, string, string) (string, error) {
 		return "new text", nil
 	}
-	sendKeys = func(string, ...string) error {
+	deps.sendKeys = func(string, ...string) error {
 		return fmt.Errorf("clear input failed")
 	}
 
 	cfg := appconfig.App{}
-	err := runWithConfig(Options{}, cfg)
+	err := deps.runWithConfig(Options{}, cfg)
 	if err == nil || !strings.Contains(err.Error(), "clear input failed") {
 		t.Errorf("expected clear input error, got: %v", err)
 	}
 }
 
 func TestRunWithConfig_SendTextError(t *testing.T) {
-	noSleep(t)
-	oldCapture := capturePane
-	oldSendKeys := sendKeys
-	oldEditorPopup := openEditorPopup
-	oldRunCmd := runCommand
-	defer func() {
-		capturePane = oldCapture
-		sendKeys = oldSendKeys
-		openEditorPopup = oldEditorPopup
-		runCommand = oldRunCmd
-	}()
-
-	runCommand = func(name string, args ...string) ([]byte, error) {
+	deps := noSleepDeps()
+	deps.runCommand = func(name string, args ...string) ([]byte, error) {
 		return []byte("%1"), nil
 	}
 	// Use generic agent (no clear) so ClearInput succeeds
-	capturePane = func(string) (string, error) {
+	deps.capturePane = func(string) (string, error) {
 		return "some unknown pane content", nil
 	}
-	openEditorPopup = func(string, string, string) (string, error) {
+	deps.openEditorPopup = func(string, string, string) (string, error) {
 		return "new text", nil
 	}
 	callCount := 0
-	sendKeys = func(string, ...string) error {
+	deps.sendKeys = func(string, ...string) error {
 		callCount++
 		// Fail on text send (generic agent has no clear)
 		return fmt.Errorf("send text failed")
 	}
 
 	cfg := appconfig.App{}
-	err := runWithConfig(Options{}, cfg)
+	err := deps.runWithConfig(Options{}, cfg)
 	if err == nil || !strings.Contains(err.Error(), "send text failed") {
 		t.Errorf("expected send text error, got: %v", err)
 	}
 }
 
 func TestRunWithConfig_PaneResolveError(t *testing.T) {
-	oldRunCmd := runCommand
-	defer func() { runCommand = oldRunCmd }()
-
-	runCommand = func(string, ...string) ([]byte, error) {
+	deps := tmuxEditDeps{runCommand: func(string, ...string) ([]byte, error) {
 		return nil, fmt.Errorf("tmux unavailable")
-	}
+	}}
 	t.Setenv("HEXAI_TMUX_PANE", "")
 
 	cfg := appconfig.App{}
-	err := runWithConfig(Options{}, cfg)
+	err := deps.runWithConfig(Options{}, cfg)
 	if err == nil {
 		t.Fatal("expected error for pane resolution failure")
 	}

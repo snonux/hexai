@@ -36,20 +36,20 @@ func TestUpdate_PrunesOld_ByWindow(t *testing.T) {
 	SetWindow(2 * time.Second)
 	ctx := context.Background()
 
-	// Inject a fake clock so we can advance time without sleeping.
+	// Inject a fake clock via an engine so we can advance time without sleeping
+	// and without mutating package-level state.
 	fakeNow := time.Now()
-	nowFunc = func() time.Time { return fakeNow }
-	defer func() { nowFunc = time.Now }()
+	eng := engine{now: func() time.Time { return fakeNow }}
 
-	if err := Update(ctx, "p", "m", 1, 1); err != nil {
+	if err := eng.update(ctx, "p", "m", 1, 1); err != nil {
 		t.Fatal(err)
 	}
 	// Advance fake time past the 2-second window so the first event is pruned.
 	fakeNow = fakeNow.Add(3 * time.Second)
-	if err := Update(ctx, "p", "m", 2, 2); err != nil {
+	if err := eng.update(ctx, "p", "m", 2, 2); err != nil {
 		t.Fatal(err)
 	}
-	snap, err := TakeSnapshot()
+	snap, err := eng.takeSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}

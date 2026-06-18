@@ -157,7 +157,7 @@ func setupCLIPrinter(stdout io.Writer, jobs []cliJob) *termprint.ColumnPrinter {
 }
 
 func runSingleCLIJob(ctx context.Context, job cliJob, msgs []llm.Message, input string, stdout io.Writer, printer *termprint.ColumnPrinter, streamOutput bool, clientFactory cliClientFactory, statusSink cliStatusSink) *cliJobResult {
-	if res := cachedCLIJobResult(job, msgs, stdout, printer, streamOutput); res != nil {
+	if res := cachedCLIJobResult(ctx, job, msgs, stdout, printer, streamOutput); res != nil {
 		return res
 	}
 
@@ -181,7 +181,7 @@ func runSingleCLIJob(ctx context.Context, job cliJob, msgs []llm.Message, input 
 		printer.Flush(job.index)
 	}
 	if err == nil {
-		storeCLIResponseCache(newCLIResponseCacheKey(job.provider, model, job.req, jobMsgs), outBuf.String())
+		storeCLIResponseCache(ctx, newCLIResponseCacheKey(job.provider, model, job.req, jobMsgs), outBuf.String())
 	}
 	return &cliJobResult{
 		provider: job.provider,
@@ -192,8 +192,8 @@ func runSingleCLIJob(ctx context.Context, job cliJob, msgs []llm.Message, input 
 	}
 }
 
-func cachedCLIJobResult(job cliJob, msgs []llm.Message, stdout io.Writer, printer *termprint.ColumnPrinter, streamOutput bool) *cliJobResult {
-	output, age, ok := lookupCLIResponseCache(newCLIResponseCacheKey(job.provider, job.req.model, job.req, msgs))
+func cachedCLIJobResult(ctx context.Context, job cliJob, msgs []llm.Message, stdout io.Writer, printer *termprint.ColumnPrinter, streamOutput bool) *cliJobResult {
+	output, age, ok := lookupCLIResponseCache(ctx, newCLIResponseCacheKey(job.provider, job.req.model, job.req, msgs))
 	if !ok {
 		return nil
 	}

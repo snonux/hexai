@@ -29,10 +29,11 @@ type cliStatusSink interface {
 
 // Runner executes the CLI with injectable configuration, editor, client, and status dependencies.
 type Runner struct {
-	loadConfig cliConfigLoader
-	openEditor cliEditorOpener
-	newClient  cliClientFactory
-	statusSink cliStatusSink
+	loadConfig       cliConfigLoader
+	openEditor       cliEditorOpener
+	openConfigEditor func(context.Context, string) error
+	newClient        cliClientFactory
+	statusSink       cliStatusSink
 }
 
 type tmuxCLIStatusSink struct{}
@@ -58,10 +59,11 @@ func (tmuxCLIStatusSink) SetGlobal(snapshot stats.Snapshot, provider, model stri
 // NewRunner builds a CLI runner with production dependencies.
 func NewRunner() *Runner {
 	return &Runner{
-		loadConfig: loadConfigFromContext,
-		openEditor: editor.OpenTempAndEdit,
-		newClient:  newClientFromApp,
-		statusSink: tmuxCLIStatusSink{},
+		loadConfig:       loadConfigFromContext,
+		openEditor:       editor.OpenTempAndEdit,
+		openConfigEditor: editor.OpenFile,
+		newClient:        newClientFromApp,
+		statusSink:       tmuxCLIStatusSink{},
 	}
 }
 
@@ -85,7 +87,7 @@ func (r *Runner) Run(ctx context.Context, args []string, stdin io.Reader, stdout
 				}
 				cfgPath = p
 			}
-			if err := editor.OpenFile(ctx, cfgPath); err != nil {
+			if err := runner.openConfigEditor(ctx, cfgPath); err != nil {
 				_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai %s: %v"+logging.AnsiReset+"\n", sub, err)
 				return err
 			}
@@ -171,6 +173,9 @@ func normalizeRunner(r *Runner) Runner {
 	}
 	if runner.openEditor == nil {
 		runner.openEditor = editor.OpenTempAndEdit
+	}
+	if runner.openConfigEditor == nil {
+		runner.openConfigEditor = editor.OpenFile
 	}
 	if runner.newClient == nil {
 		runner.newClient = newClientFromApp

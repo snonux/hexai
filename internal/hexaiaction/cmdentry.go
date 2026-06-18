@@ -25,22 +25,46 @@ type Options struct {
 // RunCommand is the CLI orchestrator used by cmd/hexai-tmux-action. It runs in tmux
 // split-pane mode by default, or child mode when -ui-child is set.
 func RunCommand(ctx context.Context, opts Options, stdin io.Reader, stdout, stderr io.Writer) error {
+	return commandRunner{}.RunCommand(ctx, opts, stdin, stdout, stderr)
+}
+
+type commandRunner struct {
+	popupRun     func(tmux.PopupOpts, []string) error
+	osExecutable func() (string, error)
+	run          func(context.Context, io.Reader, io.Writer, io.Writer) error
+}
+
+func (r commandRunner) popup(opts tmux.PopupOpts, argv []string) error {
+	if r.popupRun != nil {
+		return r.popupRun(opts, argv)
+	}
+	return tmux.PopupRun(opts, argv)
+}
+
+func (r commandRunner) executable() (string, error) {
+	if r.osExecutable != nil {
+		return r.osExecutable()
+	}
+	return os.Executable()
+}
+
+func (r commandRunner) runAction(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
+	if r.run != nil {
+		return r.run(ctx, stdin, stdout, stderr)
+	}
+	return Run(ctx, stdin, stdout, stderr)
+}
+
+func (r commandRunner) RunCommand(ctx context.Context, opts Options, stdin io.Reader, stdout, stderr io.Writer) error {
 	if err := llm.RegisterAllProviders(); err != nil {
 		return fmt.Errorf("failed to register LLM providers: %w", err)
 	}
 	if opts.UIChild {
-		return runChild(ctx, opts.Infile, opts.Outfile, stdout, stderr)
+		return r.runChild(ctx, opts.Infile, opts.Outfile, stdout, stderr)
 	}
 	// Always use tmux popup path
-	return runInTmuxParent(ctx, stdin, stdout, opts.TmuxTarget, opts.TmuxPopupWidth, opts.TmuxPopupHeight)
+	return r.runInTmuxParent(ctx, stdin, stdout, opts.TmuxTarget, opts.TmuxPopupWidth, opts.TmuxPopupHeight)
 }
-
-// seams for unit tests
-var (
-	popupRunFn     = tmux.PopupRun
-	osExecutableFn = os.Executable
-	runFn          = Run
-)
 
 // openIO returns readers/writers for infile/outfile flags with deferred closers.
 func openIO(infile, outfile string) (io.Reader, io.Writer, func(), func(), error) {
@@ -68,7 +92,7 @@ func openIO(infile, outfile string) (io.Reader, io.Writer, func(), func(), error
 }
 
 // runChild runs the interactive flow and writes the final output atomically when outfile is set.
-func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Writer) error {
+func (r commandRunner) runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Writer) error {
 	if outfile == "" {
 		// No atomic handoff needed; just run normally to provided stdout
 		var in io.Reader = os.Stdin
@@ -80,7 +104,7 @@ func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Wri
 			defer func() { _ = f.Close() }()
 			in = f
 		}
-		return runFn(ctx, in, stdout, stderr)
+		return r.runAction(ctx, in, stdout, stderr)
 	}
 	tmp := outfile + ".tmp"
 	in, out, closeIn, closeOut, err := openIO(infile, tmp)
@@ -88,7 +112,7 @@ func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Wri
 		return err
 	}
 	defer closeIn()
-	if err := runFn(ctx, in, out, stderr); err != nil {
+	if err := r.runAction(ctx, in, out, stderr); err != nil {
 		closeOut()
 		if copyErr := echoThrough(infile, tmp, os.Stdin, stdout); copyErr != nil {
 			// Wrap the primary child error with %w so callers can inspect it
@@ -102,7 +126,7 @@ func runChild(ctx context.Context, infile, outfile string, stdout, stderr io.Wri
 	return os.Rename(tmp, outfile)
 }
 
-func runInTmuxParent(ctx context.Context, stdin io.Reader, stdout io.Writer, target, popupWidth, popupHeight string) error {
+func (r commandRunner) runInTmuxParent(ctx context.Context, stdin io.Reader, stdout io.Writer, target, popupWidth, popupHeight string) error {
 	dir, err := os.MkdirTemp("", "hexai-tmux-action-")
 	if err != nil {
 		return err
@@ -113,13 +137,13 @@ func runInTmuxParent(ctx context.Context, stdin io.Reader, stdout io.Writer, tar
 	if err := persistStdin(inPath, stdin); err != nil {
 		return err
 	}
-	exe, err := osExecutableFn()
+	exe, err := r.executable()
 	if err != nil {
 		return err
 	}
 	argv := []string{exe, "-ui-child", "-infile", inPath, "-outfile", outPath}
 	opts := tmux.PopupOpts{Target: target, Width: popupWidth, Height: popupHeight}
-	if err := popupRunFn(opts, argv); err != nil {
+	if err := r.popup(opts, argv); err != nil {
 		return err
 	}
 	if err := waitForFile(ctx, outPath, 60*time.Second); err != nil {

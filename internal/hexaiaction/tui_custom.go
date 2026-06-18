@@ -12,6 +12,21 @@ import (
 // RunTUIWithCustom shows the main menu plus a configurable "Custom actions…" item.
 // If the user selects that item, it shows a submenu listing user-defined custom actions.
 func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (ActionKind, *appconfig.CustomAction, error) {
+	return tuiRunner{}.RunTUIWithCustom(customs, menuHotkey)
+}
+
+type tuiRunner struct {
+	newProgram func(model) teaProgram
+}
+
+func (r tuiRunner) program(m model) teaProgram {
+	if r.newProgram != nil {
+		return r.newProgram(m)
+	}
+	return tea.NewProgram(m)
+}
+
+func (r tuiRunner) RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (ActionKind, *appconfig.CustomAction, error) {
 	// When no customs, fall back to default menu
 	if len(customs) == 0 {
 		kind, err := RunTUI()
@@ -28,7 +43,7 @@ func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (Acti
 	items = append(items, item{title: "Custom actions…", desc: "", kind: ActionCustom, hotkey: hk})
 	m.list.SetItems(items)
 	// Run main menu
-	p := teaNewProgram(m)
+	p := r.program(m)
 	md, err := p.Run()
 	if err != nil {
 		return ActionSkip, nil, err
@@ -50,7 +65,7 @@ func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (Acti
 		subItems = append(subItems, item{title: ca.Title, desc: "", kind: ActionCustom, hotkey: r})
 	}
 	sub.list.SetItems(subItems)
-	sp := teaNewProgram(sub)
+	sp := r.program(sub)
 	smd, err := sp.Run()
 	if err != nil {
 		return ActionSkip, nil, err
@@ -68,9 +83,6 @@ func RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (Acti
 	}
 	return ActionSkip, nil, nil
 }
-
-// teaNewProgram is a tiny seam for tests to stub bubbletea program creation.
-var teaNewProgram = func(m model) teaProgram { return tea.NewProgram(m) }
 
 // teaProgram is the subset of bubbletea.Program we need; enables testing seam.
 type teaProgram interface{ Run() (tea.Model, error) }

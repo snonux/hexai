@@ -21,11 +21,8 @@ func (f fakeProg) Run() (tea.Model, error) {
 }
 
 func TestRunTUIWithCustom_SubmenuAndHotkeys(t *testing.T) {
-	old := teaNewProgram
-	t.Cleanup(func() { teaNewProgram = old })
-
 	calls := 0
-	teaNewProgram = func(m model) teaProgram {
+	r := tuiRunner{newProgram: func(m model) teaProgram {
 		calls++
 		if calls == 1 {
 			// Main menu should have "Custom actions…" with configured hotkey
@@ -57,13 +54,13 @@ func TestRunTUIWithCustom_SubmenuAndHotkeys(t *testing.T) {
 			return fakeProg{m: m, onRun: func(mm *model) { mm.list.Select(0) }}
 		}
 		return fakeProg{m: m}
-	}
+	}}
 
 	customs := []appconfig.CustomAction{
 		{ID: "a", Title: "A", Hotkey: "x", Instruction: "do"},
 		{ID: "b", Title: "B", Hotkey: "y", Instruction: "do2"},
 	}
-	kind, selected, err := RunTUIWithCustom(customs, "z")
+	kind, selected, err := r.RunTUIWithCustom(customs, "z")
 	if err != nil {
 		t.Fatalf("RunTUIWithCustom error: %v", err)
 	}

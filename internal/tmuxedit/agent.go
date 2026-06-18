@@ -40,6 +40,7 @@ type baseAgent struct {
 	clearKeys     string   // tmux key sequence to clear input
 	newlineKeys   string   // tmux key to insert a newline
 	submitKeys    string   // tmux key to submit the prompt
+	deps          tmuxEditDeps
 }
 
 // Base returns a pointer to the baseAgent for config merging.
@@ -95,10 +96,10 @@ func (b *baseAgent) ClearInput(paneID string) error {
 	if !b.clearFirst || b.clearKeys == "" {
 		return nil
 	}
-	if err := sendClearSequence(paneID, b.clearKeys); err != nil {
+	if err := b.deps.sendClearSequence(paneID, b.clearKeys); err != nil {
 		return err
 	}
-	sleepAfterClear()
+	b.deps.sleep()
 	return nil
 }
 
@@ -108,7 +109,21 @@ func (b *baseAgent) SendText(paneID, text string) error {
 	if strings.TrimSpace(text) == "" {
 		return nil
 	}
-	return sendLines(paneID, text, b.newlineKeys)
+	return b.deps.sendLines(paneID, text, b.newlineKeys)
+}
+
+func withAgentDeps(agents []Agent, deps tmuxEditDeps) []Agent {
+	for _, agent := range agents {
+		withAgentDep(agent, deps)
+	}
+	return agents
+}
+
+func withAgentDep(agent Agent, deps tmuxEditDeps) Agent {
+	if c, ok := agent.(Configurable); ok {
+		c.Base().deps = deps
+	}
+	return agent
 }
 
 // detectAgent tries each agent's Detect method against pane content.

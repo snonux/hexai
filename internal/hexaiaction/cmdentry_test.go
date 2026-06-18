@@ -77,10 +77,8 @@ func TestRunInTmuxParent_Stubbed(t *testing.T) {
 	_ = w.Close()
 	// capture stdout
 	rout, wout, _ := os.Pipe()
-	oldExec := osExecutableFn
-	oldPopup := popupRunFn
-	osExecutableFn = func() (string, error) { return "/bin/hexai-tmux-action", nil }
-	popupRunFn = func(opts tmux.PopupOpts, argv []string) error {
+	runner := commandRunner{osExecutable: func() (string, error) { return "/bin/hexai-tmux-action", nil }}
+	runner.popupRun = func(opts tmux.PopupOpts, argv []string) error {
 		for i := 0; i < len(argv)-1; i++ {
 			if argv[i] == "-outfile" && i+1 < len(argv) {
 				_ = os.WriteFile(argv[i+1], []byte("OUT:"+strings.Join(argv, ",")), 0o600)
@@ -89,8 +87,7 @@ func TestRunInTmuxParent_Stubbed(t *testing.T) {
 		}
 		return nil
 	}
-	t.Cleanup(func() { osExecutableFn = oldExec; popupRunFn = oldPopup })
-	if err := runInTmuxParent(context.Background(), r, wout, "", "", ""); err != nil {
+	if err := runner.runInTmuxParent(context.Background(), r, wout, "", "", ""); err != nil {
 		t.Fatalf("runInTmuxParent: %v", err)
 	}
 	_ = wout.Close()
@@ -102,27 +99,24 @@ func TestRunInTmuxParent_Stubbed(t *testing.T) {
 }
 
 func TestRunInTmuxParent_ExecutableError(t *testing.T) {
-	old := osExecutableFn
-	osExecutableFn = func() (string, error) { return "", fmt.Errorf("no exe") }
-	t.Cleanup(func() { osExecutableFn = old })
+	runner := commandRunner{osExecutable: func() (string, error) { return "", fmt.Errorf("no exe") }}
 	r, w, _ := os.Pipe()
 	_, _ = w.Write([]byte("x"))
 	_ = w.Close()
-	if err := runInTmuxParent(context.Background(), r, io.Discard, "", "", ""); err == nil {
+	if err := runner.runInTmuxParent(context.Background(), r, io.Discard, "", "", ""); err == nil {
 		t.Fatal("expected error from missing executable")
 	}
 }
 
 func TestRunInTmuxParent_PopupError(t *testing.T) {
-	oldExec := osExecutableFn
-	osExecutableFn = func() (string, error) { return "/bin/hexai-tmux-action", nil }
-	oldPopup := popupRunFn
-	popupRunFn = func(_ tmux.PopupOpts, _ []string) error { return fmt.Errorf("popup failed") }
-	t.Cleanup(func() { osExecutableFn = oldExec; popupRunFn = oldPopup })
+	runner := commandRunner{
+		osExecutable: func() (string, error) { return "/bin/hexai-tmux-action", nil },
+		popupRun:     func(_ tmux.PopupOpts, _ []string) error { return fmt.Errorf("popup failed") },
+	}
 	r, w, _ := os.Pipe()
 	_, _ = w.Write([]byte("x"))
 	_ = w.Close()
-	if err := runInTmuxParent(context.Background(), r, io.Discard, "", "", ""); err == nil {
+	if err := runner.runInTmuxParent(context.Background(), r, io.Discard, "", "", ""); err == nil {
 		t.Fatal("expected popup error")
 	}
 }
@@ -133,13 +127,11 @@ func TestRunChild_StdoutAndOutfile(t *testing.T) {
 	in := filepath.Join(dir, "in.txt")
 	out := filepath.Join(dir, "out.txt")
 	_ = os.WriteFile(in, []byte("sel"), 0o600)
-	oldRun := runFn
-	runFn = func(_ context.Context, _ io.Reader, w io.Writer, _ io.Writer) error {
+	runner := commandRunner{run: func(_ context.Context, _ io.Reader, w io.Writer, _ io.Writer) error {
 		_, _ = io.WriteString(w, "RESULT")
 		return nil
-	}
-	t.Cleanup(func() { runFn = oldRun })
-	if err := runChild(context.Background(), in, out, io.Discard, io.Discard); err != nil {
+	}}
+	if err := runner.runChild(context.Background(), in, out, io.Discard, io.Discard); err != nil {
 		t.Fatalf("runChild: %v", err)
 	}
 	b, _ := os.ReadFile(out)
@@ -148,7 +140,7 @@ func TestRunChild_StdoutAndOutfile(t *testing.T) {
 	}
 	// Stdout mode
 	r, w, _ := os.Pipe()
-	if err := runChild(context.Background(), in, "", w, io.Discard); err != nil {
+	if err := runner.runChild(context.Background(), in, "", w, io.Discard); err != nil {
 		t.Fatalf("runChild: %v", err)
 	}
 	_ = w.Close()

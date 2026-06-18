@@ -50,9 +50,9 @@ func (c *cursorAgent) ClearInput(paneID string) error {
 	if !c.clearFirst || c.clearKeys == "" {
 		return nil
 	}
-	if err := sendClearSequence(paneID, c.clearKeys); err != nil {
+	if err := c.deps.sendClearSequence(paneID, c.clearKeys); err != nil {
 		return err
 	}
-	sleepAfterClear()
+	c.deps.sleep()
 	return nil
 }

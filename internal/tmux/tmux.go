@@ -8,15 +8,33 @@ import (
 )
 
 // Available reports whether tmux is available and we appear to be in a tmux session.
-func Available() bool { return HasBinary() && InSession() }
+func Available() bool { return Runner{}.Available() }
+
+type Runner struct {
+	lookPath func(string) (string, error)
+	command  func(string, ...string) *exec.Cmd
+}
+
+func (r Runner) find(name string) (string, error) {
+	if r.lookPath != nil {
+		return r.lookPath(name)
+	}
+	return exec.LookPath(name)
+}
+
+func (r Runner) cmd(name string, args ...string) *exec.Cmd {
+	if r.command != nil {
+		return r.command(name, args...)
+	}
+	return exec.Command(name, args...)
+}
 
 // HasBinary reports whether the tmux binary is on PATH.
-var (
-	lookPath = exec.LookPath
-	command  = exec.Command
-)
+func HasBinary() bool { return Runner{}.HasBinary() }
 
-func HasBinary() bool { _, err := lookPath("tmux"); return err == nil }
+func (r Runner) HasBinary() bool { _, err := r.find("tmux"); return err == nil }
+
+func (r Runner) Available() bool { return r.HasBinary() && InSession() }
 
 // InSession reports whether we seem to be running inside a tmux session.
 func InSession() bool { return strings.TrimSpace(os.Getenv("TMUX")) != "" }
@@ -31,6 +49,10 @@ type SplitOpts struct {
 // SplitRun splits the current tmux window and runs argv in the new pane.
 // It returns once tmux has launched the child process.
 func SplitRun(opts SplitOpts, argv []string) error {
+	return Runner{}.SplitRun(opts, argv)
+}
+
+func (r Runner) SplitRun(opts SplitOpts, argv []string) error {
 	if len(argv) == 0 {
 		return nil
 	}
@@ -49,7 +71,7 @@ func SplitRun(opts SplitOpts, argv []string) error {
 	// tmux takes a single command string. Use a conservative shell join.
 	cmdStr := shellJoin(argv)
 	args = append(args, cmdStr)
-	c := command("tmux", args...)
+	c := r.cmd("tmux", args...)
 	return c.Run()
 }
 
@@ -64,6 +86,10 @@ type PopupOpts struct {
 // The -E flag makes the popup close automatically when the command exits.
 // It returns once the popup has closed (blocking call).
 func PopupRun(opts PopupOpts, argv []string) error {
+	return Runner{}.PopupRun(opts, argv)
+}
+
+func (r Runner) PopupRun(opts PopupOpts, argv []string) error {
 	if len(argv) == 0 {
 		return nil
 	}
@@ -82,7 +108,7 @@ func PopupRun(opts PopupOpts, argv []string) error {
 	}
 	cmdStr := shellJoin(argv)
 	args = append(args, cmdStr)
-	return command("tmux", args...).Run()
+	return r.cmd("tmux", args...).Run()
 }
 
 // shellJoin quotes argv elements for safe use in a single shell command string.

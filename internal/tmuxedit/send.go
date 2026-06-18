@@ -7,30 +7,49 @@ import (
 	"time"
 )
 
-// sendKeys is the seam for `tmux send-keys`. Override in tests.
-var sendKeys = func(paneID string, keys ...string) error {
+func sendKeys(paneID string, keys ...string) error {
+	return tmuxEditDeps{}.send(paneID, keys...)
+}
+
+func (d tmuxEditDeps) send(paneID string, keys ...string) error {
+	if d.sendKeys != nil {
+		return d.sendKeys(paneID, keys...)
+	}
 	args := append([]string{"send-keys", "-t", paneID}, keys...)
-	_, err := runCommand("tmux", args...)
+	_, err := d.command("tmux", args...)
 	if err != nil {
 		return fmt.Errorf("send-keys failed: %w", err)
 	}
 	return nil
 }
 
-// sendRepeatedKey is the seam for `tmux send-keys -N <count>`. Override in
-// tests. Uses -N for efficient bulk key repeats (e.g. 200 backspaces).
-var sendRepeatedKey = func(paneID, key string, count int) error {
+func sendRepeatedKey(paneID, key string, count int) error {
+	return tmuxEditDeps{}.sendRepeated(paneID, key, count)
+}
+
+// sendRepeated uses `tmux send-keys -N <count>` for efficient bulk key repeats
+// (e.g. 200 backspaces).
+func (d tmuxEditDeps) sendRepeated(paneID, key string, count int) error {
+	if d.sendRepeatedKey != nil {
+		return d.sendRepeatedKey(paneID, key, count)
+	}
 	args := []string{"send-keys", "-t", paneID, "-N", strconv.Itoa(count), key}
-	_, err := runCommand("tmux", args...)
+	_, err := d.command("tmux", args...)
 	if err != nil {
 		return fmt.Errorf("send-keys -N failed: %w", err)
 	}
 	return nil
 }
 
-// sleepAfterClear pauses to let the TUI drain queued keystrokes (like bulk
-// backspaces) before new text is sent. Override in tests to avoid delays.
-var sleepAfterClear = func() { time.Sleep(300 * time.Millisecond) }
+func sleepAfterClear() { tmuxEditDeps{}.sleep() }
+
+func (d tmuxEditDeps) sleep() {
+	if d.sleepAfterClear != nil {
+		d.sleepAfterClear()
+		return
+	}
+	time.Sleep(300 * time.Millisecond)
+}
 
 // deduplicateText compares the original (pre-filled) text with what the user
 // returned from the editor. Returns empty string if unchanged (no-op), or

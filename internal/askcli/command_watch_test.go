@@ -27,14 +27,11 @@ func (t *fakeWatchTicker) Stop() {
 
 func TestHandleWatch_ForwardsNonZeroCode(t *testing.T) {
 	ticks := make(chan time.Time)
-	oldTicker := newWatchTicker
-	newWatchTicker = func(time.Duration) watchTicker { return &fakeWatchTicker{ch: ticks} }
-	t.Cleanup(func() { newWatchTicker = oldTicker })
-
 	ctx := context.Background()
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		return 1, nil
 	}})
+	d.newTicker = func(time.Duration) watchTicker { return &fakeWatchTicker{ch: ticks} }
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(ctx, []string{"watch", "urgency"}, nil, &stdout, &stderr)
@@ -70,10 +67,6 @@ func TestHandleWatch_ForwardsInnerError(t *testing.T) {
 
 func TestHandleWatch_DrawsStderrOnNonZero(t *testing.T) {
 	ticks := make(chan time.Time)
-	oldTicker := newWatchTicker
-	newWatchTicker = func(time.Duration) watchTicker { return &fakeWatchTicker{ch: ticks} }
-	t.Cleanup(func() { newWatchTicker = oldTicker })
-
 	ctx, cancel := context.WithCancel(context.Background())
 	callCount := 0
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -87,6 +80,7 @@ func TestHandleWatch_DrawsStderrOnNonZero(t *testing.T) {
 		_, _ = io.WriteString(stdout, "[]")
 		return 0, nil
 	}})
+	d.newTicker = func(time.Duration) watchTicker { return &fakeWatchTicker{ch: ticks} }
 
 	var out bytes.Buffer
 	code, err := d.Dispatch(ctx, []string{"watch", "info"}, nil, &out, &bytes.Buffer{})
@@ -118,14 +112,6 @@ func TestHandleWatch_DefaultsToListAndRedrawsOnChange(t *testing.T) {
 	ticks := make(chan time.Time, 1)
 	ticks <- time.Now()
 	fakeTicker := &fakeWatchTicker{ch: ticks}
-	oldTicker := newWatchTicker
-	newWatchTicker = func(interval time.Duration) watchTicker {
-		if interval != watchInterval {
-			t.Fatalf("watch interval = %s, want %s", interval, watchInterval)
-		}
-		return fakeTicker
-	}
-	t.Cleanup(func() { newWatchTicker = oldTicker })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var calls [][]string
@@ -139,6 +125,12 @@ func TestHandleWatch_DefaultsToListAndRedrawsOnChange(t *testing.T) {
 		cancel()
 		return 0, nil
 	}})
+	d.newTicker = func(interval time.Duration) watchTicker {
+		if interval != watchInterval {
+			t.Fatalf("watch interval = %s, want %s", interval, watchInterval)
+		}
+		return fakeTicker
+	}
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(ctx, []string{"watch"}, nil, &stdout, &stderr)
@@ -176,9 +168,6 @@ func TestHandleWatch_DoesNotRedrawUnchangedOutput(t *testing.T) {
 
 	ticks := make(chan time.Time, 1)
 	ticks <- time.Now()
-	oldTicker := newWatchTicker
-	newWatchTicker = func(time.Duration) watchTicker { return &fakeWatchTicker{ch: ticks} }
-	t.Cleanup(func() { newWatchTicker = oldTicker })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	runCount := 0
@@ -190,6 +179,7 @@ func TestHandleWatch_DoesNotRedrawUnchangedOutput(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.newTicker = func(time.Duration) watchTicker { return &fakeWatchTicker{ch: ticks} }
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(ctx, []string{"watch", "list"}, nil, &stdout, &stderr)
@@ -206,10 +196,6 @@ func TestHandleWatch_DoesNotRedrawUnchangedOutput(t *testing.T) {
 
 func TestHandleWatch_ForwardsSubcommandArgs(t *testing.T) {
 	ticks := make(chan time.Time)
-	oldTicker := newWatchTicker
-	newWatchTicker = func(time.Duration) watchTicker { return &fakeWatchTicker{ch: ticks} }
-	t.Cleanup(func() { newWatchTicker = oldTicker })
-
 	ctx, cancel := context.WithCancel(context.Background())
 	var gotArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -218,6 +204,7 @@ func TestHandleWatch_ForwardsSubcommandArgs(t *testing.T) {
 		_, _ = io.WriteString(stdout, `[]`)
 		return 0, nil
 	}})
+	d.newTicker = func(time.Duration) watchTicker { return &fakeWatchTicker{ch: ticks} }
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(ctx, []string{"watch", "ready", "limit:2"}, nil, &stdout, &stderr)

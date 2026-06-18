@@ -107,14 +107,18 @@ func stripNoise(text string, patterns []string) string {
 // token individually. Tokens with a "*N" suffix (e.g. "BSpace*200") are
 // sent N times using tmux send-keys -N for efficient bulk repeats.
 func sendClearSequence(paneID, clearKeys string) error {
+	return tmuxEditDeps{}.sendClearSequence(paneID, clearKeys)
+}
+
+func (d tmuxEditDeps) sendClearSequence(paneID, clearKeys string) error {
 	for _, token := range strings.Fields(clearKeys) {
 		key, count := parseKeyRepeat(token)
 		if count > 1 {
-			if err := sendRepeatedKey(paneID, key, count); err != nil {
+			if err := d.sendRepeated(paneID, key, count); err != nil {
 				return fmt.Errorf("clear key %q*%d failed: %w", key, count, err)
 			}
 		} else {
-			if err := sendKeys(paneID, key); err != nil {
+			if err := d.send(paneID, key); err != nil {
 				return fmt.Errorf("clear key %q failed: %w", key, err)
 			}
 		}
@@ -145,9 +149,13 @@ func parseKeyRepeat(token string) (string, int) {
 // fallback. This is the shared text-sending logic used by agent SendText
 // implementations.
 func sendLines(paneID, text, newlineKeys string) error {
+	return tmuxEditDeps{}.sendLines(paneID, text, newlineKeys)
+}
+
+func (d tmuxEditDeps) sendLines(paneID, text, newlineKeys string) error {
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {
-		if err := sendKeys(paneID, line); err != nil {
+		if err := d.send(paneID, line); err != nil {
 			return fmt.Errorf("send line %d failed: %w", i, err)
 		}
 		// Insert inter-line newline (except after the last line)
@@ -156,7 +164,7 @@ func sendLines(paneID, text, newlineKeys string) error {
 			if nlKey == "" {
 				nlKey = "Enter"
 			}
-			if err := sendKeys(paneID, nlKey); err != nil {
+			if err := d.send(paneID, nlKey); err != nil {
 				return fmt.Errorf("newline after line %d failed: %w", i, err)
 			}
 		}

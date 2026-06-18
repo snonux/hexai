@@ -6,12 +6,8 @@ import (
 	"testing"
 )
 
-// noSleep disables the post-clear sleep in tests and restores it on cleanup.
-func noSleep(t *testing.T) {
-	t.Helper()
-	old := sleepAfterClear
-	sleepAfterClear = func() {}
-	t.Cleanup(func() { sleepAfterClear = old })
+func noSleepDeps() tmuxEditDeps {
+	return tmuxEditDeps{sleepAfterClear: func() {}}
 }
 
 func TestDeduplicateText(t *testing.T) {
@@ -43,14 +39,12 @@ func TestDeduplicateText(t *testing.T) {
 
 func TestSendLines_SingleLine(t *testing.T) {
 	var calls []string
-	oldSend := sendKeys
-	defer func() { sendKeys = oldSend }()
-	sendKeys = func(paneID string, keys ...string) error {
+	deps := tmuxEditDeps{sendKeys: func(paneID string, keys ...string) error {
 		calls = append(calls, fmt.Sprintf("send:%s:%s", paneID, strings.Join(keys, ",")))
 		return nil
-	}
+	}}
 
-	err := sendLines("%5", "hello", "S-Enter")
+	err := deps.sendLines("%5", "hello", "S-Enter")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -64,14 +58,12 @@ func TestSendLines_SingleLine(t *testing.T) {
 
 func TestSendLines_MultiLine(t *testing.T) {
 	var calls []string
-	oldSend := sendKeys
-	defer func() { sendKeys = oldSend }()
-	sendKeys = func(paneID string, keys ...string) error {
+	deps := tmuxEditDeps{sendKeys: func(paneID string, keys ...string) error {
 		calls = append(calls, strings.Join(keys, ","))
 		return nil
-	}
+	}}
 
-	err := sendLines("%1", "line1\nline2\nline3", "S-Enter")
+	err := deps.sendLines("%1", "line1\nline2\nline3", "S-Enter")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -88,15 +80,13 @@ func TestSendLines_MultiLine(t *testing.T) {
 
 func TestSendLines_FallbackNewline(t *testing.T) {
 	var calls []string
-	oldSend := sendKeys
-	defer func() { sendKeys = oldSend }()
-	sendKeys = func(paneID string, keys ...string) error {
+	deps := tmuxEditDeps{sendKeys: func(paneID string, keys ...string) error {
 		calls = append(calls, strings.Join(keys, ","))
 		return nil
-	}
+	}}
 
 	// Empty newlineKeys should fallback to "Enter"
-	err := sendLines("%1", "a\nb", "")
+	err := deps.sendLines("%1", "a\nb", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -109,13 +99,11 @@ func TestSendLines_FallbackNewline(t *testing.T) {
 }
 
 func TestSendLines_Error(t *testing.T) {
-	oldSend := sendKeys
-	defer func() { sendKeys = oldSend }()
-	sendKeys = func(string, ...string) error {
+	deps := tmuxEditDeps{sendKeys: func(string, ...string) error {
 		return fmt.Errorf("send failed")
-	}
+	}}
 
-	err := sendLines("%1", "hello", "Enter")
+	err := deps.sendLines("%1", "hello", "Enter")
 	if err == nil {
 		t.Fatal("expected error on send failure")
 	}

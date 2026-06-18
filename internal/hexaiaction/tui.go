@@ -124,7 +124,11 @@ func (m model) View() string {
 
 // RunTUI returns the chosen ActionKind from the default hardcoded menu.
 func RunTUI() (ActionKind, error) {
-	p := tea.NewProgram(newModel())
+	return tuiRunner{}.RunTUI()
+}
+
+func (r tuiRunner) RunTUI() (ActionKind, error) {
+	p := r.program(newModel())
 	md, err := p.Run()
 	if err != nil {
 		return ActionSkip, err
@@ -142,8 +146,12 @@ func RunTUI() (ActionKind, error) {
 // Custom entries are resolved by ID against customs. Falls back to ActionSkip
 // if the program returns an unexpected model type.
 func RunTUIFromConfig(entries []appconfig.TmuxActionMenuEntry, customs []appconfig.CustomAction) (ActionKind, *appconfig.CustomAction, error) {
+	return tuiRunner{}.RunTUIFromConfig(entries, customs)
+}
+
+func (r tuiRunner) RunTUIFromConfig(entries []appconfig.TmuxActionMenuEntry, customs []appconfig.CustomAction) (ActionKind, *appconfig.CustomAction, error) {
 	m := newModelFromMenuEntries(entries, customs)
-	p := teaNewProgram(m)
+	p := r.program(m)
 	md, err := p.Run()
 	if err != nil {
 		return ActionSkip, nil, err

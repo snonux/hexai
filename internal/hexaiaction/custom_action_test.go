@@ -3,11 +3,9 @@ package hexaiaction
 import (
 	"bytes"
 	"context"
-	"os"
 	"testing"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/editor"
 	"codeberg.org/snonux/hexai/internal/llm"
 )
 
@@ -29,12 +27,9 @@ func TestActionCustom_UsesEditorPrompt(t *testing.T) {
 	}
 	runner.newClient = func(_ appconfig.App) (actionClient, error) { return llmFake2{}, nil }
 
-	oldRunEd := editor.RunEditor
-	editor.RunEditor = func(_ context.Context, _ string, path string) error {
-		return os.WriteFile(path, []byte("make it done"), 0o600)
+	runner.openEditor = func(context.Context, []byte) (string, error) {
+		return "make it done", nil
 	}
-	t.Cleanup(func() { editor.RunEditor = oldRunEd })
-	t.Setenv("HEXAI_EDITOR", "dummy")
 
 	in := bytes.NewBufferString("some code")
 	var out bytes.Buffer

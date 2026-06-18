@@ -15,19 +15,21 @@ type dispatcher interface {
 	Dispatch(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error)
 }
 
-// dispatcherFactory is a test seam: override to inject a fake dispatcher so
-// runMain can be exercised without a real `task` binary on PATH.
-var dispatcherFactory = func() dispatcher {
-	return askcli.NewDispatcher(nil)
+type app struct {
+	newDispatcher func() dispatcher
 }
 
-func main() { os.Exit(runMain(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
+func newApp() *app {
+	return &app{newDispatcher: func() dispatcher { return askcli.NewDispatcher(nil) }}
+}
+
+func main() { os.Exit(newApp().runMain(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 // runMain dispatches the command and returns the process exit code; errors
 // are printed to stderr. The dispatcher's exit code is returned regardless
 // of err so callers see Taskwarrior's own exit code on failure paths.
-func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	code, err := dispatcherFactory().Dispatch(context.Background(), args, stdin, stdout, stderr)
+func (a *app) runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	code, err := a.newDispatcher().Dispatch(context.Background(), args, stdin, stdout, stderr)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 	}

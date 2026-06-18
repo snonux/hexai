@@ -21,11 +21,25 @@ func Resolve() (string, error) {
 	return ed, nil
 }
 
-// RunEditor is the seam that invokes the editor on the given file path.
-// Override in tests to avoid launching a real editor. It uses
-// exec.CommandContext so a cancelled ctx (e.g. process shutdown) kills the
-// editor subprocess instead of leaving it blocking on terminal input.
-var RunEditor = func(ctx context.Context, editor, path string) error {
+type Runner struct {
+	runEditor func(context.Context, string, string) error
+}
+
+func (r Runner) edit(ctx context.Context, editor, path string) error {
+	if r.runEditor != nil {
+		return r.runEditor(ctx, editor, path)
+	}
+	return runEditor(ctx, editor, path)
+}
+
+// RunEditor invokes the editor on the given file path. It uses
+// exec.CommandContext so a cancelled ctx kills the editor subprocess instead
+// of leaving it blocking on terminal input.
+func RunEditor(ctx context.Context, editor, path string) error {
+	return runEditor(ctx, editor, path)
+}
+
+func runEditor(ctx context.Context, editor, path string) error {
 	cmd := exec.CommandContext(ctx, editor, path)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -38,6 +52,10 @@ var RunEditor = func(ctx context.Context, editor, path string) error {
 // Returns the trimmed content. ctx is forwarded to the editor subprocess so it
 // can be cancelled along with the surrounding command.
 func OpenTempAndEdit(ctx context.Context, initial []byte) (string, error) {
+	return Runner{}.OpenTempAndEdit(ctx, initial)
+}
+
+func (r Runner) OpenTempAndEdit(ctx context.Context, initial []byte) (string, error) {
 	ed, err := Resolve()
 	if err != nil {
 		return "", err
@@ -63,7 +81,7 @@ func OpenTempAndEdit(ctx context.Context, initial []byte) (string, error) {
 	if err := f.Close(); err != nil {
 		return "", err
 	}
-	if err := RunEditor(ctx, ed, path); err != nil {
+	if err := r.edit(ctx, ed, path); err != nil {
 		return "", err
 	}
 	b, err := os.ReadFile(filepath.Clean(path))
@@ -77,6 +95,10 @@ func OpenTempAndEdit(ctx context.Context, initial []byte) (string, error) {
 // from Resolve() (HEXAI_EDITOR or EDITOR). ctx is forwarded to the editor
 // subprocess so it can be cancelled with the surrounding command.
 func OpenFile(ctx context.Context, path string) error {
+	return Runner{}.OpenFile(ctx, path)
+}
+
+func (r Runner) OpenFile(ctx context.Context, path string) error {
 	ed, err := Resolve()
 	if err != nil {
 		return err
@@ -91,5 +113,5 @@ func OpenFile(ctx context.Context, path string) error {
 			return mkErr
 		}
 	}
-	return RunEditor(ctx, ed, path)
+	return r.edit(ctx, ed, path)
 }

@@ -12,20 +12,17 @@ import (
 )
 
 func TestRun_DelegatesToRunCommand(t *testing.T) {
-	old := runCommand
-	t.Cleanup(func() { runCommand = old })
-
 	var gotOpts hexaiaction.Options
-	runCommand = func(_ context.Context, opts hexaiaction.Options, _ io.Reader, _, _ io.Writer) error {
+	a := &app{runCommand: func(_ context.Context, opts hexaiaction.Options, _ io.Reader, _, _ io.Writer) error {
 		gotOpts = opts
 		return nil
-	}
+	}}
 
 	opts := actionOptions{
 		infile: "in.txt", outfile: "out.txt",
 		tmuxPopupWidth: "90%", tmuxPopupHeight: "70%",
 	}
-	if err := run(opts, nil, nil, nil); err != nil {
+	if err := a.run(opts, nil, nil, nil); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	if gotOpts.Infile != "in.txt" || gotOpts.Outfile != "out.txt" {
@@ -37,29 +34,23 @@ func TestRun_DelegatesToRunCommand(t *testing.T) {
 }
 
 func TestRun_WithConfigPath(t *testing.T) {
-	old := runCommand
-	t.Cleanup(func() { runCommand = old })
-
-	runCommand = func(_ context.Context, _ hexaiaction.Options, _ io.Reader, _, _ io.Writer) error {
+	a := &app{runCommand: func(_ context.Context, _ hexaiaction.Options, _ io.Reader, _, _ io.Writer) error {
 		return nil
-	}
+	}}
 
 	opts := actionOptions{configPath: "  /tmp/test.toml  "}
-	if err := run(opts, nil, nil, nil); err != nil {
+	if err := a.run(opts, nil, nil, nil); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 }
 
 func TestRun_Error(t *testing.T) {
-	old := runCommand
-	t.Cleanup(func() { runCommand = old })
-
 	wantErr := errors.New("action failed")
-	runCommand = func(_ context.Context, _ hexaiaction.Options, _ io.Reader, _, _ io.Writer) error {
+	a := &app{runCommand: func(_ context.Context, _ hexaiaction.Options, _ io.Reader, _, _ io.Writer) error {
 		return wantErr
-	}
+	}}
 
-	if err := run(actionOptions{}, nil, nil, nil); !errors.Is(err, wantErr) {
+	if err := a.run(actionOptions{}, nil, nil, nil); !errors.Is(err, wantErr) {
 		t.Fatalf("expected error, got: %v", err)
 	}
 }
@@ -68,14 +59,11 @@ func TestRun_Error(t *testing.T) {
 // the stub returns 0. The captured Options confirm the field-by-field
 // mapping that main relies on.
 func TestRunMain_FlagsForwardedToHexaiaction(t *testing.T) {
-	old := runCommand
-	t.Cleanup(func() { runCommand = old })
-
 	var got hexaiaction.Options
-	runCommand = func(_ context.Context, opts hexaiaction.Options, _ io.Reader, _, _ io.Writer) error {
+	a := &app{runCommand: func(_ context.Context, opts hexaiaction.Options, _ io.Reader, _, _ io.Writer) error {
 		got = opts
 		return nil
-	}
+	}}
 
 	args := []string{
 		"-infile", "in.txt",
@@ -86,7 +74,7 @@ func TestRunMain_FlagsForwardedToHexaiaction(t *testing.T) {
 		"-ui-child",
 	}
 	var stderr bytes.Buffer
-	code := runMain(args, nil, &bytes.Buffer{}, &stderr)
+	code := a.runMain(args, nil, &bytes.Buffer{}, &stderr)
 	if code != 0 {
 		t.Fatalf("runMain code = %d, want 0; stderr=%q", code, stderr.String())
 	}
@@ -104,14 +92,12 @@ func TestRunMain_FlagsForwardedToHexaiaction(t *testing.T) {
 // On runCommand failure, runMain returns 1 (the production exit code) and
 // writes the error message to stderr so users see what went wrong.
 func TestRunMain_RuntimeErrorReturnsOne(t *testing.T) {
-	old := runCommand
-	t.Cleanup(func() { runCommand = old })
-	runCommand = func(context.Context, hexaiaction.Options, io.Reader, io.Writer, io.Writer) error {
+	a := &app{runCommand: func(context.Context, hexaiaction.Options, io.Reader, io.Writer, io.Writer) error {
 		return errors.New("action exploded")
-	}
+	}}
 
 	var stderr bytes.Buffer
-	code := runMain(nil, nil, &bytes.Buffer{}, &stderr)
+	code := a.runMain(nil, nil, &bytes.Buffer{}, &stderr)
 	if code != 1 {
 		t.Fatalf("runMain code = %d, want 1", code)
 	}
@@ -122,15 +108,13 @@ func TestRunMain_RuntimeErrorReturnsOne(t *testing.T) {
 
 // Bad flag must yield exit 2 without ever invoking runCommand.
 func TestRunMain_BadFlagReturnsTwo(t *testing.T) {
-	old := runCommand
-	t.Cleanup(func() { runCommand = old })
 	called := false
-	runCommand = func(context.Context, hexaiaction.Options, io.Reader, io.Writer, io.Writer) error {
+	a := &app{runCommand: func(context.Context, hexaiaction.Options, io.Reader, io.Writer, io.Writer) error {
 		called = true
 		return nil
-	}
+	}}
 	var stderr bytes.Buffer
-	code := runMain([]string{"--bogus"}, nil, &bytes.Buffer{}, &stderr)
+	code := a.runMain([]string{"--bogus"}, nil, &bytes.Buffer{}, &stderr)
 	if code != 2 {
 		t.Fatalf("runMain code = %d, want 2", code)
 	}

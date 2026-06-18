@@ -47,12 +47,13 @@ func TestCLIResponseCacheFingerprintChanges(t *testing.T) {
 func TestLookupCLIResponseCacheExpiresEntries(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 
-	oldNow := nowCLIResponseCache
-	nowCLIResponseCache = func() time.Time { return time.Date(2026, 3, 15, 10, 0, 0, 0, time.UTC) }
-	defer func() { nowCLIResponseCache = oldNow }()
+	// Inject a fake clock via a responseCache value, demonstrating dependency
+	// injection rather than mutating package state.
+	now := time.Date(2026, 3, 15, 10, 0, 0, 0, time.UTC)
+	cache := responseCache{now: func() time.Time { return now }}
 
 	key := newCLIResponseCacheKey("openai", "gpt-4.1", requestArgs{maxTokens: 10}, []llm.Message{{Role: "user", Content: "hello"}})
-	storeCLIResponseCache(key, "cached")
+	cache.store(key, "cached")
 
 	path, ok := cliResponseCachePath(key)
 	if !ok {
@@ -62,8 +63,9 @@ func TestLookupCLIResponseCacheExpiresEntries(t *testing.T) {
 		t.Fatalf("expected cache file: %v", err)
 	}
 
-	nowCLIResponseCache = func() time.Time { return time.Date(2026, 3, 16, 11, 0, 0, 0, time.UTC) }
-	if _, _, hit := lookupCLIResponseCache(key); hit {
+	// Advance the injected clock past the TTL so the entry expires.
+	now = time.Date(2026, 3, 16, 11, 0, 0, 0, time.UTC)
+	if _, _, hit := cache.lookup(key); hit {
 		t.Fatal("expected expired cache miss")
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -175,9 +177,8 @@ func TestRun_ExpiredCacheFallsBackToProvider(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 
-	oldNow := nowCLIResponseCache
-	nowCLIResponseCache = func() time.Time { return time.Date(2026, 3, 15, 10, 0, 0, 0, time.UTC) }
-	defer func() { nowCLIResponseCache = oldNow }()
+	now := time.Date(2026, 3, 15, 10, 0, 0, 0, time.UTC)
+	ctx := withCLIResponseCacheNow(context.Background(), func() time.Time { return now })
 
 	oldNew := newClientFromApp
 	defer func() { newClientFromApp = oldNew }()
@@ -192,13 +193,13 @@ func TestRun_ExpiredCacheFallsBackToProvider(t *testing.T) {
 		return &fakeClient{name: cfg.Provider, model: "gpt-4.1", resp: resp}, nil
 	}
 
-	if err := Run(context.Background(), []string{"hello"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+	if err := Run(ctx, []string{"hello"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatalf("first Run: %v", err)
 	}
 
-	nowCLIResponseCache = func() time.Time { return time.Date(2026, 3, 16, 11, 0, 0, 0, time.UTC) }
+	now = time.Date(2026, 3, 16, 11, 0, 0, 0, time.UTC)
 	var out, errb bytes.Buffer
-	if err := Run(context.Background(), []string{"hello"}, strings.NewReader(""), &out, &errb); err != nil {
+	if err := Run(ctx, []string{"hello"}, strings.NewReader(""), &out, &errb); err != nil {
 		t.Fatalf("second Run: %v", err)
 	}
 	if calls != 2 {

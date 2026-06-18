@@ -9,13 +9,10 @@ import (
 	"testing"
 )
 
-func stubEditorCapture(t *testing.T, content string, err error) {
-	t.Helper()
-	old := captureFromEditor
-	captureFromEditor = func(_ context.Context, initial []byte) (string, error) {
+func stubEditorCapture(d *Dispatcher, content string, err error) {
+	d.capture = func(_ context.Context, initial []byte) (string, error) {
 		return content, err
 	}
-	t.Cleanup(func() { captureFromEditor = old })
 }
 
 func TestHandleEdit_Success(t *testing.T) {
@@ -26,15 +23,14 @@ func TestHandleEdit_Success(t *testing.T) {
 			{UUID: "existing-uuid", Alias: "0", CreatedAt: now},
 		},
 	})
-	// editor.OpenTempAndEdit trims content, so mimic that here.
-	stubEditorCapture(t, "Multi line\ntask description", nil)
-
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		capturedArgs = args
 		_, _ = io.WriteString(stdout, "Created task abc-123-def.")
 		return 0, nil
 	}})
+	// editor.OpenTempAndEdit trims content, so mimic that here.
+	stubEditorCapture(d, "Multi line\ntask description", nil)
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"edit"}, nil, &stdout, &stderr)
@@ -58,15 +54,8 @@ func TestHandleEdit_ExistingTaskModifiesDescription(t *testing.T) {
 		},
 	})
 
-	var initialContent []byte
-	old := captureFromEditor
-	captureFromEditor = func(_ context.Context, initial []byte) (string, error) {
-		initialContent = initial
-		return "updated description", nil
-	}
-	t.Cleanup(func() { captureFromEditor = old })
-
 	var capturedArgs []string
+	var initialContent []byte
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		// First call: export to resolve selector. Subsequent: modify.
 		if len(args) >= 2 && args[1] == "export" {
@@ -76,6 +65,10 @@ func TestHandleEdit_ExistingTaskModifiesDescription(t *testing.T) {
 		capturedArgs = args
 		return 0, nil
 	}})
+	d.capture = func(_ context.Context, initial []byte) (string, error) {
+		initialContent = initial
+		return "updated description", nil
+	}
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"edit", "0"}, nil, &stdout, &stderr)
@@ -97,12 +90,11 @@ func TestHandleEdit_ExistingTaskModifiesDescription(t *testing.T) {
 }
 
 func TestHandleEdit_EmptyContentAborts(t *testing.T) {
-	stubEditorCapture(t, "", nil)
-
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		t.Fatalf("runner should not be called on empty content")
 		return 0, nil
 	}})
+	stubEditorCapture(d, "", nil)
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"edit"}, nil, &stdout, &stderr)
@@ -115,12 +107,11 @@ func TestHandleEdit_EmptyContentAborts(t *testing.T) {
 }
 
 func TestHandleEdit_EditorError(t *testing.T) {
-	stubEditorCapture(t, "", errors.New("boom"))
-
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		t.Fatalf("runner should not be called when editor fails")
 		return 0, nil
 	}})
+	stubEditorCapture(d, "", errors.New("boom"))
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"edit"}, nil, &stdout, &stderr)

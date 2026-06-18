@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 )
 
 // Runner performs CLI work that would otherwise be handled by the ask CLI itself.
@@ -14,18 +15,30 @@ type Runner interface {
 }
 
 // Dispatcher translates CLI arguments into concrete subcommands and presents the output.
+//
+// newTicker is the injected factory for the watch-loop ticker. Production code
+// uses the real time.Ticker-backed factory installed by NewDispatcher; tests
+// inject a fake ticker so they can drive the watch loop without real delays.
 type Dispatcher struct {
 	runner     Runner
 	jsonOutput bool
+	newTicker  func(time.Duration) watchTicker
+	capture    func(context.Context, []byte) (string, error)
 }
 
-// NewDispatcher creates a Dispatcher backed by the provided Runner or a default executor when nil.
+// NewDispatcher creates a Dispatcher backed by the provided Runner or a default
+// executor when nil. It wires the default real-ticker factory used by the
+// `ask watch` loop.
 func NewDispatcher(runner Runner) *Dispatcher {
 	if runner == nil {
 		e := NewExecutor("ask")
 		runner = &e
 	}
-	return &Dispatcher{runner: runner}
+	return &Dispatcher{
+		runner:    runner,
+		newTicker: newRealWatchTicker,
+		capture:   editorCapture,
+	}
 }
 
 func parseGlobalFlags(args []string) ([]string, bool) {

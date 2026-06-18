@@ -94,16 +94,14 @@ func TestBaseAgent_ClearInput_EmptyKeys(t *testing.T) {
 }
 
 func TestBaseAgent_ClearInput_Enabled(t *testing.T) {
-	noSleep(t)
 	var calls []string
-	oldSend := sendKeys
-	defer func() { sendKeys = oldSend }()
-	sendKeys = func(paneID string, keys ...string) error {
+	deps := noSleepDeps()
+	deps.sendKeys = func(paneID string, keys ...string) error {
 		calls = append(calls, fmt.Sprintf("send:%s:%s", paneID, strings.Join(keys, ",")))
 		return nil
 	}
 
-	b := &baseAgent{clearFirst: true, clearKeys: "C-u"}
+	b := &baseAgent{clearFirst: true, clearKeys: "C-u", deps: deps}
 	err := b.ClearInput("%2")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -114,14 +112,12 @@ func TestBaseAgent_ClearInput_Enabled(t *testing.T) {
 }
 
 func TestBaseAgent_ClearInput_Error(t *testing.T) {
-	noSleep(t)
-	oldSend := sendKeys
-	defer func() { sendKeys = oldSend }()
-	sendKeys = func(string, ...string) error {
+	deps := noSleepDeps()
+	deps.sendKeys = func(string, ...string) error {
 		return fmt.Errorf("send failed")
 	}
 
-	b := &baseAgent{clearFirst: true, clearKeys: "C-u"}
+	b := &baseAgent{clearFirst: true, clearKeys: "C-u", deps: deps}
 	err := b.ClearInput("%1")
 	if err == nil {
 		t.Fatal("expected error from sendClearSequence failure")

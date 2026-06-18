@@ -3,7 +3,6 @@ package tmux
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -33,7 +32,11 @@ func Enabled() bool {
 
 // SetUserOption sets a global tmux user option like @hexai_status to value.
 func SetUserOption(key, value string) error {
-	if !Enabled() || !HasBinary() || !InSession() {
+	return Runner{}.SetUserOption(key, value)
+}
+
+func (r Runner) SetUserOption(key, value string) error {
+	if !Enabled() || !r.HasBinary() || !InSession() {
 		return nil
 	}
 	k := strings.TrimPrefix(strings.TrimSpace(key), "@")
@@ -41,7 +44,7 @@ func SetUserOption(key, value string) error {
 		return nil
 	}
 	// Use set-option -g so it appears for all windows
-	return exec.Command("tmux", "set-option", "-g", "@"+k, value).Run()
+	return r.cmd("tmux", "set-option", "-g", "@"+k, value).Run()
 }
 
 // SetStatus is a convenience for setting @hexai_status.

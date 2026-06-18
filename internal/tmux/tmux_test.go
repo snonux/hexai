@@ -19,14 +19,12 @@ func TestInSession(t *testing.T) {
 }
 
 func TestHasBinary_UsesLookPath(t *testing.T) {
-	old := lookPath
-	t.Cleanup(func() { lookPath = old })
-	lookPath = func(file string) (string, error) { return "/bin/tmux", nil }
-	if !HasBinary() {
+	r := Runner{lookPath: func(file string) (string, error) { return "/bin/tmux", nil }}
+	if !r.HasBinary() {
 		t.Fatal("expected HasBinary true when lookPath succeeds")
 	}
-	lookPath = func(file string) (string, error) { return "", errors.New("nope") }
-	if HasBinary() {
+	r.lookPath = func(file string) (string, error) { return "", errors.New("nope") }
+	if r.HasBinary() {
 		t.Fatal("expected HasBinary false when lookPath fails")
 	}
 }
@@ -237,17 +235,15 @@ func TestSplitRun_AssemblesArgs(t *testing.T) {
 		name string
 		args []string
 	}{}
-	oldCmd := command
-	t.Cleanup(func() { command = oldCmd })
-	command = func(name string, args ...string) *exec.Cmd {
+	r := Runner{command: func(name string, args ...string) *exec.Cmd {
 		captured.name = name
 		captured.args = append([]string(nil), args...)
 		// Use a benign command that exits 0
 		return exec.Command("true")
-	}
+	}}
 	opts := SplitOpts{Target: ":.", Vertical: true, Percent: 40}
 	argv := []string{"/path/to/bin", "-flag", "value with spaces", "and'quote"}
-	if err := SplitRun(opts, argv); err != nil {
+	if err := r.SplitRun(opts, argv); err != nil {
 		t.Fatalf("SplitRun error: %v", err)
 	}
 	if captured.name != "tmux" {
@@ -270,17 +266,15 @@ func TestSplitRun_AssemblesArgs(t *testing.T) {
 }
 
 func TestAvailable(t *testing.T) {
-	oldLook := lookPath
-	t.Cleanup(func() { lookPath = oldLook })
 	// Present binary + TMUX set -> available
-	lookPath = func(file string) (string, error) { return "/bin/tmux", nil }
+	r := Runner{lookPath: func(file string) (string, error) { return "/bin/tmux", nil }}
 	t.Setenv("TMUX", "/tmp/tmux-1,1,1")
-	if !Available() {
+	if !r.Available() {
 		t.Fatal("expected Available true with TMUX + binary")
 	}
 	// No binary -> not available
-	lookPath = func(file string) (string, error) { return "", errors.New("nope") }
-	if Available() {
+	r.lookPath = func(file string) (string, error) { return "", errors.New("nope") }
+	if r.Available() {
 		t.Fatal("expected Available false without binary")
 	}
 }

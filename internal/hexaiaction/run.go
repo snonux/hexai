@@ -66,6 +66,8 @@ type actionClientFactory func(cfg appconfig.App) (actionClient, error)
 
 type actionConfigLoader func(context.Context, *log.Logger) appconfig.App
 
+type actionEditorOpener func(context.Context, []byte) (string, error)
+
 type actionStatusSink interface {
 	SetLLMStart(provider, model string) error
 }
@@ -75,6 +77,7 @@ type Runner struct {
 	chooseAction actionChooser
 	newClient    actionClientFactory
 	loadConfig   actionConfigLoader
+	openEditor   actionEditorOpener
 	statusSink   actionStatusSink
 }
 
@@ -84,6 +87,7 @@ func NewRunner() *Runner {
 		chooseAction: chooseActionFromConfig,
 		newClient:    defaultActionClientFactory,
 		loadConfig:   loadActionConfig,
+		openEditor:   editor.OpenTempAndEdit,
 		statusSink:   tmuxActionStatusSink{},
 	}
 }
@@ -115,6 +119,22 @@ func (tmuxActionStatusSink) SetLLMStart(provider, model string) error {
 
 func loadActionConfig(ctx context.Context, logger *log.Logger) appconfig.App {
 	return appconfig.LoadWithOptions(ctx, logger, appconfig.LoadOptions{ConfigPath: configPathFromContext(ctx)})
+}
+
+type actionEditorKey struct{}
+
+func withActionEditor(ctx context.Context, open actionEditorOpener) context.Context {
+	if open == nil {
+		open = editor.OpenTempAndEdit
+	}
+	return context.WithValue(ctx, actionEditorKey{}, open)
+}
+
+func actionEditorFromContext(ctx context.Context) actionEditorOpener {
+	if open, ok := ctx.Value(actionEditorKey{}).(actionEditorOpener); ok && open != nil {
+		return open
+	}
+	return editor.OpenTempAndEdit
 }
 
 type actionPlan struct {
@@ -154,6 +174,7 @@ func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Wri
 	chooser := chooseActionFromConfig
 	newClient := defaultActionClientFactory
 	loadConfig := loadActionConfig
+	openEditor := actionEditorOpener(editor.OpenTempAndEdit)
 	statusSink := actionStatusSink(tmuxActionStatusSink{})
 	if r != nil {
 		if r.chooseAction != nil {
@@ -164,6 +185,9 @@ func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Wri
 		}
 		if r.loadConfig != nil {
 			loadConfig = r.loadConfig
+		}
+		if r.openEditor != nil {
+			openEditor = r.openEditor
 		}
 		if r.statusSink != nil {
 			statusSink = r.statusSink
@@ -208,7 +232,7 @@ func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Wri
 	if err != nil {
 		return err
 	}
-	out, err := executeAction(ctx, choice.kind, parts, &cfg, client, stderr, choice.custom)
+	out, err := executeAction(withActionEditor(ctx, openEditor), choice.kind, parts, &cfg, client, stderr, choice.custom)
 	if err != nil {
 		return err
 	}
@@ -381,7 +405,7 @@ func handleCustomAction(ctx context.Context, parts InputParts, cfg actionConfig,
 }
 
 func handleCustomPromptAction(ctx context.Context, parts InputParts, cfg actionConfig, client chatDoer, stderr io.Writer) (string, error) {
-	prompt, err := editor.OpenTempAndEdit(ctx, nil)
+	prompt, err := actionEditorFromContext(ctx)(ctx, nil)
 	if err != nil || strings.TrimSpace(prompt) == "" {
 		_, _ = fmt.Fprintln(stderr, logging.AnsiBase+"hexai-tmux-action: custom prompt canceled or empty; echoing input"+logging.AnsiReset)
 		return parts.Selection, nil

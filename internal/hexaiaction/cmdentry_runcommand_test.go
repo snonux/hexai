@@ -16,14 +16,12 @@ func TestRunCommand_UIChild(t *testing.T) {
 	in := filepath.Join(dir, "in.txt")
 	out := filepath.Join(dir, "out.txt")
 	_ = os.WriteFile(in, []byte("sel"), 0o600)
-	old := runFn
-	runFn = func(_ context.Context, _ io.Reader, w io.Writer, _ io.Writer) error {
+	r := commandRunner{run: func(_ context.Context, _ io.Reader, w io.Writer, _ io.Writer) error {
 		_, _ = io.WriteString(w, "OK")
 		return nil
-	}
-	t.Cleanup(func() { runFn = old })
+	}}
 	opts := Options{Infile: in, Outfile: out, UIChild: true}
-	if err := RunCommand(context.Background(), opts, bytes.NewBuffer(nil), io.Discard, io.Discard); err != nil {
+	if err := r.RunCommand(context.Background(), opts, bytes.NewBuffer(nil), io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunCommand UIChild: %v", err)
 	}
 	b, _ := os.ReadFile(out)
@@ -33,10 +31,9 @@ func TestRunCommand_UIChild(t *testing.T) {
 }
 
 func TestRunCommand_Tmux(t *testing.T) {
-	oldExec := osExecutableFn
-	oldPopup := popupRunFn
-	osExecutableFn = func() (string, error) { return "/bin/hexai-tmux-action", nil }
-	popupRunFn = func(_ tmux.PopupOpts, argv []string) error {
+	r := commandRunner{}
+	r.osExecutable = func() (string, error) { return "/bin/hexai-tmux-action", nil }
+	r.popupRun = func(_ tmux.PopupOpts, argv []string) error {
 		for i := 0; i < len(argv)-1; i++ {
 			if argv[i] == "-outfile" && i+1 < len(argv) {
 				_ = os.WriteFile(argv[i+1], []byte("OUT"), 0o600)
@@ -45,9 +42,8 @@ func TestRunCommand_Tmux(t *testing.T) {
 		}
 		return nil
 	}
-	defer func() { osExecutableFn = oldExec; popupRunFn = oldPopup }()
 	var out bytes.Buffer
-	if err := RunCommand(context.Background(), Options{}, bytes.NewBufferString("X"), &out, io.Discard); err != nil {
+	if err := r.RunCommand(context.Background(), Options{}, bytes.NewBufferString("X"), &out, io.Discard); err != nil {
 		t.Fatalf("RunCommand tmux: %v", err)
 	}
 	if out.String() != "OUT" {
