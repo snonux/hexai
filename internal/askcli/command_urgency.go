@@ -23,5 +23,5 @@ func (d *Dispatcher) handleUrgency(ctx context.Context, args []string, stdout, s
 	sort.Slice(tasks, func(i, j int) bool {
 		return tasks[i].Urgency > tasks[j].Urgency
 	})
-	return renderTaskList(tasks, stdout, stderr, d.jsonOutput)
+	return renderTaskListWithAliasLoader(tasks, stdout, stderr, d.jsonOutput, d.aliasCache.withDefaults().ensureTaskAliases)
 }

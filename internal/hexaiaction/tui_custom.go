@@ -29,7 +29,7 @@ func (r tuiRunner) program(m model) teaProgram {
 func (r tuiRunner) RunTUIWithCustom(customs []appconfig.CustomAction, menuHotkey string) (ActionKind, *appconfig.CustomAction, error) {
 	// When no customs, fall back to default menu
 	if len(customs) == 0 {
-		kind, err := RunTUI()
+		kind, err := r.RunTUI()
 		return kind, nil, err
 	}
 	// Build main menu with an extra entry

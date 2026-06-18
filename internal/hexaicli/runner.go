@@ -69,6 +69,9 @@ func NewRunner() *Runner {
 
 func (r *Runner) Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	runner := normalizeRunner(r)
+	if factory := clientFactoryFromContext(ctx); factory != nil {
+		runner.newClient = factory
+	}
 	if len(args) > 0 {
 		sub := args[0]
 		if sub == "config" {

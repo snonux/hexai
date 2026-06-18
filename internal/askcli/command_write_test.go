@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -15,15 +14,8 @@ func useIsolatedTaskAliasCache(t *testing.T) time.Time {
 	t.Helper()
 
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
 	fixedNow := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return fixedNow }
-	t.Cleanup(func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	})
+	t.Setenv("XDG_CACHE_HOME", dir)
 	return fixedNow
 }
 

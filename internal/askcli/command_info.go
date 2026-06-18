@@ -16,7 +16,7 @@ func (d *Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stde
 		return code, nil
 	}
 	allUUIDs := append([]string{tasks[0].UUID}, tasks[0].Depends...)
-	aliases, err := ensureTaskAliasesForUUIDs(allUUIDs)
+	aliases, err := d.aliasCache.withDefaults().ensureTaskAliasesForUUIDs(allUUIDs)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 		return 1, nil

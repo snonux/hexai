@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,22 +13,16 @@ import (
 func TestHandleInfo_Success(t *testing.T) {
 	unsetTestEnv(t, "HEXAI_DEBUG")
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "dep-1", Alias: "1", CreatedAt: nowTaskAliasCache()},
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "dep-1", Alias: "1", CreatedAt: now},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli","agent"],"urgency":15.0,"depends":["dep-1"],"annotations":[{"description":"Note 1","entry":"2026-03-22T10:00:00Z"}]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -39,6 +32,7 @@ func TestHandleInfo_Success(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"info", "test-uuid"}, nil, &stdout, &stderr)
 	if code != 0 {
@@ -68,21 +62,15 @@ func TestHandleInfo_Success(t *testing.T) {
 func TestHandleInfo_Success_DebugShowsUUID(t *testing.T) {
 	t.Setenv("HEXAI_DEBUG", "true")
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli","agent"],"urgency":15.0,"depends":[],"annotations":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -91,6 +79,7 @@ func TestHandleInfo_Success_DebugShowsUUID(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"info", "test-uuid"}, nil, &stdout, &stderr)
@@ -107,21 +96,15 @@ func TestHandleInfo_Success_DebugShowsUUID(t *testing.T) {
 
 func TestHandleInfo_AssignsDependencyAliasesFromInfo(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":["dep-b","dep-a"]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -130,6 +113,7 @@ func TestHandleInfo_AssignsDependencyAliasesFromInfo(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"info", "test-uuid"}, nil, &stdout, &stderr)
@@ -149,21 +133,15 @@ func TestHandleInfo_AssignsDependencyAliasesFromInfo(t *testing.T) {
 func TestHandleInfo_AliasSelector(t *testing.T) {
 	unsetTestEnv(t, "HEXAI_DEBUG")
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -172,6 +150,7 @@ func TestHandleInfo_AliasSelector(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"info", "0"}, nil, &stdout, &stderr)
@@ -188,21 +167,15 @@ func TestHandleInfo_AliasSelector(t *testing.T) {
 
 func TestHandleInfo_JSONIncludesAliasID(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -211,6 +184,7 @@ func TestHandleInfo_JSONIncludesAliasID(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"--json", "info", "0"}, nil, &stdout, &stderr)
@@ -247,14 +221,8 @@ func TestHandleInfo_NumericID(t *testing.T) {
 func TestHandleInfo_MissingUUID(t *testing.T) {
 	unsetTestEnv(t, "HEXAI_DEBUG")
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	jsonData := `[{"uuid":"started-uuid","description":"Started task","status":"pending","priority":"M","start":"2026-03-26T10:00:00Z","urgency":5.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -263,6 +231,7 @@ func TestHandleInfo_MissingUUID(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"info"}, nil, &stdout, &stderr)
 	if code != 0 {
@@ -349,14 +318,11 @@ func TestHandleAdd_Success(t *testing.T) {
 // This prevents the previous bug where the user saw exit 1 and retried,
 // creating duplicate tasks.
 func TestHandleAdd_AliasAssignmentFailure(t *testing.T) {
-	oldRoot := taskAliasCacheRoot
-	taskAliasCacheRoot = func() (string, error) { return "", io.ErrUnexpectedEOF }
-	defer func() { taskAliasCacheRoot = oldRoot }()
-
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		_, _ = io.WriteString(stdout, "Created task abc-123-def.")
 		return 0, nil
 	}})
+	d.aliasCache = taskAliasCacheDeps{cacheRoot: func() (string, error) { return "", io.ErrUnexpectedEOF }}
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"add", "New task description"}, nil, &stdout, &stderr)

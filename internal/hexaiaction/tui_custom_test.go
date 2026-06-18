@@ -71,3 +71,20 @@ func TestRunTUIWithCustom_SubmenuAndHotkeys(t *testing.T) {
 		t.Fatalf("expected selected custom a, got %+v", selected)
 	}
 }
+
+func TestRunTUIWithCustom_EmptyCustomsUsesRunner(t *testing.T) {
+	r := tuiRunner{newProgram: func(m model) teaProgram {
+		return fakeProg{m: m, onRun: func(mm *model) { mm.chosen = ActionDocument }}
+	}}
+
+	kind, selected, err := r.RunTUIWithCustom(nil, "")
+	if err != nil {
+		t.Fatalf("RunTUIWithCustom error: %v", err)
+	}
+	if kind != ActionDocument {
+		t.Fatalf("kind = %s, want %s", kind, ActionDocument)
+	}
+	if selected != nil {
+		t.Fatalf("selected = %+v, want nil", selected)
+	}
+}

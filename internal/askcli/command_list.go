@@ -55,7 +55,7 @@ func (d *Dispatcher) handleListWithFilters(ctx context.Context, initialFilters, 
 		}
 		return tasks[i].Urgency > tasks[j].Urgency
 	})
-	return renderTaskList(tasks, stdout, stderr, d.jsonOutput)
+	return renderTaskListWithAliasLoader(tasks, stdout, stderr, d.jsonOutput, d.aliasCache.withDefaults().ensureTaskAliases)
 }
 
 func priorityOrder(p string) int {

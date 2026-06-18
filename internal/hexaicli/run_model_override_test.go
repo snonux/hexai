@@ -24,16 +24,15 @@ func TestRun_ModelEnvOverride_FlowsIntoClient(t *testing.T) {
 	t.Setenv("HEXAI_MODEL", "gpt-5-codex")
 	t.Setenv("HEXAI_PROVIDER", "openai")
 	// Replace client constructor to assert model was overridden
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
 	var seenModel string
-	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
+	clientFactory := func(cfg appconfig.App) (llm.Client, error) {
 		seenModel = strings.TrimSpace(cfg.OpenAIModel)
 		return fakeClientModelEnv{name: "openai", model: cfg.OpenAIModel}, nil
 	}
 
 	var out, errb bytes.Buffer
-	if err := Run(context.Background(), []string{"hello"}, strings.NewReader(""), &out, &errb); err != nil {
+	ctx := withCLIClientFactory(context.Background(), clientFactory)
+	if err := Run(ctx, []string{"hello"}, strings.NewReader(""), &out, &errb); err != nil {
 		t.Fatalf("run error: %v", err)
 	}
 	if seenModel != "gpt-5-codex" {

@@ -5,11 +5,9 @@ import (
 	"context"
 	"io"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestDispatcher_Help(t *testing.T) {
@@ -45,14 +43,7 @@ func TestDispatcher_Help(t *testing.T) {
 
 func TestDispatcher_DefaultsInvalidSubcommandToAdd(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	t.Setenv("XDG_CACHE_HOME", dir)
 
 	tests := []struct {
 		name        string
@@ -136,14 +127,7 @@ func TestDispatcher_CompleteUUIDsSubcommand(t *testing.T) {
 	// Use a temp dir for the alias cache so this test is hermetic and does
 	// not depend on cache state left by other tests.
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	t.Setenv("XDG_CACHE_HOME", dir)
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if strings.Join(args, " ") != "status:pending export" {
@@ -168,14 +152,7 @@ func TestDispatcher_CompleteUUIDsSubcommand(t *testing.T) {
 
 func TestDispatcher_CompleteAliasesSubcommand(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	t.Setenv("XDG_CACHE_HOME", dir)
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if strings.Join(args, " ") != "status:pending export" {
@@ -448,14 +425,7 @@ func TestDispatcher_NoAgentPrefix_StripsScopePrefix(t *testing.T) {
 
 func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	t.Setenv("XDG_CACHE_HOME", dir)
 
 	taskJSONFor := func(uuid string) string {
 		return `[{"uuid":"` + uuid + `","description":"Test","status":"pending","priority":"M","tags":[],"urgency":10,"depends":[]}]`

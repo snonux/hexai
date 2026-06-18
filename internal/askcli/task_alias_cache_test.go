@@ -75,17 +75,11 @@ func TestEnsureTaskAliases_PersistsAliasesAndTracksAccess(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", dir)
 
-	oldNow := nowTaskAliasCache
-	oldRoot := taskAliasCacheRoot
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() {
-		nowTaskAliasCache = oldNow
-		taskAliasCacheRoot = oldRoot
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	tasks := []TaskExport{{UUID: "uuid-1"}, {UUID: "uuid-2"}}
-	aliases, err := ensureTaskAliases(tasks)
+	aliases, err := deps.ensureTaskAliases(tasks)
 	if err != nil {
 		t.Fatalf("ensureTaskAliases returned error: %v", err)
 	}
@@ -93,7 +87,7 @@ func TestEnsureTaskAliases_PersistsAliasesAndTracksAccess(t *testing.T) {
 		t.Fatalf("aliases = %#v, want sequential aliases", aliases)
 	}
 
-	path, err := taskAliasCachePath()
+	path, err := deps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}
@@ -105,8 +99,8 @@ func TestEnsureTaskAliases_PersistsAliasesAndTracksAccess(t *testing.T) {
 		t.Fatalf("len(Entries) = %d, want 2", len(cache.Entries))
 	}
 
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC) }
-	aliases, err = ensureTaskAliases([]TaskExport{{UUID: "uuid-2"}, {UUID: "uuid-3"}})
+	now = time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC)
+	aliases, err = deps.ensureTaskAliases([]TaskExport{{UUID: "uuid-2"}, {UUID: "uuid-3"}})
 	if err != nil {
 		t.Fatalf("ensureTaskAliases second call returned error: %v", err)
 	}
@@ -119,24 +113,18 @@ func TestEnsureTaskAliases_PersistsAliasesAndTracksAccess(t *testing.T) {
 		t.Fatalf("NextID after second call = %d, want 3", cache.NextID)
 	}
 	entry := findTaskAliasEntry(t, cache, "uuid-2")
-	if got := entry.LastAccessedAt; !got.Equal(nowTaskAliasCache()) {
-		t.Fatalf("LastAccessedAt = %s, want %s", got, nowTaskAliasCache())
+	if got := entry.LastAccessedAt; !got.Equal(now) {
+		t.Fatalf("LastAccessedAt = %s, want %s", got, now)
 	}
 }
 
 func TestEnsureTaskAliases_PrunesExpiredEntriesWithoutReusingIDs(t *testing.T) {
 	dir := t.TempDir()
 
-	oldNow := nowTaskAliasCache
-	oldRoot := taskAliasCacheRoot
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() {
-		nowTaskAliasCache = oldNow
-		taskAliasCacheRoot = oldRoot
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
-	path, err := taskAliasCachePath()
+	path, err := deps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}
@@ -162,7 +150,7 @@ func TestEnsureTaskAliases_PrunesExpiredEntriesWithoutReusingIDs(t *testing.T) {
 		t.Fatalf("save seed cache: %v", err)
 	}
 
-	aliases, err := ensureTaskAliases([]TaskExport{{UUID: "fresh"}, {UUID: "new-task"}})
+	aliases, err := deps.ensureTaskAliases([]TaskExport{{UUID: "fresh"}, {UUID: "new-task"}})
 	if err != nil {
 		t.Fatalf("ensureTaskAliases returned error: %v", err)
 	}
@@ -188,21 +176,15 @@ func TestEnsureTaskAliases_PrunesExpiredEntriesWithoutReusingIDs(t *testing.T) {
 func TestEnsureTaskAliases_DoesNotPruneEntriesAt120DayBoundary(t *testing.T) {
 	dir := t.TempDir()
 
-	oldNow := nowTaskAliasCache
-	oldRoot := taskAliasCacheRoot
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() {
-		nowTaskAliasCache = oldNow
-		taskAliasCacheRoot = oldRoot
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
-	path, err := taskAliasCachePath()
+	path, err := deps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}
 
-	boundary := nowTaskAliasCache().Add(-taskAliasCacheTTL)
+	boundary := now.Add(-taskAliasCacheTTL)
 	cache := taskAliasCache{
 		NextID: 37,
 		Entries: []taskAliasCacheEntry{
@@ -218,7 +200,7 @@ func TestEnsureTaskAliases_DoesNotPruneEntriesAt120DayBoundary(t *testing.T) {
 		t.Fatalf("save seed cache: %v", err)
 	}
 
-	aliases, err := ensureTaskAliases([]TaskExport{{UUID: "boundary"}})
+	aliases, err := deps.ensureTaskAliases([]TaskExport{{UUID: "boundary"}})
 	if err != nil {
 		t.Fatalf("ensureTaskAliases returned error: %v", err)
 	}
@@ -234,12 +216,9 @@ func TestEnsureTaskAliases_DoesNotPruneEntriesAt120DayBoundary(t *testing.T) {
 
 func TestEnsureTaskAliases_CorruptedCacheIsResetGracefully(t *testing.T) {
 	dir := t.TempDir()
+	deps := testTaskAliasCacheDeps(dir, nil)
 
-	oldRoot := taskAliasCacheRoot
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() { taskAliasCacheRoot = oldRoot }()
-
-	path, err := taskAliasCachePath()
+	path, err := deps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}
@@ -253,7 +232,7 @@ func TestEnsureTaskAliases_CorruptedCacheIsResetGracefully(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	aliases, err := ensureTaskAliases([]TaskExport{{UUID: "uuid-1"}})
+	aliases, err := deps.ensureTaskAliases([]TaskExport{{UUID: "uuid-1"}})
 	if err != nil {
 		t.Fatalf("expected graceful recovery from corrupted cache, got error: %v", err)
 	}
@@ -269,12 +248,9 @@ func TestEnsureTaskAliases_CorruptedCacheIsResetGracefully(t *testing.T) {
 
 func TestEnsureTaskAliases_RejectsNextIDReuse(t *testing.T) {
 	dir := t.TempDir()
+	deps := testTaskAliasCacheDeps(dir, nil)
 
-	oldRoot := taskAliasCacheRoot
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() { taskAliasCacheRoot = oldRoot }()
-
-	path, err := taskAliasCachePath()
+	path, err := deps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}
@@ -289,7 +265,7 @@ func TestEnsureTaskAliases_RejectsNextIDReuse(t *testing.T) {
 		t.Fatalf("save seed cache: %v", err)
 	}
 
-	if _, err := ensureTaskAliases([]TaskExport{{UUID: "uuid-2"}}); err == nil {
+	if _, err := deps.ensureTaskAliases([]TaskExport{{UUID: "uuid-2"}}); err == nil {
 		t.Fatal("expected error when next_id would reuse an alias")
 	}
 }
@@ -297,14 +273,8 @@ func TestEnsureTaskAliases_RejectsNextIDReuse(t *testing.T) {
 func TestEnsureTaskAliases_ConcurrentCallsDoNotRaceOnTempFile(t *testing.T) {
 	dir := t.TempDir()
 
-	oldNow := nowTaskAliasCache
-	oldRoot := taskAliasCacheRoot
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() {
-		nowTaskAliasCache = oldNow
-		taskAliasCacheRoot = oldRoot
-	}()
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	const goroutines = 16
 	uuids := make([]string, goroutines)
@@ -324,7 +294,7 @@ func TestEnsureTaskAliases_ConcurrentCallsDoNotRaceOnTempFile(t *testing.T) {
 		go func(idx int) {
 			defer done.Done()
 			start.Wait()
-			_, err := ensureTaskAliases([]TaskExport{{UUID: uuids[idx]}})
+			_, err := deps.ensureTaskAliases([]TaskExport{{UUID: uuids[idx]}})
 			errs[idx] = err
 		}(i)
 	}
@@ -337,7 +307,7 @@ func TestEnsureTaskAliases_ConcurrentCallsDoNotRaceOnTempFile(t *testing.T) {
 		}
 	}
 
-	path, err := taskAliasCachePath()
+	path, err := deps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}

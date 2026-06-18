@@ -36,7 +36,7 @@ func (d *Dispatcher) completeTaskSelectors(ctx context.Context, args []string, s
 		fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
 		return 1, nil
 	}
-	aliases, err := ensureTaskAliases(tasks)
+	aliases, err := d.aliasCache.withDefaults().ensureTaskAliases(tasks)
 	if err != nil {
 		fmt.Fprintf(stderr, "warning: failed to update task alias cache: %v\n", err)
 		aliases = nil

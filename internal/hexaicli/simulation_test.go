@@ -65,15 +65,13 @@ func TestReadSimulationInput_DefaultsToSampleText(t *testing.T) {
 }
 
 func TestRun_TPSSimulationBypassesClientSetup(t *testing.T) {
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
-	newClientFromApp = func(appconfig.App) (llm.Client, error) {
+	clientFactory := func(appconfig.App) (llm.Client, error) {
 		t.Fatalf("client setup should not be called in TPS simulation mode")
 		return nil, nil
 	}
 
 	var out, errb bytes.Buffer
-	ctx := WithCLITPSSimulation(context.Background(), "1000000")
+	ctx := withCLIClientFactory(WithCLITPSSimulation(context.Background(), "1000000"), clientFactory)
 	if err := Run(ctx, []string{"simulated", "output"}, strings.NewReader(""), &out, &errb); err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
@@ -86,9 +84,7 @@ func TestRun_TPSSimulationBypassesClientSetup(t *testing.T) {
 }
 
 func TestRun_TPSSimulationUsesStdin(t *testing.T) {
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
-	newClientFromApp = func(appconfig.App) (llm.Client, error) {
+	clientFactory := func(appconfig.App) (llm.Client, error) {
 		t.Fatalf("client setup should not be called in TPS simulation mode")
 		return nil, nil
 	}
@@ -97,7 +93,7 @@ func TestRun_TPSSimulationUsesStdin(t *testing.T) {
 	defer restore()
 
 	var out, errb bytes.Buffer
-	ctx := WithCLITPSSimulation(context.Background(), "1000000")
+	ctx := withCLIClientFactory(WithCLITPSSimulation(context.Background(), "1000000"), clientFactory)
 	if err := Run(ctx, nil, f, &out, &errb); err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}

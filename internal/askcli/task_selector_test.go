@@ -14,14 +14,8 @@ import (
 
 func TestResolveTaskSelectorFromCache_TouchesAliasEntry(t *testing.T) {
 	dir := t.TempDir()
-	oldNow := nowTaskAliasCache
-	oldRoot := taskAliasCacheRoot
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() {
-		nowTaskAliasCache = oldNow
-		taskAliasCacheRoot = oldRoot
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
@@ -33,9 +27,9 @@ func TestResolveTaskSelectorFromCache_TouchesAliasEntry(t *testing.T) {
 				LastAccessedAt: time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC),
 			},
 		},
-	})
+	}, deps)
 
-	resolved, err := resolveTaskSelectorFromCache("0", true)
+	resolved, err := deps.resolveTaskSelectorFromCache("0", true)
 	if err != nil {
 		t.Fatalf("resolveTaskSelectorFromCache returned error: %v", err)
 	}
@@ -43,20 +37,18 @@ func TestResolveTaskSelectorFromCache_TouchesAliasEntry(t *testing.T) {
 		t.Fatalf("resolved = %+v, want alias hit for task-uuid-1", resolved)
 	}
 
-	cache := readTaskAliasCacheSnapshot(t)
+	cache := readTaskAliasCacheSnapshot(t, deps)
 	entry := findTaskAliasEntry(t, cache, "task-uuid-1")
-	if got := entry.LastAccessedAt; !got.Equal(nowTaskAliasCache()) {
-		t.Fatalf("LastAccessedAt = %s, want %s", got, nowTaskAliasCache())
+	if got := entry.LastAccessedAt; !got.Equal(now) {
+		t.Fatalf("LastAccessedAt = %s, want %s", got, now)
 	}
 }
 
 func TestResolveTaskSelectorFromCache_MissingAlias(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() { taskAliasCacheRoot = oldRoot }()
+	deps := testTaskAliasCacheDeps(dir, nil)
 
-	_, err := resolveTaskSelectorFromCache("a", true)
+	_, err := deps.resolveTaskSelectorFromCache("a", true)
 	if err == nil {
 		t.Fatal("resolveTaskSelectorFromCache returned nil error, want missing alias failure")
 	}
@@ -67,24 +59,18 @@ func TestResolveTaskSelectorFromCache_MissingAlias(t *testing.T) {
 
 func TestResolveTaskSelectorFromCache_AmbiguousSelector(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 11,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "a", Alias: "1", CreatedAt: nowTaskAliasCache()},
-			{UUID: "task-uuid-2", Alias: "a", CreatedAt: nowTaskAliasCache()},
+			{UUID: "a", Alias: "1", CreatedAt: now},
+			{UUID: "task-uuid-2", Alias: "a", CreatedAt: now},
 		},
-	})
+	}, deps)
 
-	_, err := resolveTaskSelectorFromCache("a", true)
+	_, err := deps.resolveTaskSelectorFromCache("a", true)
 	if err == nil {
 		t.Fatal("resolveTaskSelectorFromCache returned nil error, want ambiguity")
 	}
@@ -95,21 +81,15 @@ func TestResolveTaskSelectorFromCache_AmbiguousSelector(t *testing.T) {
 
 func TestHandleInfo_StaleAlias(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "task-uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "task-uuid-1", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "uuid:task-uuid-1" && args[1] == "export" {
@@ -117,6 +97,7 @@ func TestHandleInfo_StaleAlias(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"info", "0"}, nil, &stdout, &stderr)
@@ -128,9 +109,25 @@ func TestHandleInfo_StaleAlias(t *testing.T) {
 	}
 }
 
-func writeTaskAliasCacheForTest(t *testing.T, cache taskAliasCache) {
+func testTaskAliasCacheDeps(dir string, now *time.Time) taskAliasCacheDeps {
+	return taskAliasCacheDeps{
+		now: func() time.Time {
+			if now == nil {
+				return time.Now()
+			}
+			return *now
+		},
+		cacheRoot: func() (string, error) { return filepath.Join(dir, "hexai"), nil },
+	}
+}
+
+func writeTaskAliasCacheForTest(t *testing.T, cache taskAliasCache, deps ...taskAliasCacheDeps) {
 	t.Helper()
-	path, err := taskAliasCachePath()
+	aliasDeps := defaultTaskAliasCacheDeps()
+	if len(deps) > 0 {
+		aliasDeps = deps[0]
+	}
+	path, err := aliasDeps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}
@@ -139,9 +136,13 @@ func writeTaskAliasCacheForTest(t *testing.T, cache taskAliasCache) {
 	}
 }
 
-func readTaskAliasCacheSnapshot(t *testing.T) taskAliasCache {
+func readTaskAliasCacheSnapshot(t *testing.T, deps ...taskAliasCacheDeps) taskAliasCache {
 	t.Helper()
-	path, err := taskAliasCachePath()
+	aliasDeps := defaultTaskAliasCacheDeps()
+	if len(deps) > 0 {
+		aliasDeps = deps[0]
+	}
+	path, err := aliasDeps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}

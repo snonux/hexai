@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,21 +11,15 @@ import (
 
 func TestHandleDelete_Success(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid-123", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid-123", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[0] == "uuid:test-uuid-123" && args[1] == "export" {
@@ -35,6 +28,7 @@ func TestHandleDelete_Success(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(context.Background(), []string{"delete", "test-uuid-123"}, &bytes.Buffer{}, &stdout, &stderr)
 	if code != 0 {
@@ -120,21 +114,15 @@ func TestHandleDelete_PassesCorrectArgs(t *testing.T) {
 
 func TestHandleDelete_AliasSelector(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "test-uuid-123", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "test-uuid-123", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -145,6 +133,7 @@ func TestHandleDelete_AliasSelector(t *testing.T) {
 		capturedArgs = args
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"delete", "0"}, &bytes.Buffer{}, &stdout, &stderr)

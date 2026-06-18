@@ -342,9 +342,7 @@ func TestCacheHitSummary_NegativeAge(t *testing.T) {
 func TestRunCLIJobs_MultiJob_WritesOutputs(t *testing.T) {
 	// runCLIJobs with multiple jobs should call writeCLIJobOutputs
 	// (the non-streaming, non-printer path).
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
-	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
+	clientFactory := func(cfg appconfig.App) (llm.Client, error) {
 		return &fakeClient{name: cfg.Provider, model: "m", resp: "out-" + cfg.Provider}, nil
 	}
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
@@ -400,7 +398,7 @@ func TestRunCLIJobs_MultiJob_WritesOutputs(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if err := runCLIJobs(context.Background(), singleJobs, msgs, "hello", &stdout, &stderr, newClientFromApp, nil); err != nil {
+	if err := runCLIJobs(context.Background(), singleJobs, msgs, "hello", &stdout, &stderr, clientFactory, nil); err != nil {
 		t.Fatalf("runCLIJobs single: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "out-a") {

@@ -20,10 +20,13 @@ type Runner interface {
 // uses the real time.Ticker-backed factory installed by NewDispatcher; tests
 // inject a fake ticker so they can drive the watch loop without real delays.
 type Dispatcher struct {
-	runner     Runner
-	jsonOutput bool
-	newTicker  func(time.Duration) watchTicker
-	capture    func(context.Context, []byte) (string, error)
+	runner         Runner
+	jsonOutput     bool
+	newTicker      func(time.Duration) watchTicker
+	capture        func(context.Context, []byte) (string, error)
+	aliasCache     taskAliasCacheDeps
+	findTaskBinary func() (string, error)
+	runTaskCommand taskCommandRunner
 }
 
 // NewDispatcher creates a Dispatcher backed by the provided Runner or a default
@@ -35,9 +38,12 @@ func NewDispatcher(runner Runner) *Dispatcher {
 		runner = &e
 	}
 	return &Dispatcher{
-		runner:    runner,
-		newTicker: newRealWatchTicker,
-		capture:   editorCapture,
+		runner:         runner,
+		newTicker:      newRealWatchTicker,
+		capture:        editorCapture,
+		aliasCache:     defaultTaskAliasCacheDeps(),
+		findTaskBinary: findTaskBinary,
+		runTaskCommand: runTaskCommand,
 	}
 }
 

@@ -11,15 +11,9 @@ import (
 )
 
 func TestHandleProjects_ListsUniqueProjects(t *testing.T) {
-	oldFind := projectsFindTaskBinary
-	oldRun := projectsRunTaskCommand
-	t.Cleanup(func() {
-		projectsFindTaskBinary = oldFind
-		projectsRunTaskCommand = oldRun
-	})
-
-	projectsFindTaskBinary = func() (string, error) { return "task", nil }
-	projectsRunTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	d := NewDispatcher(nil)
+	d.findTaskBinary = func() (string, error) { return "task", nil }
+	d.runTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		tasks := []TaskExport{
 			{UUID: "1", Project: "hexai", Status: "pending", Urgency: 1},
 			{UUID: "2", Project: "dtail", Status: "pending", Urgency: 2, Start: "2026-01-01T00:00:00Z"},
@@ -31,7 +25,6 @@ func TestHandleProjects_ListsUniqueProjects(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	d := NewDispatcher(nil)
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(ctx, []string{"projects"}, nil, &stdout, &stderr)
 	if err != nil {
@@ -48,15 +41,9 @@ func TestHandleProjects_ListsUniqueProjects(t *testing.T) {
 }
 
 func TestHandleProjects_JSONOutput(t *testing.T) {
-	oldFind := projectsFindTaskBinary
-	oldRun := projectsRunTaskCommand
-	t.Cleanup(func() {
-		projectsFindTaskBinary = oldFind
-		projectsRunTaskCommand = oldRun
-	})
-
-	projectsFindTaskBinary = func() (string, error) { return "task", nil }
-	projectsRunTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	d := NewDispatcher(nil)
+	d.findTaskBinary = func() (string, error) { return "task", nil }
+	d.runTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		tasks := []TaskExport{
 			{UUID: "1", Project: "hexai", Status: "pending", Urgency: 1},
 			{UUID: "2", Project: "dtail", Status: "pending", Urgency: 2},
@@ -66,7 +53,6 @@ func TestHandleProjects_JSONOutput(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	d := NewDispatcher(nil)
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(ctx, []string{"--json", "projects"}, nil, &stdout, &stderr)
 	if err != nil {
@@ -82,21 +68,14 @@ func TestHandleProjects_JSONOutput(t *testing.T) {
 }
 
 func TestHandleProjects_EmptyResult(t *testing.T) {
-	oldFind := projectsFindTaskBinary
-	oldRun := projectsRunTaskCommand
-	t.Cleanup(func() {
-		projectsFindTaskBinary = oldFind
-		projectsRunTaskCommand = oldRun
-	})
-
-	projectsFindTaskBinary = func() (string, error) { return "task", nil }
-	projectsRunTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	d := NewDispatcher(nil)
+	d.findTaskBinary = func() (string, error) { return "task", nil }
+	d.runTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		_, _ = io.WriteString(stdout, "[]")
 		return nil
 	}
 
 	ctx := context.Background()
-	d := NewDispatcher(nil)
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(ctx, []string{"projects"}, nil, &stdout, &stderr)
 	if err != nil {
@@ -111,20 +90,13 @@ func TestHandleProjects_EmptyResult(t *testing.T) {
 }
 
 func TestHandleProjects_ForwardsTaskExportError(t *testing.T) {
-	oldFind := projectsFindTaskBinary
-	oldRun := projectsRunTaskCommand
-	t.Cleanup(func() {
-		projectsFindTaskBinary = oldFind
-		projectsRunTaskCommand = oldRun
-	})
-
-	projectsFindTaskBinary = func() (string, error) { return "task", nil }
-	projectsRunTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	d := NewDispatcher(nil)
+	d.findTaskBinary = func() (string, error) { return "task", nil }
+	d.runTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return fmt.Errorf("some error")
 	}
 
 	ctx := context.Background()
-	d := NewDispatcher(nil)
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(ctx, []string{"projects"}, nil, &stdout, &stderr)
 	if err == nil {

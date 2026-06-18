@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,15 +11,8 @@ import (
 
 func TestHandleStart_BlockedWhenDependencyNotCompleted(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
 	fixedNow := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return fixedNow }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	deps := testTaskAliasCacheDeps(dir, &fixedNow)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
@@ -28,7 +20,7 @@ func TestHandleStart_BlockedWhenDependencyNotCompleted(t *testing.T) {
 			{UUID: "main-uuid", Alias: "0", CreatedAt: fixedNow},
 			{UUID: "dep-uuid", Alias: "1", CreatedAt: fixedNow},
 		},
-	})
+	}, deps)
 
 	var startCalls int
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -47,6 +39,7 @@ func TestHandleStart_BlockedWhenDependencyNotCompleted(t *testing.T) {
 			return 1, nil
 		}
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"start", "main-uuid"}, &bytes.Buffer{}, &stdout, &stderr)
@@ -66,15 +59,8 @@ func TestHandleStart_BlockedWhenDependencyNotCompleted(t *testing.T) {
 
 func TestHandleStart_AllowedWhenDependencyCompleted(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
 	fixedNow := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return fixedNow }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	deps := testTaskAliasCacheDeps(dir, &fixedNow)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
@@ -82,7 +68,7 @@ func TestHandleStart_AllowedWhenDependencyCompleted(t *testing.T) {
 			{UUID: "main-uuid", Alias: "0", CreatedAt: fixedNow},
 			{UUID: "dep-uuid", Alias: "1", CreatedAt: fixedNow},
 		},
-	})
+	}, deps)
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		switch {
@@ -99,6 +85,7 @@ func TestHandleStart_AllowedWhenDependencyCompleted(t *testing.T) {
 			return 1, nil
 		}
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"start", "main-uuid"}, &bytes.Buffer{}, &stdout, &stderr)
@@ -112,15 +99,8 @@ func TestHandleStart_AllowedWhenDependencyCompleted(t *testing.T) {
 
 func TestHandleStart_CompletedStatusIsCaseInsensitive(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
 	fixedNow := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return fixedNow }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	deps := testTaskAliasCacheDeps(dir, &fixedNow)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
@@ -128,7 +108,7 @@ func TestHandleStart_CompletedStatusIsCaseInsensitive(t *testing.T) {
 			{UUID: "main-uuid", Alias: "0", CreatedAt: fixedNow},
 			{UUID: "dep-uuid", Alias: "1", CreatedAt: fixedNow},
 		},
-	})
+	}, deps)
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		switch {
@@ -145,6 +125,7 @@ func TestHandleStart_CompletedStatusIsCaseInsensitive(t *testing.T) {
 			return 1, nil
 		}
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"start", "main-uuid"}, &bytes.Buffer{}, &stdout, &stderr)

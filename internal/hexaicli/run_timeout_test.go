@@ -16,17 +16,15 @@ func TestRun_DefaultRequestTimeoutIsTenMinutes(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	t.Setenv("HEXAI_REQUEST_TIMEOUT", "")
 
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
-
 	seenTimeout := 0
-	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
+	clientFactory := func(cfg appconfig.App) (llm.Client, error) {
 		seenTimeout = cfg.RequestTimeout
 		return okClient{}, nil
 	}
 
 	var out, errb bytes.Buffer
-	if err := Run(context.Background(), []string{"hello"}, strings.NewReader(""), &out, &errb); err != nil {
+	ctx := withCLIClientFactory(context.Background(), clientFactory)
+	if err := Run(ctx, []string{"hello"}, strings.NewReader(""), &out, &errb); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if seenTimeout != 600 {

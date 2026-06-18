@@ -25,13 +25,6 @@ func buildOverrides(opts mcpOptions) hexaimcp.MCPOverrides {
 	}
 }
 
-// Seams for testing: override in tests to avoid launching real MCP server.
-// Signatures match hexaimcp.Run and hexaimcp.RunBackfill respectively.
-var (
-	runMCP      = hexaimcp.Run
-	runBackfill = hexaimcp.RunBackfill
-)
-
 // deprecationWarning is the notice runMain emits on every startup so users
 // see this binary is experimental. Kept as a constant (not printf'd) so
 // tests can assert on its contents directly.
@@ -65,6 +58,18 @@ type mcpOptions struct {
 	showVersion      bool
 }
 
+type mcpDeps struct {
+	runMCP      func(context.Context, string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error
+	runBackfill func(context.Context, string, string, hexaimcp.MCPOverrides) error
+}
+
+func defaultMCPDeps() mcpDeps {
+	return mcpDeps{
+		runMCP:      hexaimcp.Run,
+		runBackfill: hexaimcp.RunBackfill,
+	}
+}
+
 func main() { os.Exit(runMain(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
 // runMain prints the deprecation warning, parses flags, and delegates to
@@ -73,6 +78,10 @@ func main() { os.Exit(runMain(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 // Pulling this out of main keeps it testable without touching package-level
 // flag state.
 func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	return runMainWithDeps(args, stdin, stdout, stderr, defaultMCPDeps())
+}
+
+func runMainWithDeps(args []string, stdin io.Reader, stdout, stderr io.Writer, deps mcpDeps) int {
 	fmt.Fprint(stderr, deprecationWarning)
 
 	defaultLog, err := defaultLogPath()
@@ -107,7 +116,7 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := run(ctx, opts, stdin, stdout, stderr); err != nil {
+	if err := runWithDeps(ctx, opts, stdin, stdout, stderr, deps); err != nil {
 		fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
@@ -118,6 +127,10 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 // CLI flag values are passed via MCPOverrides instead of environment variables.
 // ctx is threaded into the server/backfill so they stop on shutdown signals.
 func run(ctx context.Context, opts mcpOptions, stdin io.Reader, stdout, stderr io.Writer) error {
+	return runWithDeps(ctx, opts, stdin, stdout, stderr, defaultMCPDeps())
+}
+
+func runWithDeps(ctx context.Context, opts mcpOptions, stdin io.Reader, stdout, stderr io.Writer, deps mcpDeps) error {
 	if opts.showVersion {
 		fmt.Fprintln(stdout, internal.Version)
 		return nil
@@ -127,10 +140,10 @@ func run(ctx context.Context, opts mcpOptions, stdin io.Reader, stdout, stderr i
 
 	// Handle backfill operation
 	if opts.syncAll {
-		return runBackfill(ctx, opts.logPath, opts.configPath, overrides)
+		return deps.runBackfill(ctx, opts.logPath, opts.configPath, overrides)
 	}
 
-	return runMCP(ctx, opts.logPath, opts.configPath, overrides, stdin, stdout, stderr)
+	return deps.runMCP(ctx, opts.logPath, opts.configPath, overrides, stdin, stdout, stderr)
 }
 
 // defaultLogPath returns the default MCP log file path in the state directory.

@@ -81,30 +81,29 @@ func TestRun_UsesCachedResponseWithoutClientCall(t *testing.T) {
 	// (the in-code default switched to ollama when no config is present).
 	t.Setenv("HEXAI_PROVIDER", "openai")
 
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
-
 	calls := 0
-	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
+	clientFactory := func(cfg appconfig.App) (llm.Client, error) {
 		calls++
 		return &fakeClient{name: cfg.Provider, model: "gpt-4.1", resp: "cached output"}, nil
 	}
 
+	ctx := withCLIClientFactory(context.Background(), clientFactory)
 	var firstOut, firstErr bytes.Buffer
-	if err := Run(context.Background(), []string{"hello"}, strings.NewReader(""), &firstOut, &firstErr); err != nil {
+	if err := Run(ctx, []string{"hello"}, strings.NewReader(""), &firstOut, &firstErr); err != nil {
 		t.Fatalf("first Run: %v", err)
 	}
 	if calls != 1 {
 		t.Fatalf("expected one live client call, got %d", calls)
 	}
 
-	newClientFromApp = func(appconfig.App) (llm.Client, error) {
+	clientFactory = func(appconfig.App) (llm.Client, error) {
 		t.Fatal("client should not be constructed on cache hit")
 		return nil, nil
 	}
+	ctx = withCLIClientFactory(context.Background(), clientFactory)
 
 	var secondOut, secondErr bytes.Buffer
-	if err := Run(context.Background(), []string{"hello"}, strings.NewReader(""), &secondOut, &secondErr); err != nil {
+	if err := Run(ctx, []string{"hello"}, strings.NewReader(""), &secondOut, &secondErr); err != nil {
 		t.Fatalf("second Run: %v", err)
 	}
 	if got := secondOut.String(); got != "cached output" {
@@ -136,9 +135,7 @@ provider = "anthropic"
 model = "claude-3-5-sonnet-20240620"
 `)
 
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
-	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
+	clientFactory := func(cfg appconfig.App) (llm.Client, error) {
 		switch cfg.Provider {
 		case "anthropic":
 			return &fakeClient{name: "anthropic", model: "claude-3-5-sonnet-20240620", resp: "RIGHT"}, nil
@@ -147,16 +144,17 @@ model = "claude-3-5-sonnet-20240620"
 		}
 	}
 
-	if err := Run(context.Background(), []string{"hello"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+	ctx := withCLIClientFactory(context.Background(), clientFactory)
+	if err := Run(ctx, []string{"hello"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatalf("warm cache Run: %v", err)
 	}
 
-	newClientFromApp = func(appconfig.App) (llm.Client, error) {
+	clientFactory = func(appconfig.App) (llm.Client, error) {
 		t.Fatal("client should not be constructed for selected cache hit")
 		return nil, nil
 	}
 
-	ctx := WithCLISelection(context.Background(), []int{1})
+	ctx = withCLIClientFactory(WithCLISelection(context.Background(), []int{1}), clientFactory)
 	var out, errb bytes.Buffer
 	if err := Run(ctx, []string{"hello"}, strings.NewReader(""), &out, &errb); err != nil {
 		t.Fatalf("selected Run: %v", err)
@@ -180,11 +178,8 @@ func TestRun_ExpiredCacheFallsBackToProvider(t *testing.T) {
 	now := time.Date(2026, 3, 15, 10, 0, 0, 0, time.UTC)
 	ctx := withCLIResponseCacheNow(context.Background(), func() time.Time { return now })
 
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
-
 	calls := 0
-	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
+	clientFactory := func(cfg appconfig.App) (llm.Client, error) {
 		calls++
 		resp := "first"
 		if calls > 1 {
@@ -192,6 +187,7 @@ func TestRun_ExpiredCacheFallsBackToProvider(t *testing.T) {
 		}
 		return &fakeClient{name: cfg.Provider, model: "gpt-4.1", resp: resp}, nil
 	}
+	ctx = withCLIClientFactory(ctx, clientFactory)
 
 	if err := Run(ctx, []string{"hello"}, strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
 		t.Fatalf("first Run: %v", err)

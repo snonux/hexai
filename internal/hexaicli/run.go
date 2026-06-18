@@ -37,8 +37,9 @@ type cliJob struct {
 }
 
 type (
-	selectionContextKey  struct{}
-	configPathContextKey struct{}
+	selectionContextKey     struct{}
+	configPathContextKey    struct{}
+	clientFactoryContextKey struct{}
 )
 
 func buildCLIJobs(cfg appconfig.App) ([]cliJob, error) {
@@ -346,6 +347,13 @@ func WithCLIConfigPath(ctx context.Context, path string) context.Context {
 	return context.WithValue(ctx, configPathContextKey{}, strings.TrimSpace(path))
 }
 
+func withCLIClientFactory(ctx context.Context, factory cliClientFactory) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, clientFactoryContextKey{}, factory)
+}
+
 func configPathFromContext(ctx context.Context) string {
 	if ctx == nil {
 		return ""
@@ -354,6 +362,16 @@ func configPathFromContext(ctx context.Context) string {
 		return strings.TrimSpace(v)
 	}
 	return ""
+}
+
+func clientFactoryFromContext(ctx context.Context) cliClientFactory {
+	if ctx == nil {
+		return nil
+	}
+	if v, ok := ctx.Value(clientFactoryContextKey{}).(cliClientFactory); ok {
+		return v
+	}
+	return nil
 }
 
 func selectionFromContext(ctx context.Context) []int {
@@ -554,8 +572,9 @@ func cacheHitSummary(provider, model string, age time.Duration) string {
 	return fmt.Sprintf(logging.AnsiBase+"cache hit provider=%s model=%s age=%s"+logging.AnsiReset+"\n", provider, model, age.Round(time.Second))
 }
 
-// newClientFromConfig is kept for tests; delegates to llmutils.
-var newClientFromApp = llmutils.NewClientFromApp
+func newClientFromApp(cfg appconfig.App) (llm.Client, error) {
+	return llmutils.NewClientFromApp(cfg)
+}
 
 // Backcompat for tests referencing the older helper name.
 func newClientFromConfig(cfg appconfig.App) (llm.Client, error) { return newClientFromApp(cfg) }

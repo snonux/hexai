@@ -171,9 +171,7 @@ func TestRun_SingleProviderHeaderUsesStderr(t *testing.T) {
 	// explicitly (the in-code default switched to ollama/gemma4).
 	t.Setenv("HEXAI_PROVIDER", "openai")
 	t.Setenv("HEXAI_OPENAI_MODEL", "gpt-4.1")
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
-	newClientFromApp = func(_ appconfig.App) (llm.Client, error) {
+	clientFactory := func(_ appconfig.App) (llm.Client, error) {
 		return &fakeClient{name: "openai", model: "gpt-4.1", resp: "OUT"}, nil
 	}
 
@@ -181,7 +179,8 @@ func TestRun_SingleProviderHeaderUsesStderr(t *testing.T) {
 	defer restore()
 
 	var stdout, stderr bytes.Buffer
-	if err := Run(context.Background(), nil, f, &stdout, &stderr); err != nil {
+	ctx := withCLIClientFactory(context.Background(), clientFactory)
+	if err := Run(ctx, nil, f, &stdout, &stderr); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if got := stdout.String(); got != "OUT" {
@@ -200,9 +199,7 @@ func TestRun_SingleProviderHeaderUsesStderr(t *testing.T) {
 }
 
 func TestExecuteCLIJobs_MultiProviderHeaderUsesStderr(t *testing.T) {
-	oldNew := newClientFromApp
-	defer func() { newClientFromApp = oldNew }()
-	newClientFromApp = func(cfg appconfig.App) (llm.Client, error) {
+	clientFactory := func(cfg appconfig.App) (llm.Client, error) {
 		switch cfg.Provider {
 		case "anthropic":
 			return &fakeClient{name: "anthropic", model: "claude", resp: "RIGHT"}, nil
@@ -233,7 +230,7 @@ func TestExecuteCLIJobs_MultiProviderHeaderUsesStderr(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	results, printer := executeCLIJobs(context.Background(), jobs, buildMessages("hello"), "hello", &stdout, &stderr, false, newClientFromApp, nil)
+	results, printer := executeCLIJobs(context.Background(), jobs, buildMessages("hello"), "hello", &stdout, &stderr, false, clientFactory, nil)
 	if printer == nil {
 		t.Fatalf("expected column printer for multi-provider run")
 	}

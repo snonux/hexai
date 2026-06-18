@@ -21,7 +21,7 @@ func (d *Dispatcher) resolveTaskSelector(ctx context.Context, selector string, s
 		return resolvedTaskSelector{}, nil, 1, err
 	}
 
-	resolved, err := resolveTaskSelectorFromCache(normalized, requiresLookup)
+	resolved, err := d.aliasCache.withDefaults().resolveTaskSelectorFromCache(normalized, requiresLookup)
 	if err != nil {
 		return resolvedTaskSelector{}, nil, 1, err
 	}
@@ -34,7 +34,7 @@ func (d *Dispatcher) resolveTaskSelector(ctx context.Context, selector string, s
 		return resolvedTaskSelector{}, nil, code, err
 	}
 
-	aliases, err := ensureTaskAliases(tasks)
+	aliases, err := d.aliasCache.withDefaults().ensureTaskAliases(tasks)
 	if err != nil {
 		return resolvedTaskSelector{}, nil, 1, err
 	}
@@ -53,16 +53,21 @@ func normalizeTaskSelectorInput(selector string) (string, bool, error) {
 }
 
 func resolveTaskSelectorFromCache(selector string, allowAlias bool) (resolvedTaskSelector, error) {
+	return defaultTaskAliasCacheDeps().resolveTaskSelectorFromCache(selector, allowAlias)
+}
+
+func (d taskAliasCacheDeps) resolveTaskSelectorFromCache(selector string, allowAlias bool) (resolvedTaskSelector, error) {
+	d = d.withDefaults()
 	resolved := resolvedTaskSelector{Input: selector, UUID: selector}
 	if !allowAlias || !looksLikeTaskAlias(selector) {
 		return resolved, nil
 	}
 
-	path, err := taskAliasCachePath()
+	path, err := d.taskAliasCachePath()
 	if err != nil {
 		return resolvedTaskSelector{}, err
 	}
-	unlock, err := acquireTaskAliasCacheLock(filepath.Dir(path))
+	unlock, err := d.lock(filepath.Dir(path))
 	if err != nil {
 		return resolvedTaskSelector{}, err
 	}
@@ -73,7 +78,7 @@ func resolveTaskSelectorFromCache(selector string, allowAlias bool) (resolvedTas
 		return resolvedTaskSelector{}, err
 	}
 
-	now := nowTaskAliasCache().UTC()
+	now := d.now().UTC()
 	changed := cache.prune(now)
 	uuidFromAlias, aliasFound, aliasChanged := cache.lookupUUIDByAlias(selector, now)
 	aliasForUUID, uuidFound, uuidChanged := cache.lookupAliasByUUID(selector, now)

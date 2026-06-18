@@ -66,12 +66,10 @@ func TestBuildOverrides(t *testing.T) {
 }
 
 func TestRun_SyncAll(t *testing.T) {
-	old := runBackfill
-	t.Cleanup(func() { runBackfill = old })
-
 	var gotLog, gotConfig string
 	var gotOverrides hexaimcp.MCPOverrides
-	runBackfill = func(_ context.Context, logPath, configPath string, overrides hexaimcp.MCPOverrides) error {
+	deps := defaultMCPDeps()
+	deps.runBackfill = func(_ context.Context, logPath, configPath string, overrides hexaimcp.MCPOverrides) error {
 		gotLog = logPath
 		gotConfig = configPath
 		gotOverrides = overrides
@@ -86,7 +84,7 @@ func TestRun_SyncAll(t *testing.T) {
 		slashCommandSync: true,
 		slashCommandDir:  "/tmp/cmds",
 	}
-	if err := run(context.Background(), opts, nil, nil, nil); err != nil {
+	if err := runWithDeps(context.Background(), opts, nil, nil, nil, deps); err != nil {
 		t.Fatalf("run syncAll: %v", err)
 	}
 	if gotLog != "/tmp/test.log" {
@@ -107,30 +105,26 @@ func TestRun_SyncAll(t *testing.T) {
 }
 
 func TestRun_SyncAllError(t *testing.T) {
-	old := runBackfill
-	t.Cleanup(func() { runBackfill = old })
-
 	wantErr := errors.New("backfill failed")
-	runBackfill = func(_ context.Context, _, _ string, _ hexaimcp.MCPOverrides) error { return wantErr }
+	deps := defaultMCPDeps()
+	deps.runBackfill = func(_ context.Context, _, _ string, _ hexaimcp.MCPOverrides) error { return wantErr }
 
 	opts := mcpOptions{syncAll: true}
-	if err := run(context.Background(), opts, nil, nil, nil); !errors.Is(err, wantErr) {
+	if err := runWithDeps(context.Background(), opts, nil, nil, nil, deps); !errors.Is(err, wantErr) {
 		t.Fatalf("expected backfill error, got: %v", err)
 	}
 }
 
 func TestRun_MCPServer(t *testing.T) {
-	old := runMCP
-	t.Cleanup(func() { runMCP = old })
-
 	called := false
-	runMCP = func(_ context.Context, logPath, configPath string, overrides hexaimcp.MCPOverrides, stdin io.Reader, stdout, stderr io.Writer) error {
+	deps := defaultMCPDeps()
+	deps.runMCP = func(_ context.Context, logPath, configPath string, overrides hexaimcp.MCPOverrides, stdin io.Reader, stdout, stderr io.Writer) error {
 		called = true
 		return nil
 	}
 
 	opts := mcpOptions{logPath: "/tmp/mcp.log"}
-	if err := run(context.Background(), opts, nil, nil, nil); err != nil {
+	if err := runWithDeps(context.Background(), opts, nil, nil, nil, deps); err != nil {
 		t.Fatalf("run MCP: %v", err)
 	}
 	if !called {
@@ -139,15 +133,13 @@ func TestRun_MCPServer(t *testing.T) {
 }
 
 func TestRun_MCPServerError(t *testing.T) {
-	old := runMCP
-	t.Cleanup(func() { runMCP = old })
-
 	wantErr := errors.New("server failed")
-	runMCP = func(_ context.Context, _, _ string, _ hexaimcp.MCPOverrides, _ io.Reader, _, _ io.Writer) error {
+	deps := defaultMCPDeps()
+	deps.runMCP = func(_ context.Context, _, _ string, _ hexaimcp.MCPOverrides, _ io.Reader, _, _ io.Writer) error {
 		return wantErr
 	}
 
-	if err := run(context.Background(), mcpOptions{}, nil, nil, nil); !errors.Is(err, wantErr) {
+	if err := runWithDeps(context.Background(), mcpOptions{}, nil, nil, nil, deps); !errors.Is(err, wantErr) {
 		t.Fatalf("expected server error, got: %v", err)
 	}
 }
@@ -172,17 +164,15 @@ func TestRunMain_VersionFlag(t *testing.T) {
 // runMain --sync-all path: forwards parsed options to runBackfill and
 // returns 0 on success.
 func TestRunMain_SyncAllSuccess(t *testing.T) {
-	old := runBackfill
-	t.Cleanup(func() { runBackfill = old })
-
 	var gotLog string
-	runBackfill = func(_ context.Context, logPath string, _ string, _ hexaimcp.MCPOverrides) error {
+	deps := defaultMCPDeps()
+	deps.runBackfill = func(_ context.Context, logPath string, _ string, _ hexaimcp.MCPOverrides) error {
 		gotLog = logPath
 		return nil
 	}
 
 	var stdout, stderr bytes.Buffer
-	code := runMain([]string{"-sync-all", "-log", "/tmp/sync.log"}, nil, &stdout, &stderr)
+	code := runMainWithDeps([]string{"-sync-all", "-log", "/tmp/sync.log"}, nil, &stdout, &stderr, deps)
 	if code != 0 {
 		t.Fatalf("runMain code = %d, want 0; stderr=%q", code, stderr.String())
 	}
@@ -194,14 +184,13 @@ func TestRunMain_SyncAllSuccess(t *testing.T) {
 // runMain run-error path: when the underlying server fails, runMain must
 // return 1 (the production exit code) and write the error to stderr.
 func TestRunMain_ServerErrorReturnsOne(t *testing.T) {
-	old := runMCP
-	t.Cleanup(func() { runMCP = old })
-	runMCP = func(context.Context, string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
+	deps := defaultMCPDeps()
+	deps.runMCP = func(context.Context, string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
 		return errors.New("mcp boom")
 	}
 
 	var stdout, stderr bytes.Buffer
-	code := runMain(nil, nil, &stdout, &stderr)
+	code := runMainWithDeps(nil, nil, &stdout, &stderr, deps)
 	if code != 1 {
 		t.Fatalf("runMain code = %d, want 1", code)
 	}
@@ -212,15 +201,14 @@ func TestRunMain_ServerErrorReturnsOne(t *testing.T) {
 
 // Bad flag must yield exit 2 without ever invoking the server stub.
 func TestRunMain_BadFlagReturnsTwo(t *testing.T) {
-	old := runMCP
-	t.Cleanup(func() { runMCP = old })
 	called := false
-	runMCP = func(context.Context, string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
+	deps := defaultMCPDeps()
+	deps.runMCP = func(context.Context, string, string, hexaimcp.MCPOverrides, io.Reader, io.Writer, io.Writer) error {
 		called = true
 		return nil
 	}
 	var stdout, stderr bytes.Buffer
-	code := runMain([]string{"--bogus"}, nil, &stdout, &stderr)
+	code := runMainWithDeps([]string{"--bogus"}, nil, &stdout, &stderr, deps)
 	if code != 2 {
 		t.Fatalf("runMain code = %d, want 2", code)
 	}

@@ -9,15 +9,12 @@ import (
 	"sort"
 )
 
-var (
-	projectsFindTaskBinary = findTaskBinary
-	projectsRunTaskCommand = runTaskCommand
-)
+type taskCommandRunner func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error
 
 func (d *Dispatcher) handleProjects(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	_ = args
 
-	taskPath, err := projectsFindTaskBinary()
+	taskPath, err := d.projectTaskBinary()()
 	if err != nil {
 		return 1, fmt.Errorf("ask projects: task binary lookup failed: %w", err)
 	}
@@ -25,7 +22,7 @@ func (d *Dispatcher) handleProjects(ctx context.Context, args []string, stdout, 
 	scopeFilter := taskScopeFilter(taskScopeFromContext(ctx))
 	cmdArgs := append([]string{"rc.verbose=nothing", "rc.confirmation=off", scopeFilter, "status:pending", "export"}, args[1:]...)
 	var outBuf bytes.Buffer
-	err = projectsRunTaskCommand(ctx, taskPath, cmdArgs, nil, &outBuf, stderr)
+	err = d.projectTaskCommand()(ctx, taskPath, cmdArgs, nil, &outBuf, stderr)
 	if err != nil {
 		return exitCodeFor(err), fmt.Errorf("ask projects: task export failed: %w", err)
 	}
@@ -64,4 +61,18 @@ func (d *Dispatcher) handleProjects(ctx context.Context, args []string, stdout, 
 		_, _ = io.WriteString(stdout, p+"\n")
 	}
 	return 0, nil
+}
+
+func (d *Dispatcher) projectTaskBinary() func() (string, error) {
+	if d != nil && d.findTaskBinary != nil {
+		return d.findTaskBinary
+	}
+	return findTaskBinary
+}
+
+func (d *Dispatcher) projectTaskCommand() taskCommandRunner {
+	if d != nil && d.runTaskCommand != nil {
+		return d.runTaskCommand
+	}
+	return runTaskCommand
 }

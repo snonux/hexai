@@ -10,10 +10,7 @@ import (
 )
 
 func TestRenderTaskList_JSONOutput(t *testing.T) {
-	oldLoader := taskListAliasLoader
-	defer func() { taskListAliasLoader = oldLoader }()
-
-	taskListAliasLoader = func(tasks []TaskExport) (map[string]string, error) {
+	loadAliases := func(tasks []TaskExport) (map[string]string, error) {
 		return map[string]string{"uuid-json": "sq"}, nil
 	}
 
@@ -26,7 +23,7 @@ func TestRenderTaskList_JSONOutput(t *testing.T) {
 		Urgency:     12.5,
 	}}
 	var stdout, stderr bytes.Buffer
-	code, err := renderTaskList(tasks, &stdout, &stderr, true)
+	code, err := renderTaskListWithAliasLoader(tasks, &stdout, &stderr, true, loadAliases)
 	if err != nil {
 		t.Fatalf("renderTaskList returned error: %v", err)
 	}
@@ -50,10 +47,7 @@ func TestRenderTaskList_JSONOutput(t *testing.T) {
 }
 
 func TestRenderTaskList_TextOutputUsesAliasLoader(t *testing.T) {
-	oldLoader := taskListAliasLoader
-	defer func() { taskListAliasLoader = oldLoader }()
-
-	taskListAliasLoader = func(tasks []TaskExport) (map[string]string, error) {
+	loadAliases := func(tasks []TaskExport) (map[string]string, error) {
 		if len(tasks) != 1 || tasks[0].UUID != "uuid-text" {
 			t.Fatalf("unexpected tasks passed to loader: %#v", tasks)
 		}
@@ -61,7 +55,7 @@ func TestRenderTaskList_TextOutputUsesAliasLoader(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	code, err := renderTaskList([]TaskExport{{UUID: "uuid-text", Description: "Text task", Priority: "L"}}, &stdout, &stderr, false)
+	code, err := renderTaskListWithAliasLoader([]TaskExport{{UUID: "uuid-text", Description: "Text task", Priority: "L"}}, &stdout, &stderr, false, loadAliases)
 	if err != nil {
 		t.Fatalf("renderTaskList returned error: %v", err)
 	}
@@ -78,14 +72,11 @@ func TestRenderTaskList_TextOutputUsesAliasLoader(t *testing.T) {
 }
 
 func TestRenderTaskList_AliasLoaderError(t *testing.T) {
-	oldLoader := taskListAliasLoader
-	defer func() { taskListAliasLoader = oldLoader }()
-
-	taskListAliasLoader = func([]TaskExport) (map[string]string, error) {
+	loadAliases := func([]TaskExport) (map[string]string, error) {
 		return nil, fmt.Errorf("boom")
 	}
 	var stdout, stderr bytes.Buffer
-	code, err := renderTaskList([]TaskExport{{UUID: "uuid-error"}}, &stdout, &stderr, false)
+	code, err := renderTaskListWithAliasLoader([]TaskExport{{UUID: "uuid-error"}}, &stdout, &stderr, false, loadAliases)
 	if err != nil {
 		t.Fatalf("renderTaskList returned error: %v", err)
 	}

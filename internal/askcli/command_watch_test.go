@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -100,14 +99,7 @@ func TestHandleWatch_DrawsStderrOnNonZero(t *testing.T) {
 
 func TestHandleWatch_DefaultsToListAndRedrawsOnChange(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC) }
-	t.Cleanup(func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	})
+	t.Setenv("XDG_CACHE_HOME", dir)
 
 	ticks := make(chan time.Time, 1)
 	ticks <- time.Now()
@@ -157,14 +149,7 @@ func TestHandleWatch_DefaultsToListAndRedrawsOnChange(t *testing.T) {
 
 func TestHandleWatch_DoesNotRedrawUnchangedOutput(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC) }
-	t.Cleanup(func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	})
+	t.Setenv("XDG_CACHE_HOME", dir)
 
 	ticks := make(chan time.Time, 1)
 	ticks <- time.Now()

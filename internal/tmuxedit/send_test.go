@@ -7,7 +7,7 @@ import (
 )
 
 func noSleepDeps() tmuxEditDeps {
-	return tmuxEditDeps{sleepAfterClear: func() {}}
+	return tmuxEditDeps{sleepAfterClear: func() {}, sleepAfterEscape: func() {}}
 }
 
 func TestDeduplicateText(t *testing.T) {

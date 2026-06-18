@@ -13,7 +13,7 @@ func (d *Dispatcher) verifyDependenciesCompletedForStart(ctx context.Context, ta
 	if len(task.Depends) == 0 {
 		return 0
 	}
-	aliases, err := ensureTaskAliasesForUUIDs(task.Depends)
+	aliases, err := d.aliasCache.withDefaults().ensureTaskAliasesForUUIDs(task.Depends)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 		return 1

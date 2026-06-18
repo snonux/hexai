@@ -6,10 +6,14 @@ import (
 	"io"
 )
 
-var taskListAliasLoader = ensureTaskAliases
+type taskListAliasLoader func([]TaskExport) (map[string]string, error)
 
 func renderTaskList(tasks []TaskExport, stdout, stderr io.Writer, jsonOutput bool) (int, error) {
-	aliases, err := taskListAliasLoader(tasks)
+	return renderTaskListWithAliasLoader(tasks, stdout, stderr, jsonOutput, ensureTaskAliases)
+}
+
+func renderTaskListWithAliasLoader(tasks []TaskExport, stdout, stderr io.Writer, jsonOutput bool, loadAliases taskListAliasLoader) (int, error) {
+	aliases, err := loadAliases(tasks)
 	if err != nil {
 		fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 		return 1, nil

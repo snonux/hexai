@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,28 +11,23 @@ import (
 
 func TestHandleUrgency_Success(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
-			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-1", Alias: "0", CreatedAt: now},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"uuid-2","description":"Task 2","status":"pending","priority":"M","tags":["agent"],"urgency":10.0,"depends":[]},{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		_, _ = io.WriteString(stdout, jsonData)
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"urgency"}, nil, &stdout, &stderr)
 	if code != 0 {

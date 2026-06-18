@@ -199,13 +199,15 @@ func TestParseKeyRepeat(t *testing.T) {
 
 func TestSendClearSequence_EscapeKey(t *testing.T) {
 	var calls []string
+	var escapeSleeps int
 	deps := tmuxEditDeps{sendKeys: func(paneID string, keys ...string) error {
 		calls = append(calls, strings.Join(keys, ","))
 		return nil
+	}, sleepAfterEscape: func() {
+		escapeSleeps++
 	}}
 
 	// sendClearSequence with "Escape" should succeed and send the key.
-	// The 150ms Escape delay is real but acceptable in tests.
 	err := deps.sendClearSequence("%1", "Escape C-k")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -218,6 +220,9 @@ func TestSendClearSequence_EscapeKey(t *testing.T) {
 		if calls[i] != w {
 			t.Errorf("call[%d] = %q, want %q", i, calls[i], w)
 		}
+	}
+	if escapeSleeps != 1 {
+		t.Fatalf("escape sleeps = %d, want 1", escapeSleeps)
 	}
 }
 

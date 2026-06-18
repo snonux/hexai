@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const escapeKeyDelay = 150 * time.Millisecond
+
 // promptMatch holds a regex match result with its line number in the pane.
 type promptMatch struct {
 	lineNum int
@@ -124,10 +126,18 @@ func (d tmuxEditDeps) sendClearSequence(paneID, clearKeys string) error {
 		}
 		// Add delay after Escape to let Vim-based agents exit INSERT mode
 		if key == "Escape" {
-			time.Sleep(150 * time.Millisecond)
+			d.sleepEscape()
 		}
 	}
 	return nil
+}
+
+func (d tmuxEditDeps) sleepEscape() {
+	if d.sleepAfterEscape != nil {
+		d.sleepAfterEscape()
+		return
+	}
+	time.Sleep(escapeKeyDelay)
 }
 
 // parseKeyRepeat splits "Key*N" into (Key, N). Returns (token, 1) if no

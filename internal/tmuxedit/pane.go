@@ -8,13 +8,14 @@ import (
 )
 
 type tmuxEditDeps struct {
-	runCommand      func(string, ...string) ([]byte, error)
-	capturePane     func(string) (string, error)
-	openEditorPopup func(string, string, string) (string, error)
-	sendKeys        func(string, ...string) error
-	sendRepeatedKey func(string, string, int) error
-	sleepAfterClear func()
-	launchPopup     func(string, string, string, string) error
+	runCommand       func(string, ...string) ([]byte, error)
+	capturePane      func(string) (string, error)
+	openEditorPopup  func(string, string, string) (string, error)
+	sendKeys         func(string, ...string) error
+	sendRepeatedKey  func(string, string, int) error
+	sleepAfterClear  func()
+	sleepAfterEscape func()
+	launchPopup      func(string, string, string, string) error
 }
 
 func (d tmuxEditDeps) command(name string, args ...string) ([]byte, error) {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,22 +11,16 @@ import (
 
 func TestHandleList_Success(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
-			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-1", Alias: "0", CreatedAt: now},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":["cli"],"start":"2026-03-26T10:00:00Z","urgency":15.0,"depends":[]},{"uuid":"uuid-2","description":"Task 2","status":"completed","priority":"M","tags":["agent"],"urgency":10.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -39,6 +32,7 @@ func TestHandleList_Success(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"list"}, nil, &stdout, &stderr)
 	if code != 0 {
@@ -58,22 +52,16 @@ func TestHandleList_Success(t *testing.T) {
 
 func TestHandleList_SortedByPriority(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
-			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-1", Alias: "0", CreatedAt: now},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"uuid-2","description":"Task 2","status":"pending","priority":"M","tags":[],"urgency":10.0,"depends":[]},{"uuid":"uuid-1","description":"Task 1","status":"pending","priority":"H","tags":[],"urgency":5.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -85,6 +73,7 @@ func TestHandleList_SortedByPriority(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout bytes.Buffer
 	d.Dispatch(context.Background(), []string{"list"}, nil, &stdout, &bytes.Buffer{})
 	output := stdout.String()
@@ -114,21 +103,15 @@ func TestHandleList_EmptyList(t *testing.T) {
 
 func TestHandleAll_Success(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-1", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"uuid-1","description":"Done task","status":"completed","priority":"M","tags":[],"urgency":0.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -140,6 +123,7 @@ func TestHandleAll_Success(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"all"}, nil, &stdout, &stderr)
 	if code != 0 {
@@ -152,21 +136,15 @@ func TestHandleAll_Success(t *testing.T) {
 
 func TestHandleReady_Success(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "uuid-ready", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-ready", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"uuid-ready","description":"Ready task","status":"pending","priority":"H","tags":["READY"],"urgency":20.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -178,6 +156,7 @@ func TestHandleReady_Success(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"ready"}, nil, &stdout, &stderr)
 	if code != 0 {
@@ -190,21 +169,15 @@ func TestHandleReady_Success(t *testing.T) {
 
 func TestHandleCompleted_Success(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 1,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "uuid-done", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-done", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"uuid-done","description":"Done task","status":"completed","priority":"M","tags":[],"urgency":0.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -216,6 +189,7 @@ func TestHandleCompleted_Success(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"completed"}, nil, &stdout, &stderr)
 	if code != 0 {

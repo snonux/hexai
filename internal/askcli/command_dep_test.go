@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,22 +11,16 @@ import (
 
 func TestHandleDep_AddSuccess(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
-			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-1", Alias: "0", CreatedAt: now},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -43,6 +36,7 @@ func TestHandleDep_AddSuccess(t *testing.T) {
 		capturedArgs = args
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"dep", "add", "uuid-1", "uuid-2"}, nil, &stdout, &stderr)
 	if code != 0 {
@@ -59,14 +53,8 @@ func TestHandleDep_AddSuccess(t *testing.T) {
 
 func TestHandleDep_RmSuccess(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		if len(args) == 2 && args[1] == "export" {
@@ -80,6 +68,7 @@ func TestHandleDep_RmSuccess(t *testing.T) {
 		}
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"dep", "rm", "uuid-1", "uuid-2"}, nil, &stdout, &stderr)
 	if code != 0 {
@@ -89,29 +78,24 @@ func TestHandleDep_RmSuccess(t *testing.T) {
 
 func TestHandleDep_ListSuccess(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 3,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "dep-1", Alias: "1", CreatedAt: nowTaskAliasCache()},
-			{UUID: "dep-2", Alias: "2", CreatedAt: nowTaskAliasCache()},
-			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
+			{UUID: "dep-1", Alias: "1", CreatedAt: now},
+			{UUID: "dep-2", Alias: "2", CreatedAt: now},
+			{UUID: "uuid-1", Alias: "0", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	jsonData := `[{"uuid":"uuid-1","description":"Task","status":"pending","priority":"M","tags":[],"urgency":10,"depends":["dep-1","dep-2"]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		_, _ = io.WriteString(stdout, jsonData)
 		return 0, nil
 	}})
+	d.aliasCache = deps
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"dep", "list", "uuid-1"}, nil, &stdout, &stderr)
 	if code != 0 {
@@ -198,22 +182,16 @@ func TestHandleDep_AcceptUUIDPrefix(t *testing.T) {
 
 func TestHandleDep_AliasSelectors(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	oldNow := nowTaskAliasCache
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	defer func() {
-		taskAliasCacheRoot = oldRoot
-		nowTaskAliasCache = oldNow
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	writeTaskAliasCacheForTest(t, taskAliasCache{
 		NextID: 2,
 		Entries: []taskAliasCacheEntry{
-			{UUID: "uuid-1", Alias: "0", CreatedAt: nowTaskAliasCache()},
-			{UUID: "uuid-2", Alias: "1", CreatedAt: nowTaskAliasCache()},
+			{UUID: "uuid-1", Alias: "0", CreatedAt: now},
+			{UUID: "uuid-2", Alias: "1", CreatedAt: now},
 		},
-	})
+	}, deps)
 
 	var capturedArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
@@ -229,6 +207,7 @@ func TestHandleDep_AliasSelectors(t *testing.T) {
 		capturedArgs = args
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, _ := d.Dispatch(context.Background(), []string{"dep", "add", "0", "1"}, nil, &stdout, &stderr)

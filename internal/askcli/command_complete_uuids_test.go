@@ -13,14 +13,8 @@ import (
 
 func TestHandleCompleteUUIDs_PrintsPendingUUIDs(t *testing.T) {
 	dir := t.TempDir()
-	oldNow := nowTaskAliasCache
-	oldRoot := taskAliasCacheRoot
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() {
-		nowTaskAliasCache = oldNow
-		taskAliasCacheRoot = oldRoot
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		want := []string{"status:pending", "export"}
@@ -30,6 +24,7 @@ func TestHandleCompleteUUIDs_PrintsPendingUUIDs(t *testing.T) {
 		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"First task"},{"uuid":"uuid-2","description":"Second task"},{"uuid":""}]`)
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.handleCompleteUUIDs(context.Background(), nil, &stdout, &stderr)
@@ -48,7 +43,7 @@ func TestHandleCompleteUUIDs_PrintsPendingUUIDs(t *testing.T) {
 		t.Fatalf("stderr = %q, want empty", stderr.String())
 	}
 
-	path, err := taskAliasCachePath()
+	path, err := deps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}
@@ -82,11 +77,9 @@ func TestHandleCompleteUUIDs_ParseError(t *testing.T) {
 
 func TestHandleCompleteUUIDs_RecoverFromCorruptAliasCache(t *testing.T) {
 	dir := t.TempDir()
-	oldRoot := taskAliasCacheRoot
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() { taskAliasCacheRoot = oldRoot }()
+	deps := testTaskAliasCacheDeps(dir, nil)
 
-	path, err := taskAliasCachePath()
+	path, err := deps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}
@@ -104,6 +97,7 @@ func TestHandleCompleteUUIDs_RecoverFromCorruptAliasCache(t *testing.T) {
 		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"Fallback task"}]`)
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.handleCompleteUUIDs(context.Background(), nil, &stdout, &stderr)
@@ -168,14 +162,8 @@ func TestTaskCompletionAliasItems_OnlyShortAliases(t *testing.T) {
 
 func TestHandleCompleteAliases_PrintsAliasesOnly(t *testing.T) {
 	dir := t.TempDir()
-	oldNow := nowTaskAliasCache
-	oldRoot := taskAliasCacheRoot
-	nowTaskAliasCache = func() time.Time { return time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC) }
-	taskAliasCacheRoot = func() (string, error) { return filepath.Join(dir, "hexai"), nil }
-	defer func() {
-		nowTaskAliasCache = oldNow
-		taskAliasCacheRoot = oldRoot
-	}()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		want := []string{"status:pending", "export"}
@@ -185,6 +173,7 @@ func TestHandleCompleteAliases_PrintsAliasesOnly(t *testing.T) {
 		_, _ = io.WriteString(stdout, `[{"uuid":"uuid-1","description":"First task"},{"uuid":"uuid-2","description":"Second task"},{"uuid":""}]`)
 		return 0, nil
 	}})
+	d.aliasCache = deps
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.handleCompleteAliases(context.Background(), nil, &stdout, &stderr)

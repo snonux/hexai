@@ -20,10 +20,32 @@ const (
 	taskAliasCacheLockTimeout  = 30 * time.Second
 )
 
-var (
-	nowTaskAliasCache  = time.Now
-	taskAliasCacheRoot = stats.CacheDir
-)
+type taskAliasCacheDeps struct {
+	now       func() time.Time
+	cacheRoot func() (string, error)
+	lock      func(string) (func() error, error)
+}
+
+func defaultTaskAliasCacheDeps() taskAliasCacheDeps {
+	return taskAliasCacheDeps{
+		now:       time.Now,
+		cacheRoot: stats.CacheDir,
+		lock:      acquireTaskAliasCacheLock,
+	}
+}
+
+func (d taskAliasCacheDeps) withDefaults() taskAliasCacheDeps {
+	if d.now == nil {
+		d.now = time.Now
+	}
+	if d.cacheRoot == nil {
+		d.cacheRoot = stats.CacheDir
+	}
+	if d.lock == nil {
+		d.lock = acquireTaskAliasCacheLock
+	}
+	return d
+}
 
 // taskAliasCache maps UUIDs to short human-readable aliases for display and
 // completion. The Entries slice is persisted as JSON; the byUUID and byAlias
@@ -46,14 +68,19 @@ type taskAliasCacheEntry struct {
 }
 
 func ensureTaskAliases(tasks []TaskExport) (map[string]string, error) {
-	path, err := taskAliasCachePath()
+	return defaultTaskAliasCacheDeps().ensureTaskAliases(tasks)
+}
+
+func (d taskAliasCacheDeps) ensureTaskAliases(tasks []TaskExport) (map[string]string, error) {
+	d = d.withDefaults()
+	path, err := d.taskAliasCachePath()
 	if err != nil {
 		return nil, err
 	}
 	// Hold an advisory lock for the full load/modify/save cycle so concurrent
 	// ask invocations cannot race on the cache file (lost-update or
 	// rename-against-missing-tempfile).
-	unlock, err := acquireTaskAliasCacheLock(filepath.Dir(path))
+	unlock, err := d.lock(filepath.Dir(path))
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +91,7 @@ func ensureTaskAliases(tasks []TaskExport) (map[string]string, error) {
 		return nil, err
 	}
 
-	now := nowTaskAliasCache().UTC()
+	now := d.now().UTC()
 	changed := cache.prune(now)
 	aliases := make(map[string]string, len(tasks))
 	for _, task := range tasks {
@@ -86,6 +113,10 @@ func ensureTaskAliases(tasks []TaskExport) (map[string]string, error) {
 }
 
 func ensureTaskAliasesForUUIDs(uuids []string) (map[string]string, error) {
+	return defaultTaskAliasCacheDeps().ensureTaskAliasesForUUIDs(uuids)
+}
+
+func (d taskAliasCacheDeps) ensureTaskAliasesForUUIDs(uuids []string) (map[string]string, error) {
 	tasks := make([]TaskExport, 0, len(uuids))
 	for _, uuid := range uuids {
 		if uuid == "" {
@@ -93,7 +124,7 @@ func ensureTaskAliasesForUUIDs(uuids []string) (map[string]string, error) {
 		}
 		tasks = append(tasks, TaskExport{UUID: uuid})
 	}
-	return ensureTaskAliases(tasks)
+	return d.ensureTaskAliases(tasks)
 }
 
 func loadTaskAliasCacheAt(path string) (taskAliasCache, error) {
@@ -150,7 +181,12 @@ func acquireTaskAliasCacheLock(dir string) (func() error, error) {
 }
 
 func taskAliasCachePath() (string, error) {
-	dir, err := taskAliasCacheRoot()
+	return defaultTaskAliasCacheDeps().taskAliasCachePath()
+}
+
+func (d taskAliasCacheDeps) taskAliasCachePath() (string, error) {
+	d = d.withDefaults()
+	dir, err := d.cacheRoot()
 	if err != nil {
 		return "", fmt.Errorf("resolve cache dir: %w", err)
 	}

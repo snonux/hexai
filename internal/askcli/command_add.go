@@ -56,7 +56,7 @@ func (d *Dispatcher) createTask(ctx context.Context, modifiers []string, descrip
 	// problem as a warning on stderr but still report success on stdout with
 	// exit 0 so the user does not retry and create a duplicate task. The
 	// displayed identifier falls back to the UUID when no alias is available.
-	aliases, aliasErr := ensureTaskAliasesForUUIDs([]string{uuid})
+	aliases, aliasErr := d.aliasCache.withDefaults().ensureTaskAliasesForUUIDs([]string{uuid})
 	if aliasErr != nil {
 		fmt.Fprintf(stderr, "warning: failed to assign task alias: %v\n", aliasErr)
 		aliases = nil

@@ -75,7 +75,7 @@ func (d *Dispatcher) handleDepList(ctx context.Context, args []string, stdout, s
 	if len(task.Depends) == 0 {
 		_, _ = io.WriteString(stdout, "no dependencies\n")
 	} else {
-		aliases, err := ensureTaskAliasesForUUIDs(task.Depends)
+		aliases, err := d.aliasCache.withDefaults().ensureTaskAliasesForUUIDs(task.Depends)
 		if err != nil {
 			fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 			return 1, nil
