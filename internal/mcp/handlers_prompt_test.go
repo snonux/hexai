@@ -875,10 +875,7 @@ func TestServer_Run_InvalidJSON(t *testing.T) {
 	server := NewServer(inBuf, outBuf, logger, store, nil)
 
 	// Write invalid JSON
-	msg := []byte(`{invalid json}`)
-	header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(msg))
-	inBuf.WriteString(header)
-	inBuf.Write(msg)
+	inBuf.WriteString("{invalid json}\n")
 
 	// Run in background
 	done := make(chan error, 1)
@@ -888,14 +885,27 @@ func TestServer_Run_InvalidJSON(t *testing.T) {
 
 	// Wait for processing to complete
 	select {
-	case <-done:
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run() error = %v", err)
+		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("server.Run(context.Background()) did not return in time")
 	}
 
-	// Should have written error response
-	if outBuf.Len() == 0 {
-		t.Error("Expected error response to be written")
+	resp, err := readResponse(outBuf)
+	if err != nil {
+		t.Fatalf("readResponse() error = %v", err)
+	}
+
+	if resp.Error == nil {
+		t.Fatal("Expected parse error response")
+	}
+	if resp.Error.Code != ErrCodeParseError {
+		t.Errorf("Error code = %d, want %d", resp.Error.Code, ErrCodeParseError)
+	}
+	if resp.Error.Message != "Parse error" {
+		t.Errorf("Error message = %q, want %q", resp.Error.Message, "Parse error")
 	}
 }
 
