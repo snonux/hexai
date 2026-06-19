@@ -4,6 +4,7 @@
 // and applies the LLM reply back into the document. It reaches into Server (via
 // c.srv, aliased to s) for shared infrastructure such as LLM clients, document
 // access, config and edit dispatch.
+
 package lsp
 
 import (

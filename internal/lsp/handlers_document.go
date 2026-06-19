@@ -2,6 +2,7 @@
 // helpers (workspace/applyEdit, window/showDocument). The in-editor chat logic
 // that used to live here was extracted into chatService (chat_handlers.go);
 // these handlers now delegate chat detection to s.chatSvc().
+
 package lsp
 
 import (

@@ -1,6 +1,7 @@
 // Ollama client supporting both a local server and Ollama Cloud (ollama.ai).
 // The optional API key is sent as a Bearer token; when empty, requests are
 // unauthenticated so a local Ollama server keeps working unchanged.
+
 package llm
 
 import (

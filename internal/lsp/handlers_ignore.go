@@ -1,4 +1,5 @@
 // Helpers for gitignore-aware file filtering in LSP handlers.
+
 package lsp
 
 import (

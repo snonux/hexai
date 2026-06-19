@@ -91,7 +91,9 @@ type GlobalStatus struct {
 
 // StatusSink receives status updates from the LSP server.
 type StatusSink interface {
+	// SetLLMStart records the provider and model for an LLM request that is starting.
 	SetLLMStart(provider, model string) error
+	// SetGlobal records aggregate LLM request and byte counters.
 	SetGlobal(gs GlobalStatus) error
 }
 

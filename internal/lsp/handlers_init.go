@@ -1,4 +1,5 @@
 // Initialization and lifecycle handlers split from handlers.go.
+
 package lsp
 
 import (

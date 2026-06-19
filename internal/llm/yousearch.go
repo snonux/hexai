@@ -1,6 +1,7 @@
 // You.com Research API provider. Maps Chat() to a single research request using
 // the last user message as the query. System messages are ignored — the Research
 // API has its own reasoning pipeline. Sources are appended as a markdown section.
+
 package llm
 
 import (

@@ -1,4 +1,5 @@
 // LSP transport utilities to read and write JSON-RPC messages with Content-Length framing.
+
 package lsp
 
 import (

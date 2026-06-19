@@ -1,4 +1,5 @@
 // In-memory document model for the LSP; tracks text, lines, and applies edits.
+
 package lsp
 
 import (

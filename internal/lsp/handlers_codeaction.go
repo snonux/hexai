@@ -1,4 +1,5 @@
 // Code Action handlers and helpers split from handlers.go for clarity.
+
 package lsp
 
 import (
@@ -36,7 +37,9 @@ type customActionPayload struct {
 
 // CodeActionHandler builds and resolves code actions for a specific action type.
 type CodeActionHandler interface {
+	// Build returns code actions for the requested document range.
 	Build(s *Server, p CodeActionParams, selection string) []CodeAction
+	// Resolve completes a deferred code action before it is applied.
 	Resolve(s *Server, action CodeAction, payload codeActionPayload) (CodeAction, bool)
 }
 

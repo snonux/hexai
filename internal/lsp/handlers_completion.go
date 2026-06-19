@@ -2,6 +2,7 @@
 // completionService (the extracted code-completion subsystem), which owns the
 // cache/throttle state and reaches back into Server (via cs.srv, aliased to s)
 // for shared infrastructure such as LLM clients, document access and stats.
+
 package lsp
 
 import (

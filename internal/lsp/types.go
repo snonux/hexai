@@ -1,4 +1,5 @@
 // LSP protocol types used by the server (requests, responses, params, capabilities).
+
 package lsp
 
 import "encoding/json"
