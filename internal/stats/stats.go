@@ -31,15 +31,11 @@ var windowSeconds int64 = int64(defaultWindow.Seconds())
 
 // engine carries the injectable dependencies for stats operations. The only
 // dependency today is the clock source for event timestamps and pruning
-// cutoffs. Production code uses defaultEngine (backed by time.Now); tests
-// construct an engine with a fake clock to control time without sleeping.
+// cutoffs. Production wrappers construct it with time.Now; tests can use a fake
+// clock to control time without sleeping.
 type engine struct {
 	now func() time.Time
 }
-
-// defaultEngine is the production engine used by the package-level Update and
-// TakeSnapshot wrappers. It reads the real wall clock.
-var defaultEngine = engine{now: time.Now}
 
 // SetWindow sets the sliding window used for pruning and aggregation.
 func SetWindow(d time.Duration) {
@@ -115,7 +111,7 @@ func (s Snapshot) ScopeRPM(provider, model string) float64 {
 // Update appends one event and prunes old entries under lock, using the
 // production clock. It delegates to engine.update.
 func Update(ctx context.Context, provider, model string, sentBytes, recvBytes int) error {
-	return defaultEngine.update(ctx, provider, model, sentBytes, recvBytes)
+	return engine{now: time.Now}.update(ctx, provider, model, sentBytes, recvBytes)
 }
 
 // update appends one event and prunes old entries under lock.
@@ -232,7 +228,7 @@ func writeStatsFileAtomic(dir, path string, sf *File) error {
 // TakeSnapshot reads the stats file and aggregates events within the stored
 // window, using the production clock. It delegates to engine.takeSnapshot.
 func TakeSnapshot() (Snapshot, error) {
-	return defaultEngine.takeSnapshot()
+	return engine{now: time.Now}.takeSnapshot()
 }
 
 // takeSnapshot reads the stats file and aggregates events within the stored

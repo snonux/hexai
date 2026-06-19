@@ -17,16 +17,11 @@ const cliResponseCacheTTL = 24 * time.Hour
 
 // responseCache carries the injectable dependencies for the on-disk CLI
 // response cache. The only dependency is the clock used to stamp entries and
-// decide expiry. Production code uses defaultResponseCache (backed by
-// time.Now); tests construct a responseCache with a fake clock to exercise TTL
-// expiry without sleeping.
+// decide expiry. Production wrappers construct it with time.Now; tests can use
+// a fake clock to exercise TTL expiry without sleeping.
 type responseCache struct {
 	now func() time.Time
 }
-
-// defaultResponseCache is the production cache used by the package-level
-// lookup/store wrappers. It reads the real wall clock.
-var defaultResponseCache = responseCache{now: time.Now}
 
 // cacheNowContextKey carries an injected clock through the request context so
 // the cache TTL logic can be driven deterministically (e.g. in tests) without
@@ -45,7 +40,7 @@ func responseCacheFromContext(ctx context.Context) responseCache {
 	if now, ok := ctx.Value(cacheNowContextKey{}).(func() time.Time); ok && now != nil {
 		return responseCache{now: now}
 	}
-	return defaultResponseCache
+	return responseCache{now: time.Now}
 }
 
 type cliResponseCacheKey struct {
