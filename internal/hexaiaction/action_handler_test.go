@@ -55,6 +55,10 @@ func TestActionHandlerRegistryRejectsInvalidRegistrations(t *testing.T) {
 		"nil handler": func(registry *actionHandlerRegistry) {
 			registry.register(ActionKind("nil"), nil)
 		},
+		"typed nil handler": func(registry *actionHandlerRegistry) {
+			var handler actionHandlerFunc
+			registry.register(ActionKind("typed-nil"), handler)
+		},
 		"duplicate kind": func(registry *actionHandlerRegistry) {
 			registry.register(ActionKind("dup"), actionHandlerFunc(handleSkipAction))
 			registry.register(ActionKind("dup"), actionHandlerFunc(handleSkipAction))
@@ -84,4 +88,15 @@ func TestActionHandlerRegistryNilPanicNamesKind(t *testing.T) {
 		}
 	}()
 	newActionHandlerRegistry().register(ActionCustom, nil)
+}
+
+func TestActionHandlerFuncNilExecuteReturnsError(t *testing.T) {
+	var handler actionHandlerFunc
+	_, err := handler.Execute(context.Background(), actionRequest{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "nil action handler") {
+		t.Fatalf("expected nil handler error, got %v", err)
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"reflect"
 	"sync"
 
 	"codeberg.org/snonux/hexai/internal/appconfig"
@@ -28,6 +29,9 @@ type CodeActionHandler = ActionHandler
 type actionHandlerFunc func(context.Context, actionRequest) (string, error)
 
 func (f actionHandlerFunc) Execute(ctx context.Context, req actionRequest) (string, error) {
+	if f == nil {
+		return "", fmt.Errorf("hexaiaction: nil action handler")
+	}
 	return f(ctx, req)
 }
 
@@ -44,7 +48,7 @@ func (r *actionHandlerRegistry) register(kind ActionKind, handler ActionHandler)
 	if kind == "" {
 		panic("hexaiaction: cannot register empty action kind")
 	}
-	if handler == nil {
+	if isNilActionHandler(handler) {
 		panic(fmt.Sprintf("hexaiaction: cannot register nil handler for %q", kind))
 	}
 
@@ -54,6 +58,20 @@ func (r *actionHandlerRegistry) register(kind ActionKind, handler ActionHandler)
 		panic(fmt.Sprintf("hexaiaction: handler already registered for %q", kind))
 	}
 	r.handlers[kind] = handler
+}
+
+func isNilActionHandler(handler ActionHandler) bool {
+	if handler == nil {
+		return true
+	}
+
+	value := reflect.ValueOf(handler)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 func (r *actionHandlerRegistry) lookup(kind ActionKind) (ActionHandler, bool) {
