@@ -1,0 +1,88 @@
+package hexaiaction
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"sync"
+
+	"codeberg.org/snonux/hexai/internal/appconfig"
+)
+
+type actionRequest struct {
+	parts          InputParts
+	cfg            actionConfig
+	client         chatDoer
+	stderr         io.Writer
+	selectedCustom *appconfig.CustomAction
+}
+
+// ActionHandler executes one tmux action kind.
+type ActionHandler interface {
+	Execute(context.Context, actionRequest) (string, error)
+}
+
+// CodeActionHandler is kept as a compatibility name for tmux code-action handlers.
+type CodeActionHandler = ActionHandler
+
+type actionHandlerFunc func(context.Context, actionRequest) (string, error)
+
+func (f actionHandlerFunc) Execute(ctx context.Context, req actionRequest) (string, error) {
+	return f(ctx, req)
+}
+
+type actionHandlerRegistry struct {
+	mu       sync.RWMutex
+	handlers map[ActionKind]ActionHandler
+}
+
+func newActionHandlerRegistry() *actionHandlerRegistry {
+	return &actionHandlerRegistry{handlers: make(map[ActionKind]ActionHandler)}
+}
+
+func (r *actionHandlerRegistry) register(kind ActionKind, handler ActionHandler) {
+	if kind == "" {
+		panic("hexaiaction: cannot register empty action kind")
+	}
+	if handler == nil {
+		panic(fmt.Sprintf("hexaiaction: cannot register nil handler for %q", kind))
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.handlers[kind]; exists {
+		panic(fmt.Sprintf("hexaiaction: handler already registered for %q", kind))
+	}
+	r.handlers[kind] = handler
+}
+
+func (r *actionHandlerRegistry) lookup(kind ActionKind) (ActionHandler, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	handler, ok := r.handlers[kind]
+	return handler, ok
+}
+
+func (r *actionHandlerRegistry) snapshot() map[ActionKind]ActionHandler {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	handlers := make(map[ActionKind]ActionHandler, len(r.handlers))
+	for kind, handler := range r.handlers {
+		handlers[kind] = handler
+	}
+	return handlers
+}
+
+var actionHandlers = newActionHandlerRegistry()
+
+func registerActionHandler(kind ActionKind, handler ActionHandler) {
+	actionHandlers.register(kind, handler)
+}
+
+func lookupActionHandler(kind ActionKind) (ActionHandler, bool) {
+	return actionHandlers.lookup(kind)
+}
+
+func codeActionHandlers() map[ActionKind]CodeActionHandler {
+	return actionHandlers.snapshot()
+}
