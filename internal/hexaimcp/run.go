@@ -67,6 +67,20 @@ func RunWithFactory(
 	stderr io.Writer,
 	factory ServerFactory,
 ) error {
+	loadOpts := appconfig.LoadOptions{ConfigPath: configPath}
+	return runWithFactoryLoadOptions(ctx, logPath, loadOpts, overrides, stdin, stdout, stderr, factory)
+}
+
+func runWithFactoryLoadOptions(
+	ctx context.Context,
+	logPath string,
+	loadOpts appconfig.LoadOptions,
+	overrides MCPOverrides,
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+	factory ServerFactory,
+) error {
 	// Setup logger
 	logger, err := setupLogger(logPath)
 	if err != nil {
@@ -82,7 +96,7 @@ func RunWithFactory(
 	logger.Printf("WARNING: hexai-mcp-server is DEPRECATED and experimental - not actively maintained")
 
 	// Load configuration and apply CLI overrides
-	cfg := loadConfig(ctx, logger, configPath)
+	cfg := loadConfigWithOptions(ctx, logger, loadOpts)
 	applyOverrides(&cfg, overrides)
 
 	return runServer(ctx, cfg, logger, stdin, stdout, factory)
@@ -148,6 +162,10 @@ func loadConfig(ctx context.Context, logger *log.Logger, configPath string) appc
 		ConfigPath: configPath,
 		IgnoreEnv:  false,
 	}
+	return loadConfigWithOptions(ctx, logger, opts)
+}
+
+func loadConfigWithOptions(ctx context.Context, logger *log.Logger, opts appconfig.LoadOptions) appconfig.App {
 	return appconfig.LoadWithOptions(ctx, logger, opts)
 }
 
