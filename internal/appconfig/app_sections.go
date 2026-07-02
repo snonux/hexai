@@ -111,7 +111,6 @@ type PromptConfig struct {
 type FeatureConfig struct {
 	StatsConfig      // usage statistics window
 	IgnoreConfig     // gitignore-aware file filtering for LSP
-	TmuxEditConfig   // popup editor settings for hexai-tmux-edit
 	TmuxActionConfig // configurable main menu for hexai-tmux-action
 	MCPConfig        // Model Context Protocol server settings
 }
@@ -200,7 +199,6 @@ func (a *App) ApplyPromptSection(prompts PromptConfig) {
 func (a *App) FeatureSection() FeatureConfig {
 	f := a.FeatureConfig
 	f.IgnoreExtraPatterns = slices.Clone(a.IgnoreExtraPatterns)
-	f.TmuxEditAgents = append([]TmuxEditAgentCfg{}, a.TmuxEditAgents...)
 	f.TmuxActionMenu = append([]TmuxActionMenuEntry{}, a.TmuxActionMenu...)
 	return f
 }
@@ -210,6 +208,5 @@ func (a *App) FeatureSection() FeatureConfig {
 func (a *App) ApplyFeatureSection(features FeatureConfig) {
 	a.FeatureConfig = features
 	a.IgnoreExtraPatterns = slices.Clone(features.IgnoreExtraPatterns)
-	a.TmuxEditAgents = append([]TmuxEditAgentCfg{}, features.TmuxEditAgents...)
 	a.TmuxActionMenu = append([]TmuxActionMenuEntry{}, features.TmuxActionMenu...)
 }

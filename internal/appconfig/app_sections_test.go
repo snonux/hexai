@@ -28,7 +28,6 @@ func TestSectionsDefensiveCopies(t *testing.T) {
 	sections.Providers.CLIConfigs[0].Model = "mutated"
 	sections.Prompts.CustomActions[0].Title = "mutated"
 	sections.Features.IgnoreExtraPatterns[0] = "mutated"
-	sections.Features.TmuxEditAgents[0].Name = "mutated"
 
 	assertNotEqual(t, cfg.TriggerCharacters[0], "mutated", "trigger characters")
 	assertNotEqual(t, cfg.ChatPrefixes[0], "mutated", "chat prefixes")
@@ -36,7 +35,6 @@ func TestSectionsDefensiveCopies(t *testing.T) {
 	assertNotEqual(t, cfg.CLIConfigs[0].Model, "mutated", "cli configs")
 	assertNotEqual(t, cfg.CustomActions[0].Title, "mutated", "custom actions")
 	assertNotEqual(t, cfg.IgnoreExtraPatterns[0], "mutated", "ignore patterns")
-	assertNotEqual(t, cfg.TmuxEditAgents[0].Name, "mutated", "tmux agents")
 
 	out := cfg.Sections()
 	out.Core.TriggerCharacters[0] = "mutated"
@@ -45,7 +43,6 @@ func TestSectionsDefensiveCopies(t *testing.T) {
 	out.Providers.CLIConfigs[0].Model = "mutated"
 	out.Prompts.CustomActions[0].Title = "mutated"
 	out.Features.IgnoreExtraPatterns[0] = "mutated"
-	out.Features.TmuxEditAgents[0].Name = "mutated"
 
 	assertNotEqual(t, cfg.TriggerCharacters[0], "mutated", "sections trigger characters")
 	assertNotEqual(t, cfg.ChatPrefixes[0], "mutated", "sections chat prefixes")
@@ -53,7 +50,6 @@ func TestSectionsDefensiveCopies(t *testing.T) {
 	assertNotEqual(t, cfg.CLIConfigs[0].Model, "mutated", "sections cli configs")
 	assertNotEqual(t, cfg.CustomActions[0].Title, "mutated", "sections custom actions")
 	assertNotEqual(t, cfg.IgnoreExtraPatterns[0], "mutated", "sections ignore patterns")
-	assertNotEqual(t, cfg.TmuxEditAgents[0].Name, "mutated", "sections tmux agents")
 }
 
 func assertNotEqual(t *testing.T, got, want, field string) {
@@ -174,23 +170,6 @@ func testFeatureConfig() FeatureConfig {
 			IgnoreGitignore:     sectionBoolPtr(true),
 			IgnoreExtraPatterns: []string{"vendor/**", "tmp/**"},
 			IgnoreLSPNotify:     sectionBoolPtr(false),
-		},
-		TmuxEditConfig: TmuxEditConfig{
-			TmuxEditPopupWidth:   "80%",
-			TmuxEditPopupHeight:  "75%",
-			TmuxEditDefaultAgent: "codex",
-			TmuxEditAgents: []TmuxEditAgentCfg{{
-				Name:           "codex",
-				DisplayName:    "Codex",
-				DetectPattern:  "(?i)codex",
-				SectionPattern: "section",
-				PromptPattern:  "prompt",
-				StripPatterns:  []string{"x", "y"},
-				ClearFirst:     sectionBoolPtr(true),
-				ClearKeys:      "C-u",
-				NewlineKeys:    "S-Enter",
-				SubmitKeys:     "Enter",
-			}},
 		},
 		MCPConfig: MCPConfig{
 			MCPPromptsDir:       ".hexai/prompts",

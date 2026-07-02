@@ -39,7 +39,7 @@ func Default() error {
 // Build builds binaries.
 func Build() error {
 	printCoverage()
-	mg.Deps(BuildAsk, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction, BuildHexaiTmuxEdit)
+	mg.Deps(BuildAsk, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction)
 	return nil
 }
 
@@ -67,12 +67,6 @@ func BuildHexaiTmuxAction() error {
 	return sh.RunV("go", "build", "-o", "hexai-tmux-action", "./cmd/hexai-tmux-action")
 }
 
-// BuildHexaiTmuxEdit builds the hexai-tmux-edit popup editor binary.
-func BuildHexaiTmuxEdit() error {
-	printCoverage()
-	return sh.RunV("go", "build", "-o", "hexai-tmux-edit", "./cmd/hexai-tmux-edit")
-}
-
 // BuildHexaiMCPServer builds the MCP server binary (DEPRECATED - experimental, not actively maintained).
 func BuildHexaiMCPServer() error {
 	printCoverage()
@@ -92,10 +86,7 @@ func Dev() error {
 	if err := sh.RunV("go", "build", "-race", "-o", binaryName, "./cmd/hexai"); err != nil {
 		return err
 	}
-	if err := sh.RunV("go", "build", "-race", "-o", "hexai-tmux-action", "./cmd/hexai-tmux-action"); err != nil {
-		return err
-	}
-	return sh.RunV("go", "build", "-race", "-o", "hexai-tmux-edit", "./cmd/hexai-tmux-edit")
+	return sh.RunV("go", "build", "-race", "-o", "hexai-tmux-action", "./cmd/hexai-tmux-action")
 }
 
 // Run launches the LSP server via go run (useful during development).
@@ -134,7 +125,6 @@ func Install() error {
 		"hexai-lsp-server",
 		binaryName,
 		"hexai-tmux-action",
-		"hexai-tmux-edit",
 	} {
 		if err := atomicInstallBinary(filepath.Join(".", name), bin); err != nil {
 			return err

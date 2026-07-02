@@ -20,13 +20,6 @@ func (a *App) StatsSection() StatsConfig {
 	return a.StatsConfig
 }
 
-// TmuxEditSection returns a copy of the tmux popup editor settings.
-func (a *App) TmuxEditSection() TmuxEditConfig {
-	c := a.TmuxEditConfig
-	c.TmuxEditAgents = append([]TmuxEditAgentCfg{}, a.TmuxEditAgents...)
-	return c
-}
-
 // TmuxActionSection returns a copy of the tmux action menu settings.
 func (a *App) TmuxActionSection() TmuxActionConfig {
 	c := a.TmuxActionConfig

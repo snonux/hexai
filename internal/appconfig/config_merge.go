@@ -10,7 +10,6 @@ func (a *App) mergeWith(other *App) {
 	a.mergeProviderFields(other)
 	a.mergeSurfaceModels(other)
 	a.mergePrompts(other)
-	a.mergeTmuxEdit(other)
 	a.mergeTmuxAction(other)
 }
 
@@ -235,21 +234,5 @@ func mergeStringField(dst *string, src string) {
 func (a *App) mergeTmuxAction(other *App) {
 	if len(other.TmuxActionMenu) > 0 {
 		a.TmuxActionMenu = append([]TmuxActionMenuEntry{}, other.TmuxActionMenu...)
-	}
-}
-
-// mergeTmuxEdit copies non-empty tmux edit settings from other.
-func (a *App) mergeTmuxEdit(other *App) {
-	if s := strings.TrimSpace(other.TmuxEditPopupWidth); s != "" {
-		a.TmuxEditPopupWidth = s
-	}
-	if s := strings.TrimSpace(other.TmuxEditPopupHeight); s != "" {
-		a.TmuxEditPopupHeight = s
-	}
-	if s := strings.TrimSpace(other.TmuxEditDefaultAgent); s != "" {
-		a.TmuxEditDefaultAgent = s
-	}
-	if len(other.TmuxEditAgents) > 0 {
-		a.TmuxEditAgents = append([]TmuxEditAgentCfg{}, other.TmuxEditAgents...)
 	}
 }

@@ -37,11 +37,6 @@ It has got improved capabilities for Go code understanding (for example, create 
   - Fully configurable menu via `[[tmux_action.menu]]` — reorder, remove, rename, rebind hotkeys, embed custom actions directly in main menu
   - All action prompts overridable via `[prompts.code_action]` in `config.toml`
   - Custom prompt action opens your editor (`$HEXAI_EDITOR` or `$EDITOR`) on a temporary Markdown file
-* Tmux popup editor (`hexai-tmux-edit`) for composing longer AI agent prompts
-  - Opens `$EDITOR` in a tmux popup, pre-filled with the current prompt text
-  - Auto-detects Cursor, Amp, Aider (WIP), and other agents
-  - OpenAI Codex CLI and Claude Code CLI have native external-editor support via `Ctrl+G`
-  - Config-driven: add new agents via `[tmux_edit]` in config.toml
 * Support for Ollama (local + Ollama Cloud), OpenAI, OpenRouter, Anthropic, and You.com (YouSearch Research API) — Ollama Cloud (`kimi-k2.6` at `https://ollama.com`) is the default
 
 > **Note on hexai-mcp-server:** This component is currently experimental and not actively maintained. The author manages prompts through slash commands and meta-commands in the hexai agent system, making the MCP server redundant for its original purpose. The code is preserved for potential future enhancements with different functionality beyond prompt management. See the [MCP documentation](docs/mcp-setup.md) for reference only.
@@ -71,9 +66,7 @@ hexai follows the XDG Base Directory Specification:
   - `stats.json` - LLM usage tracking (regenerable)
   - `stats.lock` - File lock for stats access
 - **State & Logs:** `~/.local/hexai/state/` (or `$XDG_STATE_HOME/state/`)
-  - `tmux-edit-history.jsonl` - History of text submitted via tmux popup
   - `hexai-lsp-server.log` - LSP server debug logs
-  - `hexai-tmux-edit.log` - Tmux edit debug logs
   - `hexai-mcp-server.log` - MCP server debug logs
 - **Data:** `~/.local/hexai/data/` (or `$XDG_DATA_HOME/`)
   - `prompts/user.jsonl` - User-created custom prompts (built-in prompts are compiled into the binary)

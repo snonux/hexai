@@ -296,7 +296,6 @@ func applyPromptSections(fc *fileConfig, out *App) {
 func applyFeatureSections(fc *fileConfig, out *App) {
 	applyTmuxSection(fc, out)
 	applyStatsSection(fc, out)
-	fc.applyTmuxEdit(out)
 	applyMCPSection(fc, out)
 	applyTmuxActionSection(fc, out)
 }
@@ -561,37 +560,6 @@ func toCustomActions(custom []sectionCustomAction) []CustomAction {
 func setIfNotBlank(dst *string, value string) {
 	if strings.TrimSpace(value) != "" {
 		*dst = value
-	}
-}
-
-// applyTmuxEdit converts the [tmux_edit] section into App fields.
-func (fc *fileConfig) applyTmuxEdit(out *App) {
-	te := fc.TmuxEdit
-	if strings.TrimSpace(te.PopupWidth) != "" {
-		out.TmuxEditPopupWidth = strings.TrimSpace(te.PopupWidth)
-	}
-	if strings.TrimSpace(te.PopupHeight) != "" {
-		out.TmuxEditPopupHeight = strings.TrimSpace(te.PopupHeight)
-	}
-	if strings.TrimSpace(te.DefaultAgent) != "" {
-		out.TmuxEditDefaultAgent = strings.TrimSpace(te.DefaultAgent)
-	}
-	for _, a := range te.Agents {
-		if strings.TrimSpace(a.Name) == "" {
-			continue
-		}
-		out.TmuxEditAgents = append(out.TmuxEditAgents, TmuxEditAgentCfg{
-			Name:           strings.TrimSpace(a.Name),
-			DisplayName:    strings.TrimSpace(a.DisplayName),
-			DetectPattern:  strings.TrimSpace(a.DetectPattern),
-			SectionPattern: strings.TrimSpace(a.SectionPattern),
-			PromptPattern:  strings.TrimSpace(a.PromptPattern),
-			StripPatterns:  a.StripPatterns,
-			ClearFirst:     a.ClearFirst,
-			ClearKeys:      strings.TrimSpace(a.ClearKeys),
-			NewlineKeys:    strings.TrimSpace(a.NewlineKeys),
-			SubmitKeys:     strings.TrimSpace(a.SubmitKeys),
-		})
 	}
 }
 

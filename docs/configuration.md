@@ -157,33 +157,3 @@ All prompts used by `hexai-tmux-action` (and the LSP code actions) can be overri
 | `fix_typos_*` | Fix typos and improve grammar and clarity |
 
 User templates support `{{selection}}` (always available) and `{{diagnostics}}` (diagnostics scope). See [config.toml.example](../config.toml.example) for the full defaults.
-
-Hexai Tmux Edit (popup editor)
-
-- `hexai-tmux-edit` opens `$EDITOR` in a tmux popup for composing longer AI agent prompts.
-- Configure popup dimensions and agent detection patterns in the `[tmux_edit]` section:
-
-  ```toml
-  [tmux_edit]
-  popup_width = "80%"
-  popup_height = "80%"
-  # default_agent = "claude"   # force agent; skip auto-detect
-  ```
-
-- Override or add agent definitions with `[[tmux_edit.agents]]` (merged with built-in defaults by name):
-
-  ```toml
-  [[tmux_edit.agents]]
-  name = "claude"
-  display_name = "Claude Code"
-  detect_pattern = "(?i)(claude|anthropic)"
-  prompt_pattern = '(?m)>\s*(.+)$'
-  clear_first = true
-  clear_keys = "C-u"
-  newline_keys = "S-Enter"
-  submit_keys = "Enter"
-  ```
-
-- Built-in agents: `cursor`, `amp`, `aider`. See [config.toml.example](../config.toml.example) for all fields.
-- OpenAI Codex CLI and Claude Code CLI use their native external editor shortcut (`Ctrl+G`) instead of a built-in `tmux_edit` agent profile.
-- Tmux keybinding: `bind e run-shell -b "cd '#{pane_current_path}' && hexai-tmux-edit --pane '#{pane_id}'"`

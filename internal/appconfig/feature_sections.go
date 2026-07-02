@@ -1,9 +1,9 @@
 package appconfig
 
 // This file defines the cohesive per-subsystem config structs that make up
-// FeatureConfig. The old FeatureConfig was a grab-bag that mixed five unrelated
-// non-LLM subsystems (ignore filtering, stats, tmux popup editor, tmux action
-// menu, MCP server). Splitting them into named structs documents the seams
+// FeatureConfig. The old FeatureConfig was a grab-bag that mixed four unrelated
+// non-LLM subsystems (ignore filtering, stats, tmux action menu, MCP server).
+// Splitting them into named structs documents the seams
 // between subsystems and lets consumers depend on a single subsystem's config
 // (via the *Section accessors on App) instead of the whole App God-struct.
 //
@@ -27,14 +27,6 @@ type IgnoreConfig struct {
 type StatsConfig struct {
 	// StatsWindowMinutes is the rolling window (in minutes) used for stats.
 	StatsWindowMinutes int `json:"-"`
-}
-
-// TmuxEditConfig configures the tmux popup editor feature (hexai-tmux-edit).
-type TmuxEditConfig struct {
-	TmuxEditPopupWidth   string             `json:"-"`
-	TmuxEditPopupHeight  string             `json:"-"`
-	TmuxEditDefaultAgent string             `json:"-"`
-	TmuxEditAgents       []TmuxEditAgentCfg `json:"-"`
 }
 
 // TmuxActionConfig configures the main menu for hexai-tmux-action.

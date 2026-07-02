@@ -48,21 +48,6 @@ type TmuxActionMenuEntry struct {
 	Hotkey   string // optional single-character hotkey override
 }
 
-// TmuxEditAgentCfg describes an AI agent's detection and interaction patterns
-// for the tmux popup editor (hexai-tmux-edit).
-type TmuxEditAgentCfg struct {
-	Name           string
-	DisplayName    string
-	DetectPattern  string
-	SectionPattern string
-	PromptPattern  string
-	StripPatterns  []string
-	ClearFirst     *bool
-	ClearKeys      string
-	NewlineKeys    string
-	SubmitKeys     string
-}
-
 // LoadOptions tune how configuration is loaded at runtime.
 type LoadOptions struct {
 	// IgnoreEnv skips applying environment overrides when true.
@@ -170,7 +155,6 @@ type fileConfig struct {
 	Tmux       sectionTmux       `toml:"tmux"`
 	Stats      sectionStats      `toml:"stats"`
 	Ignore     sectionIgnore     `toml:"ignore"`
-	TmuxEdit   sectionTmuxEdit   `toml:"tmux_edit"`
 	TmuxAction sectionTmuxAction `toml:"tmux_action"`
 	MCP        sectionMCP        `toml:"mcp"`
 }
@@ -223,28 +207,6 @@ type sectionIgnore struct {
 	Gitignore        *bool    `toml:"gitignore"`
 	ExtraPatterns    []string `toml:"extra_patterns"`
 	LSPNotifyIgnored *bool    `toml:"lsp_notify_ignored"`
-}
-
-// sectionTmuxEdit configures the tmux popup editor feature (hexai-tmux-edit).
-type sectionTmuxEdit struct {
-	PopupWidth   string                 `toml:"popup_width"`
-	PopupHeight  string                 `toml:"popup_height"`
-	DefaultAgent string                 `toml:"default_agent"`
-	Agents       []sectionTmuxEditAgent `toml:"agents"`
-}
-
-// sectionTmuxEditAgent defines detection and interaction patterns for one AI agent.
-type sectionTmuxEditAgent struct {
-	Name           string   `toml:"name"`
-	DisplayName    string   `toml:"display_name"`
-	DetectPattern  string   `toml:"detect_pattern"`
-	SectionPattern string   `toml:"section_pattern"`
-	PromptPattern  string   `toml:"prompt_pattern"`
-	StripPatterns  []string `toml:"strip_patterns"`
-	ClearFirst     *bool    `toml:"clear_first"`
-	ClearKeys      string   `toml:"clear_keys"`
-	NewlineKeys    string   `toml:"newline_keys"`
-	SubmitKeys     string   `toml:"submit_keys"`
 }
 
 // sectionMCP configures the MCP server settings.

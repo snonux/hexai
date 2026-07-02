@@ -200,29 +200,3 @@ research_effort = "standard"
 # gitignore = true                     # respect .gitignore patterns (default: true)
 # extra_patterns = ["*.min.js", "vendor/**", "*.generated.go"]
 # lsp_notify_ignored = true            # show "file ignored" in LSP completions (default: true)
-
-[tmux_edit]
-# popup_width = "80%"                  # tmux popup width (default: 80%)
-# popup_height = "80%"                 # tmux popup height (default: 80%)
-# default_agent = ""                   # force agent name; skip auto-detect
-
-# Override or add agent definitions (merged with built-in defaults by name).
-# Built-in agents (checked in order): cursor, amp, aider.
-# OpenAI Codex CLI and Claude Code CLI both support external editor mode via
-# Ctrl+G, so no built-in tmux_edit agent profiles are needed for them.
-# - cursor: Box UI │...│, clears with End+BSpace*200
-# - amp: Box UI │...│ (TUI mode), clears with C-u (Emacs/readline)
-# - aider: Shell-style > prompt, clears with C-u (Emacs/readline)
-# Tmux keybinding (add to ~/.tmux.conf):
-#   bind e run-shell -b "cd '#{pane_current_path}' && hexai-tmux-edit --pane '#{pane_id}'"
-
-# [[tmux_edit.agents]]
-# name = "cursor"
-# display_name = "Cursor"
-# detect_pattern = "(?i)cursor"
-# prompt_pattern = '(?m)│\s*(.+)$'
-# strip_patterns = ["INSERT", "Add a follow-up"]
-# clear_first = true
-# clear_keys = "C-u"
-# newline_keys = "S-Enter"
-# submit_keys = "Enter"

@@ -1,4 +1,4 @@
-// Tests for ignore config, tmux-edit config, and low-level parsing helpers
+// Tests for ignore config and low-level parsing helpers
 // (temperature, model entries, surface entries, resolved model).
 package appconfig
 
@@ -116,106 +116,6 @@ gitignore = false
 	// LSP notify should still be true (default, not overridden)
 	if cfg.IgnoreLSPNotify == nil || !*cfg.IgnoreLSPNotify {
 		t.Error("expected IgnoreLSPNotify to remain true (default)")
-	}
-}
-
-func TestTmuxEditConfig_FromFile(t *testing.T) {
-	clearHexaiEnv(t)
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "config.toml")
-	writeFile(t, cfgPath, `
-[tmux_edit]
-popup_width = "90%"
-popup_height = "85%"
-default_agent = "claude"
-
-[[tmux_edit.agents]]
-name = "claude"
-display_name = "Claude Code"
-detect_pattern = "(?i)(claude|anthropic)"
-prompt_pattern = '(?s)>\s*(.+?)$'
-clear_first = true
-clear_keys = "C-u"
-newline_keys = "S-Enter"
-submit_keys = "Enter"
-
-[[tmux_edit.agents]]
-name = "cursor"
-display_name = "Cursor"
-detect_pattern = "(?i)cursor"
-prompt_pattern = '(?s)│\s*(.+?)$'
-strip_patterns = ["INSERT", "Add a follow-up"]
-clear_first = true
-clear_keys = "C-u"
-newline_keys = "S-Enter"
-submit_keys = "Enter"
-`)
-	cfg := LoadWithOptions(context.Background(), newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
-	if cfg.TmuxEditPopupWidth != "90%" {
-		t.Errorf("PopupWidth = %q, want 90%%", cfg.TmuxEditPopupWidth)
-	}
-	if cfg.TmuxEditPopupHeight != "85%" {
-		t.Errorf("PopupHeight = %q, want 85%%", cfg.TmuxEditPopupHeight)
-	}
-	if cfg.TmuxEditDefaultAgent != "claude" {
-		t.Errorf("DefaultAgent = %q, want claude", cfg.TmuxEditDefaultAgent)
-	}
-	if len(cfg.TmuxEditAgents) != 2 {
-		t.Fatalf("got %d agents, want 2", len(cfg.TmuxEditAgents))
-	}
-	a := cfg.TmuxEditAgents[0]
-	if a.Name != "claude" || a.DisplayName != "Claude Code" {
-		t.Errorf("agent[0] = %q/%q, want claude/Claude Code", a.Name, a.DisplayName)
-	}
-	if a.ClearFirst == nil || !*a.ClearFirst {
-		t.Error("expected ClearFirst = true for claude agent")
-	}
-	b := cfg.TmuxEditAgents[1]
-	if b.Name != "cursor" {
-		t.Errorf("agent[1].Name = %q, want cursor", b.Name)
-	}
-	if len(b.StripPatterns) != 2 {
-		t.Errorf("agent[1].StripPatterns = %v, want 2 entries", b.StripPatterns)
-	}
-}
-
-func TestTmuxEditConfig_Merge(t *testing.T) {
-	clearHexaiEnv(t)
-	a := newDefaultConfig()
-	b := App{
-		FeatureConfig: FeatureConfig{TmuxEditConfig: TmuxEditConfig{
-			TmuxEditPopupWidth:   "70%",
-			TmuxEditDefaultAgent: "amp",
-			TmuxEditAgents: []TmuxEditAgentCfg{
-				{Name: "amp", DisplayName: "Amp"},
-			},
-		}},
-	}
-	a.mergeWith(&b)
-	if a.TmuxEditPopupWidth != "70%" {
-		t.Errorf("PopupWidth = %q, want 70%%", a.TmuxEditPopupWidth)
-	}
-	if a.TmuxEditDefaultAgent != "amp" {
-		t.Errorf("DefaultAgent = %q, want amp", a.TmuxEditDefaultAgent)
-	}
-	if len(a.TmuxEditAgents) != 1 || a.TmuxEditAgents[0].Name != "amp" {
-		t.Errorf("Agents = %v, want single amp", a.TmuxEditAgents)
-	}
-}
-
-func TestTmuxEditConfig_SkipsEmptyName(t *testing.T) {
-	clearHexaiEnv(t)
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "config.toml")
-	writeFile(t, cfgPath, `
-[tmux_edit]
-[[tmux_edit.agents]]
-name = ""
-display_name = "Empty"
-`)
-	cfg := LoadWithOptions(context.Background(), newLogger(), LoadOptions{ConfigPath: cfgPath, ProjectRoot: dir})
-	if len(cfg.TmuxEditAgents) != 0 {
-		t.Errorf("got %d agents, want 0 (empty name should be skipped)", len(cfg.TmuxEditAgents))
 	}
 }
 

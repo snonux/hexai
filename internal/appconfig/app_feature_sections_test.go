@@ -33,18 +33,6 @@ func TestStatsSectionReads(t *testing.T) {
 	}
 }
 
-func TestTmuxEditSectionCopies(t *testing.T) {
-	cfg := buildFeatureApp()
-	got := cfg.TmuxEditSection()
-	if got.TmuxEditDefaultAgent != "codex" || len(got.TmuxEditAgents) != 1 {
-		t.Fatalf("unexpected tmux edit section: %+v", got)
-	}
-	got.TmuxEditAgents[0].Name = "mutated"
-	if cfg.TmuxEditAgents[0].Name == "mutated" {
-		t.Fatal("TmuxEditSection did not return a defensive copy")
-	}
-}
-
 func TestTmuxActionSectionCopies(t *testing.T) {
 	cfg := App{}
 	cfg.TmuxActionMenu = []TmuxActionMenuEntry{{Kind: "rewrite"}}
