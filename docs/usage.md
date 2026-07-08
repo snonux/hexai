@@ -32,7 +32,7 @@ Note: additional LSPs (`gopls`, `golangci-lint-lsp`) are optional; Hexai works w
 
 Ask a question at the end of a line and receive the answer inline.
 
-- End your question line with a trigger: `?>`, `!>`, or `:>`.
+- End your question line with a trigger: `?>`, `!>`, `:>`, or `;>`.
 - Hexai removes only the trailing `>` from the question line (and keeps your trailing punctuation). Inline code-completion triggers now use `>!text>` (inline) or `>>!text>` (line-replace).
 - It inserts a blank line, then a reply line prefixed with `> `, then one extra newline so most
   editors place the cursor on a fresh blank line after the answer.
