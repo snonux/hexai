@@ -12,9 +12,14 @@ import (
 
 func useIsolatedTaskAliasCache(t *testing.T) time.Time {
 	t.Helper()
-
 	dir := t.TempDir()
-	fixedNow := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	// Seed ~30 days behind the real wall clock. The Dispatcher's alias cache
+	// prunes entries older than 120 days using time.Now (it is not injected
+	// here), so a fixed past date would become a time bomb once the real clock
+	// moved >120 days past it (which is what made these tests fail). A relative
+	// seed stays well inside the prune window on any host. No test asserts the
+	// exact seed time.
+	fixedNow := time.Now().Add(-30 * 24 * time.Hour).UTC()
 	t.Setenv("XDG_CACHE_HOME", dir)
 	return fixedNow
 }
