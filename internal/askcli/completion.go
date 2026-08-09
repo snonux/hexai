@@ -18,41 +18,17 @@ var askDepCompletionItems = []fishCompletionItem{
 
 func fishSingleSelectorCompletionContext(positional []string) bool {
 	positional = trimTaskPrefixes(positional)
-	if len(positional) != 1 {
-		return false
-	}
-
-	for _, command := range commandRegistry.singleSelectorNames() {
-		if positional[0] == command {
-			return true
-		}
-	}
-	return false
+	return evalCompletionContext(uuidContextSpec, positional, "", commandRegistry.singleSelectorNames())
 }
 
 func fishDepSelectorCompletionContext(positional []string) bool {
 	positional = trimTaskPrefixes(positional)
-	if len(positional) < 2 || positional[0] != "dep" {
-		return false
-	}
-
-	switch positional[1] {
-	case "add", "rm":
-		return len(positional) == 2 || len(positional) == 3
-	case "list":
-		return len(positional) == 2
-	default:
-		return false
-	}
+	return evalCompletionContext(depUUIDContextSpec, positional, "", nil)
 }
 
 func fishAddDependencyModifierCompletionContext(positional []string, current string) bool {
 	positional = trimTaskPrefixes(positional)
-	if len(positional) == 0 || positional[0] != "add" {
-		return false
-	}
-	current = strings.TrimSpace(current)
-	return current == "depends" || strings.HasPrefix(current, "depends:")
+	return evalCompletionContext(addDepModifierContextSpec, positional, strings.TrimSpace(current), nil)
 }
 
 // FishCompletion returns the default Fish completion script for the ask CLI.
@@ -118,9 +94,10 @@ func writeFishContextFunctions(b *strings.Builder) {
 	writeFishNeedsRootCompletionFunction(b)
 	writeFishNeedsCommandCompletionFunction(b)
 	writeFishDepContextFunction(b)
-	writeFishUUIDContextFunction(b)
-	writeFishDepUUIDContextFunction(b)
-	writeFishAddDependencyModifierContextFunction(b)
+	names := commandRegistry.singleSelectorNames()
+	for _, spec := range completionContextSpecs {
+		writeFishContextFunctionFromSpec(b, spec, names)
+	}
 }
 
 func writeFishPositionalTokensFunction(b *strings.Builder) {
@@ -208,69 +185,6 @@ func writeFishDepContextFunction(b *strings.Builder) {
 	b.WriteString("        return 1\n")
 	b.WriteString("    end\n")
 	b.WriteString("    test (count $positional) -eq 1\n")
-	b.WriteString("end\n\n")
-}
-
-func writeFishUUIDContextFunction(b *strings.Builder) {
-	b.WriteString("function __ask_in_uuid_context\n")
-	b.WriteString("    set -l positional (__ask_command_positionals)\n")
-	b.WriteString("    if test (count $positional) -eq 0\n")
-	b.WriteString("        return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    if test (count $positional) -ne 1\n")
-	b.WriteString("        return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    switch $positional[1]\n")
-	b.WriteString("        case ")
-	b.WriteString(strings.Join(commandRegistry.singleSelectorNames(), " "))
-	b.WriteString("\n")
-	b.WriteString("            return 0\n")
-	b.WriteString("        case '*'\n")
-	b.WriteString("            return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    return 1\n")
-	b.WriteString("end\n\n")
-}
-
-func writeFishDepUUIDContextFunction(b *strings.Builder) {
-	b.WriteString("function __ask_in_dep_uuid_context\n")
-	b.WriteString("    set -l positional (__ask_command_positionals)\n")
-	b.WriteString("    if test (count $positional) -lt 2\n")
-	b.WriteString("        return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    if test $positional[1] != dep\n")
-	b.WriteString("        return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    switch $positional[2]\n")
-	b.WriteString("        case add rm\n")
-	b.WriteString("            if test (count $positional) -eq 2 -o (count $positional) -eq 3\n")
-	b.WriteString("                return 0\n")
-	b.WriteString("            end\n")
-	b.WriteString("        case list\n")
-	b.WriteString("            if test (count $positional) -eq 2\n")
-	b.WriteString("                return 0\n")
-	b.WriteString("            end\n")
-	b.WriteString("        case '*'\n")
-	b.WriteString("            return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    return 1\n")
-	b.WriteString("end\n\n")
-}
-
-func writeFishAddDependencyModifierContextFunction(b *strings.Builder) {
-	b.WriteString("function __ask_in_add_dep_modifier_context\n")
-	b.WriteString("    set -l positional (__ask_command_positionals)\n")
-	b.WriteString("    if test (count $positional) -lt 1\n")
-	b.WriteString("        return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    if test $positional[1] != add\n")
-	b.WriteString("        return 1\n")
-	b.WriteString("    end\n")
-	b.WriteString("    set -l current (commandline -ct)\n")
-	b.WriteString("    if test $current = depends\n")
-	b.WriteString("        return 0\n")
-	b.WriteString("    end\n")
-	b.WriteString("    string match -qr '^depends:' -- $current\n")
 	b.WriteString("end\n\n")
 }
 
