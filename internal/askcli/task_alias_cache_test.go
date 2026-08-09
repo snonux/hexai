@@ -246,15 +246,21 @@ func TestEnsureTaskAliases_CorruptedCacheIsResetGracefully(t *testing.T) {
 	}
 }
 
-func TestEnsureTaskAliases_RejectsNextIDReuse(t *testing.T) {
+func TestEnsureTaskAliases_RepairsStaleNextIDWithoutReusingAlias(t *testing.T) {
 	dir := t.TempDir()
-	deps := testTaskAliasCacheDeps(dir, nil)
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
 
 	path, err := deps.taskAliasCachePath()
 	if err != nil {
 		t.Fatalf("taskAliasCachePath: %v", err)
 	}
 
+	// NextID is stale (36) while an entry already claims alias "00" (id 36).
+	// Before the fix validate() hard-failed here and bricked every ask
+	// subcommand until the cache file was manually deleted. Now sanitize()
+	// repairs NextID to maxID+1 so the new task gets a fresh alias (id 37 ->
+	// "10") instead of reusing "00".
 	cache := taskAliasCache{
 		NextID: 36,
 		Entries: []taskAliasCacheEntry{
@@ -265,8 +271,215 @@ func TestEnsureTaskAliases_RejectsNextIDReuse(t *testing.T) {
 		t.Fatalf("save seed cache: %v", err)
 	}
 
-	if _, err := deps.ensureTaskAliases([]TaskExport{{UUID: "uuid-2"}}); err == nil {
-		t.Fatal("expected error when next_id would reuse an alias")
+	aliases, err := deps.ensureTaskAliases([]TaskExport{{UUID: "uuid-1"}, {UUID: "uuid-2"}})
+	if err != nil {
+		t.Fatalf("expected graceful repair of stale NextID, got error: %v", err)
+	}
+	if aliases["uuid-1"] != "00" {
+		t.Fatalf("uuid-1 alias = %q, want existing 00", aliases["uuid-1"])
+	}
+	if aliases["uuid-2"] != "10" {
+		t.Fatalf("uuid-2 alias = %q, want fresh 10 (no reuse of 00)", aliases["uuid-2"])
+	}
+
+	cache = readTaskAliasCacheForTest(t, path)
+	if cache.NextID != 38 {
+		t.Fatalf("NextID = %d, want 38 after repairing and adding one alias", cache.NextID)
+	}
+}
+
+// TestEnsureTaskAliases_SanitizesDuplicateUUID is a regression test for the
+// hard-brick bug: a cache with a duplicated UUID (e.g. from a past bug or a
+// manual edit) used to make every ask subcommand fail. Now sanitize() drops the
+// duplicate entry and the CLI keeps working, preserving the valid aliases.
+func TestEnsureTaskAliases_SanitizesDuplicateUUID(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
+
+	path, err := deps.taskAliasCachePath()
+	if err != nil {
+		t.Fatalf("taskAliasCachePath: %v", err)
+	}
+
+	seed := taskAliasCache{
+		NextID: 39,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "dup", Alias: "00", CreatedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+			{UUID: "dup", Alias: "10", CreatedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+			{UUID: "uniq", Alias: "20", CreatedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+		},
+	}
+	if err := seed.save(path); err != nil {
+		t.Fatalf("save seed cache: %v", err)
+	}
+
+	aliases, err := deps.ensureTaskAliases([]TaskExport{{UUID: "dup"}, {UUID: "uniq"}})
+	if err != nil {
+		t.Fatalf("expected graceful recovery from duplicate UUID, got error: %v", err)
+	}
+	if aliases["dup"] != "00" {
+		t.Fatalf("dup alias = %q, want first occurrence 00", aliases["dup"])
+	}
+	if aliases["uniq"] != "20" {
+		t.Fatalf("uniq alias = %q, want 20", aliases["uniq"])
+	}
+
+	cache := readTaskAliasCacheForTest(t, path)
+	if len(cache.Entries) != 2 {
+		t.Fatalf("len(Entries) = %d, want 2 after dropping duplicate UUID", len(cache.Entries))
+	}
+	seen := map[string]int{}
+	for _, e := range cache.Entries {
+		seen[e.UUID]++
+	}
+	if seen["dup"] != 1 || seen["uniq"] != 1 {
+		t.Fatalf("duplicate UUID not removed: %+v", seen)
+	}
+}
+
+// TestEnsureTaskAliases_SanitizesDuplicateAlias ensures a duplicated alias
+// string (independent of UUID) is also quarantined rather than bricking the
+// CLI.
+func TestEnsureTaskAliases_SanitizesDuplicateAlias(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
+
+	path, err := deps.taskAliasCachePath()
+	if err != nil {
+		t.Fatalf("taskAliasCachePath: %v", err)
+	}
+
+	seed := taskAliasCache{
+		NextID: 38,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "uuid-a", Alias: "00", CreatedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+			{UUID: "uuid-b", Alias: "00", CreatedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+		},
+	}
+	if err := seed.save(path); err != nil {
+		t.Fatalf("save seed cache: %v", err)
+	}
+
+	aliases, err := deps.ensureTaskAliases([]TaskExport{{UUID: "uuid-a"}, {UUID: "uuid-b"}})
+	if err != nil {
+		t.Fatalf("expected graceful recovery from duplicate alias, got error: %v", err)
+	}
+	if aliases["uuid-a"] != "00" {
+		t.Fatalf("uuid-a alias = %q, want first occurrence 00", aliases["uuid-a"])
+	}
+	// uuid-b lost its duplicate alias and must have been reassigned a fresh one.
+	if aliases["uuid-b"] == "" || aliases["uuid-b"] == "00" {
+		t.Fatalf("uuid-b alias = %q, want a fresh non-duplicate alias", aliases["uuid-b"])
+	}
+
+	cache := readTaskAliasCacheForTest(t, path)
+	seen := map[string]int{}
+	for _, e := range cache.Entries {
+		seen[e.Alias]++
+	}
+	for alias, n := range seen {
+		if n != 1 {
+			t.Fatalf("alias %q appears %d times after sanitize", alias, n)
+		}
+	}
+}
+
+// TestEnsureTaskAliases_PersistsSanitizedStateWithNoOtherChange isolates the
+// `changed := cache.prune(now) || cache.repaired` wiring. It seeds a cache whose
+// only good entry already has LastAccessedAt == now (so ensureAlias reports no
+// update) and whose prune changes nothing, leaving cache.repaired as the SOLE
+// reason a save happens. If the `|| cache.repaired` term were removed, no save
+// would run and the bad entry would remain on disk — this test catches that.
+func TestEnsureTaskAliases_PersistsSanitizedStateWithNoOtherChange(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
+
+	path, err := deps.taskAliasCachePath()
+	if err != nil {
+		t.Fatalf("taskAliasCachePath: %v", err)
+	}
+
+	// NextID=37 is valid (good alias "00" decodes to id 36), so sanitize must NOT
+	// repair NextID here; the only repair is dropping the invalid-alias entry,
+	// which sets repaired=true. good.LastAccessedAt == now so ensureAlias reports
+	// no access update, and prune keeps the fresh entry — no other change.
+	seed := taskAliasCache{
+		NextID: 37,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "bad", Alias: "A", CreatedAt: now, LastAccessedAt: now},
+			{UUID: "good", Alias: "00", CreatedAt: now, LastAccessedAt: now},
+		},
+	}
+	if err := seed.save(path); err != nil {
+		t.Fatalf("save seed cache: %v", err)
+	}
+
+	aliases, err := deps.ensureTaskAliases([]TaskExport{{UUID: "good"}})
+	if err != nil {
+		t.Fatalf("expected graceful recovery, got error: %v", err)
+	}
+	if aliases["good"] != "00" {
+		t.Fatalf("good alias = %q, want 00", aliases["good"])
+	}
+
+	// The sanitized state must have been persisted even though no access update
+	// or prune changed anything — i.e. solely because cache.repaired was set.
+	cache := readTaskAliasCacheForTest(t, path)
+	if hasTaskAliasEntry(cache, "bad") {
+		t.Fatal("invalid-alias entry should have been dropped on disk (save driven only by repaired flag)")
+	}
+	if !hasTaskAliasEntry(cache, "good") {
+		t.Fatal("valid entry should have been preserved on disk")
+	}
+	if cache.NextID != 37 {
+		t.Fatalf("NextID = %d, want 37 (no NextID repair expected here)", cache.NextID)
+	}
+}
+
+// TestEnsureTaskAliases_SanitizesInvalidAlias ensures an entry with an alias
+// that does not decode (e.g. a manual edit typo) is dropped rather than
+// bricking the CLI.
+func TestEnsureTaskAliases_SanitizesInvalidAlias(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
+
+	path, err := deps.taskAliasCachePath()
+	if err != nil {
+		t.Fatalf("taskAliasCachePath: %v", err)
+	}
+
+	seed := taskAliasCache{
+		NextID: 37,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "bad", Alias: "A", CreatedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+			{UUID: "good", Alias: "00", CreatedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+		},
+	}
+	if err := seed.save(path); err != nil {
+		t.Fatalf("save seed cache: %v", err)
+	}
+
+	aliases, err := deps.ensureTaskAliases([]TaskExport{{UUID: "good"}, {UUID: "new"}})
+	if err != nil {
+		t.Fatalf("expected graceful recovery from invalid alias, got error: %v", err)
+	}
+	if aliases["good"] != "00" {
+		t.Fatalf("good alias = %q, want 00", aliases["good"])
+	}
+	if aliases["new"] == "" {
+		t.Fatal("expected a fresh alias for the new task")
+	}
+
+	cache := readTaskAliasCacheForTest(t, path)
+	if hasTaskAliasEntry(cache, "bad") {
+		t.Fatal("invalid-alias entry should have been dropped")
+	}
+	if !hasTaskAliasEntry(cache, "good") {
+		t.Fatal("valid entry should have been preserved")
 	}
 }
 

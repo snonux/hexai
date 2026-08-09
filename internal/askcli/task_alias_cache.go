@@ -58,6 +58,11 @@ type taskAliasCache struct {
 	// In-memory lookup maps — not serialized to JSON.
 	byUUID  map[string]*taskAliasCacheEntry
 	byAlias map[string]*taskAliasCacheEntry
+
+	// repaired is set when sanitize() dropped bad/duplicate entries or repaired
+	// NextID on load, so ensureTaskAliases persists the cleaned state even when
+	// no other change occurred. Not serialized to JSON.
+	repaired bool
 }
 
 type taskAliasCacheEntry struct {
@@ -92,7 +97,7 @@ func (d taskAliasCacheDeps) ensureTaskAliases(tasks []TaskExport) (map[string]st
 	}
 
 	now := d.now().UTC()
-	changed := cache.prune(now)
+	changed := cache.prune(now) || cache.repaired
 	aliases := make(map[string]string, len(tasks))
 	for _, task := range tasks {
 		if task.UUID == "" {
@@ -144,9 +149,15 @@ func loadTaskAliasCacheAt(path string) (taskAliasCache, error) {
 		_ = os.Remove(path)
 		return taskAliasCache{}, nil
 	}
-	if err := cache.validate(); err != nil {
-		return taskAliasCache{}, fmt.Errorf("validate task alias cache: %w", err)
-	}
+	// Sanitize the loaded cache instead of hard-failing on a single bad entry.
+	// A corrupted/duplicated alias (e.g. from a past bug or a manual edit of the
+	// cache file) must not brick every ask subcommand: ensureTaskAliases is on the
+	// hot path of list, info, add, start, dep, urgency and completion, and the
+	// former validate() propagated a hard error that only manual file deletion
+	// could recover from. sanitize() drops the offending entries and repairs
+	// NextID, mirroring the recover-by-reset behavior of the unmarshal-error
+	// path above but keeping the valid aliases intact.
+	cache.sanitize()
 	// Rebuild lookup maps from the deserialized entries so that all subsequent
 	// operations use O(1) map access rather than a linear scan.
 	cache.rebuildMaps()
@@ -196,39 +207,61 @@ func (d taskAliasCacheDeps) taskAliasCachePath() (string, error) {
 	return filepath.Join(dir, "ask", "task-aliases-v2.json"), nil
 }
 
-func (c *taskAliasCache) validate() error {
+// sanitize repairs an untrusted taskAliasCache loaded from disk in place. A
+// single corrupted or duplicated entry must not brick every ask subcommand
+// (ensureTaskAliases is on the hot path of list, info, add, start, dep, urgency
+// and completion), so instead of failing hard like the former validate() it
+// drops the offending entries and repairs NextID, keeping the valid aliases
+// intact. This mirrors the recover-by-reset behavior of the json.Unmarshal
+// error path in loadTaskAliasCacheAt but is more surgical: only bad entries are
+// discarded rather than the whole cache. It sets c.repaired when it changed
+// anything so the caller persists the cleaned state on the next save.
+func (c *taskAliasCache) sanitize() {
 	seenUUIDs := make(map[string]struct{}, len(c.Entries))
 	seenAliases := make(map[string]struct{}, len(c.Entries))
 	var maxID uint64
 	hasEntries := false
+	// kept aliases c.Entries[:0] (the prune() pattern) to filter in place; range
+	// copies each element before the body runs, so overwriting read indices is safe.
+	kept := c.Entries[:0]
+	dropped := 0
 	for _, entry := range c.Entries {
-		if entry.UUID == "" {
-			return fmt.Errorf("entry missing uuid")
-		}
-		if entry.Alias == "" {
-			return fmt.Errorf("entry %q missing alias", entry.UUID)
+		if entry.UUID == "" || entry.Alias == "" {
+			dropped++
+			continue
 		}
 		id, ok := decodeTaskAliasID(entry.Alias)
 		if !ok {
-			return fmt.Errorf("entry %q has invalid alias %q", entry.UUID, entry.Alias)
+			dropped++
+			continue
 		}
-		if _, ok := seenUUIDs[entry.UUID]; ok {
-			return fmt.Errorf("duplicate uuid %q", entry.UUID)
+		if _, dup := seenUUIDs[entry.UUID]; dup {
+			dropped++
+			continue
 		}
-		if _, ok := seenAliases[entry.Alias]; ok {
-			return fmt.Errorf("duplicate alias %q", entry.Alias)
+		if _, dup := seenAliases[entry.Alias]; dup {
+			dropped++
+			continue
 		}
 		seenUUIDs[entry.UUID] = struct{}{}
 		seenAliases[entry.Alias] = struct{}{}
 		if !hasEntries || id > maxID {
 			maxID = id
-			hasEntries = true
 		}
+		hasEntries = true
+		kept = append(kept, entry)
 	}
+	c.Entries = kept
+	// Repair NextID so a stale/edited counter cannot cause alias reuse. Skip
+	// this when there are no entries so a fresh empty cache keeps NextID=0 and
+	// assigns the first alias "0".
 	if hasEntries && c.NextID <= maxID {
-		return fmt.Errorf("next_id %d must be greater than max alias id %d", c.NextID, maxID)
+		c.NextID = maxID + 1
+		c.repaired = true
 	}
-	return nil
+	if dropped > 0 {
+		c.repaired = true
+	}
 }
 
 // rebuildMaps repopulates byUUID and byAlias from the current Entries slice.
