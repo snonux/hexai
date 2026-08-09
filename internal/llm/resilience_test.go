@@ -148,6 +148,65 @@ func TestResilient_AlreadyCancelledContext(t *testing.T) {
 	}
 }
 
+// TestResilient_ContextCancelDoesNotTripBreaker is the regression test for the
+// bug where a client-driven cancellation during backoff was counted as a
+// circuit-breaker failure. With a threshold of 1 a single counted failure
+// trips the breaker; the cancellation must be treated as a client-side
+// condition and NOT recorded, so the breaker stays closed and a subsequent
+// healthy request is not rejected with errCircuitOpen.
+func TestResilient_ContextCancelDoesNotTripBreaker(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	cb := newCircuitBreaker(1, time.Hour) // threshold 1: one counted failure trips
+	ctx, cancel := context.WithCancel(context.Background())
+	policy := testPolicy(5)
+	policy.sleep = func(c context.Context, d time.Duration) error {
+		cancel()
+		return c.Err()
+	}
+	if _, err := doJSONRequestResilient(ctx, srv.Client(), srv.URL, []byte("{}"), nil, "", policy, cb); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	if !cb.Allow() {
+		t.Fatalf("breaker must not be tripped by a client cancellation")
+	}
+}
+
+// TestResilient_ContextDeadlineExhaustDoesNotTripBreaker covers the
+// final-exhaustion path: when the caller's context deadline fires during the
+// last attempt's HTTP call (no further retry), the resulting
+// context.DeadlineExceeded must not be recorded as a breaker failure. A
+// single-attempt policy with a short deadline makes the only attempt fail with
+// a deadline error; with threshold 1 the breaker must remain closed.
+func TestResilient_ContextDeadlineExhaustDoesNotTripBreaker(t *testing.T) {
+	done := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Block until the client cancels/deadlines; fall back to `done` so server
+		// teardown cannot hang if the cancellation does not propagate to the
+		// server-side request context promptly.
+		select {
+		case <-r.Context().Done():
+		case <-done:
+		}
+	}))
+	defer srv.Close()
+	defer close(done)
+
+	cb := newCircuitBreaker(1, time.Hour)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	policy := testPolicy(1) // single attempt; its HTTP call is deadline-cancelled
+	if _, err := doJSONRequestResilient(ctx, srv.Client(), srv.URL, []byte("{}"), nil, "", policy, cb); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context.DeadlineExceeded, got %v", err)
+	}
+	if !cb.Allow() {
+		t.Fatalf("breaker must not be tripped by a client deadline")
+	}
+}
+
 func TestResilient_CircuitOpenRejects(t *testing.T) {
 	cb := newCircuitBreaker(1, time.Hour)
 	cb.recordFailure() // trips immediately (threshold 1)

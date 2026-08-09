@@ -108,6 +108,16 @@ func shouldRetryStatus(status int) bool {
 	return status == http.StatusTooManyRequests || status >= 500
 }
 
+// isContextCancel reports whether err represents the caller's context being
+// cancelled or deadlined. Such errors are client-side conditions, not upstream
+// health signals, so they must not count against the shared circuit breaker:
+// otherwise a few user aborts (e.g. the editor cancelling an in-flight
+// completion/chat) would trip the breaker open and reject all LLM HTTP calls
+// (errCircuitOpen) for every feature during the cooldown window.
+func isContextCancel(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+}
+
 // doJSONRequestResilient wraps doJSONRequestOnce with retry-with-backoff and a
 // shared circuit breaker. It retries transient network errors and retryable
 // HTTP statuses (429/5xx) per the supplied policy, while respecting context
@@ -139,18 +149,41 @@ func doJSONRequestResilient(ctx context.Context, httpClient *http.Client, url st
 		// Sleep before the next attempt unless this was the last one.
 		if attempt < attempts-1 {
 			if werr := waitBeforeRetry(ctx, policy, attempt, url, err); werr != nil {
-				breaker.recordFailure()
+				// A non-nil wait result means the context was cancelled/deadlined
+				// during the backoff wait. That is a client-side condition, not an
+				// upstream health signal, so it must not count against the breaker.
+				if !isContextCancel(werr) && ctx.Err() == nil {
+					breaker.recordFailure()
+				}
 				return nil, werr
 			}
 		}
 	}
+	return nil, finishExhausted(ctx, breaker, lastErr, url, attempts)
+}
 
-	// All attempts exhausted on transient failures: count it against the breaker.
+// finishExhausted handles the terminal case after all retry attempts are spent
+// on transient failures. A client-side context cancellation/deadline is not an
+// upstream health signal and must not count against the shared breaker;
+// otherwise a few user aborts would trip it open and block all LLM features for
+// the cooldown window. Genuine upstream failures are recorded.
+//
+// Trade-off: if the caller cancels right as the final attempt returns a genuine
+// upstream error (e.g. a 5xx), ctx.Err() wins and the failure is not counted.
+// This is intentional — a client abort is not health data — and the next
+// non-cancelled failing call will still trip the breaker.
+func finishExhausted(ctx context.Context, breaker *circuitBreaker, lastErr error, url string, attempts int) error {
+	if isContextCancel(lastErr) || ctx.Err() != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return lastErr
+	}
 	breaker.recordFailure()
 	if lastErr == nil {
-		lastErr = fmt.Errorf("llm: request to %s failed after %d attempts", url, attempts)
+		return fmt.Errorf("llm: request to %s failed after %d attempts", url, attempts)
 	}
-	return nil, lastErr
+	return lastErr
 }
 
 // attemptJSONRequest performs a single HTTP attempt. It returns retryable=true
