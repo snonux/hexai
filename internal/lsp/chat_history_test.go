@@ -60,7 +60,7 @@ func TestChatEdits_StaleLineIndexAfterShrink(t *testing.T) {
 	staleLineIdx := 8
 
 	// applyChatEdits must not panic on a stale (out-of-range) line index.
-	s.chatSvc().applyChatEdits(uri, staleLineIdx, 12, 1, "> reply")
+	s.chatSvc().applyChatEdits(uri, staleLineIdx, "> reply")
 
 	// buildChatHistory must not panic and must still return the current prompt.
 	msgs := s.chatSvc().buildChatHistory(uri, staleLineIdx, "current?")
@@ -69,11 +69,11 @@ func TestChatEdits_StaleLineIndexAfterShrink(t *testing.T) {
 	}
 
 	// Boundary case: lineIdx exactly equals len(d.lines) (one past the last line).
-	s.chatSvc().applyChatEdits(uri, 3, 4, 1, "> reply")
+	s.chatSvc().applyChatEdits(uri, 3, "> reply")
 	if msgs := s.chatSvc().buildChatHistory(uri, 3, "q"); len(msgs) == 0 {
 		t.Fatalf("expected non-empty history at boundary index")
 	}
 
 	// Negative index must also be handled gracefully.
-	s.chatSvc().applyChatEdits(uri, -1, 0, 1, "> reply")
+	s.chatSvc().applyChatEdits(uri, -1, "> reply")
 }

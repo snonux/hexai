@@ -128,7 +128,7 @@ func (c *chatService) handleChatPrompt(uri string, lineIdx int, match chatPrompt
 	if resp, ok := c.chatCommandResponse(uri, lineIdx, match.prompt); ok {
 		msg := strings.TrimSpace(resp.message)
 		if msg != "" {
-			c.applyChatEdits(uri, lineIdx, match.lastNonSpace, match.removeCount, "> "+msg)
+			c.applyChatEdits(uri, lineIdx, "> "+msg)
 		}
 		return
 	}
@@ -161,12 +161,22 @@ func (c *chatService) requestChatResponse(uri string, lineIdx int, match chatPro
 	if out == "" {
 		return
 	}
-	c.applyChatEdits(uri, lineIdx, match.lastNonSpace, match.removeCount, "> "+out)
+	c.applyChatEdits(uri, lineIdx, "> "+out)
 }
 
 // applyChatEdits removes the triggering punctuation at end of the line and
 // inserts two newlines followed by a new line with the response prefixed.
-func (c *chatService) applyChatEdits(uri string, lineIdx int, lastNonSpace int, removeCount int, response string) {
+//
+// The trigger position is recomputed from the live document line rather than
+// trusting coordinates captured when the prompt was first detected.
+// requestChatResponse runs asynchronously (a goroutine spawned in
+// handleChatPrompt), so a didChange notification may have shifted or removed
+// characters on the trigger line during the LLM round-trip. Using stale
+// captured lastNonSpace/removeCount for the delete range would remove user
+// content instead of the trigger punctuation, corrupting the line.
+// Recomputing from d.lines[lineIdx] — and skipping the edit entirely when the
+// trigger punctuation is no longer present — prevents that corruption.
+func (c *chatService) applyChatEdits(uri string, lineIdx int, response string) {
 	s := c.srv
 	d := s.getDocument(uri)
 	if d == nil {
@@ -183,6 +193,20 @@ func (c *chatService) applyChatEdits(uri string, lineIdx int, lastNonSpace int, 
 		logging.Logf("lsp ", "chat skip stale edit: lineIdx=%d len=%d", lineIdx, len(d.lines))
 		return
 	}
+	// Recompute the trigger coordinates from the current line. If the line was
+	// edited during the async round-trip the trigger may have moved or vanished;
+	// only delete when the trigger punctuation is still present at the freshly
+	// computed position, otherwise we would delete user content. parseChatPromptLine
+	// revalidates the suffix (and, for non-slash prompts, the trigger prefix) at
+	// the new lastNonSpace, so a shifted/removed trigger is detected here.
+	suffix, prefixes, _ := s.chatConfig()
+	match, ok := parseChatPromptLine(d.lines[lineIdx], suffix, prefixes)
+	if !ok {
+		logging.Logf("lsp ", "chat skip stale edit: trigger no longer present on line %d (%q)", lineIdx, d.lines[lineIdx])
+		return
+	}
+	lastNonSpace := match.lastNonSpace
+	removeCount := match.removeCount
 	// 1) Delete the trailing punctuation (1 or 2 chars)
 	delStart := Position{Line: lineIdx, Character: lastNonSpace + 1 - removeCount}
 	delEnd := Position{Line: lineIdx, Character: lastNonSpace + 1}
