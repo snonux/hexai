@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/termprint"
+	"github.com/snonux/hexai/internal/termprint"
 )
 
 // FormatTaskList renders a table of tasks using the terminal's width when possible.

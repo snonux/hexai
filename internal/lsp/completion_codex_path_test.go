@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 // fakeCodeLLM implements both llm.Client and llm.CodeCompleter.

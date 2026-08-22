@@ -3,8 +3,8 @@
 package lsp
 
 import (
-	"codeberg.org/snonux/hexai/internal"
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 func (s *Server) handleInitialize(req Request) {

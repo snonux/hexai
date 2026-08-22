@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/textutil"
+	"github.com/snonux/hexai/internal/textutil"
 )
 
 // ParseInput splits raw stdin into optional diagnostics and selection/code.

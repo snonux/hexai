@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/appconfig"
 )
 
 // RunTUIWithCustom shows the main menu plus a configurable "Custom actions…" item.

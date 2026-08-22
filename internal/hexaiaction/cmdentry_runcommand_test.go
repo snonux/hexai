@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/tmux"
+	"github.com/snonux/hexai/internal/tmux"
 )
 
 func TestRunCommand_UIChild(t *testing.T) {

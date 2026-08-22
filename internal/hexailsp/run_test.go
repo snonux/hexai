@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/logging"
-	"codeberg.org/snonux/hexai/internal/lsp"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/lsp"
 )
 
 // TestMain registers all built-in LLM providers before tests run, mirroring

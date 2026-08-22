@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/promptstore"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/promptstore"
 )
 
 func TestNewSyncer_Disabled(t *testing.T) {

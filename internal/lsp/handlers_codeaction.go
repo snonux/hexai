@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/gotest"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/gotest"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 type codeActionPayload struct {

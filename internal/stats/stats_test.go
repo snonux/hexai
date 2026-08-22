@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/filelock"
+	"github.com/snonux/hexai/internal/filelock"
 )
 
 func TestUpdateAndSnapshot_Single(t *testing.T) {

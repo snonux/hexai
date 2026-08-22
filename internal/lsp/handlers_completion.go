@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/chatrun"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/llmutils"
-	"codeberg.org/snonux/hexai/internal/logging"
-	"codeberg.org/snonux/hexai/internal/stats"
+	"github.com/snonux/hexai/internal/chatrun"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llmutils"
+	"github.com/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/stats"
 )
 
 type completionPlan struct {

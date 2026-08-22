@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/editor"
-	"codeberg.org/snonux/hexai/internal/llmutils"
-	"codeberg.org/snonux/hexai/internal/logging"
-	"codeberg.org/snonux/hexai/internal/stats"
-	"codeberg.org/snonux/hexai/internal/tmux"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/editor"
+	"github.com/snonux/hexai/internal/llmutils"
+	"github.com/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/stats"
+	"github.com/snonux/hexai/internal/tmux"
 )
 
 // tmuxActionError formats an error with the hexai-tmux-action prefix for stderr output.

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/tmux"
+	"github.com/snonux/hexai/internal/tmux"
 )
 
 // tmux-only flow: decision helpers removed.

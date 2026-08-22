@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/promptstore"
+	"github.com/snonux/hexai/internal/promptstore"
 )
 
 func TestServer_PromptsCreate(t *testing.T) {

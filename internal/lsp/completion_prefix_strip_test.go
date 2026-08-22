@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	tut "codeberg.org/snonux/hexai/internal/testutil"
+	tut "github.com/snonux/hexai/internal/testutil"
 )
 
 func TestStripDuplicateGeneralPrefix_ExactOverlap(t *testing.T) {

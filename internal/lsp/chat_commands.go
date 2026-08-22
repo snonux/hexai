@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/runtimeconfig"
+	"github.com/snonux/hexai/internal/runtimeconfig"
 )
 
 type chatCommandResult struct {

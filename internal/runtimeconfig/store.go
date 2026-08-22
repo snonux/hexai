@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/appconfig"
 )
 
 // Change captures a single configuration delta.

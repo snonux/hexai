@@ -4,8 +4,8 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 // CanonicalProvider normalizes provider names and defaults to ollama (Ollama

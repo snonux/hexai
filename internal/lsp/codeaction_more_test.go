@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	tut "codeberg.org/snonux/hexai/internal/testutil"
+	tut "github.com/snonux/hexai/internal/testutil"
 )
 
 func TestBuildDocumentCodeAction_AndResolve(t *testing.T) {

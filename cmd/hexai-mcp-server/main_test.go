@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal"
-	"codeberg.org/snonux/hexai/internal/hexaimcp"
+	"github.com/snonux/hexai/internal"
+	"github.com/snonux/hexai/internal/hexaimcp"
 )
 
 // The deprecation banner is unconditional: it must reach stderr on every

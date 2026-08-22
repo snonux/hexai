@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/appconfig"
 )
 
 func TestAppRunnerRun_ConfigFlagPassedToLoader(t *testing.T) {

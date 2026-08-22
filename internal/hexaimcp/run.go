@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/mcp"
-	"codeberg.org/snonux/hexai/internal/promptstore"
-	"codeberg.org/snonux/hexai/internal/slashcommands"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/mcp"
+	"github.com/snonux/hexai/internal/promptstore"
+	"github.com/snonux/hexai/internal/slashcommands"
 )
 
 // MCPOverrides holds CLI flag values that override config settings.

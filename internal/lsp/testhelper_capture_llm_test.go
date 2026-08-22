@@ -3,7 +3,7 @@ package lsp
 import (
 	"context"
 
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 // captureLLM captures messages sent to Chat for assertions.

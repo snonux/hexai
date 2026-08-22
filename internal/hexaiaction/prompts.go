@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/chatrun"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/llmutils"
-	"codeberg.org/snonux/hexai/internal/stats"
-	"codeberg.org/snonux/hexai/internal/textutil"
-	"codeberg.org/snonux/hexai/internal/tmux"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/chatrun"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llmutils"
+	"github.com/snonux/hexai/internal/stats"
+	"github.com/snonux/hexai/internal/textutil"
+	"github.com/snonux/hexai/internal/tmux"
 )
 
 // Render performs simple {{var}} replacement like LSP.

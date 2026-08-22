@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/appconfig"
 )
 
 func TestExecuteAction_CustomConfigured_Instruction(t *testing.T) {

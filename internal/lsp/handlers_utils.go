@@ -10,13 +10,13 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/chatrun"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/llmutils"
-	"codeberg.org/snonux/hexai/internal/logging"
-	"codeberg.org/snonux/hexai/internal/stats"
-	"codeberg.org/snonux/hexai/internal/textutil"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/chatrun"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llmutils"
+	"github.com/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/stats"
+	"github.com/snonux/hexai/internal/textutil"
 )
 
 type surfaceKind string

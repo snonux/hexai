@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 func (s *Server) readMessage() ([]byte, error) {

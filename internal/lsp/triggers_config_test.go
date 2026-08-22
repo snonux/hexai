@@ -7,7 +7,7 @@ import (
 	"log"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/appconfig"
 )
 
 func TestShouldSuppressForChatTriggerEOL_CustomConfig(t *testing.T) {

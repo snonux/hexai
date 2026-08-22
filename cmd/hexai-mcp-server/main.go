@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"codeberg.org/snonux/hexai/internal"
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/hexaimcp"
+	"github.com/snonux/hexai/internal"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/hexaimcp"
 )
 
 // buildOverrides constructs MCPOverrides from parsed CLI options.

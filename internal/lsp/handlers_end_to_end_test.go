@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	tut "codeberg.org/snonux/hexai/internal/testutil"
+	tut "github.com/snonux/hexai/internal/testutil"
 )
 
 // captureResponse decodes a single LSP Response from the server's output buffer.

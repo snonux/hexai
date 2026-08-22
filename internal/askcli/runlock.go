@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/filelock"
+	"github.com/snonux/hexai/internal/filelock"
 )
 
 const askRepoLockFile = "hexai-ask.lock"

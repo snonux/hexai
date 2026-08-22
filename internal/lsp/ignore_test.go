@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/ignore"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/ignore"
 )
 
 // newIgnoreTestServer creates a Server with an ignore checker configured

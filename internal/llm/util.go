@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 // small helper to keep return type consistent

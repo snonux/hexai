@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 func TestMain(m *testing.M) {

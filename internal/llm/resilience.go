@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/llm/policy"
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/llm/policy"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 // errCircuitOpen is returned when the shared circuit breaker is open and is

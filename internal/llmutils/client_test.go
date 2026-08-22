@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 // TestMain registers all built-in LLM providers before tests run.

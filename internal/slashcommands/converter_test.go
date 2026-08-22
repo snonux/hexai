@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/promptstore"
+	"github.com/snonux/hexai/internal/promptstore"
 )
 
 func TestConvertPromptToMarkdown_MinimalPrompt(t *testing.T) {

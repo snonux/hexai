@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/promptstore"
+	"github.com/snonux/hexai/internal/promptstore"
 )
 
 // mockPromptStore implements PromptStore for testing

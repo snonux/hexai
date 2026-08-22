@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 // fakeCompleterErr implements both Client and CodeCompleter; CodeCompletion errors,

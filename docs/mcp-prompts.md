@@ -384,7 +384,7 @@ package main
 
 import (
     "time"
-    "codeberg.org/snonux/hexai/internal/promptstore"
+    "github.com/snonux/hexai/internal/promptstore"
 )
 
 func main() {

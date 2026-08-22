@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"codeberg.org/snonux/hexai/internal/askcli"
+	"github.com/snonux/hexai/internal/askcli"
 )
 
 // dispatcher is the minimal interface runMain depends on; it matches

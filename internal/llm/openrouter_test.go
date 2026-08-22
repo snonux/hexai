@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 func TestOpenRouter_Chat_SendsHeadersAndBody(t *testing.T) {

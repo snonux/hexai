@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/askcli"
+	"github.com/snonux/hexai/internal/askcli"
 )
 
 func scopedAskArgs(scopePrefix string, args ...string) []string {

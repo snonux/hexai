@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/promptstore"
+	"github.com/snonux/hexai/internal/promptstore"
 )
 
 // ConvertPromptToMarkdown converts an MCP prompt to slash command Markdown.

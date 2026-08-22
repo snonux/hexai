@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 // fakeLLMInline returns a canned suggestion to help validate inline prompt handling.

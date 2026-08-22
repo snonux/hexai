@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/ignore"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/logging"
-	"codeberg.org/snonux/hexai/internal/lsp"
-	"codeberg.org/snonux/hexai/internal/stats"
-	tmx "codeberg.org/snonux/hexai/internal/tmux"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/ignore"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/lsp"
+	"github.com/snonux/hexai/internal/stats"
+	tmx "github.com/snonux/hexai/internal/tmux"
 )
 
 // ServerRunner is the minimal interface satisfied by lsp.Server.

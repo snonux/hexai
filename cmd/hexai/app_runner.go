@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal"
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/hexaicli"
+	"github.com/snonux/hexai/internal"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/hexaicli"
 )
 
 type configLoader func(string) appconfig.App

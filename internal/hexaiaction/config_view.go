@@ -1,6 +1,6 @@
 package hexaiaction
 
-import "codeberg.org/snonux/hexai/internal/appconfig"
+import "github.com/snonux/hexai/internal/appconfig"
 
 // actionConfig narrows dependencies to the config sections needed by actions.
 type actionConfig interface {

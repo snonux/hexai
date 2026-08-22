@@ -5,7 +5,7 @@ import (
 	"context"
 	"io"
 
-	"codeberg.org/snonux/hexai/internal/editor"
+	"github.com/snonux/hexai/internal/editor"
 )
 
 // editorCapture opens the user's editor on a temporary file pre-filled with

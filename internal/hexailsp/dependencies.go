@@ -4,13 +4,13 @@ import (
 	"context"
 	"log"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/ignore"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/llmutils"
-	"codeberg.org/snonux/hexai/internal/logging"
-	"codeberg.org/snonux/hexai/internal/lsp"
-	"codeberg.org/snonux/hexai/internal/runtimeconfig"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/ignore"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llmutils"
+	"github.com/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/lsp"
+	"github.com/snonux/hexai/internal/runtimeconfig"
 )
 
 type configLoader func(context.Context, *log.Logger, appconfig.LoadOptions) appconfig.App

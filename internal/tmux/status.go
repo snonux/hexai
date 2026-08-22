@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/textutil"
+	"github.com/snonux/hexai/internal/textutil"
 )
 
 // baseFGToken is a placeholder inserted by status formatters wherever the

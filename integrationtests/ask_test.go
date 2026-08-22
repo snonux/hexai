@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/askcli"
+	"github.com/snonux/hexai/internal/askcli"
 )
 
 // repoRoot is set in TestMain before any test runs.

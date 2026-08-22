@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/hexaiaction"
+	"github.com/snonux/hexai/internal/hexaiaction"
 )
 
 func TestRun_DelegatesToRunCommand(t *testing.T) {

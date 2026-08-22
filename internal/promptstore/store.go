@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/textutil"
+	"github.com/snonux/hexai/internal/textutil"
 )
 
 // PromptStore defines the interface for prompt storage operations.

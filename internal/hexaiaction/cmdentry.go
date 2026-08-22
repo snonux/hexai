@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/tmux"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/tmux"
 )
 
 // Options configures the command-line orchestration for hexai-tmux-action.

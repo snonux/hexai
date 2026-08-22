@@ -7,10 +7,10 @@ import (
 	"log"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/lsp"
-	"codeberg.org/snonux/hexai/internal/runtimeconfig"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/lsp"
+	"github.com/snonux/hexai/internal/runtimeconfig"
 )
 
 type recRunner struct{ ran bool }

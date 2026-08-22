@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/llmutils"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/llmutils"
 )
 
 func newTestServer() *Server {

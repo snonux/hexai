@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"sync"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/appconfig"
 )
 
 type actionRequest struct {

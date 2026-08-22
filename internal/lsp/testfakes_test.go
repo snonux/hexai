@@ -3,7 +3,7 @@ package lsp
 import (
 	"context"
 
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 // countingLLM counts Chat calls; minimal implementation for tests that need

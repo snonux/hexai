@@ -7,8 +7,8 @@ import (
 	"errors"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 func TestResolveCodeAction_Custom_UnknownID(t *testing.T) {

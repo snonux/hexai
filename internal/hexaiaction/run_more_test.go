@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/llm"
 )
 
 // Covers the early error path in Run when no API key is available for the default provider.

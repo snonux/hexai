@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/hexaiaction"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/hexaiaction"
 )
 
 // actionRunner is the dependency that performs the tmux action. Production

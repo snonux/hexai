@@ -11,8 +11,8 @@ import (
 	"log"
 	"sync"
 
-	"codeberg.org/snonux/hexai/internal"
-	"codeberg.org/snonux/hexai/internal/promptstore"
+	"github.com/snonux/hexai/internal"
+	"github.com/snonux/hexai/internal/promptstore"
 )
 
 // SlashCommandSyncer is the minimal sync contract the MCP server depends on.

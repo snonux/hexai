@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 func (s *Server) handle(req Request) {

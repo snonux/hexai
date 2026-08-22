@@ -10,8 +10,8 @@ import (
 	"slices"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/filelock"
-	"codeberg.org/snonux/hexai/internal/stats"
+	"github.com/snonux/hexai/internal/filelock"
+	"github.com/snonux/hexai/internal/stats"
 )
 
 const (

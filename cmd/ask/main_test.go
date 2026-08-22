@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/snonux/hexai/internal/askcli"
+	"github.com/snonux/hexai/internal/askcli"
 )
 
 func TestMain_WiresDispatcher(t *testing.T) {

@@ -12,9 +12,9 @@ import (
 	"strings"
 	"syscall"
 
-	"codeberg.org/snonux/hexai/internal"
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/hexailsp"
+	"github.com/snonux/hexai/internal"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/hexailsp"
 )
 
 func main() {

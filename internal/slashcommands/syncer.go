@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
-	"codeberg.org/snonux/hexai/internal/promptstore"
+	"github.com/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/promptstore"
 )
 
 // Operation represents the type of sync operation.

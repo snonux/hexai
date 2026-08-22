@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/llm"
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/llm"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 // --- in-editor chat (";C ...") ---

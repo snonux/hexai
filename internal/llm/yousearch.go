@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/llm/policy"
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/llm/policy"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 const youSearchResearchURL = "https://api.you.com/v1/research"

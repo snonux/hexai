@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/llm/policy"
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/llm/policy"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 // openAIClient implements Client against OpenAI's Chat Completions API.

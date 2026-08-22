@@ -5,7 +5,7 @@ package lsp
 import (
 	"strings"
 
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 type contextModeBuilder func(*Server, bool, string, Position) (string, bool)

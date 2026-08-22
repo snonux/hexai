@@ -3,7 +3,7 @@ package hexaiaction
 import (
 	"context"
 
-	"codeberg.org/snonux/hexai/internal/appconfig"
+	"github.com/snonux/hexai/internal/appconfig"
 )
 
 func init() {

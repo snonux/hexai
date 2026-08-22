@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/snonux/hexai/internal/logging"
+	"github.com/snonux/hexai/internal/logging"
 )
 
 func (s *Server) handleDidOpen(req Request) {
