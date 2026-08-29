@@ -27,6 +27,7 @@ type Dispatcher struct {
 	aliasCache     taskAliasCacheDeps
 	findTaskBinary func() (string, error)
 	runTaskCommand taskCommandRunner
+	now            func() time.Time
 }
 
 // NewDispatcher creates a Dispatcher backed by the provided Runner or a default
@@ -44,6 +45,7 @@ func NewDispatcher(runner Runner) *Dispatcher {
 		aliasCache:     defaultTaskAliasCacheDeps(),
 		findTaskBinary: findTaskBinary,
 		runTaskCommand: runTaskCommand,
+		now:            time.Now,
 	}
 }
 
@@ -102,8 +104,11 @@ func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "  ask edit                     Open $EDITOR and create a task from its content\n")
 	_, _ = io.WriteString(w, "  ask list [filters]           List active tasks (default)\n")
 	_, _ = io.WriteString(w, "  ask ready                   List READY tasks (not blocked)\n")
-	_, _ = io.WriteString(w, "  ask completed               List completed tasks\n")
+	_, _ = io.WriteString(w, "  ask completed [filters]     List completed tasks\n")
 	_, _ = io.WriteString(w, "  ask all [filters]            List all tasks including completed/deleted\n")
+	_, _ = io.WriteString(w, "Filters: limit:<n>, sort:<key>, +<tag>, started, since:<value>, and date attrs\n")
+	_, _ = io.WriteString(w, "  since:today|this.week|this.month|N.hours|N.days|N.weeks|N.months  (completed within the given period)\n")
+	_, _ = io.WriteString(w, "  end:, modified:, created:, due:, scheduled:, waiting:, start:  (e.g. end:today, end.after:2026-08-22)\n")
 	_, _ = io.WriteString(w, "  ask info [id|uuid]            Show task details or current started task\n")
 	_, _ = io.WriteString(w, "  ask annotate <id|uuid> \"note\" Add annotation to task\n")
 	_, _ = io.WriteString(w, "  ask start <id|uuid>           Start working on task\n")
