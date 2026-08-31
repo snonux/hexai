@@ -30,7 +30,7 @@ func DefaultModelForProvider(cfg appconfig.App, provider string) string {
 		if model := strings.TrimSpace(cfg.OllamaModel); model != "" {
 			return model
 		}
-		return "gemma4:31b-cloud"
+		return appconfig.DefaultOllamaModel
 	case "anthropic":
 		if model := strings.TrimSpace(cfg.AnthropicModel); model != "" {
 			return model

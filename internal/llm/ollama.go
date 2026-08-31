@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/snonux/hexai/internal/appconfig"
 	"github.com/snonux/hexai/internal/llm/policy"
 	"github.com/snonux/hexai/internal/logging"
 )
@@ -79,7 +80,7 @@ func newOllamaWithTimeout(baseURL, model, apiKey string, defaultTemp *float64, t
 		baseURL = "https://ollama.com"
 	}
 	if strings.TrimSpace(model) == "" {
-		model = "gemma4:31b-cloud"
+		model = appconfig.DefaultOllamaModel
 	}
 	if timeoutSec <= 0 {
 		// Fall back to the shared default chat timeout from the policy package.

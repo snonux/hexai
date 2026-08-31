@@ -3,6 +3,13 @@ package appconfig
 
 import "strings"
 
+const (
+	// DefaultOllamaModel is the general-purpose model used with Ollama Cloud.
+	DefaultOllamaModel = "minimax-m2.1:cloud"
+	// DefaultCompletionModel is the low-latency coding model used for editor completion.
+	DefaultCompletionModel = "qwen3-coder:480b-cloud"
+)
+
 // SurfaceConfig describes a provider/model pairing (with optional temperature).
 type SurfaceConfig struct {
 	Provider    string
@@ -66,6 +73,7 @@ func newDefaultConfig() App {
 	// Coding-friendly default temperature across providers.
 	// Users can override per provider in config.toml (including 0.0).
 	t := 0.2
+	completionTemperature := 0.0
 	return App{
 		CoreConfig: CoreConfig{
 			MaxTokens:             4000,
@@ -83,11 +91,19 @@ func newDefaultConfig() App {
 			InlineClose:  ">",
 			ChatSuffix:   ">",
 			ChatPrefixes: []string{"?", "!", ":", ";"},
+			Provider:     "ollama",
 		},
 		ProviderConfig: ProviderConfig{
 			OpenAITemperature:    &t,
+			OllamaBaseURL:        "https://ollama.com",
+			OllamaModel:          DefaultOllamaModel,
 			OllamaTemperature:    &t,
 			AnthropicTemperature: &t,
+			CompletionConfigs: []SurfaceConfig{{
+				Provider:    "ollama",
+				Model:       DefaultCompletionModel,
+				Temperature: &completionTemperature,
+			}},
 		},
 		PromptConfig: defaultPromptConfig(),
 		FeatureConfig: FeatureConfig{

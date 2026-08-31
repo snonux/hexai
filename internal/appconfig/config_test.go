@@ -72,6 +72,16 @@ func TestLoad_Defaults_NoLogger(t *testing.T) {
 	if cfg.CodingTemperature == nil {
 		t.Fatalf("expected default CodingTemperature")
 	}
+	if cfg.Provider != "ollama" || cfg.OllamaBaseURL != "https://ollama.com" || cfg.OllamaModel != DefaultOllamaModel {
+		t.Fatalf("unexpected default Ollama config: %+v", cfg.ProviderConfig)
+	}
+	if len(cfg.CompletionConfigs) != 1 {
+		t.Fatalf("expected one default completion config, got %+v", cfg.CompletionConfigs)
+	}
+	completion := cfg.CompletionConfigs[0]
+	if completion.Provider != "ollama" || completion.Model != DefaultCompletionModel || completion.Temperature == nil || *completion.Temperature != 0.0 {
+		t.Fatalf("unexpected default completion config: %+v", completion)
+	}
 }
 
 func TestLoad_Defaults_WithLogger_NoFile_NoEnv(t *testing.T) {

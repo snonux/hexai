@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/snonux/hexai/internal/appconfig"
 )
 
 func TestBuildOllamaRequest_OptionsAndStream(t *testing.T) {
@@ -55,6 +57,9 @@ func TestOllama_NameAndModel(t *testing.T) {
 	}
 	if c.DefaultModel() != "model-x" {
 		t.Fatalf("default model: %q", c.DefaultModel())
+	}
+	if got := newOllama("", "", nil, "").DefaultModel(); got != appconfig.DefaultOllamaModel {
+		t.Fatalf("fallback model: %q", got)
 	}
 }
 
