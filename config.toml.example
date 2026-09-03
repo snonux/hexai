@@ -73,7 +73,7 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 name = "ollama"                      # ollama | openai | openrouter | anthropic | yousearch
 
 [ollama]
-model       = "kimi-k2.6"
+model       = "minimax-m3:cloud"
 base_url    = "https://ollama.com"
 # To run against a local Ollama server instead, point at it and pick a local
 # model. No API key is required when targeting localhost.

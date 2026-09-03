@@ -5,7 +5,7 @@ import "strings"
 
 const (
 	// DefaultOllamaModel is the general-purpose model used with Ollama Cloud.
-	DefaultOllamaModel = "minimax-m2.1:cloud"
+	DefaultOllamaModel = "minimax-m3:cloud"
 	// DefaultCompletionModel is the low-latency coding model used for editor completion.
 	DefaultCompletionModel = "qwen3-coder:480b-cloud"
 )

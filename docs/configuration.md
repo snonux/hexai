@@ -76,7 +76,7 @@ API keys:
 Selecting a provider
 
 - Sectioned: set `[provider] name = "ollama" | "openai" | "openrouter" | "anthropic" | "yousearch"`.
-- If omitted, Hexai defaults to `ollama` (Ollama Cloud at `https://ollama.com` with model `kimi-k2.6`).
+- If omitted, Hexai defaults to `ollama` (Ollama Cloud at `https://ollama.com` with model `minimax-m3:cloud`).
 - Selecting `openrouter` uses https://openrouter.ai/api/v1 by default and automatically sends the required `HTTP-Referer` (`https://github.com/snonux/hexai`) and `X-Title` (`Hexai`) headers. Override the base URL via `[openrouter]` or environment variables when needed.
 
 Notes on Ollama:
