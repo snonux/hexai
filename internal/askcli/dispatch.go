@@ -121,7 +121,7 @@ func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "  ask dep list <id|uuid>        List dependencies\n")
 	_, _ = io.WriteString(w, "  ask urgency                   List tasks sorted by urgency\n")
 	_, _ = io.WriteString(w, "  ask watch [subcommand...]     Re-run a read-only subcommand every 2s and redraw on changes\n")
-	_, _ = io.WriteString(w, "  ask projects                  List projects with pending, not-yet-started tasks\n")
+	_, _ = io.WriteString(w, "  ask projects [+tag...]        List projects with pending, not-yet-started tasks (optional tag filters)\n")
 	_, _ = io.WriteString(w, "  ask modify <id|uuid> <args...> Modify task fields\n")
 	_, _ = io.WriteString(w, "  ask denotate <id|uuid> \"text\" Remove annotation\n")
 	_, _ = io.WriteString(w, "  ask delete <id|uuid>          Delete a task\n")

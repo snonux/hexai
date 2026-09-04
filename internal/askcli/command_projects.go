@@ -7,20 +7,26 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 )
 
 type taskCommandRunner func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error
 
 func (d *Dispatcher) handleProjects(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	_ = args
-
 	taskPath, err := d.projectTaskBinary()()
 	if err != nil {
 		return 1, fmt.Errorf("ask projects: task binary lookup failed: %w", err)
 	}
 
 	scopeFilter := taskScopeFilter(taskScopeFromContext(ctx))
-	cmdArgs := append([]string{"rc.verbose=nothing", "rc.confirmation=off", scopeFilter, "status:pending", "export"}, args[1:]...)
+	// Tag filters must come before `export`; taskwarrior treats trailing args as report names.
+	cmdArgs := []string{"rc.verbose=nothing", "rc.confirmation=off", scopeFilter, "status:pending"}
+	for _, arg := range args[1:] {
+		if strings.HasPrefix(arg, "+") {
+			cmdArgs = append(cmdArgs, arg)
+		}
+	}
+	cmdArgs = append(cmdArgs, "export")
 	var outBuf bytes.Buffer
 	err = d.projectTaskCommand()(ctx, taskPath, cmdArgs, nil, &outBuf, stderr)
 	if err != nil {

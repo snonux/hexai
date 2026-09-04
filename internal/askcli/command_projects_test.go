@@ -107,6 +107,83 @@ func TestHandleProjects_ForwardsTaskExportError(t *testing.T) {
 	}
 }
 
+func TestHandleProjects_TagFiltersBeforeExport(t *testing.T) {
+	d := NewDispatcher(nil)
+	d.findTaskBinary = func() (string, error) { return "task", nil }
+	var gotArgs []string
+	d.runTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+		gotArgs = append([]string(nil), args...)
+		_, _ = io.WriteString(stdout, "[]")
+		return nil
+	}
+
+	ctx := context.Background()
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(ctx, []string{"projects", "+auto", "+cli"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("unexpected exit code: %d", code)
+	}
+
+	want := []string{
+		"rc.verbose=nothing",
+		"rc.confirmation=off",
+		"+agent",
+		"status:pending",
+		"+auto",
+		"+cli",
+		"export",
+	}
+	if len(gotArgs) != len(want) {
+		t.Fatalf("args = %v, want %v", gotArgs, want)
+	}
+	for i := range want {
+		if gotArgs[i] != want[i] {
+			t.Fatalf("args = %v, want %v", gotArgs, want)
+		}
+	}
+}
+
+func TestHandleProjects_IgnoresNonTagArgs(t *testing.T) {
+	d := NewDispatcher(nil)
+	d.findTaskBinary = func() (string, error) { return "task", nil }
+	var gotArgs []string
+	d.runTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+		gotArgs = append([]string(nil), args...)
+		_, _ = io.WriteString(stdout, "[]")
+		return nil
+	}
+
+	ctx := context.Background()
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(ctx, []string{"projects", "limit:5", "+auto", "sort:urgency-"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("unexpected exit code: %d", code)
+	}
+
+	want := []string{
+		"rc.verbose=nothing",
+		"rc.confirmation=off",
+		"+agent",
+		"status:pending",
+		"+auto",
+		"export",
+	}
+	if len(gotArgs) != len(want) {
+		t.Fatalf("args = %v, want %v", gotArgs, want)
+	}
+	for i := range want {
+		if gotArgs[i] != want[i] {
+			t.Fatalf("args = %v, want %v", gotArgs, want)
+		}
+	}
+}
+
 func taskExportJSON(tasks []TaskExport) string {
 	data, err := json.Marshal(tasks)
 	if err != nil {
