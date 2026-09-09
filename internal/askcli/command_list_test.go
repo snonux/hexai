@@ -48,6 +48,10 @@ func TestHandleList_Success(t *testing.T) {
 	if !strings.Contains(output, "Started") || !strings.Contains(output, "yes") || !strings.Contains(output, "no") {
 		t.Fatalf("output missing explicit started state: %s", output)
 	}
+	lines := strings.Split(strings.TrimSuffix(output, "\n"), "\n")
+	if lines[len(lines)-1] != "2 tasks listed" {
+		t.Fatalf("last line = %q, want %q", lines[len(lines)-1], "2 tasks listed")
+	}
 }
 
 func TestHandleList_SortedByPriority(t *testing.T) {
@@ -98,6 +102,13 @@ func TestHandleList_EmptyList(t *testing.T) {
 	code, _ := d.Dispatch(context.Background(), []string{"list"}, nil, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("list code = %d, want 0 for empty list", code)
+	}
+	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
+	if len(lines) < 3 {
+		t.Fatalf("empty list should still print header, separator, and count: %q", stdout.String())
+	}
+	if lines[len(lines)-1] != "0 tasks listed" {
+		t.Fatalf("last line = %q, want %q", lines[len(lines)-1], "0 tasks listed")
 	}
 }
 

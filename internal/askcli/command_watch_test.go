@@ -142,6 +142,10 @@ func TestHandleWatch_DefaultsToListAndRedrawsOnChange(t *testing.T) {
 	if !strings.Contains(stdout.String(), "Task 1 updated") {
 		t.Fatalf("stdout missing updated task: %q", stdout.String())
 	}
+	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
+	if lines[len(lines)-1] != "1 task listed" {
+		t.Fatalf("watch last line = %q, want %q", lines[len(lines)-1], "1 task listed")
+	}
 	if !fakeTicker.stopped {
 		t.Fatal("watch ticker was not stopped")
 	}

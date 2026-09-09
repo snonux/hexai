@@ -47,6 +47,21 @@ func TestFormatTaskList(t *testing.T) {
 	if !strings.Contains(lines[3], strings.Repeat("a", 100)) {
 		t.Fatalf("default formatting should keep the full description when width is unconstrained: %s", lines[3])
 	}
+	if lines[len(lines)-1] != "3 tasks listed" {
+		t.Fatalf("count line = %q, want %q", lines[len(lines)-1], "3 tasks listed")
+	}
+}
+
+func TestFormatTaskListCount(t *testing.T) {
+	if got := formatTaskListCount(0); got != "0 tasks listed\n" {
+		t.Fatalf("formatTaskListCount(0) = %q", got)
+	}
+	if got := formatTaskListCount(1); got != "1 task listed\n" {
+		t.Fatalf("formatTaskListCount(1) = %q", got)
+	}
+	if got := formatTaskListCount(12); got != "12 tasks listed\n" {
+		t.Fatalf("formatTaskListCount(12) = %q", got)
+	}
 }
 
 func TestFormatTaskList_AlignsHeaderAndSeparator(t *testing.T) {
@@ -72,8 +87,8 @@ func TestFormatTaskList_AlignsHeaderAndSeparator(t *testing.T) {
 	aliases := map[string]string{"uuid-short": "0", "uuid-with-a-longer-value": "00"}
 	output := FormatTaskList(tasks, aliases)
 	lines := strings.Split(strings.TrimSuffix(output, "\n"), "\n")
-	if len(lines) != 4 {
-		t.Fatalf("FormatTaskList produced %d lines, want 4: %q", len(lines), output)
+	if len(lines) != 5 {
+		t.Fatalf("FormatTaskList produced %d lines, want 5: %q", len(lines), output)
 	}
 
 	widths := taskListWidthsFor(tasks, aliases, 0)
@@ -91,6 +106,9 @@ func TestFormatTaskList_AlignsHeaderAndSeparator(t *testing.T) {
 	}
 	if len(lines[1]) != len(wantHeader) {
 		t.Fatalf("separator length = %d, want %d", len(lines[1]), len(wantHeader))
+	}
+	if lines[4] != "2 tasks listed" {
+		t.Fatalf("count line = %q, want %q", lines[4], "2 tasks listed")
 	}
 }
 
@@ -133,6 +151,9 @@ func TestFormatTaskListForWidth_UsesAvailableTerminalWidthForDescription(t *test
 	if len(renderedDescription) != widths.Description {
 		t.Fatalf("rendered description width = %d, want %d", len(renderedDescription), widths.Description)
 	}
+	if lines[len(lines)-1] != "1 task listed" {
+		t.Fatalf("count line = %q, want %q", lines[len(lines)-1], "1 task listed")
+	}
 }
 
 func TestFormatTaskListForWidth_TruncatesDescriptionWhenTerminalIsNarrow(t *testing.T) {
@@ -155,6 +176,9 @@ func TestFormatTaskListForWidth_TruncatesDescriptionWhenTerminalIsNarrow(t *test
 	}
 	if strings.Contains(lines[2], "abcdefghijklmnop") {
 		t.Fatalf("description should not print the full description in a narrow terminal: %s", lines[2])
+	}
+	if lines[len(lines)-1] != "1 task listed" {
+		t.Fatalf("count line = %q, want %q", lines[len(lines)-1], "1 task listed")
 	}
 }
 

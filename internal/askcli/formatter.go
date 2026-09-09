@@ -25,7 +25,15 @@ func FormatTaskListForWidth(tasks []TaskExport, aliases map[string]string, termi
 	for _, t := range tasks {
 		writeTaskListRow(&b, widths, t, aliases)
 	}
+	b.WriteString(formatTaskListCount(len(tasks)))
 	return b.String()
+}
+
+func formatTaskListCount(n int) string {
+	if n == 1 {
+		return "1 task listed\n"
+	}
+	return fmt.Sprintf("%d tasks listed\n", n)
 }
 
 type taskListWidths struct {
