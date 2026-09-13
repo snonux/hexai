@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -75,6 +76,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, args []string, stdin io.Reade
 	if len(args) == 0 {
 		args = []string{"list"}
 	}
+	if args[0] == "--help" || args[0] == "-h" {
+		return d.help(stdout)
+	}
 	return d.dispatchCommand(ctx, args, stdin, stdout, stderr)
 }
 
@@ -82,6 +86,9 @@ func (d *Dispatcher) dispatchCommand(ctx context.Context, args []string, stdin i
 	subcommand := args[0]
 	entry, ok := commandRegistry.get(subcommand)
 	if !ok {
+		if code, refused := d.rejectImplicitAdd(ctx, args, stderr); refused {
+			return code, nil
+		}
 		args = append([]string{"add"}, args...)
 		subcommand = "add"
 		entry, ok = commandRegistry.get(subcommand)
@@ -90,6 +97,58 @@ func (d *Dispatcher) dispatchCommand(ctx context.Context, args []string, stdin i
 		return d.unknownCommand(stderr, subcommand)
 	}
 	return entry.handler(d, ctx, args, stdin, stdout, stderr)
+}
+
+// implicitAddInfoVerbs lists first words that are not ask subcommands but that
+// callers commonly pass when they meant "ask info <id>". When such a word is
+// followed by a task-like selector, the implicit-add fallback is refused so
+// botched invocations cannot silently create junk tasks.
+var implicitAddInfoVerbs = map[string]bool{
+	"display": true,
+	"get":     true,
+	"open":    true,
+	"print":   true,
+	"show":    true,
+	"view":    true,
+}
+
+// rejectImplicitAdd reports whether the implicit-add fallback for an unknown
+// first word must be refused instead of creating a task. It refuses when the
+// first word resolves to an existing task (e.g. "ask gd1 start" meant
+// "ask start gd1") or when it is a misused info verb followed by a numeric
+// taskwarrior ID or an existing task selector (e.g. "ask show 361").
+// Refusing keeps agent syntax mistakes from landing in the task list as junk
+// tasks while ordinary descriptions (e.g. "fix the bug") still fall through
+// to the implicit add.
+func (d *Dispatcher) rejectImplicitAdd(ctx context.Context, args []string, stderr io.Writer) (int, bool) {
+	first := args[0]
+	if implicitAddInfoVerbs[first] && len(args) >= 2 {
+		second := args[1]
+		if IsNumericID(second) {
+			fmt.Fprintf(stderr, "error: ask has no %q subcommand; numeric Taskwarrior IDs are not accepted\nFind the alias with ask list, then use e.g. ask info <alias>.\nTo create a task with this description, use: ask add \"%s\"\n",
+				first, strings.Join(args, " "))
+			return 1, true
+		}
+		if looksLikeTaskAlias(second) {
+			if resolved, tasks, _, err := d.resolveTaskSelector(ctx, second, io.Discard); err == nil && len(tasks) > 0 {
+				id := displayResolvedTaskID(resolved)
+				fmt.Fprintf(stderr, "error: ask has no %q subcommand; use ask info %s to show task %s %q\nTo create a task with this description, use: ask add \"%s\"\n",
+					first, id, id, truncateDescription(tasks[0].Description, 60), strings.Join(args, " "))
+				return 1, true
+			}
+		}
+	}
+	if !looksLikeTaskAlias(first) {
+		return 0, false
+	}
+	resolved, tasks, _, err := d.resolveTaskSelector(ctx, first, io.Discard)
+	if err != nil || len(tasks) == 0 {
+		return 0, false
+	}
+	id := displayResolvedTaskID(resolved)
+	fmt.Fprintf(stderr, "error: %q is not a subcommand; it is task %s %q\nDid you mean: ask start %s, ask info %s, ask done %s, or ask annotate %s \"note\"?\nTo create a task with this description, use: ask add \"%s\"\n",
+		first, id, truncateDescription(tasks[0].Description, 60), id, id, id, id, strings.Join(args, " "))
+	return 1, true
 }
 
 func (d *Dispatcher) help(w io.Writer) (int, error) {

@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDispatcher_Help(t *testing.T) {
@@ -97,6 +98,151 @@ func TestDispatcher_DefaultsInvalidSubcommandToAdd(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDispatcher_HelpFlags(t *testing.T) {
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		t.Fatalf("runner called for help flag: %v", args)
+		return 1, nil
+	}})
+	for _, arg := range []string{"--help", "-h"} {
+		var stdout, stderr bytes.Buffer
+		code, err := d.Dispatch(context.Background(), []string{arg}, nil, &stdout, &stderr)
+		if err != nil {
+			t.Fatalf("%s: Dispatch returned error: %v", arg, err)
+		}
+		if code != 0 {
+			t.Fatalf("%s: code = %d, want 0: stderr=%s", arg, code, stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "ask - task management CLI") {
+			t.Fatalf("%s: stdout = %q, want help text", arg, stdout.String())
+		}
+	}
+}
+
+func TestDispatcher_RejectsImplicitAddWhenFirstWordIsTaskAlias(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", dir)
+	now := time.Now()
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 2,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "task-uuid-1", Alias: "gd1", CreatedAt: now, LastAccessedAt: now},
+		},
+	})
+
+	var calls [][]string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		calls = append(calls, append([]string(nil), args...))
+		if strings.Join(args, " ") == "uuid:task-uuid-1 export" {
+			_, _ = io.WriteString(stdout, `[{"uuid":"task-uuid-1","description":"Start the engine","status":"pending"}]`)
+		}
+		return 0, nil
+	}})
+
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(context.Background(), []string{"gd1", "start"}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("Dispatch returned error: %v", err)
+	}
+	if code != 1 {
+		t.Fatalf("Dispatch code = %d, want 1: stderr=%s", code, stderr.String())
+	}
+	for _, call := range calls {
+		if call[0] == "add" {
+			t.Fatalf("implicit add was executed: %v", call)
+		}
+	}
+	if !strings.Contains(stderr.String(), "ask start gd1") {
+		t.Fatalf("stderr = %q, want did-you-mean hint with ask start gd1", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), `task gd1 "Start the engine"`) {
+		t.Fatalf("stderr = %q, want task identification", stderr.String())
+	}
+}
+
+func TestDispatcher_RejectsImplicitAddForInfoVerbs(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", dir)
+	now := time.Now()
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID: 2,
+		Entries: []taskAliasCacheEntry{
+			{UUID: "task-uuid-1", Alias: "gd1", CreatedAt: now, LastAccessedAt: now},
+		},
+	})
+
+	var calls [][]string
+	newDispatcher := func() *Dispatcher {
+		return NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+			calls = append(calls, append([]string(nil), args...))
+			if strings.Join(args, " ") == "uuid:task-uuid-1 export" {
+				_, _ = io.WriteString(stdout, `[{"uuid":"task-uuid-1","description":"Start the engine","status":"pending"}]`)
+				return 0, nil
+			}
+			if args[0] == "add" {
+				_, _ = io.WriteString(stdout, "Created task task-uuid-new.\n")
+			}
+			return 0, nil
+		}})
+	}
+
+	t.Run("numeric selector", func(t *testing.T) {
+		calls = nil
+		var stdout, stderr bytes.Buffer
+		code, err := newDispatcher().Dispatch(context.Background(), []string{"show", "361"}, nil, &stdout, &stderr)
+		if err != nil {
+			t.Fatalf("Dispatch returned error: %v", err)
+		}
+		if code != 1 {
+			t.Fatalf("Dispatch code = %d, want 1: stderr=%s", code, stderr.String())
+		}
+		if len(calls) != 0 {
+			t.Fatalf("runner calls = %v, want none", calls)
+		}
+		if !strings.Contains(stderr.String(), `ask has no "show" subcommand`) {
+			t.Fatalf("stderr = %q, want no-show-subcommand error", stderr.String())
+		}
+		if !strings.Contains(stderr.String(), "numeric Taskwarrior IDs are not accepted") {
+			t.Fatalf("stderr = %q, want numeric ID guidance", stderr.String())
+		}
+	})
+
+	t.Run("existing task selector", func(t *testing.T) {
+		calls = nil
+		var stdout, stderr bytes.Buffer
+		code, err := newDispatcher().Dispatch(context.Background(), []string{"show", "gd1"}, nil, &stdout, &stderr)
+		if err != nil {
+			t.Fatalf("Dispatch returned error: %v", err)
+		}
+		if code != 1 {
+			t.Fatalf("Dispatch code = %d, want 1: stderr=%s", code, stderr.String())
+		}
+		for _, call := range calls {
+			if call[0] == "add" {
+				t.Fatalf("implicit add was executed: %v", call)
+			}
+		}
+		if !strings.Contains(stderr.String(), "ask info gd1") {
+			t.Fatalf("stderr = %q, want ask info gd1 hint", stderr.String())
+		}
+	})
+
+	t.Run("ordinary description still adds", func(t *testing.T) {
+		calls = nil
+		var stdout, stderr bytes.Buffer
+		code, err := newDispatcher().Dispatch(context.Background(), []string{"show", "the", "bug"}, nil, &stdout, &stderr)
+		if err != nil {
+			t.Fatalf("Dispatch returned error: %v", err)
+		}
+		if code != 0 {
+			t.Fatalf("Dispatch code = %d, want 0: stderr=%s", code, stderr.String())
+		}
+		want := [][]string{{"add", "rc.verbose=nothing", "rc.verbose=new-uuid", "show the bug"}}
+		if !reflect.DeepEqual(calls, want) {
+			t.Fatalf("runner calls = %v, want %v", calls, want)
+		}
+	})
 }
 
 func TestDispatcher_RealSubcommandsDoNotDefaultToAdd(t *testing.T) {
