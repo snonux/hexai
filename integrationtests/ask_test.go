@@ -1399,3 +1399,128 @@ func TestUnknownCommand(t *testing.T) {
 		t.Errorf("error output does not mention unknown command: %s", stderr.String())
 	}
 }
+
+func TestHierarchicalProjectFromCwd(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	repo := filepath.Join(t.TempDir(), "e2easkhier")
+	prompts := filepath.Join(repo, "prompts")
+	nested := filepath.Join(prompts, "nested")
+	other := filepath.Join(repo, "other")
+	for _, dir := range []string{nested, other} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	runGit("init")
+	runGit("config", "user.email", "t@t")
+	runGit("config", "user.name", "t")
+	if err := os.WriteFile(filepath.Join(repo, "README"), []byte("x\n"), 0o644); err != nil {
+		t.Fatalf("write README: %v", err)
+	}
+	runGit("add", "README")
+	runGit("commit", "-m", "init")
+
+	stamp := time.Now().UnixNano()
+	cases := []struct {
+		dir  string
+		desc string
+		want string
+	}{
+		{repo, fmt.Sprintf("hier e2e root %d", stamp), "e2easkhier"},
+		{prompts, fmt.Sprintf("hier e2e prompts %d", stamp), "e2easkhier.prompts"},
+		{nested, fmt.Sprintf("hier e2e nested %d", stamp), "e2easkhier.prompts.nested"},
+		{other, fmt.Sprintf("hier e2e other %d", stamp), "e2easkhier.other"},
+	}
+
+	uuids := make([]string, 0, len(cases))
+	for _, tc := range cases {
+		stdout, stderr, code := runAskInDir(ctx, tc.dir, []string{"na", "add", "+integrationtest", tc.desc})
+		if code != 0 {
+			t.Fatalf("ask add in %s failed (code %d): stdout=%s stderr=%s", tc.dir, code, stdout.String(), stderr.String())
+		}
+		uuid, project, err := findTaskByDescription(ctx, tc.desc)
+		if err != nil {
+			t.Fatalf("lookup %q: %v", tc.desc, err)
+		}
+		uuids = append(uuids, uuid)
+		if project != tc.want {
+			t.Fatalf("project for %q = %q, want %q", tc.desc, project, tc.want)
+		}
+	}
+	for _, uuid := range uuids {
+		uuid := uuid
+		t.Cleanup(func() { deleteTask(ctx, uuid) })
+	}
+
+	listMustContain := func(dir string, want ...string) {
+		t.Helper()
+		stdout, stderr, code := runAskInDir(ctx, dir, []string{"na", "list"})
+		if code != 0 {
+			t.Fatalf("ask list in %s failed (code %d): stdout=%s stderr=%s", dir, code, stdout.String(), stderr.String())
+		}
+		out := stdout.String()
+		for _, desc := range want {
+			if !strings.Contains(out, desc) {
+				t.Fatalf("list in %s missing %q:\n%s", dir, desc, out)
+			}
+		}
+	}
+	listMustNotContain := func(dir string, forbid ...string) {
+		t.Helper()
+		stdout, stderr, code := runAskInDir(ctx, dir, []string{"na", "list"})
+		if code != 0 {
+			t.Fatalf("ask list in %s failed (code %d): stdout=%s stderr=%s", dir, code, stdout.String(), stderr.String())
+		}
+		out := stdout.String()
+		for _, desc := range forbid {
+			if strings.Contains(out, desc) {
+				t.Fatalf("list in %s unexpectedly contains %q:\n%s", dir, desc, out)
+			}
+		}
+	}
+
+	listMustContain(repo, cases[0].desc, cases[1].desc, cases[2].desc, cases[3].desc)
+	listMustContain(prompts, cases[1].desc, cases[2].desc)
+	listMustNotContain(prompts, cases[0].desc, cases[3].desc)
+	listMustContain(nested, cases[2].desc)
+	listMustNotContain(nested, cases[0].desc, cases[1].desc, cases[3].desc)
+
+	stdout, stderr, code := runAskInDir(ctx, t.TempDir(), []string{"proj:e2easkhier.prompts", "na", "list"})
+	if code != 0 {
+		t.Fatalf("proj override list failed (code %d): stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, cases[1].desc) || !strings.Contains(out, cases[2].desc) {
+		t.Fatalf("proj override list missing prompts/nested tasks:\n%s", out)
+	}
+	if strings.Contains(out, cases[3].desc) {
+		t.Fatalf("proj override list unexpectedly includes sibling:\n%s", out)
+	}
+}
+
+func findTaskByDescription(ctx context.Context, desc string) (uuid, project string, err error) {
+	stdout, stderr, code := runTask(ctx, []string{"export", "+integrationtest", "status:pending"})
+	if code != 0 {
+		return "", "", fmt.Errorf("task export failed (code %d): stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	var tasks []askcli.TaskExport
+	if err := json.Unmarshal(stdout.Bytes(), &tasks); err != nil {
+		return "", "", fmt.Errorf("failed to parse task export: %w", err)
+	}
+	for _, task := range tasks {
+		if task.Description == desc {
+			return task.UUID, task.Project, nil
+		}
+	}
+	return "", "", fmt.Errorf("pending task %q not found in export", desc)
+}

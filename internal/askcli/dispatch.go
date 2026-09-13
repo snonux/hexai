@@ -153,8 +153,12 @@ func (d *Dispatcher) rejectImplicitAdd(ctx context.Context, args []string, stder
 
 func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "ask - task management CLI\n")
+	_, _ = io.WriteString(w, "\nProject scope:\n")
+	_, _ = io.WriteString(w, "  Project = <git-repo>[.<subdir>…] from cwd under the git root ('.' hierarchy).\n")
+	_, _ = io.WriteString(w, "  Reads include the current project and descendants; add stamps the exact project.\n")
 	_, _ = io.WriteString(w, "\nProject prefixes:\n")
 	_, _ = io.WriteString(w, "  ask proj:<name> <subcommand...> Run a subcommand against an explicit project\n")
+	_, _ = io.WriteString(w, "                                 (hierarchical names like repo.subdir are allowed)\n")
 	_, _ = io.WriteString(w, "\nScope prefixes:\n")
 	_, _ = io.WriteString(w, "  ask na <subcommand...>         Run a subcommand against project tasks without +agent\n")
 	_, _ = io.WriteString(w, "  ask no-agent <subcommand...>   Alias for ask na\n")
