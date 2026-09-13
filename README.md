@@ -16,7 +16,7 @@ It has got improved capabilities for Go code understanding (for example, create 
   - Includes `--tps-simulation` to preview how fast a model would feel by streaming placeholder text or piped stdin at a chosen token-per-second rate
 * Task management CLI for agent-managed project work
   - Entrypoint: `ask` (the binary was briefly named `do`; use `ask` in scripts and documentation)
-  - Auto-scopes to `project:<repo> +agent` (derived from git repo root)
+  - Auto-scopes to hierarchical `project:<repo>[.<subdir>…] +agent` (from git root + cwd; reads include descendants)
   - Override the project explicitly with `ask proj:<name> <subcommand...>`
   - Prefixes can be combined, for example `ask proj:<name> na <subcommand...>`
   - Never exposes numeric task IDs; human-facing output uses stable alias IDs

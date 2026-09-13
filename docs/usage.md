@@ -128,9 +128,19 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 
 `ask` is a task management CLI for the current git project. The binary was briefly named `do`; use `ask` everywhere (commands, scripts, shell completion). For Fish, load completions with `ask fish | source` or the setup in [Fish shell completion](fish-completion.md).
 
-By default it auto-scopes to `project:<repo> +agent` so operations are confined to agent-managed project tasks.
+By default it auto-scopes to the current git project using Taskwarrior’s `.` project hierarchy and the `+agent` tag, so operations stay on agent-managed project tasks.
 
-Use `ask proj:<name> <subcommand...>` to override the project explicitly instead of deriving it from the current git repository.
+The project name is derived from the git repository basename plus the working directory relative to the repo root, with path separators turned into `.`. Examples:
+
+- in `~/git/dotfiles` → `dotfiles`
+- in `~/git/dotfiles/prompts` → `dotfiles.prompts`
+- in `~/git/dotfiles/prompts/nested` → `dotfiles.prompts.nested`
+
+`ask add` stamps that exact project. Read commands (`list`, `ready`, `info`, …) include the current project **and its descendants** (for example `dotfiles` also shows `dotfiles.prompts`), without matching unrelated siblings such as `dotfiles-other`.
+
+Directory names that themselves contain `.` are ambiguous in this hierarchy; prefer folder names without dots when you rely on sub-project scoping.
+
+Use `ask proj:<name> <subcommand...>` to override the project explicitly (hierarchical names like `dotfiles.prompts` are allowed) instead of deriving it from the current working directory.
 
 Use `ask na <subcommand...>` or `ask no-agent <subcommand...>` to run the same subcommands against project tasks without the `+agent` tag. Those prefixes keep the project scope but replace the default tag filter with `-agent`.
 
