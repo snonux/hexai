@@ -1,12 +1,17 @@
 # Plan: `ask` as UUID-only Taskwarrior Wrapper
 
+> **Historical plan.** This document records the original UUID-wrapper design.
+> Project scoping has since evolved: `ask` derives hierarchical Taskwarrior
+> projects from the git root plus cwd (`repo.subdir…`). See
+> [Usage — Hierarchical project names](usage.md#hierarchical-project-names).
+
 The user-facing CLI binary is **`ask`** (it was briefly named `do`). This document uses `ask` throughout. The Go implementation package remains `internal/askcli` in the tree below.
 
 ## Goal
 
 Rewrite the `ask` command from a thin pass-through proxy into a **subcommand-based CLI** that wraps Taskwarrior. The wrapper never exposes numeric task IDs to the caller — only UUIDs. Output is minimal and machine-friendly for coding agents.
 
-The existing `project:<repo> +agent` auto-injection is preserved.
+The existing `project:<repo> +agent` auto-injection is preserved (later extended to hierarchical `project:<repo>[.<subdir>…]`).
 
 ## Subcommands
 

@@ -130,21 +130,32 @@ cat SOMEFILE.txt | hexai --tps-simulation 20
 
 By default it auto-scopes to the current git project using Taskwarrior’s `.` project hierarchy and the `+agent` tag, so operations stay on agent-managed project tasks.
 
-The project name is derived from the git repository basename plus the working directory relative to the repo root, with path separators turned into `.`. Examples:
+### Hierarchical project names
 
-- in `~/git/dotfiles` → `dotfiles`
-- in `~/git/dotfiles/prompts` → `dotfiles.prompts`
-- in `~/git/dotfiles/prompts/nested` → `dotfiles.prompts.nested`
+The project name is derived from the **git repository basename** plus the **working directory relative to the repo root**, with path separators turned into `.`:
 
-`ask add` stamps that exact project. Read commands (`list`, `ready`, `info`, …) include the current project **and its descendants** (for example `dotfiles` also shows `dotfiles.prompts`), without matching unrelated siblings such as `dotfiles-other`.
+| Working directory | Project |
+|---|---|
+| `~/git/dotfiles` | `dotfiles` |
+| `~/git/dotfiles/prompts` | `dotfiles.prompts` |
+| `~/git/dotfiles/prompts/nested` | `dotfiles.prompts.nested` |
 
-Directory names that themselves contain `.` are ambiguous in this hierarchy; prefer folder names without dots when you rely on sub-project scoping.
+Behavior:
 
-Use `ask proj:<name> <subcommand...>` to override the project explicitly (hierarchical names like `dotfiles.prompts` are allowed) instead of deriving it from the current working directory.
+- **`ask add`** stamps that **exact** project name.
+- **Read commands** (`list`, `ready`, `info`, `urgency`, …) include the current project **and its descendants**. From `dotfiles` you also see `dotfiles.prompts` and deeper children; from `dotfiles.prompts` you see that project and `dotfiles.prompts.*`, but not the parent `dotfiles` and not siblings such as `dotfiles.other`.
+- Filters avoid loose string prefixes, so `dotfiles` does **not** match unrelated projects like `dotfiles-other`.
+- Changing directory changes the project automatically; no marker file is required.
+- Directory names that themselves contain `.` are ambiguous in this hierarchy; prefer folder names without dots when you rely on sub-project scoping.
+- Existing flat tasks that only use the repo basename (for example `hexai`) remain valid when you run `ask` at the repository root.
+
+Use `ask proj:<name> <subcommand...>` to override the project explicitly (hierarchical names like `dotfiles.prompts` are allowed) instead of deriving it from the current working directory. Overrides use the same add/read rules: add stamps exact `name`; reads include `name` and its descendants.
 
 Use `ask na <subcommand...>` or `ask no-agent <subcommand...>` to run the same subcommands against project tasks without the `+agent` tag. Those prefixes keep the project scope but replace the default tag filter with `-agent`.
 
 You can combine the prefixes in either order, for example `ask proj:hexai na list` or `ask na proj:hexai list`.
+
+`ask projects` is **global**: it lists every distinct project name that currently has pending, not-yet-started tasks (including hierarchical names). It does not invent parent names when only a child project has tasks.
 
 `ask` never exposes Taskwarrior numeric task IDs. Human-facing output uses stable local alias IDs where practical. `ask info` hides the raw UUID by default and only prints it when `HEXAI_DEBUG` is set. Commands that accept a task selector still support either the alias ID or the UUID.
 
@@ -181,7 +192,7 @@ You can combine the prefixes in either order, for example `ask proj:hexai na lis
 | `ask dep list <id\|uuid>` | List dependencies |
 | `ask urgency` | List tasks by urgency |
 | `ask watch [subcommand...]` | Re-run a read-only subcommand every 2s and redraw when output changes; defaults to `ask list` |
-| `ask projects [+tag...]` | List projects with pending, not-yet-started tasks (optional tag filters, e.g. `+auto`) |
+| `ask projects [+tag...]` | List all projects (global) that have pending, not-yet-started tasks (optional tag filters, e.g. `+auto`) |
 | `ask modify <id\|uuid> <args...>` | General-purpose modify |
 | `ask denotate <id\|uuid> "text"` | Remove annotation |
 | `ask delete <id\|uuid>` | Delete a task |
@@ -189,14 +200,26 @@ You can combine the prefixes in either order, for example `ask proj:hexai na lis
 ### Examples
 
 ```sh
-# Create a task
+# Create a task (stamped with the cwd-derived project)
 ask add priority:H "Implement new feature"
+
+# In a subdirectory, the project becomes repo.subdir (e.g. hexai.docs)
+cd docs && ask add +docs "Update usage guide"
+
+# At the repo root, list includes root tasks and all sub-project descendants
+ask list
+
+# In docs/, list is limited to hexai.docs and deeper children only
+cd docs && ask list
 
 # Create a non-agent task
 ask na add "Follow up manually"
 
 # List tasks for a project from outside its git repository
 ask proj:hexai list
+
+# Target a hierarchical sub-project explicitly
+ask proj:dotfiles.prompts list
 
 # Combine project override and non-agent scope
 ask proj:hexai na list
@@ -209,6 +232,9 @@ ask list +READY limit:5
 
 # List non-agent tasks
 ask no-agent list
+
+# List every project that currently has pending +auto work
+ask projects +auto
 
 # Show task details
 ask info 0

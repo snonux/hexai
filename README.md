@@ -16,14 +16,17 @@ It has got improved capabilities for Go code understanding (for example, create 
   - Includes `--tps-simulation` to preview how fast a model would feel by streaming placeholder text or piped stdin at a chosen token-per-second rate
 * Task management CLI for agent-managed project work
   - Entrypoint: `ask` (the binary was briefly named `do`; use `ask` in scripts and documentation)
-  - Auto-scopes to hierarchical `project:<repo>[.<subdir>…] +agent` (from git root + cwd; reads include descendants)
-  - Override the project explicitly with `ask proj:<name> <subcommand...>`
+  - Auto-scopes to hierarchical `project:<repo>[.<subdir>…] +agent` from the git root and current working directory
+  - `ask add` stamps the exact cwd-derived project; read commands include that project and its descendants
+  - Override with `ask proj:<name> …` (hierarchical names like `dotfiles.prompts` are allowed)
   - Prefixes can be combined, for example `ask proj:<name> na <subcommand...>`
+  - `ask projects` lists all projects with pending work globally (including hierarchical names)
   - Never exposes numeric task IDs; human-facing output uses stable alias IDs
   - `ask info` hides raw UUIDs unless `HEXAI_DEBUG` is set
   - Machine-friendly output with suppressed decorative text
   - Subcommands: `ask add`, `ask list`, `ask info`, `ask annotate`, `ask start`, `ask stop`, `ask done`, `ask priority`, `ask tag`, `ask dep`, `ask urgency`, `ask watch`, `ask projects`, `ask modify`, `ask denotate`, `ask delete`, `ask fish`, `ask help`
   - Fish shell completions: run `ask fish | source` in a session, or use a `conf.d` snippet (see [Fish shell completion](docs/fish-completion.md)); installs do not write files under `fish/completions/`
+  - Details: [Usage — Task management](docs/usage.md#task-management)
 * Parallel completions and CLI responses from multiple providers/models for side-by-side comparison
 * **MCP server for prompt/runbook management** (`hexai-mcp-server`) - **⚠️ DEPRECATED/EXPERIMENTAL**
   - Create, update, delete, and retrieve prompts via MCP protocol

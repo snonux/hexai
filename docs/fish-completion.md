@@ -9,6 +9,7 @@ If you used an older Hexai release whose `mage install` wrote `ask.fish` into yo
 
 It completes the top-level `ask` subcommands and the nested `ask dep` operations.
 It also suggests the global task prefixes `na`, `no-agent`, and `proj:`.
+After `proj:`, type a flat or hierarchical project name (for example `proj:hexai` or `proj:dotfiles.prompts`); see [Usage — Hierarchical project names](usage.md#hierarchical-project-names).
 It also completes task selectors for UUID-taking commands by reading pending tasks through `ask complete-aliases`, which uses the local alias cache for stable short IDs.
 The `ask complete-uuids` command still emits both alias and UUID lines for scripts and tests that need the full selector list.
 Selector suggestions stop once a command has consumed its selector argument, and `ask dep add` / `ask dep rm` suggest selectors for both task positions.
