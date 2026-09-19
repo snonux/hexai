@@ -17,14 +17,32 @@ type failoverTestClient struct {
 
 type failoverStreamClient struct {
 	failoverTestClient
-	deltas []string
+	deltas   []string
+	modelOpt string
 }
 
-func (c *failoverStreamClient) ChatStream(_ context.Context, _ []Message, onDelta func(string), _ ...RequestOption) error {
+func (c *failoverStreamClient) ChatStream(_ context.Context, _ []Message, onDelta func(string), opts ...RequestOption) error {
+	var options Options
+	for _, opt := range opts {
+		opt(&options)
+	}
+	c.modelOpt = options.Model
 	for _, delta := range c.deltas {
 		onDelta(delta)
 	}
 	return c.err
+}
+
+func TestStreamUsesTargetOptions(t *testing.T) {
+	primary := &failoverStreamClient{failoverTestClient: failoverTestClient{name: "primary", err: &HTTPError{Provider: "ollama", Status: 503}}}
+	fallback := &failoverStreamClient{failoverTestClient: failoverTestClient{name: "fallback"}, deltas: []string{"answer"}}
+	target, err := Stream(context.Background(), []Target{
+		{Name: "primary", Client: primary, Options: []RequestOption{WithModel("primary-model")}},
+		{Name: "fallback", Client: fallback, Options: []RequestOption{WithModel("fallback-model")}},
+	}, nil, func(string) {})
+	if err != nil || target.Name != "fallback" || primary.modelOpt != "primary-model" || fallback.modelOpt != "fallback-model" {
+		t.Fatalf("unexpected stream options target=%+v err=%v primary=%q fallback=%q", target, err, primary.modelOpt, fallback.modelOpt)
+	}
 }
 
 type failoverCodeClient struct {

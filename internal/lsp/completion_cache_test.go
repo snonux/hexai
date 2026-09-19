@@ -44,3 +44,12 @@ func TestCompletionCache_IgnoresWhitespaceBeforeCursor(t *testing.T) {
 		t.Fatalf("expected log to contain cache hit message, got: %s", buf.String())
 	}
 }
+
+func TestCompletionCache_TargetIdentityIncludesFallbackProfile(t *testing.T) {
+	base := "context"
+	cloud := completionTargetCacheKey(base, "ollama-cloud", "model")
+	local := completionTargetCacheKey(base, "ollama-local", "model")
+	if cloud == local {
+		t.Fatalf("fallback profiles must have distinct cache keys: %q", cloud)
+	}
+}
