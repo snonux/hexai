@@ -76,7 +76,6 @@ func applyProviderEnv(out *App, logger *log.Logger) bool {
 	}
 	any = applyEnvFloat(&out.AnthropicTemperature, "HEXAI_ANTHROPIC_TEMPERATURE", logger) || any
 
-	any = applyEnvString(&out.YouSearchResearchEffort, "HEXAI_YOUSEARCH_RESEARCH_EFFORT") || any
 	return any
 }
 

@@ -19,22 +19,14 @@ import "time"
 // configured an explicit RequestTimeout. Thirty seconds is generous enough for
 // normal completions yet short enough that a hung connection fails fast rather
 // than blocking interactive use indefinitely.
-//
-// ResearchRequestTimeout applies to the You.com Research provider, whose
-// multi-step research pipeline routinely runs much longer than a single chat
-// completion. It therefore gets a substantially larger default so legitimate
-// long-running research is not cut off prematurely.
 const (
-	DefaultRequestTimeout  = 30 * time.Second
-	ResearchRequestTimeout = 120 * time.Second
+	DefaultRequestTimeout = 30 * time.Second
 )
 
-// DefaultRequestTimeoutSeconds and ResearchRequestTimeoutSeconds expose the
-// timeouts as whole seconds, matching the int-seconds shape that provider
-// constructors and the user-facing Config.RequestTimeout field use.
+// DefaultRequestTimeoutSeconds exposes the timeout as whole seconds, matching
+// the int-seconds shape used by provider constructors and Config.RequestTimeout.
 const (
-	DefaultRequestTimeoutSeconds  = int(DefaultRequestTimeout / time.Second)
-	ResearchRequestTimeoutSeconds = int(ResearchRequestTimeout / time.Second)
+	DefaultRequestTimeoutSeconds = int(DefaultRequestTimeout / time.Second)
 )
 
 // Retry policy.

@@ -39,8 +39,6 @@ func ProviderProfileFor(cfg appconfig.App, name string) (appconfig.ProviderProfi
 		profile.BaseURL, profile.Model, profile.Temperature = cfg.AnthropicBaseURL, cfg.AnthropicModel, cfg.AnthropicTemperature
 	case "openai":
 		profile.BaseURL, profile.Model, profile.Temperature = cfg.OpenAIBaseURL, cfg.OpenAIModel, cfg.OpenAITemperature
-	case "yousearch":
-		profile.Model = cfg.YouSearchResearchEffort
 	default:
 		return appconfig.ProviderProfile{}, false
 	}
@@ -68,11 +66,6 @@ func DefaultModelForProvider(cfg appconfig.App, provider string) string {
 			return model
 		}
 		return "claude-3-5-sonnet-20240620"
-	case "yousearch":
-		if effort := strings.TrimSpace(cfg.YouSearchResearchEffort); effort != "" {
-			return effort
-		}
-		return "standard"
 	default:
 		if model := strings.TrimSpace(cfg.OpenAIModel); model != "" {
 			return model
@@ -142,8 +135,6 @@ func setProviderModel(cfg *appconfig.App, provider, value string) {
 		cfg.AnthropicModel = value
 	case "openai":
 		cfg.OpenAIModel = value
-	case "yousearch":
-		cfg.YouSearchResearchEffort = value
 	}
 }
 
@@ -168,21 +159,20 @@ func NewClientFromAppForProvider(cfg appconfig.App, provider, modelOverride stri
 // NewClientFromApp builds an llm.Client using app config and environment keys.
 func NewClientFromApp(cfg appconfig.App) (llm.Client, error) {
 	llmCfg := llm.Config{
-		Provider:                cfg.Provider,
-		RequestTimeout:          cfg.RequestTimeout,
-		OpenAIBaseURL:           cfg.OpenAIBaseURL,
-		OpenAIModel:             cfg.OpenAIModel,
-		OpenAITemperature:       cfg.OpenAITemperature,
-		OpenRouterBaseURL:       cfg.OpenRouterBaseURL,
-		OpenRouterModel:         cfg.OpenRouterModel,
-		OpenRouterTemperature:   cfg.OpenRouterTemperature,
-		OllamaBaseURL:           cfg.OllamaBaseURL,
-		OllamaModel:             cfg.OllamaModel,
-		OllamaTemperature:       cfg.OllamaTemperature,
-		AnthropicBaseURL:        cfg.AnthropicBaseURL,
-		AnthropicModel:          cfg.AnthropicModel,
-		AnthropicTemperature:    cfg.AnthropicTemperature,
-		YouSearchResearchEffort: cfg.YouSearchResearchEffort,
+		Provider:              cfg.Provider,
+		RequestTimeout:        cfg.RequestTimeout,
+		OpenAIBaseURL:         cfg.OpenAIBaseURL,
+		OpenAIModel:           cfg.OpenAIModel,
+		OpenAITemperature:     cfg.OpenAITemperature,
+		OpenRouterBaseURL:     cfg.OpenRouterBaseURL,
+		OpenRouterModel:       cfg.OpenRouterModel,
+		OpenRouterTemperature: cfg.OpenRouterTemperature,
+		OllamaBaseURL:         cfg.OllamaBaseURL,
+		OllamaModel:           cfg.OllamaModel,
+		OllamaTemperature:     cfg.OllamaTemperature,
+		AnthropicBaseURL:      cfg.AnthropicBaseURL,
+		AnthropicModel:        cfg.AnthropicModel,
+		AnthropicTemperature:  cfg.AnthropicTemperature,
 	}
 	oaKey := os.Getenv("HEXAI_OPENAI_API_KEY")
 	if strings.TrimSpace(oaKey) == "" {
@@ -202,9 +192,5 @@ func NewClientFromApp(cfg appconfig.App) (llm.Client, error) {
 	if strings.TrimSpace(olKey) == "" {
 		olKey = os.Getenv("OLLAMA_API_KEY")
 	}
-	ysKey := os.Getenv("HEXAI_YOUSEARCH_API_KEY")
-	if strings.TrimSpace(ysKey) == "" {
-		ysKey = os.Getenv("YOU_API_KEY")
-	}
-	return llm.NewFromConfig(llmCfg, oaKey, orKey, anKey, olKey, ysKey)
+	return llm.NewFromConfig(llmCfg, oaKey, orKey, anKey, olKey)
 }

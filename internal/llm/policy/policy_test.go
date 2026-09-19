@@ -5,31 +5,18 @@ import (
 	"time"
 )
 
-// TestRequestTimeouts verifies the documented default and research timeouts and
-// that their whole-second mirrors stay in sync with the duration constants.
+// TestRequestTimeouts verifies the documented default timeout and its
+// whole-second mirror.
 func TestRequestTimeouts(t *testing.T) {
 	if DefaultRequestTimeout != 30*time.Second {
 		t.Fatalf("DefaultRequestTimeout = %v, want 30s", DefaultRequestTimeout)
 	}
-	if ResearchRequestTimeout != 120*time.Second {
-		t.Fatalf("ResearchRequestTimeout = %v, want 120s", ResearchRequestTimeout)
-	}
 	if DefaultRequestTimeoutSeconds != 30 {
 		t.Fatalf("DefaultRequestTimeoutSeconds = %d, want 30", DefaultRequestTimeoutSeconds)
-	}
-	if ResearchRequestTimeoutSeconds != 120 {
-		t.Fatalf("ResearchRequestTimeoutSeconds = %d, want 120", ResearchRequestTimeoutSeconds)
 	}
 	// The integer mirrors must equal the duration constants converted to seconds.
 	if got := int(DefaultRequestTimeout / time.Second); got != DefaultRequestTimeoutSeconds {
 		t.Fatalf("DefaultRequestTimeoutSeconds out of sync: %d vs %d", DefaultRequestTimeoutSeconds, got)
-	}
-	if got := int(ResearchRequestTimeout / time.Second); got != ResearchRequestTimeoutSeconds {
-		t.Fatalf("ResearchRequestTimeoutSeconds out of sync: %d vs %d", ResearchRequestTimeoutSeconds, got)
-	}
-	// Research must allow a longer window than a normal chat completion.
-	if ResearchRequestTimeout <= DefaultRequestTimeout {
-		t.Fatalf("ResearchRequestTimeout (%v) must exceed DefaultRequestTimeout (%v)", ResearchRequestTimeout, DefaultRequestTimeout)
 	}
 }
 

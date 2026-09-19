@@ -217,7 +217,7 @@ func rejectLegacyKeys(raw map[string]any) error {
 	knownTables := map[string]struct{}{
 		"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {},
 		"chat": {}, "provider": {}, "models": {}, "openai": {}, "ollama": {}, "prompts": {},
-		"yousearch": {}, "anthropic": {}, "openrouter": {}, "providers": {},
+		"anthropic": {}, "openrouter": {}, "providers": {},
 	}
 	for k := range raw {
 		if _, isTable := knownTables[k]; isTable {
@@ -283,7 +283,6 @@ func applyProviderSections(fc *fileConfig, out *App) {
 	applyOpenRouterSection(fc, out)
 	applyOllamaSection(fc, out)
 	applyAnthropicSection(fc, out)
-	applyYouSearchSection(fc, out)
 }
 
 func applyProviderProfiles(fc *fileConfig, out *App) {
@@ -463,16 +462,6 @@ func applyAnthropicSection(fc *fileConfig, out *App) {
 		AnthropicBaseURL:     fc.Anthropic.BaseURL,
 		AnthropicModel:       fc.Anthropic.Model,
 		AnthropicTemperature: fc.Anthropic.Temperature,
-	}}
-	out.mergeProviderFields(&tmp)
-}
-
-func applyYouSearchSection(fc *fileConfig, out *App) {
-	if fc.YouSearch == (sectionYouSearch{}) {
-		return
-	}
-	tmp := App{ProviderConfig: ProviderConfig{
-		YouSearchResearchEffort: fc.YouSearch.ResearchEffort,
 	}}
 	out.mergeProviderFields(&tmp)
 }

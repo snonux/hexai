@@ -25,7 +25,7 @@ func validateProviderProfiles(a *App) error {
 			return fmt.Errorf("config: provider profile name cannot be empty")
 		}
 		switch strings.ToLower(strings.TrimSpace(profile.Type)) {
-		case "ollama", "openai", "openrouter", "anthropic", "yousearch":
+		case "ollama", "openai", "openrouter", "anthropic":
 		default:
 			return fmt.Errorf("config: provider profile %q has unsupported type %q", name, profile.Type)
 		}
@@ -54,7 +54,7 @@ func providerNameKnown(a *App, name string) bool {
 		return true
 	}
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "ollama", "openai", "openrouter", "anthropic", "yousearch":
+	case "ollama", "openai", "openrouter", "anthropic":
 		return true
 	default:
 		return false

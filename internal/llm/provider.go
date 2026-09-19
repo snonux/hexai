@@ -148,8 +148,6 @@ type Config struct {
 	AnthropicBaseURL     string
 	AnthropicModel       string
 	AnthropicTemperature *float64
-	// YouSearch options
-	YouSearchResearchEffort string // lite|standard|deep|exhaustive
 }
 
 // ProviderKeys contains API credentials used by provider factories.
@@ -160,7 +158,6 @@ type ProviderKeys struct {
 	OpenRouterAPIKey string
 	AnthropicAPIKey  string
 	OllamaAPIKey     string
-	YouSearchAPIKey  string
 }
 
 // ProviderFactory builds an LLM client for a named provider.
@@ -200,7 +197,7 @@ func RegisterProvider(name string, factory ProviderFactory) error {
 }
 
 // RegisterAllProviders registers all built-in LLM providers (anthropic, openai,
-// openrouter, ollama, yousearch). It is safe to call from multiple entry points
+// openrouter, ollama). It is safe to call from multiple entry points
 // because the actual registration runs only once via sync.Once. The error from
 // the one-time registration is cached so every caller observes the same result,
 // even though sync.Once only runs the closure once.
@@ -214,7 +211,6 @@ func RegisterAllProviders() error {
 			{"openai", openAIProviderFactory},
 			{"openrouter", openRouterProviderFactory},
 			{"ollama", ollamaProviderFactory},
-			{"yousearch", youSearchProviderFactory},
 		}
 		for _, b := range builtins {
 			if err := RegisterProvider(b.name, b.factory); err != nil {
@@ -230,7 +226,7 @@ func RegisterAllProviders() error {
 // API keys are supplied separately and may be read from the environment by the
 // caller. ollamaAPIKey is optional and only used when targeting Ollama Cloud;
 // a local Ollama server works with an empty value.
-func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, anthropicAPIKey, ollamaAPIKey, youSearchAPIKey string) (Client, error) {
+func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, anthropicAPIKey, ollamaAPIKey string) (Client, error) {
 	provider := normalizeProvider(cfg.Provider)
 	if provider == "" {
 		provider = "ollama"
@@ -246,7 +242,6 @@ func NewFromConfig(cfg Config, openAIAPIKey, openRouterAPIKey, anthropicAPIKey, 
 		OpenRouterAPIKey: openRouterAPIKey,
 		AnthropicAPIKey:  anthropicAPIKey,
 		OllamaAPIKey:     ollamaAPIKey,
-		YouSearchAPIKey:  youSearchAPIKey,
 	})
 }
 
@@ -289,8 +284,6 @@ func providerDisplayName(provider string) string {
 		return "OpenRouter"
 	case "anthropic":
 		return "Anthropic"
-	case "yousearch":
-		return "YouSearch"
 	default:
 		return provider
 	}
