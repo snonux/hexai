@@ -76,6 +76,11 @@ Per-surface models
 
   Profile `type` selects a built-in provider implementation, while `base_url` and `model` select that endpoint and default model. The fallback model override is useful when the fallback profile serves several surfaces. A local Ollama profile does not need an API key; cloud and hosted profiles use their normal provider environment variables. Invalid request/authentication errors and user cancellation do not trigger fallback.
 
+  The complete copy-paste CLI example in [config.toml.example](../config.toml.example) uses Ollama Cloud `minimax-m3:cloud` with local Ollama `qwen3.8:27b`. Keep that spelling as an example model tag, and make sure it exactly matches the model installed locally (`ollama list`). Credentials still come from the normal provider environment variables (`HEXAI_OLLAMA_API_KEY` or `OLLAMA_API_KEY` for cloud); a local Ollama target needs no key.
+
+- A successful fallback is reported using the responder's provider and model in CLI headers, summaries, cache keys, usage statistics, and tmux status. Only a successful response is cached, so a failed primary never pollutes its cache entry. The `[stats]` window controls the rolling `stats.json` totals used by these summaries and status lines.
+- Configuration precedence is built-in defaults → global config → per-project `.hexaiconfig.toml` → `HEXAI_*` environment overrides. Within a surface entry, the explicitly named provider/model wins over provider-profile defaults; `fallback_model` wins over the fallback profile model. The `ask` task-management command is unrelated to LLM surfaces and remains unchanged.
+
 - When a per-surface value is omitted, Hexai falls back to the provider’s configured default. Temperatures inherit from `coding_temperature` unless explicitly set, and OpenAI `gpt-5*` models automatically raise an unspecified coding temperature to `1.0` for exploratory behavior. Provider overrides support `"openai"`, `"openrouter"`, `"anthropic"`, `"ollama"`, or `"yousearch"` and read the matching credential variables.
 
 Runtime reloads

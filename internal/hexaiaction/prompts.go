@@ -130,6 +130,11 @@ func runOnce(ctx context.Context, client chatDoer, sys, user string, req request
 	}
 	out := strings.TrimSpace(StripFences(txt))
 	model := strings.TrimSpace(req.model)
+	if responder, ok := client.(interface{ ResponderModel() string }); ok {
+		if resolved := strings.TrimSpace(responder.ResponderModel()); resolved != "" {
+			model = resolved
+		}
+	}
 	if model == "" {
 		model = client.DefaultModel()
 	}
@@ -171,6 +176,25 @@ func reqOptsFrom(cfg actionConfig) requestArgs {
 		opts = append(opts, llm.WithModel(strings.TrimSpace(primary.Model)))
 	}
 	if temp, ok := selectActionTemperature(cfg, provider, primary, model); ok {
+		opts = append(opts, llm.WithTemperature(temp))
+	}
+	return requestArgs{model: model, options: opts}
+}
+
+func reqOptsFromEntry(cfg *appconfig.App, entry appconfig.SurfaceConfig, derived appconfig.App) requestArgs {
+	provider := llmutils.CanonicalProvider(entry.Provider)
+	model := strings.TrimSpace(entry.Model)
+	if model == "" {
+		model = strings.TrimSpace(llmutils.DefaultModelForProvider(derived, provider))
+	}
+	opts := make([]llm.RequestOption, 0, 3)
+	if cfg.MaxTokens > 0 {
+		opts = append(opts, llm.WithMaxTokens(cfg.MaxTokens))
+	}
+	if strings.TrimSpace(entry.Model) != "" {
+		opts = append(opts, llm.WithModel(model))
+	}
+	if temp, ok := llmutils.ResolveTemperature(provider, model, entry.Temperature, cfg.CodingTemperature); ok {
 		opts = append(opts, llm.WithTemperature(temp))
 	}
 	return requestArgs{model: model, options: opts}

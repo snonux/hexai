@@ -10,6 +10,7 @@ import (
 
 	"github.com/snonux/hexai/internal/appconfig"
 	"github.com/snonux/hexai/internal/editor"
+	"github.com/snonux/hexai/internal/llm"
 	"github.com/snonux/hexai/internal/llmutils"
 	"github.com/snonux/hexai/internal/logging"
 	"github.com/snonux/hexai/internal/stats"
@@ -171,6 +172,7 @@ func (r *Runner) Run(ctx context.Context, stdin io.Reader, stdout, stderr io.Wri
 	if err != nil {
 		return err
 	}
+	setActionStartStatus(deps.statusSink, client, cfg)
 	out, err := executeAction(withActionEditor(ctx, deps.openEditor), choice.kind, parts, &cfg, client, stderr, choice.custom)
 	if err != nil {
 		return err
@@ -221,29 +223,79 @@ func prepareRunConfig(ctx context.Context, stderr io.Writer, logger *log.Logger,
 		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: %v"+logging.AnsiReset+"\n", err)
 		return cfg, err
 	}
-	if len(cfg.CodeActionConfigs) > 0 {
-		if provider := strings.TrimSpace(cfg.CodeActionConfigs[0].Provider); provider != "" {
-			cfg.Provider = provider
-		}
-	}
 	return cfg, nil
 }
 
 func prepareActionClient(stderr io.Writer, cfg appconfig.App, newClient actionClientFactory, statusSink actionStatusSink) (chatDoer, error) {
-	cli, err := newClient(cfg)
-	if err != nil {
-		_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
-		return nil, err
+	entries := cfg.CodeActionConfigs
+	if len(entries) == 0 {
+		entries = []appconfig.SurfaceConfig{{Provider: cfg.Provider}}
 	}
-	primaryModel := strings.TrimSpace(reqOptsFrom(&cfg).model)
-	if primaryModel == "" {
-		primaryModel = cli.DefaultModel()
+	targets := make([]llm.Target, 0, 2)
+	var failures []string
+	primary := entries[0]
+	if strings.TrimSpace(primary.Provider) == "" {
+		primary.Provider = cfg.Provider
 	}
-	if statusSink != nil {
-		_ = statusSink.SetLLMStart(cli.Name(), primaryModel)
+	if strings.TrimSpace(primary.Model) == "" {
+		primary.Model = strings.TrimSpace(reqOptsFrom(&cfg).model)
 	}
-	return cli, nil
+	entries = []appconfig.SurfaceConfig{primary}
+	if strings.TrimSpace(primary.FallbackProvider) != "" {
+		entries = append(entries, appconfig.SurfaceConfig{Provider: primary.FallbackProvider, Model: primary.FallbackModel, Temperature: primary.Temperature})
+	}
+	for _, entry := range entries {
+		provider := strings.TrimSpace(entry.Provider)
+		derived := llmutils.ConfigForProvider(cfg, provider, entry.Model)
+		client, err := newClient(derived)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, logging.AnsiBase+"hexai-tmux-action: LLM disabled: %v"+logging.AnsiReset+"\n", err)
+			failures = append(failures, fmt.Sprintf("%s: %v", provider, err))
+			continue
+		}
+		req := reqOptsFromEntry(&cfg, entry, derived)
+		name := strings.TrimSpace(client.Name())
+		if name == "" {
+			name = provider
+		}
+		targets = append(targets, llm.Target{Name: name, Model: req.model, Client: client, Options: req.options})
+	}
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("llm: no code-action targets available: %s", strings.Join(failures, "; "))
+	}
+	return &resolvedActionClient{targets: targets, active: targets[0]}, nil
 }
+
+func setActionStartStatus(statusSink actionStatusSink, client chatDoer, cfg appconfig.App) {
+	if statusSink == nil || client == nil {
+		return
+	}
+	model := strings.TrimSpace(reqOptsFrom(&cfg).model)
+	if model == "" {
+		model = client.DefaultModel()
+	}
+	_ = statusSink.SetLLMStart(providerOf(client), model)
+}
+
+type resolvedActionClient struct {
+	targets []llm.Target
+	active  llm.Target
+}
+
+func (c *resolvedActionClient) Chat(ctx context.Context, msgs []llm.Message, _ ...llm.RequestOption) (string, error) {
+	result, err := llm.Chat(ctx, c.targets, msgs)
+	if err != nil {
+		return "", err
+	}
+	c.active = result.Target
+	return result.Text, nil
+}
+
+func (c *resolvedActionClient) Name() string { return c.active.Name }
+
+func (c *resolvedActionClient) DefaultModel() string { return c.active.Model }
+
+func (c *resolvedActionClient) ResponderModel() string { return c.active.Model }
 
 // WithConfigPath attaches a config path override to the context for Run/RunCommand.
 func WithConfigPath(ctx context.Context, path string) context.Context {

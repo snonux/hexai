@@ -49,7 +49,7 @@ func buildCLIJobs(cfg appconfig.App) ([]cliJob, error) {
 	}
 	jobs := make([]cliJob, 0, len(entries))
 	for i, raw := range entries {
-		entry := appconfig.SurfaceConfig{Provider: strings.TrimSpace(raw.Provider), Model: strings.TrimSpace(raw.Model), Temperature: raw.Temperature}
+		entry := appconfig.SurfaceConfig{Provider: strings.TrimSpace(raw.Provider), Model: strings.TrimSpace(raw.Model), Temperature: raw.Temperature, FallbackProvider: strings.TrimSpace(raw.FallbackProvider), FallbackModel: strings.TrimSpace(raw.FallbackModel)}
 		provider := entry.Provider
 		if provider == "" {
 			provider = cfg.Provider
@@ -124,19 +124,17 @@ type chatRunSummary struct {
 
 func runCLIJobs(ctx context.Context, jobs []cliJob, msgs []llm.Message, input string, stdout, stderr io.Writer, clientFactory cliClientFactory, statusSink cliStatusSink) error {
 	streamSingle := len(jobs) == 1
-	results, printer := executeCLIJobs(ctx, jobs, msgs, input, stdout, stderr, streamSingle, clientFactory, statusSink)
-	if printer == nil && !streamSingle {
-		if err := writeCLIJobOutputs(stdout, results); err != nil {
-			return err
-		}
-	}
+	results, _ := executeCLIJobs(ctx, jobs, msgs, input, stdout, stderr, streamSingle, clientFactory, statusSink)
 	return writeCLIJobSummaries(stderr, results)
 }
 
 func executeCLIJobs(ctx context.Context, jobs []cliJob, msgs []llm.Message, input string, stdout io.Writer, stderr io.Writer, streamSingle bool, clientFactory cliClientFactory, statusSink cliStatusSink) ([]*cliJobResult, *termprint.ColumnPrinter) {
 	results := make([]*cliJobResult, len(jobs))
 	printer := setupCLIPrinter(stdout, jobs)
-	printCLIHeader(stderr, jobs, printer)
+	directStream := streamSingle && len(jobs) == 1 && strings.TrimSpace(jobs[0].entry.FallbackProvider) == ""
+	if directStream {
+		printCLIHeader(stderr, jobs, printer)
+	}
 	var wg sync.WaitGroup
 	for _, job := range jobs {
 		job := job
@@ -147,7 +145,57 @@ func executeCLIJobs(ctx context.Context, jobs []cliJob, msgs []llm.Message, inpu
 		}()
 	}
 	wg.Wait()
+	if directStream {
+		return results, printer
+	}
+	printCLIResultHeader(stderr, jobs, results, printer)
+	_ = writeCLIJobResults(stdout, results, printer)
 	return results, printer
+}
+
+func printCLIResultHeader(stderr io.Writer, jobs []cliJob, results []*cliJobResult, printer *termprint.ColumnPrinter) {
+	if printer != nil {
+		providers := make([]string, len(jobs))
+		models := make([]string, len(jobs))
+		for i, result := range results {
+			if result == nil {
+				providers[i], models[i] = jobs[i].provider, jobs[i].req.model
+				continue
+			}
+			providers[i], models[i] = result.provider, result.model
+		}
+		printer.SetLabels(providers, models)
+		printer.PrintHeaderTo(stderr)
+		return
+	}
+	for _, result := range results {
+		if result != nil {
+			printProviderLabel(stderr, result.provider, result.model)
+			return
+		}
+	}
+}
+
+func writeCLIJobResults(stdout io.Writer, results []*cliJobResult, printer *termprint.ColumnPrinter) error {
+	if printer != nil {
+		for i, result := range results {
+			if result == nil || result.output == "" {
+				continue
+			}
+			if _, err := io.WriteString(printer.Writer(i), result.output); err != nil {
+				return err
+			}
+			printer.Flush(i)
+		}
+		return nil
+	}
+	for _, result := range results {
+		if result != nil {
+			_, err := io.WriteString(stdout, result.output)
+			return err
+		}
+	}
+	return nil
 }
 
 func setupCLIPrinter(stdout io.Writer, jobs []cliJob) *termprint.ColumnPrinter {
@@ -158,55 +206,179 @@ func setupCLIPrinter(stdout io.Writer, jobs []cliJob) *termprint.ColumnPrinter {
 }
 
 func runSingleCLIJob(ctx context.Context, job cliJob, msgs []llm.Message, input string, stdout io.Writer, printer *termprint.ColumnPrinter, streamOutput bool, clientFactory cliClientFactory, statusSink cliStatusSink) *cliJobResult {
-	if res := cachedCLIJobResult(ctx, job, msgs, stdout, printer, streamOutput); res != nil {
-		return res
-	}
-
-	client, err := clientFactory(job.cfg)
-	if err != nil {
-		return &cliJobResult{provider: job.provider, model: job.req.model, err: err}
-	}
-	model := effectiveModel(job.req, client)
-
 	var errBuf bytes.Buffer
 	var outBuf bytes.Buffer
 	jobMsgs := append([]llm.Message(nil), msgs...)
+	directStream := streamOutput && strings.TrimSpace(job.entry.FallbackProvider) == ""
+	cacheWriter := io.Writer(&outBuf)
+	if directStream {
+		cacheWriter = stdout
+	}
+	if res := cachedCLIJobResult(ctx, job, jobMsgs, cacheWriter, nil, true); res != nil {
+		return res
+	}
 	writer := io.Writer(&outBuf)
-	if printer != nil {
-		writer = io.MultiWriter(printer.Writer(job.index), &outBuf)
-	} else if streamOutput {
-		writer = io.MultiWriter(stdout, &outBuf)
-	}
-	err = runChatWithStatus(statusSink, ctx, client, job.req, jobMsgs, input, writer, &errBuf)
-	if printer != nil {
-		printer.Flush(job.index)
-	}
+	targets, err := buildCLIChatTargets(job, clientFactory)
 	if err == nil {
-		storeCLIResponseCache(ctx, newCLIResponseCacheKey(job.provider, model, job.req, jobMsgs), outBuf.String())
+		if statusSink != nil && len(targets) > 0 {
+			startModel := strings.TrimSpace(targets[0].Model)
+			if startModel == "" {
+				startModel = targets[0].Client.DefaultModel()
+			}
+			_ = statusSink.SetLLMStart(targets[0].Name, startModel)
+		}
+		var target llm.Target
+		if directStream {
+			var output string
+			output, err = chatrun.Invoke(ctx, targets[0].Client, jobMsgs, targets[0].Options, io.MultiWriter(stdout, &outBuf))
+			_ = output
+			target = targets[0]
+		} else {
+			target, err = runCLIWithFailover(ctx, targets, jobMsgs, writer)
+		}
+		if err == nil {
+			model := strings.TrimSpace(target.Model)
+			if model == "" {
+				model = target.Client.DefaultModel()
+			}
+			if statusSink != nil {
+				_ = statusSink.SetLLMStart(target.Name, model)
+			}
+			snapshot := writeCLIChatSummary(ctx, target, model, jobMsgs, outBuf.String(), &errBuf)
+			if statusSink != nil {
+				_ = statusSink.SetGlobal(snapshot, target.Name, model, snapshot.ScopeRPM(target.Name, model), snapshot.ScopeReqs(target.Name, model))
+			}
+			cacheReq := cliRequestForTarget(job, target)
+			storeCLIResponseCache(ctx, newCLIResponseCacheKey(target.Name, model, cacheReq, jobMsgs), outBuf.String())
+			return &cliJobResult{provider: target.Name, model: model, output: outBuf.String(), summary: errBuf.String()}
+		}
 	}
 	return &cliJobResult{
 		provider: job.provider,
-		model:    model,
+		model:    job.req.model,
 		output:   outBuf.String(),
 		summary:  errBuf.String(),
 		err:      err,
 	}
 }
 
+func cliRequestForTarget(job cliJob, target llm.Target) requestArgs {
+	req := job.req
+	req.model = target.Model
+	var options llm.Options
+	for _, option := range target.Options {
+		option(&options)
+	}
+	if options.MaxTokens > 0 {
+		req.maxTokens = options.MaxTokens
+	}
+	if options.Temperature != 0 {
+		temperature := options.Temperature
+		req.temperature = &temperature
+	}
+	return req
+}
+
+func buildCLIChatTargets(job cliJob, factory cliClientFactory) ([]llm.Target, error) {
+	entries := []appconfig.SurfaceConfig{job.entry}
+	if strings.TrimSpace(job.entry.FallbackProvider) != "" {
+		entries = append(entries, appconfig.SurfaceConfig{Provider: job.entry.FallbackProvider, Model: job.entry.FallbackModel, Temperature: job.entry.Temperature})
+	}
+	targets := make([]llm.Target, 0, len(entries))
+	var failures []string
+	for _, entry := range entries {
+		provider := strings.TrimSpace(entry.Provider)
+		if provider == "" {
+			provider = job.cfg.Provider
+		}
+		provider = strings.TrimSpace(provider)
+		derived := llmutils.ConfigForProvider(job.cfg, provider, entry.Model)
+		req := buildCLIRequest(entry, provider, derived)
+		client, err := factory(derived)
+		if err != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", provider, err))
+			continue
+		}
+		name := strings.TrimSpace(client.Name())
+		if name == "" {
+			name = provider
+		}
+		targets = append(targets, llm.Target{Name: name, Model: req.model, Client: client, Options: req.options})
+	}
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("llm: no CLI targets available: %s", strings.Join(failures, "; "))
+	}
+	return targets, nil
+}
+
+func runCLIWithFailover(ctx context.Context, targets []llm.Target, msgs []llm.Message, out io.Writer) (llm.Target, error) {
+	var buffered bytes.Buffer
+	target, err := llm.Stream(ctx, targets, msgs, func(delta string) { _, _ = buffered.WriteString(delta) })
+	if buffered.Len() > 0 {
+		_, _ = io.Copy(out, &buffered)
+	}
+	return target, err
+}
+
+func writeCLIChatSummary(ctx context.Context, target llm.Target, model string, msgs []llm.Message, output string, errw io.Writer) stats.Snapshot {
+	sent, recv := chatrun.Account(ctx, target.Name, model, msgs, output)
+	snapshot, err := stats.TakeSnapshot()
+	if err != nil {
+		return stats.Snapshot{}
+	}
+	_, _ = fmt.Fprintf(errw, logging.AnsiBase+"done provider=%s model=%s in_bytes=%d out_bytes=%d | global Σ reqs=%d rpm=%.2f"+logging.AnsiReset+"\n", target.Name, model, sent, recv, snapshot.Global.Reqs, snapshot.RPM)
+	return snapshot
+}
+
 func cachedCLIJobResult(ctx context.Context, job cliJob, msgs []llm.Message, stdout io.Writer, printer *termprint.ColumnPrinter, streamOutput bool) *cliJobResult {
-	output, age, ok := lookupCLIResponseCache(ctx, newCLIResponseCacheKey(job.provider, job.req.model, job.req, msgs))
-	if !ok {
-		return nil
+	for _, candidate := range cliCacheCandidates(job, msgs) {
+		output, age, ok := lookupCLIResponseCache(ctx, candidate.key)
+		if !ok {
+			continue
+		}
+		if err := writeCachedCLIJobOutput(output, stdout, printer, job.index, streamOutput); err != nil {
+			return &cliJobResult{provider: candidate.provider, model: candidate.model, err: err}
+		}
+		return &cliJobResult{
+			provider: candidate.provider,
+			model:    candidate.model,
+			output:   output,
+			summary:  cacheHitSummary(candidate.provider, candidate.model, age),
+		}
 	}
-	if err := writeCachedCLIJobOutput(output, stdout, printer, job.index, streamOutput); err != nil {
-		return &cliJobResult{provider: job.provider, model: job.req.model, err: err}
+	return nil
+}
+
+type cliCacheCandidate struct {
+	provider string
+	model    string
+	key      cliResponseCacheKey
+}
+
+func cliCacheCandidates(job cliJob, msgs []llm.Message) []cliCacheCandidate {
+	candidates := make([]cliCacheCandidate, 0, 4)
+	appendCandidate := func(provider string, req requestArgs) {
+		for _, candidate := range candidates {
+			if candidate.provider == provider && candidate.model == req.model {
+				return
+			}
+		}
+		candidates = append(candidates, cliCacheCandidate{provider: provider, model: req.model, key: newCLIResponseCacheKey(provider, req.model, req, msgs)})
 	}
-	return &cliJobResult{
-		provider: job.provider,
-		model:    job.req.model,
-		output:   output,
-		summary:  cacheHitSummary(job.provider, job.req.model, age),
+	appendCandidate(job.provider, job.req)
+	if canonical := llmutils.CanonicalProvider(job.provider); canonical != job.provider {
+		appendCandidate(canonical, job.req)
 	}
+	fallbackProvider := strings.TrimSpace(job.entry.FallbackProvider)
+	if fallbackProvider == "" {
+		return candidates
+	}
+	fallbackReq := buildCLIRequest(appconfig.SurfaceConfig{Provider: fallbackProvider, Model: strings.TrimSpace(job.entry.FallbackModel), Temperature: job.entry.Temperature}, fallbackProvider, llmutils.ConfigForProvider(job.cfg, fallbackProvider, job.entry.FallbackModel))
+	appendCandidate(fallbackProvider, fallbackReq)
+	if canonical := llmutils.CanonicalProvider(fallbackProvider); canonical != fallbackProvider {
+		appendCandidate(canonical, fallbackReq)
+	}
+	return candidates
 }
 
 func writeCachedCLIJobOutput(output string, stdout io.Writer, printer *termprint.ColumnPrinter, idx int, streamOutput bool) error {

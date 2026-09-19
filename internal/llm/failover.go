@@ -53,11 +53,12 @@ func Stream(ctx context.Context, targets []Target, messages []Message, onDelta f
 			continue
 		}
 		emitted := false
+		var targetOutput strings.Builder
 		wrapped := func(delta string) {
 			if strings.TrimSpace(delta) != "" {
 				emitted = true
 			}
-			onDelta(delta)
+			targetOutput.WriteString(delta)
 		}
 		targetOpts := opts
 		if target.Options != nil {
@@ -74,9 +75,11 @@ func Stream(ctx context.Context, targets []Target, messages []Message, onDelta f
 			}
 		}
 		if err == nil {
+			onDelta(targetOutput.String())
 			return target, nil
 		}
 		if emitted || !ShouldFailover(err) || isContextCancel(err) {
+			onDelta(targetOutput.String())
 			return target, err
 		}
 		failures = append(failures, targetFailure(target, err))

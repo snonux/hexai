@@ -98,6 +98,14 @@ func (cp *ColumnPrinter) PrintHeaderTo(w io.Writer) {
 	cp.writeLineTo(w, cp.dividerCells())
 }
 
+// SetLabels updates the provider/model labels used by the next header render.
+func (cp *ColumnPrinter) SetLabels(providers, models []string) {
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
+	copy(cp.providers, providers)
+	copy(cp.models, models)
+}
+
 // Flush emits any buffered partial line for a column.
 func (cp *ColumnPrinter) Flush(idx int) {
 	cp.mu.Lock()

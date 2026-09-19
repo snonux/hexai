@@ -73,6 +73,24 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 # model = "gpt-4.1"
 # temperature = 0.6
 
+# Complete CLI failover example: Ollama Cloud first, local Ollama second.
+# Copy these three blocks together, then ensure the local model tag is installed
+# with `ollama pull qwen3.8:27b`. The tag must exactly match the local model.
+# [providers.ollama-cloud]
+# type = "ollama"
+# base_url = "https://ollama.com"
+# model = "minimax-m3:cloud"
+#
+# [providers.ollama-local]
+# type = "ollama"
+# base_url = "http://127.0.0.1:11434"
+# model = "qwen3.8:27b"
+#
+# [[models.cli]]
+# provider = "ollama-cloud"
+# fallback_provider = "ollama-local"
+# fallback_model = "qwen3.8:27b"
+
 [provider]
 # Ollama Cloud (ollama.ai) is the recommended default. The API key is read
 # from HEXAI_OLLAMA_API_KEY (falling back to OLLAMA_API_KEY).
@@ -214,6 +232,9 @@ research_effort = "standard"
 
 [stats]
 # window_minutes = 60                  # sliding window for global stats (Σ@window); min 1, max 1440
+# Failover successes are included under the responder's provider/model in
+# stats.json and in the CLI/tmux done and status output. Fallback is sequential;
+# it never creates an additional fan-out result.
 
 [ignore]
 # gitignore = true                     # respect .gitignore patterns (default: true)
