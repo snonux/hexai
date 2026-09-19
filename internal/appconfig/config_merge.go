@@ -104,6 +104,14 @@ func mergeBasicRuntime(dst, src *App) {
 
 // mergeProviderFields merges per-provider configuration.
 func (a *App) mergeProviderFields(other *App) {
+	if len(other.ProviderProfiles) > 0 {
+		if a.ProviderProfiles == nil {
+			a.ProviderProfiles = make(map[string]ProviderProfile)
+		}
+		for name, profile := range other.ProviderProfiles {
+			a.ProviderProfiles[name] = profile
+		}
+	}
 	if s := strings.TrimSpace(other.OpenAIBaseURL); s != "" {
 		a.OpenAIBaseURL = s
 	}

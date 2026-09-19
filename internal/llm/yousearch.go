@@ -129,7 +129,7 @@ func (c youSearchClient) Chat(ctx context.Context, messages []Message, opts ...R
 
 	if resp.StatusCode != http.StatusOK {
 		logging.Logf("llm/yousearch", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
-		return "", fmt.Errorf("yousearch: API error status %d", resp.StatusCode)
+		return "", &HTTPError{Provider: "yousearch", Status: resp.StatusCode}
 	}
 
 	var result youSearchResponse

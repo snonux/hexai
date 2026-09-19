@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/snonux/hexai/internal/llm/policy"
@@ -200,11 +201,12 @@ func attemptJSONRequest(ctx context.Context, httpClient *http.Client, url string
 		return nil, true, err
 	}
 	if shouldRetryStatus(resp.StatusCode) {
-		// Drain and close so the keep-alive connection can be reused, then
-		// signal a retry via a synthetic error for logging/diagnostics.
+		// Preserve a bounded upstream message for failover diagnostics, then
+		// drain and close so the keep-alive connection can be reused.
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
-		return nil, true, fmt.Errorf("llm: retryable status %d from %s", resp.StatusCode, url)
+		return nil, true, &HTTPError{Provider: "llm", Status: resp.StatusCode, Message: strings.TrimSpace(string(body))}
 	}
 	return resp, false, nil
 }

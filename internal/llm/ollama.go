@@ -267,8 +267,8 @@ func handleOllamaNon2xx(resp *http.Response, start time.Time) error {
 	_ = json.NewDecoder(resp.Body).Decode(&apiErr)
 	if strings.TrimSpace(apiErr.Error) != "" {
 		logging.Logf("llm/ollama ", "%sapi error status=%d msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error, time.Since(start), logging.AnsiBase)
-		return fmt.Errorf("ollama error: %s (status %d)", apiErr.Error, resp.StatusCode)
+		return &HTTPError{Provider: "ollama", Status: resp.StatusCode, Message: apiErr.Error}
 	}
 	logging.Logf("llm/ollama ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
-	return fmt.Errorf("ollama http error: status %d", resp.StatusCode)
+	return &HTTPError{Provider: "ollama", Status: resp.StatusCode}
 }

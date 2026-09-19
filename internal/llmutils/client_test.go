@@ -103,3 +103,18 @@ func TestConfigForProvider(t *testing.T) {
 		t.Fatalf("openai model unexpectedly changed: %q", got.OpenAIModel)
 	}
 }
+
+func TestConfigForProvider_ProfileOverridesEndpointAndModel(t *testing.T) {
+	base := appconfig.App{}
+	base.ProviderProfiles = map[string]appconfig.ProviderProfile{
+		"local-qwen": {Type: "ollama", BaseURL: "http://127.0.0.1:11434", Model: "qwen3.8:27b"},
+	}
+	got := ConfigForProvider(base, "local-qwen", "")
+	if got.Provider != "ollama" || got.OllamaBaseURL != "http://127.0.0.1:11434" || got.OllamaModel != "qwen3.8:27b" {
+		t.Fatalf("unexpected profile config: %+v", got.ProviderConfig)
+	}
+	got = ConfigForProvider(base, "local-qwen", "override")
+	if got.OllamaModel != "override" {
+		t.Fatalf("model override = %q, want override", got.OllamaModel)
+	}
+}

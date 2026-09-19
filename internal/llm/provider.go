@@ -5,10 +5,66 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sort"
 	"strings"
 	"sync"
 )
+
+// HTTPError preserves the upstream status and provider message for callers
+// that need to decide whether another configured target should be attempted.
+type HTTPError struct {
+	Provider string
+	Status   int
+	Message  string
+}
+
+// Error formats an upstream HTTP failure without exposing credentials.
+func (e *HTTPError) Error() string {
+	if strings.TrimSpace(e.Message) == "" {
+		return fmt.Sprintf("%s http error: status %d", e.Provider, e.Status)
+	}
+	return fmt.Sprintf("%s error: %s (status %d)", e.Provider, e.Message, e.Status)
+}
+
+// StatusCode returns the upstream HTTP status.
+func (e *HTTPError) StatusCode() int { return e.Status }
+
+// ShouldFailover reports whether an upstream failure is suitable for a
+// configured fallback target. User cancellation and invalid requests are not
+// failover conditions.
+func ShouldFailover(err error) bool {
+	if err == nil || isContextCancel(err) {
+		return false
+	}
+	if errors.Is(err, errCircuitOpen) {
+		return true
+	}
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.Status == 429 || httpErr.Status >= 500 ||
+			(httpErr.Status == 402 && containsQuotaLanguage(httpErr.Message)) ||
+			(httpErr.Status == 403 && containsQuotaLanguage(httpErr.Message))
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "connection refused") ||
+		strings.Contains(message, "connection reset") ||
+		strings.Contains(message, "i/o timeout")
+}
+
+func containsQuotaLanguage(message string) bool {
+	message = strings.ToLower(message)
+	for _, word := range []string{"credit", "quota", "billing", "rate limit", "rate_limit", "insufficient"} {
+		if strings.Contains(message, word) {
+			return true
+		}
+	}
+	return false
+}
 
 // Message represents a chat-style prompt message.
 type Message struct {

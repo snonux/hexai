@@ -302,10 +302,10 @@ func handleAnthropicNon2xx(resp *http.Response, start time.Time) error {
 	_ = json.NewDecoder(resp.Body).Decode(&apiErr)
 	if apiErr.Error != nil && apiErr.Error.Message != "" {
 		logging.Logf("llm/anthropic ", "%sapi error status=%d type=%s msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), logging.AnsiBase)
-		return fmt.Errorf("anthropic error: %s (status %d)", apiErr.Error.Message, resp.StatusCode)
+		return &HTTPError{Provider: "anthropic", Status: resp.StatusCode, Message: apiErr.Error.Message}
 	}
 	logging.Logf("llm/anthropic ", "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
-	return fmt.Errorf("anthropic http error: status %d", resp.StatusCode)
+	return &HTTPError{Provider: "anthropic", Status: resp.StatusCode}
 }
 
 func decodeAnthropicChat(resp *http.Response, start time.Time) (anthropicChatResponse, error) {

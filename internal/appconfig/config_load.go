@@ -217,7 +217,7 @@ func rejectLegacyKeys(raw map[string]any) error {
 	knownTables := map[string]struct{}{
 		"general": {}, "logging": {}, "completion": {}, "triggers": {}, "inline": {},
 		"chat": {}, "provider": {}, "models": {}, "openai": {}, "ollama": {}, "prompts": {},
-		"yousearch": {},
+		"yousearch": {}, "anthropic": {}, "openrouter": {}, "providers": {},
 	}
 	for k := range raw {
 		if _, isTable := knownTables[k]; isTable {
@@ -278,11 +278,35 @@ func applyCoreSections(fc *fileConfig, out *App) {
 }
 
 func applyProviderSections(fc *fileConfig, out *App) {
+	applyProviderProfiles(fc, out)
 	applyOpenAISection(fc, out)
 	applyOpenRouterSection(fc, out)
 	applyOllamaSection(fc, out)
 	applyAnthropicSection(fc, out)
 	applyYouSearchSection(fc, out)
+}
+
+func applyProviderProfiles(fc *fileConfig, out *App) {
+	if len(fc.Providers) == 0 {
+		return
+	}
+	profiles := make(map[string]ProviderProfile, len(fc.Providers))
+	for name, raw := range fc.Providers {
+		profileName := strings.TrimSpace(name)
+		profileType := strings.ToLower(strings.TrimSpace(raw.Type))
+		if profileName == "" {
+			continue
+		}
+		profiles[profileName] = ProviderProfile{
+			Type:        profileType,
+			BaseURL:     strings.TrimSpace(raw.BaseURL),
+			Model:       strings.TrimSpace(raw.Model),
+			Temperature: raw.Temperature,
+		}
+	}
+	if len(profiles) > 0 {
+		out.ProviderProfiles = profiles
+	}
 }
 
 func applyPromptSections(fc *fileConfig, out *App) {
@@ -629,6 +653,8 @@ func parseSurfaceEntries(raw any, path string, logger *log.Logger) ([]SurfaceCon
 func decodeModelEntryFromMap(v map[string]any, path string, logger *log.Logger) (*SurfaceConfig, bool) {
 	model := ""
 	provider := ""
+	fallbackProvider := ""
+	fallbackModel := ""
 	if m, ok := v["model"]; ok {
 		s, ok := m.(string)
 		if !ok {
@@ -649,6 +675,26 @@ func decodeModelEntryFromMap(v map[string]any, path string, logger *log.Logger) 
 		}
 		provider = strings.TrimSpace(ps)
 	}
+	if pRaw, ok := v["fallback_provider"]; ok {
+		ps, ok := pRaw.(string)
+		if !ok {
+			if logger != nil {
+				logger.Printf("config: %s.fallback_provider must be a string", path)
+			}
+			return nil, false
+		}
+		fallbackProvider = strings.TrimSpace(ps)
+	}
+	if mRaw, ok := v["fallback_model"]; ok {
+		ms, ok := mRaw.(string)
+		if !ok {
+			if logger != nil {
+				logger.Printf("config: %s.fallback_model must be a string", path)
+			}
+			return nil, false
+		}
+		fallbackModel = strings.TrimSpace(ms)
+	}
 	var tempPtr *float64
 	if tRaw, ok := v["temperature"]; ok {
 		parsed, ok := parseTemperatureValue(tRaw, path, logger)
@@ -657,10 +703,10 @@ func decodeModelEntryFromMap(v map[string]any, path string, logger *log.Logger) 
 		}
 		tempPtr = parsed
 	}
-	if model == "" && tempPtr == nil && provider == "" {
+	if model == "" && tempPtr == nil && provider == "" && fallbackProvider == "" && fallbackModel == "" {
 		return nil, false
 	}
-	return &SurfaceConfig{Provider: provider, Model: model, Temperature: tempPtr}, true
+	return &SurfaceConfig{Provider: provider, Model: model, Temperature: tempPtr, FallbackProvider: fallbackProvider, FallbackModel: fallbackModel}, true
 }
 
 // decodeModelEntry converts a raw TOML value (string or table) into a SurfaceConfig.

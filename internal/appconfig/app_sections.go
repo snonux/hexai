@@ -40,6 +40,10 @@ type CoreConfig struct {
 // ProviderConfig contains provider endpoints/models and per-surface model overrides.
 // It is embedded in App; JSON tags ensure marshalling works correctly.
 type ProviderConfig struct {
+	// ProviderProfiles contains named endpoints. A profile's Type selects one
+	// of the built-in provider implementations while its name identifies the
+	// endpoint for surface routing and failover.
+	ProviderProfiles map[string]ProviderProfile `json:"-"`
 	// Provider-specific options
 	OpenAIBaseURL string `json:"openai_base_url"`
 	OpenAIModel   string `json:"openai_model"`
@@ -162,6 +166,7 @@ func (a *App) ApplyCoreSection(core CoreConfig) {
 // Surface config slices are cloned to prevent callers from mutating the original.
 func (a *App) ProviderSection() ProviderConfig {
 	p := a.ProviderConfig
+	p.ProviderProfiles = cloneProviderProfiles(a.ProviderProfiles)
 	p.CompletionConfigs = cloneSurfaceConfigs(a.CompletionConfigs)
 	p.CodeActionConfigs = cloneSurfaceConfigs(a.CodeActionConfigs)
 	p.ChatConfigs = cloneSurfaceConfigs(a.ChatConfigs)
@@ -177,6 +182,17 @@ func (a *App) ApplyProviderSection(providers ProviderConfig) {
 	a.CodeActionConfigs = cloneSurfaceConfigs(providers.CodeActionConfigs)
 	a.ChatConfigs = cloneSurfaceConfigs(providers.ChatConfigs)
 	a.CLIConfigs = cloneSurfaceConfigs(providers.CLIConfigs)
+}
+
+func cloneProviderProfiles(src map[string]ProviderProfile) map[string]ProviderProfile {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make(map[string]ProviderProfile, len(src))
+	for name, profile := range src {
+		out[name] = profile
+	}
+	return out
 }
 
 // PromptSection returns a deep copy of prompt templates and custom action settings.

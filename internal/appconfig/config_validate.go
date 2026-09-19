@@ -7,10 +7,58 @@ import (
 
 // Validate checks custom actions and tmux settings for duplicates and consistency.
 func (a *App) Validate() error {
+	if err := validateProviderProfiles(a); err != nil {
+		return err
+	}
+	if err := validateSurfaceFallbacks(a); err != nil {
+		return err
+	}
 	if err := validateCustomActions(a.CustomActions); err != nil {
 		return err
 	}
 	return validateTmuxCustomMenuHotkey(a.TmuxCustomMenuHotkey)
+}
+
+func validateProviderProfiles(a *App) error {
+	for name, profile := range a.ProviderProfiles {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("config: provider profile name cannot be empty")
+		}
+		switch strings.ToLower(strings.TrimSpace(profile.Type)) {
+		case "ollama", "openai", "openrouter", "anthropic", "yousearch":
+		default:
+			return fmt.Errorf("config: provider profile %q has unsupported type %q", name, profile.Type)
+		}
+	}
+	return nil
+}
+
+func validateSurfaceFallbacks(a *App) error {
+	for surface, entries := range map[string][]SurfaceConfig{
+		"completion":  a.CompletionConfigs,
+		"chat":        a.ChatConfigs,
+		"code_action": a.CodeActionConfigs,
+		"cli":         a.CLIConfigs,
+	} {
+		for _, entry := range entries {
+			if fallback := strings.TrimSpace(entry.FallbackProvider); fallback != "" && !providerNameKnown(a, fallback) {
+				return fmt.Errorf("config: %s fallback provider %q is not configured", surface, fallback)
+			}
+		}
+	}
+	return nil
+}
+
+func providerNameKnown(a *App, name string) bool {
+	if _, ok := a.ProviderProfiles[name]; ok {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "ollama", "openai", "openrouter", "anthropic", "yousearch":
+		return true
+	default:
+		return false
+	}
 }
 
 func validateCustomActions(actions []CustomAction) error {

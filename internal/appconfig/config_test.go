@@ -96,6 +96,51 @@ func TestLoad_Defaults_WithLogger_NoFile_NoEnv(t *testing.T) {
 	}
 }
 
+func TestLoad_ProviderProfilesAndFallbackSurface(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	writeFile(t, path, `[providers.ollama-cloud]
+type = "ollama"
+base_url = "https://ollama.com"
+model = "minimax-m3:cloud"
+
+[providers.local-qwen]
+type = "ollama"
+base_url = "http://127.0.0.1:11434"
+model = "qwen3.8:27b"
+
+[[models.cli]]
+provider = "ollama-cloud"
+fallback_provider = "local-qwen"
+fallback_model = "qwen3.8:27b"
+`)
+	cfg, err := loadFromFile(path, newLogger())
+	if err != nil {
+		t.Fatalf("loadFromFile: %v", err)
+	}
+	cloud := cfg.ProviderProfiles["ollama-cloud"]
+	if cloud.Type != "ollama" || cloud.BaseURL != "https://ollama.com" {
+		t.Fatalf("unexpected cloud profile: %+v", cloud)
+	}
+	if len(cfg.CLIConfigs) != 1 || cfg.CLIConfigs[0].FallbackProvider != "local-qwen" {
+		t.Fatalf("unexpected CLI fallback: %+v", cfg.CLIConfigs)
+	}
+}
+
+func TestValidate_ProviderProfileAndFallback(t *testing.T) {
+	cfg := App{ProviderConfig: ProviderConfig{
+		ProviderProfiles: map[string]ProviderProfile{"local": {Type: "ollama"}},
+		CLIConfigs:       []SurfaceConfig{{FallbackProvider: "local"}},
+	}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid profile rejected: %v", err)
+	}
+	cfg.CLIConfigs[0].FallbackProvider = "missing"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("missing fallback profile accepted")
+	}
+}
+
 func TestParseSurfaceModels_CodeActionWarns(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")

@@ -45,6 +45,12 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 # completion = "gpt-4o-mini"
 # chat = "gpt-4.1"
 
+# A surface table may name a primary profile and a sequential fallback:
+# [[models.cli]]
+# provider = "ollama-cloud"
+# fallback_provider = "ollama-local"
+# fallback_model = "qwen3.8:27b"  # optional override of the fallback profile model
+
 # Full array form for multiple entries (completions fan out to all; labels show provider:model).
 # [[models.completion]]
 # provider = "openai"
@@ -71,6 +77,19 @@ chat_prefixes = ["?", "!", ":", ";"]  # single-character items
 # Ollama Cloud (ollama.ai) is the recommended default. The API key is read
 # from HEXAI_OLLAMA_API_KEY (falling back to OLLAMA_API_KEY).
 name = "ollama"                      # ollama | openai | openrouter | anthropic | yousearch
+
+# Named profiles allow multiple endpoints of the same provider type. A surface
+# entry can select one with provider/fallback_provider. Existing provider
+# sections below remain the defaults for the built-in profile names.
+# [providers.ollama-cloud]
+# type     = "ollama"
+# base_url = "https://ollama.com"
+# model    = "minimax-m3:cloud"
+#
+# [providers.ollama-local]
+# type     = "ollama"
+# base_url = "http://127.0.0.1:11434"
+# model    = "qwen3.8:27b"
 
 [ollama]
 model       = "minimax-m3:cloud"

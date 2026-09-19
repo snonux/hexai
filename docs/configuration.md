@@ -55,6 +55,27 @@ Per-surface models
 
 - Repeating the table (`[[models.<surface>]]`) configures multiple provider/model pairs. Completion requests and the Hexai CLI fan out to every configured entry concurrently and label the responses with `provider:model`. Code actions continue to use the first entry only; any extra [[models.code_action]] tables are ignored at runtime and the loader logs a warning so you know an additional entry was skipped.
 
+- Each surface entry may also set `fallback_provider` and optional `fallback_model`. Hexai tries the primary entry first and moves to the fallback only after an eligible upstream outage such as exhausted quota, rate limiting, a 5xx response, or a transport failure. Fallback is sequential for that entry; it does not add another fan-out result. For example:
+
+  ```toml
+  [providers.ollama-cloud]
+  type = "ollama"
+  base_url = "https://ollama.com"
+  model = "minimax-m3:cloud"
+
+  [providers.ollama-local]
+  type = "ollama"
+  base_url = "http://127.0.0.1:11434"
+  model = "qwen3.8:27b"
+
+  [[models.cli]]
+  provider = "ollama-cloud"
+  fallback_provider = "ollama-local"
+  fallback_model = "qwen3.8:27b"
+  ```
+
+  Profile `type` selects a built-in provider implementation, while `base_url` and `model` select that endpoint and default model. The fallback model override is useful when the fallback profile serves several surfaces. A local Ollama profile does not need an API key; cloud and hosted profiles use their normal provider environment variables. Invalid request/authentication errors and user cancellation do not trigger fallback.
+
 - When a per-surface value is omitted, Hexai falls back to the provider’s configured default. Temperatures inherit from `coding_temperature` unless explicitly set, and OpenAI `gpt-5*` models automatically raise an unspecified coding temperature to `1.0` for exploratory behavior. Provider overrides support `"openai"`, `"openrouter"`, `"anthropic"`, `"ollama"`, or `"yousearch"` and read the matching credential variables.
 
 Runtime reloads

@@ -305,10 +305,10 @@ func handleOpenAINon2xx(resp *http.Response, start time.Time, logPrefix, provide
 	_ = json.NewDecoder(resp.Body).Decode(&apiErr)
 	if apiErr.Error != nil && apiErr.Error.Message != "" {
 		logging.Logf(logPrefix, "%sapi error status=%d type=%s msg=%s duration=%s%s", logging.AnsiRed, resp.StatusCode, apiErr.Error.Type, apiErr.Error.Message, time.Since(start), logging.AnsiBase)
-		return fmt.Errorf("%s error: %s (status %d)", provider, apiErr.Error.Message, resp.StatusCode)
+		return &HTTPError{Provider: provider, Status: resp.StatusCode, Message: apiErr.Error.Message}
 	}
 	logging.Logf(logPrefix, "%shttp non-2xx status=%d duration=%s%s", logging.AnsiRed, resp.StatusCode, time.Since(start), logging.AnsiBase)
-	return fmt.Errorf("%s http error: status %d", provider, resp.StatusCode)
+	return &HTTPError{Provider: provider, Status: resp.StatusCode}
 }
 
 func decodeOpenAIChat(resp *http.Response, start time.Time, logPrefix string) (oaChatResponse, error) {

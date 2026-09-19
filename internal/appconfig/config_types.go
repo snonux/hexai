@@ -12,7 +12,18 @@ const (
 
 // SurfaceConfig describes a provider/model pairing (with optional temperature).
 type SurfaceConfig struct {
-	Provider    string
+	Provider         string
+	Model            string
+	Temperature      *float64
+	FallbackProvider string
+	FallbackModel    string
+}
+
+// ProviderProfile describes a named provider endpoint and its defaults.
+// Type is the built-in provider implementation name (for example, ollama).
+type ProviderProfile struct {
+	Type        string
+	BaseURL     string
 	Model       string
 	Temperature *float64
 }
@@ -155,24 +166,25 @@ func boolPtr(b bool) *bool { return &b }
 // Sectioned (table-based) file format only.
 type fileConfig struct {
 	// Section tables only (flat keys are not allowed)
-	General    sectionGeneral    `toml:"general"`
-	Logging    sectionLogging    `toml:"logging"`
-	Completion sectionCompletion `toml:"completion"`
-	Triggers   sectionTriggers   `toml:"triggers"`
-	Inline     sectionInline     `toml:"inline"`
-	Chat       sectionChat       `toml:"chat"`
-	Provider   sectionProvider   `toml:"provider"`
-	OpenAI     sectionOpenAI     `toml:"openai"`
-	OpenRouter sectionOpenRouter `toml:"openrouter"`
-	Ollama     sectionOllama     `toml:"ollama"`
-	Anthropic  sectionAnthropic  `toml:"anthropic"`
-	YouSearch  sectionYouSearch  `toml:"yousearch"`
-	Prompts    sectionPrompts    `toml:"prompts"`
-	Tmux       sectionTmux       `toml:"tmux"`
-	Stats      sectionStats      `toml:"stats"`
-	Ignore     sectionIgnore     `toml:"ignore"`
-	TmuxAction sectionTmuxAction `toml:"tmux_action"`
-	MCP        sectionMCP        `toml:"mcp"`
+	General    sectionGeneral                    `toml:"general"`
+	Logging    sectionLogging                    `toml:"logging"`
+	Completion sectionCompletion                 `toml:"completion"`
+	Triggers   sectionTriggers                   `toml:"triggers"`
+	Inline     sectionInline                     `toml:"inline"`
+	Chat       sectionChat                       `toml:"chat"`
+	Provider   sectionProvider                   `toml:"provider"`
+	Providers  map[string]sectionProviderProfile `toml:"providers"`
+	OpenAI     sectionOpenAI                     `toml:"openai"`
+	OpenRouter sectionOpenRouter                 `toml:"openrouter"`
+	Ollama     sectionOllama                     `toml:"ollama"`
+	Anthropic  sectionAnthropic                  `toml:"anthropic"`
+	YouSearch  sectionYouSearch                  `toml:"yousearch"`
+	Prompts    sectionPrompts                    `toml:"prompts"`
+	Tmux       sectionTmux                       `toml:"tmux"`
+	Stats      sectionStats                      `toml:"stats"`
+	Ignore     sectionIgnore                     `toml:"ignore"`
+	TmuxAction sectionTmuxAction                 `toml:"tmux_action"`
+	MCP        sectionMCP                        `toml:"mcp"`
 }
 
 type sectionGeneral struct {
@@ -211,6 +223,13 @@ type sectionChat struct {
 
 type sectionProvider struct {
 	Name string `toml:"name"`
+}
+
+type sectionProviderProfile struct {
+	Type        string   `toml:"type"`
+	BaseURL     string   `toml:"base_url"`
+	Model       string   `toml:"model"`
+	Temperature *float64 `toml:"temperature"`
 }
 
 type sectionStats struct {

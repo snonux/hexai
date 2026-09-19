@@ -18,8 +18,40 @@ func CanonicalProvider(name string) string {
 	return provider
 }
 
+// ProviderProfileFor resolves a named profile. Built-in provider names are
+// implicit profiles backed by the legacy provider sections.
+func ProviderProfileFor(cfg appconfig.App, name string) (appconfig.ProviderProfile, bool) {
+	key := strings.TrimSpace(name)
+	if key == "" {
+		key = cfg.Provider
+	}
+	if profile, ok := cfg.ProviderProfiles[key]; ok {
+		return profile, true
+	}
+	typeName := CanonicalProvider(key)
+	profile := appconfig.ProviderProfile{Type: typeName}
+	switch typeName {
+	case "ollama":
+		profile.BaseURL, profile.Model, profile.Temperature = cfg.OllamaBaseURL, cfg.OllamaModel, cfg.OllamaTemperature
+	case "openrouter":
+		profile.BaseURL, profile.Model, profile.Temperature = cfg.OpenRouterBaseURL, cfg.OpenRouterModel, cfg.OpenRouterTemperature
+	case "anthropic":
+		profile.BaseURL, profile.Model, profile.Temperature = cfg.AnthropicBaseURL, cfg.AnthropicModel, cfg.AnthropicTemperature
+	case "openai":
+		profile.BaseURL, profile.Model, profile.Temperature = cfg.OpenAIBaseURL, cfg.OpenAIModel, cfg.OpenAITemperature
+	case "yousearch":
+		profile.Model = cfg.YouSearchResearchEffort
+	default:
+		return appconfig.ProviderProfile{}, false
+	}
+	return profile, true
+}
+
 // DefaultModelForProvider returns the configured default model for a provider.
 func DefaultModelForProvider(cfg appconfig.App, provider string) string {
+	if profile, ok := ProviderProfileFor(cfg, provider); ok && strings.TrimSpace(profile.Model) != "" {
+		return strings.TrimSpace(profile.Model)
+	}
 	switch CanonicalProvider(provider) {
 	case "openrouter":
 		if model := strings.TrimSpace(cfg.OpenRouterModel); model != "" {
@@ -55,7 +87,20 @@ func ConfigForProvider(cfg appconfig.App, provider, modelOverride string) appcon
 	if strings.TrimSpace(provider) == "" {
 		provider = cfg.Provider
 	}
+	profile, ok := ProviderProfileFor(cfg, provider)
 	normalized := CanonicalProvider(provider)
+	if ok {
+		normalized = CanonicalProvider(profile.Type)
+		if strings.TrimSpace(profile.BaseURL) != "" {
+			setProviderBaseURL(&derived, normalized, profile.BaseURL)
+		}
+		if strings.TrimSpace(profile.Model) != "" {
+			setProviderModel(&derived, normalized, profile.Model)
+		}
+		if profile.Temperature != nil {
+			setProviderTemperature(&derived, normalized, profile.Temperature)
+		}
+	}
 	derived.Provider = normalized
 	model := strings.TrimSpace(modelOverride)
 	if model == "" {
@@ -72,6 +117,47 @@ func ConfigForProvider(cfg appconfig.App, provider, modelOverride string) appcon
 		derived.OpenAIModel = model
 	}
 	return derived
+}
+
+func setProviderBaseURL(cfg *appconfig.App, provider, value string) {
+	switch provider {
+	case "ollama":
+		cfg.OllamaBaseURL = value
+	case "openrouter":
+		cfg.OpenRouterBaseURL = value
+	case "anthropic":
+		cfg.AnthropicBaseURL = value
+	case "openai":
+		cfg.OpenAIBaseURL = value
+	}
+}
+
+func setProviderModel(cfg *appconfig.App, provider, value string) {
+	switch provider {
+	case "ollama":
+		cfg.OllamaModel = value
+	case "openrouter":
+		cfg.OpenRouterModel = value
+	case "anthropic":
+		cfg.AnthropicModel = value
+	case "openai":
+		cfg.OpenAIModel = value
+	case "yousearch":
+		cfg.YouSearchResearchEffort = value
+	}
+}
+
+func setProviderTemperature(cfg *appconfig.App, provider string, value *float64) {
+	switch provider {
+	case "ollama":
+		cfg.OllamaTemperature = value
+	case "openrouter":
+		cfg.OpenRouterTemperature = value
+	case "anthropic":
+		cfg.AnthropicTemperature = value
+	case "openai":
+		cfg.OpenAITemperature = value
+	}
 }
 
 // NewClientFromAppForProvider builds a client for a specific provider/model.
