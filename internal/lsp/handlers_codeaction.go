@@ -81,7 +81,7 @@ func (s *Server) handleCodeAction(req Request) {
 		return
 	}
 	d := s.getDocument(p.TextDocument.URI)
-	if d == nil || len(d.lines) == 0 || s.currentLLMClient() == nil {
+	if d == nil || len(d.lines) == 0 || !s.hasLLMTarget(surfaceCodeAction) {
 		if len(req.ID) != 0 {
 			s.reply(req.ID, []CodeAction{}, nil)
 		}
@@ -358,7 +358,7 @@ func (s *Server) buildDiagnosticsCodeAction(p CodeActionParams, sel string) *Cod
 }
 
 func (s *Server) resolveCodeAction(ca CodeAction) (CodeAction, bool) {
-	if s.currentLLMClient() == nil || len(ca.Data) == 0 {
+	if !s.hasLLMTarget(surfaceCodeAction) || len(ca.Data) == 0 {
 		return ca, false
 	}
 	payload, ok := decodeCodeActionPayload(ca.Data)
@@ -539,7 +539,7 @@ func (s *Server) buildGoUnitTestCodeAction(p CodeActionParams) *CodeAction {
 
 // buildDocumentCodeAction offers to document the selected code by injecting comments.
 func (s *Server) buildDocumentCodeAction(p CodeActionParams, sel string) *CodeAction {
-	if s.currentLLMClient() == nil {
+	if !s.hasLLMTarget(surfaceCodeAction) {
 		return nil
 	}
 	if strings.TrimSpace(sel) == "" {

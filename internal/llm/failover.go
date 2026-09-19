@@ -8,9 +8,10 @@ import (
 
 // Target identifies one configured provider profile and its client.
 type Target struct {
-	Name   string
-	Model  string
-	Client Client
+	Name    string
+	Model   string
+	Client  Client
+	Options []RequestOption
 }
 
 // Result records which target produced a successful response.
@@ -27,7 +28,11 @@ func Chat(ctx context.Context, targets []Target, messages []Message, opts ...Req
 		if target.Client == nil {
 			continue
 		}
-		text, err := target.Client.Chat(ctx, messages, opts...)
+		targetOpts := opts
+		if target.Options != nil {
+			targetOpts = target.Options
+		}
+		text, err := target.Client.Chat(ctx, messages, targetOpts...)
 		if err == nil {
 			return Result{Target: target, Text: text}, nil
 		}
@@ -54,12 +59,16 @@ func Stream(ctx context.Context, targets []Target, messages []Message, onDelta f
 			}
 			onDelta(delta)
 		}
+		targetOpts := opts
+		if target.Options != nil {
+			targetOpts = target.Options
+		}
 		var err error
 		if streamer, ok := target.Client.(Streamer); ok {
-			err = streamer.ChatStream(ctx, messages, wrapped, opts...)
+			err = streamer.ChatStream(ctx, messages, wrapped, targetOpts...)
 		} else {
 			var text string
-			text, err = target.Client.Chat(ctx, messages, opts...)
+			text, err = target.Client.Chat(ctx, messages, targetOpts...)
 			if err == nil {
 				wrapped(text)
 			}

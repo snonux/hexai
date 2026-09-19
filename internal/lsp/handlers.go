@@ -110,12 +110,6 @@ func (s *Server) completionCacheKey(p CompletionParams, above, current, below, f
 	if idx < len(current) {
 		right = current[idx:]
 	}
-	prov := ""
-	model := ""
-	if client := s.currentLLMClient(); client != nil {
-		prov = client.Name()
-		model = client.DefaultModel()
-	}
 	temp := ""
 	if tempPtr := s.codingTemperature(); tempPtr != nil {
 		temp = fmt.Sprintf("%.3f", *tempPtr)
@@ -127,8 +121,6 @@ func (s *Server) completionCacheKey(p CompletionParams, above, current, below, f
 	// Compose a key from essential context parts
 	return strings.Join([]string{
 		"v1", // version for future-proofing
-		prov,
-		model,
 		temp,
 		p.TextDocument.URI,
 		fmt.Sprintf("%d:%d", p.Position.Line, len(left)),

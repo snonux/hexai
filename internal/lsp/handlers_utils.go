@@ -28,11 +28,18 @@ const (
 )
 
 type requestSpec struct {
-	provider      string
-	entry         appconfig.SurfaceConfig
-	fallbackModel string
-	options       []llm.RequestOption
-	index         int
+	provider         string
+	entry            appconfig.SurfaceConfig
+	fallbackModel    string
+	fallbackProvider string
+	options          []llm.RequestOption
+	index            int
+}
+
+type requestTargetSpec struct {
+	provider string
+	model    string
+	options  []llm.RequestOption
 }
 
 func (r requestSpec) effectiveModel(defaultModel string) string {
@@ -55,9 +62,11 @@ func (s *Server) buildRequestSpecs(surface surfaceKind) []requestSpec {
 	specs := make([]requestSpec, 0, len(entries))
 	for idx, raw := range entries {
 		entry := appconfig.SurfaceConfig{
-			Provider:    strings.TrimSpace(raw.Provider),
-			Model:       strings.TrimSpace(raw.Model),
-			Temperature: raw.Temperature,
+			Provider:         strings.TrimSpace(raw.Provider),
+			Model:            strings.TrimSpace(raw.Model),
+			Temperature:      raw.Temperature,
+			FallbackProvider: strings.TrimSpace(raw.FallbackProvider),
+			FallbackModel:    strings.TrimSpace(raw.FallbackModel),
 		}
 		provider := entry.Provider
 		if provider == "" {
@@ -68,6 +77,13 @@ func (s *Server) buildRequestSpecs(surface surfaceKind) []requestSpec {
 		if fallbackModel == "" {
 			fallbackModel = strings.TrimSpace(llmutils.DefaultModelForProvider(cfg, provider))
 		}
+		fallbackProvider := strings.TrimSpace(raw.FallbackProvider)
+		if fallbackProvider != "" {
+			fallbackProvider = llmutils.CanonicalProvider(fallbackProvider)
+		}
+		if fallbackProvider != "" && strings.TrimSpace(raw.FallbackModel) == "" {
+			raw.FallbackModel = llmutils.DefaultModelForProvider(cfg, fallbackProvider)
+		}
 		opts := []llm.RequestOption{llm.WithMaxTokens(maxTokens)}
 		if entry.Model != "" {
 			opts = append(opts, llm.WithModel(entry.Model))
@@ -76,14 +92,76 @@ func (s *Server) buildRequestSpecs(surface surfaceKind) []requestSpec {
 			opts = append(opts, llm.WithTemperature(temp))
 		}
 		specs = append(specs, requestSpec{
-			provider:      provider,
-			entry:         entry,
-			fallbackModel: fallbackModel,
-			options:       opts,
-			index:         idx,
+			provider:         provider,
+			entry:            entry,
+			fallbackModel:    fallbackModel,
+			fallbackProvider: fallbackProvider,
+			options:          opts,
+			index:            idx,
 		})
 	}
 	return specs
+}
+
+func (s *Server) targetSpecs(spec requestSpec) []requestTargetSpec {
+	primaryModel := spec.effectiveModel("")
+	primary := requestTargetSpec{provider: spec.provider, model: primaryModel, options: spec.options}
+	targets := []requestTargetSpec{primary}
+	if strings.TrimSpace(spec.fallbackProvider) != "" {
+		model := strings.TrimSpace(spec.entry.FallbackModel)
+		if model == "" {
+			model = strings.TrimSpace(spec.fallbackModel)
+			if model == primaryModel {
+				model = strings.TrimSpace(llmutils.DefaultModelForProvider(s.currentConfig(), spec.fallbackProvider))
+			}
+		}
+		opts := []llm.RequestOption{llm.WithMaxTokens(s.maxTokens())}
+		if model != "" {
+			opts = append(opts, llm.WithModel(model))
+		}
+		if temp, ok := chooseSurfaceTemperature(s.currentConfig(), appconfig.SurfaceConfig{Provider: spec.fallbackProvider, Model: model}, spec.fallbackProvider, model); ok {
+			opts = append(opts, llm.WithTemperature(temp))
+		}
+		targets = append(targets, requestTargetSpec{provider: spec.fallbackProvider, model: model, options: opts})
+	}
+	return targets
+}
+
+func (s *Server) targetsFor(spec requestSpec) []llm.Target {
+	var targets []llm.Target
+	for _, target := range s.targetSpecs(spec) {
+		client := s.clientForTarget(target.provider, target.model)
+		if client != nil {
+			targets = append(targets, llm.Target{Name: target.provider, Model: target.model, Client: client, Options: target.options})
+		}
+	}
+	return targets
+}
+
+func logFallback(surface surfaceKind, spec requestSpec, target llm.Target, cause string) {
+	if strings.TrimSpace(spec.fallbackProvider) != "" && target.Name == spec.fallbackProvider {
+		logging.Logf("lsp ", "llm failover surface=%s primary=%s fallback=%s cause=%s", surface, spec.provider, target.Name, cause)
+	}
+}
+
+func (s *Server) clientForTarget(provider, model string) llm.Client {
+	// Tests and embedders may inject a base client directly without applying a
+	// complete config. Preserve that injected primary when no provider was set.
+	if strings.TrimSpace(s.currentConfig().Provider) == "" && strings.TrimSpace(provider) == llmutils.CanonicalProvider(s.currentConfig().Provider) {
+		if client := s.currentLLMClient(); client != nil {
+			return client
+		}
+	}
+	return s.llmClientRegistry.clientFor(requestSpec{provider: provider, entry: appconfig.SurfaceConfig{Model: model}, fallbackModel: model}, s.currentConfig(), newClientForProvider)
+}
+
+func (s *Server) hasLLMTarget(surface surfaceKind) bool {
+	for _, spec := range s.buildRequestSpecs(surface) {
+		if len(s.targetsFor(spec)) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) primaryRequestSpec(surface surfaceKind) requestSpec {
@@ -140,6 +218,14 @@ func (s *Server) incRecvCounters(n int) {
 // logLLMStats logs local LLM traffic counters and the global stats snapshot.
 // Counter reads are atomic so no server-wide lock is needed.
 func (s *Server) logLLMStats(model string) {
+	provider := ""
+	if client := s.currentLLMClient(); client != nil {
+		provider = client.Name()
+	}
+	s.logLLMStatsFor(provider, model)
+}
+
+func (s *Server) logLLMStatsFor(provider, model string) {
 	reqs := s.llmReqTotal.Load()
 	sentTot := s.llmSentBytesTotal.Load()
 	recvTot := s.llmRespBytesTotal.Load()
@@ -164,11 +250,10 @@ func (s *Server) logLLMStats(model string) {
 	// Global snapshot for tmux status
 	snap, err := stats.TakeSnapshot()
 	if err == nil {
-		if client := s.currentLLMClient(); client != nil {
-			provider := client.Name()
+		if strings.TrimSpace(provider) != "" {
 			modelName := strings.TrimSpace(model)
 			if modelName == "" {
-				modelName = client.DefaultModel()
+				modelName = "unknown"
 			}
 			scopeReqs := snap.ScopeReqs(provider, modelName)
 			scopeRPM := snap.ScopeRPM(provider, modelName)
@@ -262,24 +347,33 @@ func (s *Server) chatWithStats(ctx context.Context, surface surfaceKind, spec re
 		return "", context.Canceled
 	}
 	// Resolve the client for this surface/spec.
-	client := s.clientFor(spec)
-	if client == nil {
+	targets := s.targetsFor(spec)
+	if len(targets) == 0 {
 		return "", s.unavailableClientError(spec)
 	}
-	modelUsed := spec.effectiveModel(client.DefaultModel())
 	// chatWithStats never streams to a writer; pass nil out. Invoke prefers
 	// streaming providers but collects the full text either way.
-	txt, err := chatrun.Invoke(ctx, client, msgs, spec.options, nil)
+	result, err := llm.Chat(ctx, targets, msgs, spec.options...)
 	if err != nil {
-		s.logLLMStats(modelUsed)
+		s.logLLMStats(spec.effectiveModel(""))
 		return "", err
+	}
+	txt := result.Text
+	client, modelUsed := result.Target.Client, result.Target.Model
+	logFallback(surface, spec, result.Target, "route-fallback")
+	providerName := result.Target.Name
+	if providerName == "" {
+		providerName = client.Name()
+	}
+	if modelUsed == "" {
+		modelUsed = client.DefaultModel()
 	}
 	s.incRecvCounters(len(txt))
 	// Update global stats cache; log but don't fail on stats errors.
-	if err := stats.Update(ctx, client.Name(), modelUsed, sent, len(txt)); err != nil {
+	if err := stats.Update(ctx, providerName, modelUsed, sent, len(txt)); err != nil {
 		logging.Logf("lsp ", "stats update error: %v", err)
 	}
-	s.logLLMStats(modelUsed)
+	s.logLLMStatsFor(providerName, modelUsed)
 	return txt, nil
 }
 

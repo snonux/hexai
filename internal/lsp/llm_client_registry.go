@@ -57,11 +57,16 @@ func (r *llmClientRegistry) clientFor(spec requestSpec, cfg appconfig.App, build
 	if provider == "" {
 		provider = baseProvider
 	}
-	if provider == baseProvider && baseClient != nil {
+	requestedModel := strings.TrimSpace(spec.entry.Model)
+	if requestedModel == "" {
+		requestedModel = strings.TrimSpace(spec.fallbackModel)
+	}
+	if provider == baseProvider && baseClient != nil && (requestedModel == "" || requestedModel == strings.TrimSpace(baseClient.DefaultModel())) {
 		r.clientsMu.RUnlock()
 		return baseClient
 	}
-	if cached, ok := r.altClients[provider]; ok {
+	cacheKey := provider + ":" + strings.TrimSpace(spec.entry.Model)
+	if cached, ok := r.altClients[cacheKey]; ok {
 		r.clientsMu.RUnlock()
 		return cached
 	}
@@ -80,29 +85,34 @@ func (r *llmClientRegistry) clientFor(spec requestSpec, cfg appconfig.App, build
 
 	// Re-check under the write lock; another goroutine may have populated the
 	// cache between our RUnlock and this Lock.
-	if provider == r.llmProvider && r.llmClient != nil {
+	if provider == r.llmProvider && r.llmClient != nil && (requestedModel == "" || requestedModel == strings.TrimSpace(r.llmClient.DefaultModel())) {
 		return r.llmClient
 	}
-	if existing, ok := r.altClients[provider]; ok {
+	if existing, ok := r.altClients[cacheKey]; ok {
 		return existing
 	}
 
 	client, err := build(cfg, provider, modelOverride)
 	if err != nil {
 		logging.Logf("lsp ", "failed to build client for provider=%s: %v", provider, err)
-		return baseClient // may be nil; callers must handle nil
+		return nil
 	}
 
 	if provider == r.llmProvider {
-		if r.llmClient == nil {
-			r.llmClient = client
-			r.llmProvider = provider
+		if r.llmClient == nil || requestedModel != "" && requestedModel != strings.TrimSpace(r.llmClient.DefaultModel()) {
+			if r.altClients == nil {
+				r.altClients = make(map[string]llm.Client)
+			}
+			r.altClients[cacheKey] = client
 		}
-		return r.llmClient
+		if r.llmClient != nil && (requestedModel == "" || requestedModel == strings.TrimSpace(r.llmClient.DefaultModel())) {
+			return r.llmClient
+		}
+		return client
 	}
 	if r.altClients == nil {
 		r.altClients = make(map[string]llm.Client)
 	}
-	r.altClients[provider] = client
+	r.altClients[cacheKey] = client
 	return client
 }

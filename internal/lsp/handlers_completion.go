@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/snonux/hexai/internal/appconfig"
 	"github.com/snonux/hexai/internal/chatrun"
 	"github.com/snonux/hexai/internal/llm"
 	"github.com/snonux/hexai/internal/llmutils"
@@ -70,7 +71,7 @@ func (cs *completionService) handleCompletion(req Request) {
 		if s.logContext {
 			cs.logCompletionContext(p, above, current, below, funcCtx)
 		}
-		if s.currentLLMClient() != nil {
+		if s.hasLLMTarget(surfaceCompletion) {
 			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
 			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
 			items, ok, incomplete := cs.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
@@ -182,10 +183,11 @@ func (cs *completionService) startCompletionJobs(ctx context.Context, plan compl
 	started := 0
 	for _, spec := range specs {
 		spec := spec
-		client := s.clientFor(spec)
-		if client == nil {
+		targets := s.targetsFor(spec)
+		if len(targets) == 0 {
 			continue
 		}
+		client := targets[0].Client
 		started++
 		wg.Add(1)
 		go func(spec requestSpec, client llm.Client) {
@@ -305,24 +307,43 @@ func (cs *completionService) prepareCompletionPlan(p CompletionParams, above, cu
 func (cs *completionService) runCompletionForSpec(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client) ([]CompletionItem, bool) {
 	s := cs.srv
 	sortPrefix := fmt.Sprintf("%04d", spec.index)
-	modelKey := spec.effectiveModel(client.DefaultModel())
-	providerKey := spec.provider
-	if providerKey == "" {
-		providerKey = llmutils.CanonicalProvider(client.Name())
-	}
-	cacheKey := plan.cacheKey + "|" + providerKey + ":" + modelKey
-	if cached, ok := s.completionCacheGet(cacheKey); ok && strings.TrimSpace(cached) != "" {
-		logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
-			plan.params.TextDocument.URI, plan.params.Position.Line, plan.params.Position.Character,
-			logging.AnsiGreen, logging.PreviewForLog(cached), logging.AnsiBase)
-		detail := fmt.Sprintf("Hexai %s:%s", client.Name(), modelKey)
-		items := s.makeCompletionItems(cached, plan.inParams, plan.current, plan.params, plan.docStr, detail, sortPrefix)
-		return items, true
+	targets := s.targetsFor(spec)
+	for _, target := range targets {
+		modelKey := target.Model
+		if modelKey == "" {
+			modelKey = target.Client.DefaultModel()
+		}
+		cacheKey := completionTargetCacheKey(plan.cacheKey, target.Name, modelKey)
+		if cached, ok := s.completionCacheGet(cacheKey); ok && strings.TrimSpace(cached) != "" {
+			logging.Logf("lsp ", "completion cache hit uri=%s line=%d char=%d preview=%s%s%s",
+				plan.params.TextDocument.URI, plan.params.Position.Line, plan.params.Position.Character,
+				logging.AnsiGreen, logging.PreviewForLog(cached), logging.AnsiBase)
+			detail := fmt.Sprintf("Hexai %s:%s", target.Name, modelKey)
+			items := s.makeCompletionItems(cached, plan.inParams, plan.current, plan.params, plan.docStr, detail, sortPrefix)
+			return items, true
+		}
 	}
 	if items, ok := cs.tryProviderNativeCompletion(ctx, plan, spec, client, sortPrefix); ok {
 		return items, true
 	}
-	return cs.executeChatCompletion(ctx, plan, spec, client, sortPrefix)
+	if items, ok := cs.executeChatCompletion(ctx, plan, spec, client, sortPrefix); ok {
+		return items, true
+	}
+	// If the primary route (native and generic) was unavailable, allow a
+	// fallback with native support to produce the completion.
+	if spec.fallbackProvider != "" {
+		fallback := requestSpec{
+			provider:      spec.fallbackProvider,
+			entry:         appconfig.SurfaceConfig{Provider: spec.fallbackProvider, Model: spec.entry.FallbackModel},
+			fallbackModel: spec.entry.FallbackModel,
+			options:       spec.options,
+			index:         spec.index,
+		}
+		if items, ok := cs.tryProviderNativeCompletion(ctx, plan, fallback, client, sortPrefix); ok {
+			return items, true
+		}
+	}
+	return nil, false
 }
 
 func (cs *completionService) executeChatCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
@@ -332,30 +353,37 @@ func (cs *completionService) executeChatCompletion(ctx context.Context, plan com
 	s.incSentCounters(sentSize)
 	// Completion never streams to a writer; Invoke collects the full text and
 	// keeps this path aligned with chatWithStats and the other surfaces.
-	text, err := chatrun.Invoke(ctx, client, messages, spec.options, nil)
+	result, err := llm.Chat(ctx, s.targetsFor(spec), messages, spec.options...)
 	if err != nil {
 		logging.Logf("lsp ", "llm completion error: %v", err)
 		return nil, false
 	}
+	text := result.Text
+	client = result.Target.Client
+	logFallback(surfaceCompletion, spec, result.Target, "route-fallback")
+	providerName := result.Target.Name
+	if providerName == "" {
+		providerName = client.Name()
+	}
 	s.incRecvCounters(len(text))
-	modelUsed := spec.effectiveModel(client.DefaultModel())
+	modelUsed := result.Target.Model
+	if modelUsed == "" {
+		modelUsed = client.DefaultModel()
+	}
 	// Update global stats cache; log but don't fail on stats errors
-	if err := stats.Update(ctx, client.Name(), modelUsed, sentSize, len(text)); err != nil {
+	if err := stats.Update(ctx, providerName, modelUsed, sentSize, len(text)); err != nil {
 		logging.Logf("lsp ", "stats update error: %v", err)
 	}
-	s.logLLMStats(modelUsed)
+	s.logLLMStatsFor(providerName, modelUsed)
 	trimmed := strings.TrimSpace(text)
 	cursorByte := utf16OffsetToByteOffset(plan.current, plan.params.Position.Character)
 	cleaned := cs.postProcessCompletion(trimmed, plan.current[:cursorByte], plan.current)
 	if cleaned == "" {
 		return nil, false
 	}
-	detail := fmt.Sprintf("Hexai %s:%s", client.Name(), modelUsed)
-	providerKey := spec.provider
-	if providerKey == "" {
-		providerKey = llmutils.CanonicalProvider(client.Name())
-	}
-	cacheKey := plan.cacheKey + "|" + providerKey + ":" + modelUsed
+	detail := fmt.Sprintf("Hexai %s:%s", providerName, modelUsed)
+	providerKey := providerName
+	cacheKey := completionTargetCacheKey(plan.cacheKey, providerKey, modelUsed)
 	s.completionCachePut(cacheKey, cleaned)
 	items := s.makeCompletionItems(cleaned, plan.inParams, plan.current, plan.params, plan.docStr, detail, sortPrefix)
 	return items, true
@@ -455,6 +483,10 @@ func buildNativeCompletionCacheKey(planCacheKey, provider, modelUsed string, cli
 	return planCacheKey + "|" + providerKey + ":" + modelUsed
 }
 
+func completionTargetCacheKey(planCacheKey, provider, model string) string {
+	return planCacheKey + "|" + provider + ":" + model
+}
+
 // postProcessNativeCompletion strips duplicates and applies indentation to the raw suggestion.
 // Returns the cleaned text, or an empty string when the suggestion should be discarded.
 func (cs *completionService) postProcessNativeCompletion(raw, current string, charOffset int) string {
@@ -489,10 +521,16 @@ func (cs *completionService) postProcessNativeCompletion(raw, current string, ch
 // tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
 func (cs *completionService) tryProviderNativeCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
 	s := cs.srv
-	cc, ok := client.(llm.CodeCompleter)
-	if !ok {
+	targets := s.targetsFor(spec)
+	if len(targets) == 0 {
 		return nil, false
 	}
+	// A primary without native support must use its generic chat route before
+	// the fallback target is considered. This preserves one chain per entry.
+	if _, ok := targets[0].Client.(llm.CodeCompleter); !ok {
+		return nil, false
+	}
+	client = targets[0].Client
 	current := plan.current
 	p := plan.params
 	before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)
@@ -502,7 +540,7 @@ func (cs *completionService) tryProviderNativeCompletion(ctx context.Context, pl
 		"path":   path,
 		"before": before,
 	})
-	provider := spec.provider
+	provider := targets[0].Name
 	if provider == "" {
 		provider = llmutils.CanonicalProvider(cfg.Provider)
 	}
@@ -510,31 +548,56 @@ func (cs *completionService) tryProviderNativeCompletion(ctx context.Context, pl
 	ctx2, cancel2 := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel2()
 	sentBytes := len(prompt) + len(after)
-	modelUsed := spec.effectiveModel(client.DefaultModel())
+	modelUsed := targets[0].Model
+	if modelUsed == "" {
+		modelUsed = client.DefaultModel()
+	}
 	tempVal := 0.0
 	if val, ok := chooseSurfaceTemperature(cfg, spec.entry, provider, modelUsed); ok {
 		tempVal = val
 	}
-	suggestions, err := cc.CodeCompletion(ctx2, prompt, after, 1, "", tempVal)
+	suggestions, target, err := llm.CodeCompletion(ctx2, targets[:1], prompt, after, 1, "", tempVal)
+	if err != nil && llm.ShouldFailover(err) && len(targets) > 1 {
+		fallback := targets[1]
+		fallbackTemp := 0.0
+		if value, ok := chooseSurfaceTemperature(cfg, appconfig.SurfaceConfig{Provider: fallback.Name, Model: fallback.Model}, fallback.Name, fallback.Model); ok {
+			fallbackTemp = value
+		}
+		suggestions, target, err = llm.CodeCompletion(ctx2, targets[1:], prompt, after, 1, "", fallbackTemp)
+	}
 	if err != nil || len(suggestions) == 0 {
 		if err != nil {
 			logging.Logf("lsp ", "completion path=codex error=%v (falling back)", err)
 		}
 		return nil, false
 	}
+	client = target.Client
+	provider = target.Name
+	logFallback(surfaceCompletion, spec, target, "native-fallback")
+	modelUsed = target.Model
+	if modelUsed == "" {
+		modelUsed = client.DefaultModel()
+	}
+	if provider == "" {
+		provider = client.Name()
+	}
 	s.incSentCounters(sentBytes)
 	s.incRecvCounters(len(suggestions[0]))
 	// Update global stats cache; log but don't fail on stats errors
-	if err := stats.Update(ctx2, client.Name(), modelUsed, sentBytes, len(suggestions[0])); err != nil {
+	if err := stats.Update(ctx2, provider, modelUsed, sentBytes, len(suggestions[0])); err != nil {
 		logging.Logf("lsp ", "stats update error: %v", err)
 	}
-	s.logLLMStats(modelUsed)
+	s.logLLMStatsFor(provider, modelUsed)
 	cleaned := cs.postProcessNativeCompletion(suggestions[0], current, p.Position.Character)
 	if cleaned == "" {
 		return nil, false
 	}
-	detail := fmt.Sprintf("Hexai %s:%s", client.Name(), modelUsed)
-	cacheKey := buildNativeCompletionCacheKey(plan.cacheKey, provider, modelUsed, client.Name())
+	label := target.Name
+	if label == "" {
+		label = client.Name()
+	}
+	detail := fmt.Sprintf("Hexai %s:%s", label, modelUsed)
+	cacheKey := completionTargetCacheKey(plan.cacheKey, label, modelUsed)
 	s.completionCachePut(cacheKey, cleaned)
 	items := s.makeCompletionItems(cleaned, plan.inParams, current, p, plan.docStr, detail, sortPrefix)
 	return items, true

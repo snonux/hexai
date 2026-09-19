@@ -56,7 +56,7 @@ func (c *chatService) maybeRunInlinePrompt(uri string, lineIdx int, raw string, 
 	if !lineHasInlinePrompt(raw, openStr, openChar, closeChar) {
 		return false
 	}
-	if s.currentLLMClient() != nil {
+	if s.hasLLMTarget(surfaceCompletion) {
 		pos := Position{Line: lineIdx, Character: len(raw)}
 		s.inflight.Add(1)
 		go func() {
@@ -146,11 +146,10 @@ func (c *chatService) requestChatResponse(uri string, lineIdx int, match chatPro
 	pos := Position{Line: lineIdx, Character: match.lastNonSpace + 1}
 	msgs := c.buildChatMessages(uri, pos, match.prompt)
 	spec := s.buildRequestSpec(surfaceChat)
-	client := s.clientFor(spec)
-	if client == nil {
+	if !s.hasLLMTarget(surfaceChat) {
 		return
 	}
-	modelUsed := spec.effectiveModel(client.DefaultModel())
+	modelUsed := spec.effectiveModel("")
 	logging.Logf("lsp ", "chat llm=requesting model=%s", modelUsed)
 	text, err := s.chatWithStats(ctx, surfaceChat, spec, msgs)
 	if err != nil {
@@ -224,7 +223,7 @@ func (c *chatService) applyChatEdits(uri string, lineIdx int, response string) {
 
 func (c *chatService) runInlinePrompt(uri string, pos Position) {
 	s := c.srv
-	if s.currentLLMClient() == nil {
+	if !s.hasLLMTarget(surfaceCompletion) {
 		return
 	}
 	d := s.getDocument(uri)

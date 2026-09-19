@@ -76,3 +76,20 @@ func TestBuildRequestSpecs_MultiEntries(t *testing.T) {
 		t.Fatalf("unexpected opts2: %+v", opts2)
 	}
 }
+
+func TestBuildRequestSpecs_ResolvesFallbackChain(t *testing.T) {
+	s := newTestServer()
+	s.cfg.ProviderProfiles = map[string]appconfig.ProviderProfile{
+		"cloud": {Type: "ollama", Model: "cloud-model"},
+		"local": {Type: "ollama", Model: "local-model"},
+	}
+	s.cfg.CompletionConfigs = []appconfig.SurfaceConfig{{Provider: "cloud", Model: "cloud-model", FallbackProvider: "local", FallbackModel: "local-model"}}
+	spec := s.buildRequestSpecs(surfaceCompletion)[0]
+	if spec.provider != "cloud" || spec.fallbackProvider != "local" || spec.entry.FallbackModel != "local-model" {
+		t.Fatalf("unexpected chain spec: %+v", spec)
+	}
+	targets := s.targetSpecs(spec)
+	if len(targets) != 2 || targets[0].provider != "cloud" || targets[1].provider != "local" || targets[1].model != "local-model" {
+		t.Fatalf("unexpected target specs: %+v", targets)
+	}
+}
