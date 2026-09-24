@@ -373,6 +373,68 @@ func TestResolveGitCommonDir_AbsolutePath(t *testing.T) {
 	}
 }
 
+func TestResolveGitCommonDir_RelativeThroughSymlink(t *testing.T) {
+	tmp := t.TempDir()
+	mainRoot := filepath.Join(tmp, "main")
+	commonGit := filepath.Join(mainRoot, ".git")
+	realPrivate := filepath.Join(commonGit, "worktrees", "agent")
+	linkPrivate := filepath.Join(tmp, "private-link")
+	if err := os.MkdirAll(realPrivate, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(realPrivate, "commondir"), []byte("../..\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(realPrivate, linkPrivate); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	got, err := resolveGitCommonDir(linkPrivate)
+	if err != nil {
+		t.Fatalf("resolveGitCommonDir: %v", err)
+	}
+	want, err := filepath.EvalSymlinks(commonGit)
+	if err != nil {
+		want = filepath.Clean(commonGit)
+	}
+	gotEval, err := filepath.EvalSymlinks(got)
+	if err != nil {
+		gotEval = filepath.Clean(got)
+	}
+	if gotEval != want {
+		t.Fatalf("got %q (eval %q), want %q", got, gotEval, want)
+	}
+}
+
+func TestParseGitfile_RelativeFromSymlinkedRoot(t *testing.T) {
+	tmp := t.TempDir()
+	realRoot := filepath.Join(tmp, "real-root")
+	meta := filepath.Join(realRoot, "meta")
+	if err := os.MkdirAll(meta, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	linkRoot := filepath.Join(tmp, "link-root")
+	if err := os.Symlink(realRoot, linkRoot); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	got, err := parseGitfile(linkRoot, []byte("gitdir: meta\n"))
+	if err != nil {
+		t.Fatalf("parseGitfile: %v", err)
+	}
+	want, err := filepath.EvalSymlinks(meta)
+	if err != nil {
+		want = filepath.Clean(meta)
+	}
+	gotEval, err := filepath.EvalSymlinks(got)
+	if err != nil {
+		gotEval = filepath.Clean(got)
+	}
+	if gotEval != want {
+		t.Fatalf("got %q (eval %q), want %q", got, gotEval, want)
+	}
+}
+
 func TestResolveAskLockDirViaGit_RealRepo(t *testing.T) {
 	tmp := t.TempDir()
 	runGit(t, tmp, "init")

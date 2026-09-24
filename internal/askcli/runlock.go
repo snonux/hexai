@@ -221,7 +221,11 @@ func resolveGitCommonDir(gitDir string) (string, error) {
 	}
 	dir := raw
 	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(gitDir, dir)
+		base, evalErr := filepath.EvalSymlinks(gitDir)
+		if evalErr != nil {
+			base = gitDir
+		}
+		dir = filepath.Join(base, dir)
 	}
 	dir = filepath.Clean(dir)
 	info, err := os.Stat(dir)
@@ -310,7 +314,11 @@ func parseGitfile(gitRoot string, data []byte) (string, error) {
 	}
 	dir := raw
 	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(gitRoot, dir)
+		base, evalErr := filepath.EvalSymlinks(gitRoot)
+		if evalErr != nil {
+			base = gitRoot
+		}
+		dir = filepath.Join(base, dir)
 	}
 	dir = filepath.Clean(dir)
 	info, err := os.Stat(dir)
