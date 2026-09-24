@@ -223,6 +223,9 @@ func resolveGitCommonDir(gitDir string) (string, error) {
 	if !filepath.IsAbs(dir) {
 		base, evalErr := filepath.EvalSymlinks(gitDir)
 		if evalErr != nil {
+			if pathHasDotDot(raw) {
+				return "", fmt.Errorf("eval symlinks %s: %w", gitDir, evalErr)
+			}
 			base = gitDir
 		}
 		dir = filepath.Join(base, dir)
@@ -316,6 +319,9 @@ func parseGitfile(gitRoot string, data []byte) (string, error) {
 	if !filepath.IsAbs(dir) {
 		base, evalErr := filepath.EvalSymlinks(gitRoot)
 		if evalErr != nil {
+			if pathHasDotDot(raw) {
+				return "", fmt.Errorf("eval symlinks %s: %w", gitRoot, evalErr)
+			}
 			base = gitRoot
 		}
 		dir = filepath.Join(base, dir)
@@ -329,4 +335,13 @@ func parseGitfile(gitRoot string, data []byte) (string, error) {
 		return "", fmt.Errorf("gitdir %s is not a directory", dir)
 	}
 	return dir, nil
+}
+
+func pathHasDotDot(p string) bool {
+	for _, seg := range strings.Split(filepath.ToSlash(p), "/") {
+		if seg == ".." {
+			return true
+		}
+	}
+	return false
 }

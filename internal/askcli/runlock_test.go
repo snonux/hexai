@@ -407,18 +407,27 @@ func TestResolveGitCommonDir_RelativeThroughSymlink(t *testing.T) {
 }
 
 func TestParseGitfile_RelativeFromSymlinkedRoot(t *testing.T) {
+	// Layout: tmp/proj/meta is the real gitdir target.
+	// Symlinked root tmp/links/deep/wt → tmp/proj/checkout so that a lexical
+	// "../meta" from the link path escapes incorrectly without EvalSymlinks.
 	tmp := t.TempDir()
-	realRoot := filepath.Join(tmp, "real-root")
-	meta := filepath.Join(realRoot, "meta")
+	realCheckout := filepath.Join(tmp, "proj", "checkout")
+	meta := filepath.Join(tmp, "proj", "meta")
+	if err := os.MkdirAll(realCheckout, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.MkdirAll(meta, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	linkRoot := filepath.Join(tmp, "link-root")
-	if err := os.Symlink(realRoot, linkRoot); err != nil {
+	linkRoot := filepath.Join(tmp, "links", "deep", "wt")
+	if err := os.MkdirAll(filepath.Dir(linkRoot), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(realCheckout, linkRoot); err != nil {
 		t.Fatalf("symlink: %v", err)
 	}
 
-	got, err := parseGitfile(linkRoot, []byte("gitdir: meta\n"))
+	got, err := parseGitfile(linkRoot, []byte("gitdir: ../meta\n"))
 	if err != nil {
 		t.Fatalf("parseGitfile: %v", err)
 	}
@@ -432,6 +441,13 @@ func TestParseGitfile_RelativeFromSymlinkedRoot(t *testing.T) {
 	}
 	if gotEval != want {
 		t.Fatalf("got %q (eval %q), want %q", got, gotEval, want)
+	}
+
+	// Without EvalSymlinks, Join(linkRoot, "../meta") cleans to links/deep/meta.
+	naive := filepath.Clean(filepath.Join(linkRoot, "../meta"))
+	naiveEval, err := filepath.EvalSymlinks(naive)
+	if err == nil && naiveEval == gotEval {
+		t.Fatal("naive join unexpectedly matched; test does not protect EvalSymlinks")
 	}
 }
 
