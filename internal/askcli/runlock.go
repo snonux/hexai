@@ -1,11 +1,13 @@
 package askcli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -116,19 +118,16 @@ func waitOrAcquireAskLockFD(
 	}
 }
 
-// acquireAskRepoLock serializes ask CLI access for a git working copy. It uses an
-// advisory lock under the real git metadata directory (the .git directory, or the
-// directory named by a .git gitfile in worktrees / agent checkouts) and records
-// holder PID plus process name for stale detection.
+// acquireAskRepoLock serializes ask CLI access for a git repository. It places an
+// advisory lock under the repository's common git directory (shared across linked
+// worktrees and agent checkouts whose .git is a gitfile) and records holder PID
+// plus process name for stale detection.
 func acquireAskRepoLock(ctx context.Context, gitRoot string) (func() error, error) {
-	gitDir, err := resolveGitDir(gitRoot)
+	lockDir, err := resolveAskLockDir(ctx, gitRoot)
 	if err != nil {
-		return nil, fmt.Errorf("ask lock: resolve git dir: %w", err)
+		return nil, fmt.Errorf("ask lock: resolve lock dir: %w", err)
 	}
-	if err := os.MkdirAll(gitDir, 0o755); err != nil {
-		return nil, fmt.Errorf("ask lock: mkdir: %w", err)
-	}
-	lockPath := filepath.Join(gitDir, askRepoLockFile)
+	lockPath := filepath.Join(lockDir, askRepoLockFile)
 
 	comm := lockProcessLabel()
 
@@ -139,7 +138,22 @@ func acquireAskRepoLock(ctx context.Context, gitRoot string) (func() error, erro
 	return waitOrAcquireAskLockFD(ctx, f, comm)
 }
 
-// resolveGitDir returns the repository metadata directory for gitRoot.
+// resolveAskLockDir returns the directory that should hold hexai-ask.lock for
+// gitRoot. Prefer the common git dir so main checkouts and linked worktrees of
+// the same repo serialize on one lock file.
+func resolveAskLockDir(ctx context.Context, gitRoot string) (string, error) {
+	gitDir, err := resolveGitDir(gitRoot)
+	if err == nil {
+		return resolveGitCommonDir(gitDir)
+	}
+	viaGit, gerr := resolveAskLockDirViaGit(ctx, gitRoot)
+	if gerr == nil {
+		return viaGit, nil
+	}
+	return "", fmt.Errorf("%w (git fallback: %v)", err, gerr)
+}
+
+// resolveGitDir returns the per-worktree (or main) metadata directory for gitRoot.
 // When .git is a directory it is returned; when .git is a gitfile (worktrees and
 // some agent-isolated checkouts), the path after "gitdir:" is resolved.
 func resolveGitDir(gitRoot string) (string, error) {
@@ -161,14 +175,72 @@ func resolveGitDir(gitRoot string) (string, error) {
 	return parseGitfile(gitRoot, data)
 }
 
+// resolveGitCommonDir follows a worktree "commondir" pointer when present so the
+// lock lives in the shared repository git directory, not the worktree-private one.
+func resolveGitCommonDir(gitDir string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(gitDir, "commondir"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return gitDir, nil
+		}
+		return "", err
+	}
+	raw := strings.TrimSpace(string(data))
+	if raw == "" {
+		return "", fmt.Errorf("empty commondir in %s", gitDir)
+	}
+	dir := raw
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(gitDir, dir)
+	}
+	dir = filepath.Clean(dir)
+	info, err := os.Stat(dir)
+	if err != nil {
+		return "", fmt.Errorf("commondir %s: %w", dir, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("commondir %s is not a directory", dir)
+	}
+	return dir, nil
+}
+
+func resolveAskLockDirViaGit(ctx context.Context, gitRoot string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "-C", gitRoot, "rev-parse", "--git-common-dir")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	dir := strings.TrimSpace(string(out))
+	if dir == "" {
+		return "", fmt.Errorf("empty git-common-dir")
+	}
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(gitRoot, dir)
+	}
+	dir = filepath.Clean(dir)
+	info, err := os.Stat(dir)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("git-common-dir %s is not a directory", dir)
+	}
+	return dir, nil
+}
+
 const gitfilePrefix = "gitdir:"
 
-// parseGitfile parses a .git gitfile body ("gitdir: <path>") and returns the
-// absolute metadata directory. Relative paths are resolved against gitRoot.
+// parseGitfile parses a .git gitfile ("gitdir: <path>" on the first line) and
+// returns the absolute metadata directory. Relative paths are resolved against
+// gitRoot. Matching git, the prefix is case-sensitive.
 func parseGitfile(gitRoot string, data []byte) (string, error) {
-	content := strings.TrimSpace(string(data))
-	if len(content) < len(gitfilePrefix) ||
-		!strings.EqualFold(content[:len(gitfilePrefix)], gitfilePrefix) {
+	line := data
+	if i := bytes.IndexByte(data, '\n'); i >= 0 {
+		line = data[:i]
+	}
+	line = bytes.TrimRight(line, "\r")
+	content := string(line)
+	if !strings.HasPrefix(content, gitfilePrefix) {
 		return "", fmt.Errorf("invalid gitfile: missing %q prefix", gitfilePrefix)
 	}
 	raw := strings.TrimSpace(content[len(gitfilePrefix):])

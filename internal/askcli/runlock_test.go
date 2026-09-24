@@ -121,23 +121,12 @@ func TestAcquireAskRepoLock_ContextCancelledWhileBlocked(t *testing.T) {
 	}
 }
 
-// TestAcquireAskRepoLock_GitfileWorktree places the lock in the directory named
-// by a .git gitfile (agent-isolated / linked worktree layout) instead of trying
-// to MkdirAll through the .git file path.
+// TestAcquireAskRepoLock_GitfileWorktree places the lock in the common git dir
+// named via a worktree gitfile + commondir (agent-isolated / linked worktree),
+// not under the .git file path and not in the worktree-private metadata dir.
 func TestAcquireAskRepoLock_GitfileWorktree(t *testing.T) {
 	tmp := t.TempDir()
-	worktree := filepath.Join(tmp, "worktree")
-	realGitDir := filepath.Join(tmp, "real-git-dir")
-	if err := os.MkdirAll(worktree, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(realGitDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	gitfile := "gitdir: " + realGitDir + "\n"
-	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte(gitfile), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	mainRoot, worktree, commonGit, wtPrivate := linkedWorktreeLayout(t, tmp)
 
 	unlock, err := acquireAskRepoLock(context.Background(), worktree)
 	if err != nil {
@@ -145,11 +134,14 @@ func TestAcquireAskRepoLock_GitfileWorktree(t *testing.T) {
 	}
 	defer func() { _ = unlock() }()
 
-	wantLock := filepath.Join(realGitDir, askRepoLockFile)
+	wantLock := filepath.Join(commonGit, askRepoLockFile)
 	if _, err := os.Stat(wantLock); err != nil {
-		t.Fatalf("lock file not created at resolved git dir: %v", err)
+		t.Fatalf("lock file not created in common git dir: %v", err)
 	}
-	// .git must remain a gitfile; MkdirAll must not have replaced it with a directory.
+	privateLock := filepath.Join(wtPrivate, askRepoLockFile)
+	if _, err := os.Stat(privateLock); err == nil {
+		t.Fatal("lock was placed in worktree-private git dir; want common dir")
+	}
 	info, err := os.Stat(filepath.Join(worktree, ".git"))
 	if err != nil {
 		t.Fatalf("stat .git after lock: %v", err)
@@ -157,19 +149,32 @@ func TestAcquireAskRepoLock_GitfileWorktree(t *testing.T) {
 	if info.IsDir() {
 		t.Fatal(".git was replaced with a directory; gitfile layout destroyed")
 	}
+	// mainRoot exists for layout realism; ensure its .git dir was the lock target.
+	if _, err := os.Stat(filepath.Join(mainRoot, ".git")); err != nil {
+		t.Fatalf("main .git missing: %v", err)
+	}
 }
 
 func TestAcquireAskRepoLock_GitfileRelativePath(t *testing.T) {
 	tmp := t.TempDir()
 	worktree := filepath.Join(tmp, "wt")
-	realGitDir := filepath.Join(tmp, "meta")
+	commonGit := filepath.Join(tmp, "common.git")
+	wtPrivate := filepath.Join(commonGit, "worktrees", "wt")
 	if err := os.MkdirAll(worktree, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(realGitDir, 0o755); err != nil {
+	if err := os.MkdirAll(wtPrivate, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: ../meta\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(wtPrivate, "commondir"), []byte("../..\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Relative gitdir from worktree to private metadata dir.
+	rel, err := filepath.Rel(worktree, wtPrivate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: "+rel+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -179,9 +184,58 @@ func TestAcquireAskRepoLock_GitfileRelativePath(t *testing.T) {
 	}
 	_ = unlock()
 
-	if _, err := os.Stat(filepath.Join(realGitDir, askRepoLockFile)); err != nil {
-		t.Fatalf("expected lock in resolved relative gitdir: %v", err)
+	if _, err := os.Stat(filepath.Join(commonGit, askRepoLockFile)); err != nil {
+		t.Fatalf("expected lock in common git dir: %v", err)
 	}
+}
+
+// TestAcquireAskRepoLock_MainAndWorktreeShareLock verifies the repo lock is the
+// same file for the main checkout and a linked worktree, so they serialize.
+func TestAcquireAskRepoLock_MainAndWorktreeShareLock(t *testing.T) {
+	tmp := t.TempDir()
+	mainRoot, worktree, commonGit, _ := linkedWorktreeLayout(t, tmp)
+
+	unlockMain, err := acquireAskRepoLock(context.Background(), mainRoot)
+	if err != nil {
+		t.Fatalf("main lock: %v", err)
+	}
+	mainInfo, err := os.Stat(filepath.Join(commonGit, askRepoLockFile))
+	if err != nil {
+		t.Fatalf("stat main lock: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	resultCh := acquireLockAsync(ctx, worktree)
+
+	select {
+	case result := <-resultCh:
+		if result.unlock != nil {
+			_ = result.unlock()
+		}
+		t.Fatalf("worktree acquired lock while main still held it: %v", result.err)
+	case <-time.After(40 * time.Millisecond):
+	}
+
+	wtInfo, err := os.Stat(filepath.Join(commonGit, askRepoLockFile))
+	if err != nil {
+		t.Fatalf("stat shared lock: %v", err)
+	}
+	if !os.SameFile(mainInfo, wtInfo) {
+		t.Fatal("main and worktree did not share the same lock file")
+	}
+
+	if err := unlockMain(); err != nil {
+		t.Fatalf("main unlock: %v", err)
+	}
+	result := <-resultCh
+	if result.err != nil {
+		t.Fatalf("worktree lock after main release: %v", result.err)
+	}
+	if result.unlock == nil {
+		t.Fatal("worktree returned nil unlock")
+	}
+	_ = result.unlock()
 }
 
 func TestResolveGitDir_RejectsInvalidGitfile(t *testing.T) {
@@ -229,6 +283,63 @@ func TestParseGitfile_EmptyPath(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty gitdir path")
 	}
+}
+
+func TestParseGitfile_UsesFirstLineOnly(t *testing.T) {
+	tmp := t.TempDir()
+	real := filepath.Join(tmp, "real")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "gitdir: " + real + "\njunk-should-be-ignored\n"
+	got, err := parseGitfile(tmp, []byte(body))
+	if err != nil {
+		t.Fatalf("parseGitfile: %v", err)
+	}
+	if got != real {
+		t.Fatalf("got %q, want %q", got, real)
+	}
+}
+
+func TestParseGitfile_RejectsWrongCasePrefix(t *testing.T) {
+	_, err := parseGitfile("/tmp", []byte("GITDIR: /tmp\n"))
+	if err == nil {
+		t.Fatal("expected error for case-mismatched gitdir prefix")
+	}
+}
+
+func TestResolveGitCommonDir_EmptyCommondir(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, "commondir"), []byte("  \n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := resolveGitCommonDir(tmp)
+	if err == nil {
+		t.Fatal("expected error for empty commondir")
+	}
+}
+
+// linkedWorktreeLayout builds a main checkout + linked worktree that share one
+// common .git directory, mirroring git worktree / agent isolation layout.
+func linkedWorktreeLayout(t *testing.T, tmp string) (mainRoot, worktree, commonGit, wtPrivate string) {
+	t.Helper()
+	mainRoot = filepath.Join(tmp, "main")
+	commonGit = filepath.Join(mainRoot, ".git")
+	wtPrivate = filepath.Join(commonGit, "worktrees", "agent")
+	worktree = filepath.Join(tmp, "agent-wt")
+	for _, dir := range []string{mainRoot, wtPrivate, worktree} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(wtPrivate, "commondir"), []byte("../..\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitfile := "gitdir: " + wtPrivate + "\n"
+	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte(gitfile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return mainRoot, worktree, commonGit, wtPrivate
 }
 
 func prepareContendedStaleLock(t *testing.T, gitRoot string) (*os.File, string, os.FileInfo) {
