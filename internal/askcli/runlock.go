@@ -139,18 +139,23 @@ func acquireAskRepoLock(ctx context.Context, gitRoot string) (func() error, erro
 }
 
 // resolveAskLockDir returns the directory that should hold hexai-ask.lock for
-// gitRoot. Prefer the common git dir so main checkouts and linked worktrees of
-// the same repo serialize on one lock file.
+// gitRoot. Prefer git's common dir so main checkouts and linked worktrees of
+// the same repo serialize on one lock file. Fall back to filesystem parsing
+// when git is unavailable (e.g. synthetic test layouts).
 func resolveAskLockDir(ctx context.Context, gitRoot string) (string, error) {
-	gitDir, err := resolveGitDir(gitRoot)
-	if err == nil {
-		return resolveGitCommonDir(gitDir)
-	}
 	viaGit, gerr := resolveAskLockDirViaGit(ctx, gitRoot)
 	if gerr == nil {
 		return viaGit, nil
 	}
-	return "", fmt.Errorf("%w (git fallback: %v)", err, gerr)
+	gitDir, err := resolveGitDir(gitRoot)
+	if err != nil {
+		return "", fmt.Errorf("%w (git: %v)", err, gerr)
+	}
+	dir, err := resolveGitCommonDir(gitDir)
+	if err != nil {
+		return "", fmt.Errorf("%w (git: %v)", err, gerr)
+	}
+	return dir, nil
 }
 
 // resolveGitDir returns the per-worktree (or main) metadata directory for gitRoot.
@@ -228,11 +233,12 @@ func resolveAskLockDirViaGit(ctx context.Context, gitRoot string) (string, error
 	return dir, nil
 }
 
-const gitfilePrefix = "gitdir:"
+const gitfilePrefix = "gitdir: "
 
 // parseGitfile parses a .git gitfile ("gitdir: <path>" on the first line) and
 // returns the absolute metadata directory. Relative paths are resolved against
-// gitRoot. Matching git, the prefix is case-sensitive.
+// gitRoot. Matching git, the prefix is case-sensitive and requires a space
+// after the colon.
 func parseGitfile(gitRoot string, data []byte) (string, error) {
 	line := data
 	if i := bytes.IndexByte(data, '\n'); i >= 0 {

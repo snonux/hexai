@@ -3,6 +3,7 @@ package askcli
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -149,9 +150,8 @@ func TestAcquireAskRepoLock_GitfileWorktree(t *testing.T) {
 	if info.IsDir() {
 		t.Fatal(".git was replaced with a directory; gitfile layout destroyed")
 	}
-	// mainRoot exists for layout realism; ensure its .git dir was the lock target.
-	if _, err := os.Stat(filepath.Join(mainRoot, ".git")); err != nil {
-		t.Fatalf("main .git missing: %v", err)
+	if filepath.Clean(commonGit) != filepath.Join(mainRoot, ".git") {
+		t.Fatalf("commonGit %q is not mainRoot/.git", commonGit)
 	}
 }
 
@@ -308,6 +308,13 @@ func TestParseGitfile_RejectsWrongCasePrefix(t *testing.T) {
 	}
 }
 
+func TestParseGitfile_RejectsMissingSpaceAfterColon(t *testing.T) {
+	_, err := parseGitfile("/tmp", []byte("gitdir:/tmp\n"))
+	if err == nil {
+		t.Fatal("expected error when space after gitdir: is missing")
+	}
+}
+
 func TestResolveGitCommonDir_EmptyCommondir(t *testing.T) {
 	tmp := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tmp, "commondir"), []byte("  \n"), 0o644); err != nil {
@@ -316,6 +323,133 @@ func TestResolveGitCommonDir_EmptyCommondir(t *testing.T) {
 	_, err := resolveGitCommonDir(tmp)
 	if err == nil {
 		t.Fatal("expected error for empty commondir")
+	}
+}
+
+func TestResolveGitCommonDir_MissingTarget(t *testing.T) {
+	tmp := t.TempDir()
+	missing := filepath.Join(tmp, "nope")
+	if err := os.WriteFile(filepath.Join(tmp, "commondir"), []byte(missing+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := resolveGitCommonDir(tmp)
+	if err == nil {
+		t.Fatal("expected error for missing commondir target")
+	}
+}
+
+func TestResolveGitCommonDir_TargetIsFile(t *testing.T) {
+	tmp := t.TempDir()
+	target := filepath.Join(tmp, "file")
+	if err := os.WriteFile(target, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "commondir"), []byte(target+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := resolveGitCommonDir(tmp)
+	if err == nil {
+		t.Fatal("expected error when commondir points at a file")
+	}
+}
+
+func TestResolveGitCommonDir_AbsolutePath(t *testing.T) {
+	tmp := t.TempDir()
+	common := filepath.Join(tmp, "common")
+	private := filepath.Join(tmp, "private")
+	if err := os.MkdirAll(common, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(private, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(private, "commondir"), []byte(common+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := resolveGitCommonDir(private)
+	if err != nil {
+		t.Fatalf("resolveGitCommonDir: %v", err)
+	}
+	if got != common {
+		t.Fatalf("got %q, want %q", got, common)
+	}
+}
+
+func TestResolveAskLockDirViaGit_RealRepo(t *testing.T) {
+	tmp := t.TempDir()
+	runGit(t, tmp, "init")
+	got, err := resolveAskLockDirViaGit(context.Background(), tmp)
+	if err != nil {
+		t.Fatalf("via git: %v", err)
+	}
+	want := filepath.Join(tmp, ".git")
+	if filepath.Clean(got) != filepath.Clean(want) {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestAcquireAskRepoLock_RealGitWorktreeSharesLock(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	tmp := t.TempDir()
+	mainRoot := filepath.Join(tmp, "main")
+	if err := os.MkdirAll(mainRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, mainRoot, "init")
+	runGit(t, mainRoot, "commit", "--allow-empty", "-m", "init")
+	worktree := filepath.Join(tmp, "wt")
+	runGit(t, mainRoot, "worktree", "add", "--detach", worktree, "HEAD")
+
+	unlockMain, err := acquireAskRepoLock(context.Background(), mainRoot)
+	if err != nil {
+		t.Fatalf("main lock: %v", err)
+	}
+	commonLock := filepath.Join(mainRoot, ".git", askRepoLockFile)
+	mainInfo, err := os.Stat(commonLock)
+	if err != nil {
+		t.Fatalf("stat common lock: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	resultCh := acquireLockAsync(ctx, worktree)
+	select {
+	case result := <-resultCh:
+		if result.unlock != nil {
+			_ = result.unlock()
+		}
+		t.Fatalf("worktree acquired lock while main held it: %v", result.err)
+	case <-time.After(40 * time.Millisecond):
+	}
+	wtInfo, err := os.Stat(commonLock)
+	if err != nil {
+		t.Fatalf("stat lock from worktree side: %v", err)
+	}
+	if !os.SameFile(mainInfo, wtInfo) {
+		t.Fatal("real git worktree did not share main lock file")
+	}
+	_ = unlockMain()
+	result := <-resultCh
+	if result.err != nil {
+		t.Fatalf("worktree lock: %v", result.err)
+	}
+	_ = result.unlock()
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME=test",
+		"GIT_AUTHOR_EMAIL=test@example.com",
+		"GIT_COMMITTER_NAME=test",
+		"GIT_COMMITTER_EMAIL=test@example.com",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 }
 
