@@ -121,6 +121,116 @@ func TestAcquireAskRepoLock_ContextCancelledWhileBlocked(t *testing.T) {
 	}
 }
 
+// TestAcquireAskRepoLock_GitfileWorktree places the lock in the directory named
+// by a .git gitfile (agent-isolated / linked worktree layout) instead of trying
+// to MkdirAll through the .git file path.
+func TestAcquireAskRepoLock_GitfileWorktree(t *testing.T) {
+	tmp := t.TempDir()
+	worktree := filepath.Join(tmp, "worktree")
+	realGitDir := filepath.Join(tmp, "real-git-dir")
+	if err := os.MkdirAll(worktree, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(realGitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitfile := "gitdir: " + realGitDir + "\n"
+	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte(gitfile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	unlock, err := acquireAskRepoLock(context.Background(), worktree)
+	if err != nil {
+		t.Fatalf("lock with gitfile: %v", err)
+	}
+	defer func() { _ = unlock() }()
+
+	wantLock := filepath.Join(realGitDir, askRepoLockFile)
+	if _, err := os.Stat(wantLock); err != nil {
+		t.Fatalf("lock file not created at resolved git dir: %v", err)
+	}
+	// .git must remain a gitfile; MkdirAll must not have replaced it with a directory.
+	info, err := os.Stat(filepath.Join(worktree, ".git"))
+	if err != nil {
+		t.Fatalf("stat .git after lock: %v", err)
+	}
+	if info.IsDir() {
+		t.Fatal(".git was replaced with a directory; gitfile layout destroyed")
+	}
+}
+
+func TestAcquireAskRepoLock_GitfileRelativePath(t *testing.T) {
+	tmp := t.TempDir()
+	worktree := filepath.Join(tmp, "wt")
+	realGitDir := filepath.Join(tmp, "meta")
+	if err := os.MkdirAll(worktree, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(realGitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: ../meta\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	unlock, err := acquireAskRepoLock(context.Background(), worktree)
+	if err != nil {
+		t.Fatalf("lock with relative gitfile: %v", err)
+	}
+	_ = unlock()
+
+	if _, err := os.Stat(filepath.Join(realGitDir, askRepoLockFile)); err != nil {
+		t.Fatalf("expected lock in resolved relative gitdir: %v", err)
+	}
+}
+
+func TestResolveGitDir_RejectsInvalidGitfile(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, ".git"), []byte("not-a-gitfile\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := resolveGitDir(tmp)
+	if err == nil {
+		t.Fatal("expected error for invalid gitfile")
+	}
+}
+
+func TestResolveGitDir_RejectsMissingGitdirTarget(t *testing.T) {
+	tmp := t.TempDir()
+	missing := filepath.Join(tmp, "does-not-exist")
+	body := "gitdir: " + missing + "\n"
+	if err := os.WriteFile(filepath.Join(tmp, ".git"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := resolveGitDir(tmp)
+	if err == nil {
+		t.Fatal("expected error when gitdir target is missing")
+	}
+}
+
+func TestResolveGitDir_RejectsGitdirThatIsAFile(t *testing.T) {
+	tmp := t.TempDir()
+	target := filepath.Join(tmp, "not-a-dir")
+	if err := os.WriteFile(target, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	body := "gitdir: " + target + "\n"
+	if err := os.WriteFile(filepath.Join(tmp, ".git"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := resolveGitDir(tmp)
+	if err == nil {
+		t.Fatal("expected error when gitdir points at a file")
+	}
+}
+
+func TestParseGitfile_EmptyPath(t *testing.T) {
+	_, err := parseGitfile("/tmp", []byte("gitdir:   \n"))
+	if err == nil {
+		t.Fatal("expected error for empty gitdir path")
+	}
+}
+
 func prepareContendedStaleLock(t *testing.T, gitRoot string) (*os.File, string, os.FileInfo) {
 	t.Helper()
 	lockDir := filepath.Join(gitRoot, ".git")

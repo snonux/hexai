@@ -117,12 +117,18 @@ func waitOrAcquireAskLockFD(
 }
 
 // acquireAskRepoLock serializes ask CLI access for a git working copy. It uses an
-// advisory lock under .git and records holder PID plus process name for stale detection.
+// advisory lock under the real git metadata directory (the .git directory, or the
+// directory named by a .git gitfile in worktrees / agent checkouts) and records
+// holder PID plus process name for stale detection.
 func acquireAskRepoLock(ctx context.Context, gitRoot string) (func() error, error) {
-	lockPath := filepath.Join(gitRoot, ".git", askRepoLockFile)
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+	gitDir, err := resolveGitDir(gitRoot)
+	if err != nil {
+		return nil, fmt.Errorf("ask lock: resolve git dir: %w", err)
+	}
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
 		return nil, fmt.Errorf("ask lock: mkdir: %w", err)
 	}
+	lockPath := filepath.Join(gitDir, askRepoLockFile)
 
 	comm := lockProcessLabel()
 
@@ -131,4 +137,55 @@ func acquireAskRepoLock(ctx context.Context, gitRoot string) (func() error, erro
 		return nil, fmt.Errorf("ask lock: open %s: %w", lockPath, err)
 	}
 	return waitOrAcquireAskLockFD(ctx, f, comm)
+}
+
+// resolveGitDir returns the repository metadata directory for gitRoot.
+// When .git is a directory it is returned; when .git is a gitfile (worktrees and
+// some agent-isolated checkouts), the path after "gitdir:" is resolved.
+func resolveGitDir(gitRoot string) (string, error) {
+	gitPath := filepath.Join(gitRoot, ".git")
+	info, err := os.Stat(gitPath)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		return gitPath, nil
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("%s is neither a directory nor a regular file", gitPath)
+	}
+	data, err := os.ReadFile(gitPath)
+	if err != nil {
+		return "", err
+	}
+	return parseGitfile(gitRoot, data)
+}
+
+const gitfilePrefix = "gitdir:"
+
+// parseGitfile parses a .git gitfile body ("gitdir: <path>") and returns the
+// absolute metadata directory. Relative paths are resolved against gitRoot.
+func parseGitfile(gitRoot string, data []byte) (string, error) {
+	content := strings.TrimSpace(string(data))
+	if len(content) < len(gitfilePrefix) ||
+		!strings.EqualFold(content[:len(gitfilePrefix)], gitfilePrefix) {
+		return "", fmt.Errorf("invalid gitfile: missing %q prefix", gitfilePrefix)
+	}
+	raw := strings.TrimSpace(content[len(gitfilePrefix):])
+	if raw == "" {
+		return "", fmt.Errorf("invalid gitfile: empty gitdir path")
+	}
+	dir := raw
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(gitRoot, dir)
+	}
+	dir = filepath.Clean(dir)
+	info, err := os.Stat(dir)
+	if err != nil {
+		return "", fmt.Errorf("gitdir %s: %w", dir, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("gitdir %s is not a directory", dir)
+	}
+	return dir, nil
 }
