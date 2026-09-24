@@ -115,7 +115,7 @@ func TestAcquireAskRepoLock_ContextCancelledWhileBlocked(t *testing.T) {
 			_ = result.unlock()
 			t.Fatal("lock acquired despite cancellation")
 		}
-		if result.err != context.Canceled {
+		if !errors.Is(result.err, context.Canceled) {
 			t.Fatalf("err = %v, want context.Canceled", result.err)
 		}
 	case <-time.After(time.Second):
@@ -433,10 +433,25 @@ func TestResolveAskLockDir_CancelledContextDoesNotFallback(t *testing.T) {
 	}
 }
 
+func TestResolveAskLockDir_ExpiredDeadlineDoesNotFallback(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	_, err := resolveAskLockDir(ctx, tmp)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
+	}
+}
+
 func TestScrubGitOverrideEnv(t *testing.T) {
 	in := []string{
 		"PATH=/bin",
 		"GIT_DIR=/other/.git",
+		"Git_Dir=/mixed/.git",
 		"GIT_WORK_TREE=/other",
 		"HOME=/home/test",
 		"GIT_COMMON_DIR=/x",

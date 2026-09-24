@@ -79,42 +79,57 @@ func waitOrAcquireAskLockFD(
 	comm string,
 ) (func() error, error) {
 	for {
+		if err := ctx.Err(); err != nil {
+			_ = f.Close()
+			return nil, err
+		}
 		err := filelock.TryExclusive(f)
 		if err == nil {
-			if werr := writeLockMetadata(f, os.Getpid(), comm); werr != nil {
-				_ = filelock.UnlockExclusive(f)
-				_ = f.Close()
-				return nil, fmt.Errorf("ask lock: write metadata: %w", werr)
-			}
-			return func() error {
-				uErr := filelock.UnlockExclusive(f)
-				cErr := f.Close()
-				return errors.Join(uErr, cErr)
-			}, nil
+			return finishAskLockAcquire(f, comm)
 		}
 		if !errors.Is(err, filelock.ErrWouldBlock) {
 			_ = f.Close()
 			return nil, fmt.Errorf("ask lock: %w", err)
 		}
-
-		pid := readLockHolderPID(f)
-		// Keep waiting even if metadata appears stale: removing a contended lock file can
-		// split ownership across different inodes and break serialization guarantees.
-		if pid > 0 && lockHolderIsStale(pid, comm) {
-			// Intentional no-op: contention is resolved only by waiting for flock release.
+		noteStaleLockHolder(f, comm)
+		if err := waitAskLockRetry(ctx, f); err != nil {
+			return nil, err
 		}
+	}
+}
 
-		// Use a fresh timer per iteration via time.After instead of reusing and
-		// Reset()-ing a single timer. Reset() on a timer that may still be pending is
-		// the documented Go timer hazard: a stale value can already be queued on the
-		// channel and trigger a spurious early wake-up. A new timer each loop guarantees
-		// a clean, full askLockRetryInterval delay (or ctx cancellation).
-		select {
-		case <-ctx.Done():
-			_ = f.Close()
-			return nil, ctx.Err()
-		case <-time.After(askLockRetryInterval):
-		}
+func finishAskLockAcquire(f *os.File, comm string) (func() error, error) {
+	if werr := writeLockMetadata(f, os.Getpid(), comm); werr != nil {
+		_ = filelock.UnlockExclusive(f)
+		_ = f.Close()
+		return nil, fmt.Errorf("ask lock: write metadata: %w", werr)
+	}
+	return func() error {
+		uErr := filelock.UnlockExclusive(f)
+		cErr := f.Close()
+		return errors.Join(uErr, cErr)
+	}, nil
+}
+
+func noteStaleLockHolder(f *os.File, comm string) {
+	pid := readLockHolderPID(f)
+	// Keep waiting even if metadata appears stale: removing a contended lock file can
+	// split ownership across different inodes and break serialization guarantees.
+	if pid > 0 && lockHolderIsStale(pid, comm) {
+		// Intentional no-op: contention is resolved only by waiting for flock release.
+	}
+}
+
+// waitAskLockRetry parks until the retry interval elapses or ctx is cancelled.
+// Uses time.After (not Reset) to avoid the documented Go timer hazard of a stale
+// value already queued on a reused timer's channel.
+func waitAskLockRetry(ctx context.Context, f *os.File) error {
+	select {
+	case <-ctx.Done():
+		_ = f.Close()
+		return ctx.Err()
+	case <-time.After(askLockRetryInterval):
+		return nil
 	}
 }
 
@@ -150,6 +165,9 @@ func resolveAskLockDir(ctx context.Context, gitRoot string) (string, error) {
 	viaGit, gerr := resolveAskLockDirViaGit(ctx, gitRoot)
 	if gerr == nil {
 		return viaGit, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
 	}
 	if errors.Is(gerr, context.Canceled) || errors.Is(gerr, context.DeadlineExceeded) {
 		return "", gerr
@@ -246,6 +264,7 @@ func resolveAskLockDirViaGit(ctx context.Context, gitRoot string) (string, error
 
 // scrubGitOverrideEnv drops variables that would make `git -C <root>` resolve a
 // different repository than the given working tree (absolute GIT_DIR, etc.).
+// Key matching is case-insensitive so Windows-style mixed-case names are scrubbed too.
 func scrubGitOverrideEnv(environ []string) []string {
 	out := make([]string, 0, len(environ))
 	for _, e := range environ {
@@ -254,14 +273,14 @@ func scrubGitOverrideEnv(environ []string) []string {
 			out = append(out, e)
 			continue
 		}
-		switch key {
-		case "GIT_DIR",
-			"GIT_COMMON_DIR",
-			"GIT_WORK_TREE",
-			"GIT_OBJECT_DIRECTORY",
-			"GIT_INDEX_FILE",
-			"GIT_ALTERNATE_OBJECT_DIRECTORIES",
-			"GIT_QUARANTINE_PATH":
+		switch {
+		case strings.EqualFold(key, "GIT_DIR"),
+			strings.EqualFold(key, "GIT_COMMON_DIR"),
+			strings.EqualFold(key, "GIT_WORK_TREE"),
+			strings.EqualFold(key, "GIT_OBJECT_DIRECTORY"),
+			strings.EqualFold(key, "GIT_INDEX_FILE"),
+			strings.EqualFold(key, "GIT_ALTERNATE_OBJECT_DIRECTORIES"),
+			strings.EqualFold(key, "GIT_QUARANTINE_PATH"):
 			continue
 		}
 		out = append(out, e)
