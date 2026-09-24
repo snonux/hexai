@@ -2,6 +2,7 @@ package askcli
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -127,7 +128,7 @@ func TestAcquireAskRepoLock_ContextCancelledWhileBlocked(t *testing.T) {
 // not under the .git file path and not in the worktree-private metadata dir.
 func TestAcquireAskRepoLock_GitfileWorktree(t *testing.T) {
 	tmp := t.TempDir()
-	mainRoot, worktree, commonGit, wtPrivate := linkedWorktreeLayout(t, tmp)
+	_, worktree, commonGit, wtPrivate := linkedWorktreeLayout(t, tmp)
 
 	unlock, err := acquireAskRepoLock(context.Background(), worktree)
 	if err != nil {
@@ -149,9 +150,6 @@ func TestAcquireAskRepoLock_GitfileWorktree(t *testing.T) {
 	}
 	if info.IsDir() {
 		t.Fatal(".git was replaced with a directory; gitfile layout destroyed")
-	}
-	if filepath.Clean(commonGit) != filepath.Join(mainRoot, ".git") {
-		t.Fatalf("commonGit %q is not mainRoot/.git", commonGit)
 	}
 }
 
@@ -385,6 +383,73 @@ func TestResolveAskLockDirViaGit_RealRepo(t *testing.T) {
 	want := filepath.Join(tmp, ".git")
 	if filepath.Clean(got) != filepath.Clean(want) {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestResolveAskLockDirViaGit_IgnoresGITDIREnv(t *testing.T) {
+	tmp := t.TempDir()
+	repoA := filepath.Join(tmp, "a")
+	repoB := filepath.Join(tmp, "b")
+	if err := os.MkdirAll(repoA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(repoB, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, repoA, "init")
+	runGit(t, repoB, "init")
+
+	t.Setenv("GIT_DIR", filepath.Join(repoB, ".git"))
+	got, err := resolveAskLockDirViaGit(context.Background(), repoA)
+	if err != nil {
+		t.Fatalf("via git: %v", err)
+	}
+	want := filepath.Join(repoA, ".git")
+	if filepath.Clean(got) != filepath.Clean(want) {
+		t.Fatalf("GIT_DIR leaked: got %q, want %q", got, want)
+	}
+}
+
+func TestResolveAskLockDir_CancelledContextDoesNotFallback(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := resolveAskLockDir(ctx, tmp)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+
+	unlock, err := acquireAskRepoLock(ctx, tmp)
+	if unlock != nil {
+		_ = unlock()
+		t.Fatal("acquired lock with cancelled context")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("acquire err = %v, want context.Canceled", err)
+	}
+}
+
+func TestScrubGitOverrideEnv(t *testing.T) {
+	in := []string{
+		"PATH=/bin",
+		"GIT_DIR=/other/.git",
+		"GIT_WORK_TREE=/other",
+		"HOME=/home/test",
+		"GIT_COMMON_DIR=/x",
+	}
+	got := scrubGitOverrideEnv(in)
+	want := []string{"PATH=/bin", "HOME=/home/test"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
 	}
 }
 

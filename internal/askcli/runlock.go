@@ -141,11 +141,18 @@ func acquireAskRepoLock(ctx context.Context, gitRoot string) (func() error, erro
 // resolveAskLockDir returns the directory that should hold hexai-ask.lock for
 // gitRoot. Prefer git's common dir so main checkouts and linked worktrees of
 // the same repo serialize on one lock file. Fall back to filesystem parsing
-// when git is unavailable (e.g. synthetic test layouts).
+// when git is unavailable (e.g. synthetic test layouts). Context cancellation
+// or deadline is never papered over by the filesystem fallback.
 func resolveAskLockDir(ctx context.Context, gitRoot string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	viaGit, gerr := resolveAskLockDirViaGit(ctx, gitRoot)
 	if gerr == nil {
 		return viaGit, nil
+	}
+	if errors.Is(gerr, context.Canceled) || errors.Is(gerr, context.DeadlineExceeded) {
+		return "", gerr
 	}
 	gitDir, err := resolveGitDir(gitRoot)
 	if err != nil {
@@ -211,8 +218,12 @@ func resolveGitCommonDir(gitDir string) (string, error) {
 
 func resolveAskLockDirViaGit(ctx context.Context, gitRoot string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "-C", gitRoot, "rev-parse", "--git-common-dir")
+	cmd.Env = scrubGitOverrideEnv(os.Environ())
 	out, err := cmd.Output()
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", ctxErr
+		}
 		return "", err
 	}
 	dir := strings.TrimSpace(string(out))
@@ -231,6 +242,31 @@ func resolveAskLockDirViaGit(ctx context.Context, gitRoot string) (string, error
 		return "", fmt.Errorf("git-common-dir %s is not a directory", dir)
 	}
 	return dir, nil
+}
+
+// scrubGitOverrideEnv drops variables that would make `git -C <root>` resolve a
+// different repository than the given working tree (absolute GIT_DIR, etc.).
+func scrubGitOverrideEnv(environ []string) []string {
+	out := make([]string, 0, len(environ))
+	for _, e := range environ {
+		key, _, ok := strings.Cut(e, "=")
+		if !ok {
+			out = append(out, e)
+			continue
+		}
+		switch key {
+		case "GIT_DIR",
+			"GIT_COMMON_DIR",
+			"GIT_WORK_TREE",
+			"GIT_OBJECT_DIRECTORY",
+			"GIT_INDEX_FILE",
+			"GIT_ALTERNATE_OBJECT_DIRECTORIES",
+			"GIT_QUARANTINE_PATH":
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 const gitfilePrefix = "gitdir: "
