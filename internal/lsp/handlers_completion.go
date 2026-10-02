@@ -84,6 +84,12 @@ func (cs *completionService) handleCompletion(req Request) {
 // it gets an empty incomplete list and asks again.
 func (cs *completionService) completeWithLLM(p CompletionParams, above, current, below, funcCtx, docStr string) CompletionList {
 	s := cs.srv
+	if cs.inlinePromptHandled(p.TextDocument.URI, current) {
+		// The inline prompt on this line is already being answered via
+		// didChange; another LLM call would only offer a duplicate.
+		logging.Logf("lsp ", "completion skip=inline-prompt-in-flight line=%d", p.Position.Line)
+		return CompletionList{IsIncomplete: false, Items: []CompletionItem{}}
+	}
 	newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
 	extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
 	ctx, done := cs.beginCompletion(p.TextDocument.URI)

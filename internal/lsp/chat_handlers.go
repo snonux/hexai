@@ -59,17 +59,20 @@ func (c *chatService) maybeRunInlinePrompt(uri string, lineIdx int, raw string, 
 	if !lineHasInlinePrompt(raw, openStr, openChar, closeChar) {
 		return false
 	}
-	if !s.hasLLMTarget(surfaceCompletion) {
+	tag, ok := s.findInlineTag(raw)
+	if !ok || !s.hasLLMTarget(surfaceCompletion) {
 		return true
 	}
-	key := promptKey(uri, raw)
+	// Key by the prompt tag rather than the whole line, so text typed after
+	// the closing marker while the model works does not start new requests.
+	key := inlineKey(uri, tag.text)
 	if !c.tryBeginPrompt(key) {
 		return true
 	}
 	s.inflight.Add(1)
 	go func() {
 		defer s.inflight.Done()
-		c.runInlinePrompt(uri, lineIdx, raw)
+		c.runInlinePrompt(uri, lineIdx, tag.text)
 		c.finishPrompt(key)
 	}()
 	return true
@@ -220,6 +223,11 @@ func (c *chatService) applyChatEdits(uri string, lineIdx int, raw string, respon
 	line := d.lines[idx]
 	suffix, prefixes, _ := s.chatConfig()
 	match, ok := parseChatPromptLine(line, suffix, prefixes)
+	if !ok && raw != "" && strings.HasPrefix(line, strings.TrimRight(raw, " \t")) {
+		// Text was typed after the trigger meanwhile; the trigger is still
+		// where it was in raw.
+		match, ok = parseChatPromptLine(raw, suffix, prefixes)
+	}
 	if !ok {
 		logging.Logf("lsp ", "chat skip stale edit: trigger no longer present on line %d (%q)", idx, line)
 		return false
@@ -256,20 +264,17 @@ func quoteReply(text string) string {
 
 // findPromptLine returns the index of the line whose text equals raw,
 // preferring lineIdx and otherwise the nearest match (lines above the prompt
-// may have been added or removed meanwhile). When no line matches, the prompt
-// line itself was edited; lineIdx is returned if still valid so callers can
-// re-validate the live line, otherwise -1.
+// may have been added or removed meanwhile). Failing that it looks for a line
+// that still starts with raw (the user kept typing after the trigger). When
+// nothing matches, the prompt line itself was edited; lineIdx is returned if
+// still valid so callers can re-validate the live line, otherwise -1.
 func findPromptLine(lines []string, lineIdx int, raw string) int {
-	for dist := 0; dist < len(lines); dist++ {
-		up, down := lineIdx-dist, lineIdx+dist
-		if up >= 0 && up < len(lines) && lines[up] == raw {
-			return up
-		}
-		if down >= 0 && down < len(lines) && lines[down] == raw {
-			return down
-		}
-		if up < 0 && down >= len(lines) {
-			break
+	if idx := nearestLine(lines, lineIdx, func(ln string) bool { return ln == raw }); idx >= 0 {
+		return idx
+	}
+	if trimmed := strings.TrimRight(raw, " \t"); trimmed != "" {
+		if idx := nearestLine(lines, lineIdx, func(ln string) bool { return strings.HasPrefix(ln, trimmed) }); idx >= 0 {
+			return idx
 		}
 	}
 	if lineIdx >= 0 && lineIdx < len(lines) {
@@ -278,19 +283,42 @@ func findPromptLine(lines []string, lineIdx int, raw string) int {
 	return -1
 }
 
-// runInlinePrompt completes the inline prompt found on line lineIdx (with text
-// raw) and applies the result. It reports whether an edit was sent.
-func (c *chatService) runInlinePrompt(uri string, lineIdx int, raw string) bool {
+// nearestLine returns the index of the line closest to lineIdx for which
+// match is true, or -1.
+func nearestLine(lines []string, lineIdx int, match func(string) bool) int {
+	for dist := 0; dist < len(lines); dist++ {
+		up, down := lineIdx-dist, lineIdx+dist
+		if up >= 0 && up < len(lines) && match(lines[up]) {
+			return up
+		}
+		if down >= 0 && down < len(lines) && match(lines[down]) {
+			return down
+		}
+		if up < 0 && down >= len(lines) {
+			break
+		}
+	}
+	return -1
+}
+
+// runInlinePrompt completes the inline prompt tagText found near line lineIdx
+// and applies the result. It reports whether an edit was sent.
+func (c *chatService) runInlinePrompt(uri string, lineIdx int, tagText string) bool {
 	s := c.srv
-	if !s.hasLLMTarget(surfaceCompletion) {
+	d := s.getDocument(uri)
+	if d == nil || !s.hasLLMTarget(surfaceCompletion) {
 		return false
 	}
-	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: lineIdx, Character: byteOffsetToUTF16(raw, len(raw))}}
+	idx, tag := s.findInlineTagLine(d.lines, lineIdx, tagText)
+	if idx < 0 {
+		return false // the prompt was edited before we got to it
+	}
+	// The cursor sits right after the closing marker, so text typed after
+	// the prompt is neither taken as the typed prefix nor replaced.
+	line := d.lines[idx]
+	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: idx, Character: byteOffsetToUTF16(line, tag.end)}}
 	p.Context = map[string]int{"triggerKind": 1}
 	above, current, below, funcCtx := s.lineContext(uri, p.Position)
-	if current != raw {
-		return false // the line changed before we got to it
-	}
 	docStr := s.completion.buildDocString(p, above, current, below, funcCtx)
 	newFunc := s.isDefiningNewFunction(uri, p.Position)
 	extra, hasExtra := s.buildAdditionalContext(newFunc, uri, p.Position)
@@ -299,28 +327,34 @@ func (c *chatService) runInlinePrompt(uri string, lineIdx int, raw string) bool 
 		s.notifyLLMFailure("inline prompt", nil)
 		return false
 	}
-	return c.applyInlineCompletion(uri, lineIdx, raw, items[0].TextEdit.NewText)
+	return c.applyInlineCompletion(uri, idx, tagText, items[0].TextEdit.NewText)
 }
 
-// applyInlineCompletion removes the inline prompt markers from the prompt line
-// and appends text at its end. Like applyChatEdits it re-locates the prompt
-// line in the live document, since the LLM call may have taken a while.
-func (c *chatService) applyInlineCompletion(uri string, lineIdx int, raw string, text string) bool {
+// applyInlineCompletion replaces the inline prompt tagText with text (or, for
+// the line-replacing ">>!" form, the whole line). Like applyChatEdits it
+// re-locates the prompt in the live document, since the LLM call may have
+// taken a while, and skips the edit when the prompt is gone.
+func (c *chatService) applyInlineCompletion(uri string, lineIdx int, tagText string, text string) bool {
 	s := c.srv
 	d := s.getDocument(uri)
 	if d == nil || strings.TrimSpace(text) == "" {
 		return false
 	}
-	idx := findPromptLine(d.lines, lineIdx, raw)
-	if idx < 0 || d.lines[idx] != raw {
-		logging.Logf("lsp ", "inline prompt skip stale edit: prompt line %d no longer present", lineIdx)
+	idx, tag := s.findInlineTagLine(d.lines, lineIdx, tagText)
+	if idx < 0 {
+		logging.Logf("lsp ", "inline prompt skip stale edit: prompt %q no longer present", tagText)
 		return false
 	}
-	openStr, _, openChar, closeChar := s.inlineMarkers()
-	edits := promptRemovalEditsForLine(raw, idx, openStr, openChar, closeChar)
-	end := Position{Line: idx, Character: byteOffsetToUTF16(raw, len(raw))}
-	edits = append(edits, TextEdit{Range: Range{Start: end, End: end}, NewText: text})
-	we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
+	line := d.lines[idx]
+	start, end := tag.start, tag.end
+	if tag.wholeLine {
+		start, end = 0, len(line)
+	}
+	rng := Range{
+		Start: Position{Line: idx, Character: byteOffsetToUTF16(line, start)},
+		End:   Position{Line: idx, Character: byteOffsetToUTF16(line, end)},
+	}
+	we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: {{Range: rng, NewText: text}}}}
 	s.clientApplyEdit("Hexai: inline prompt", we)
 	return true
 }

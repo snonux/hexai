@@ -66,8 +66,9 @@ Hexai supports inline prompt tags you can type in code to request an action from
 
 Spaced variants (e.g., `> spaced >`) are ignored.
 
-Each inline prompt is sent once, even if you keep typing while it runs. If the prompt line was
-changed before the result arrived, the result is dropped rather than inserted at the wrong place.
+Each inline prompt is sent once, even if you keep typing while it runs (including after the closing
+marker). The result replaces the prompt tag where it is; if the tag itself was edited or removed before
+the result arrived, the result is dropped rather than inserted at the wrong place.
 
 ## Code actions
 

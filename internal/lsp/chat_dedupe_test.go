@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -114,22 +115,26 @@ func TestDetectAndHandleChat_InlinePromptRunsOnce(t *testing.T) {
 	base := "package main\n\nfunc main() {\n\t>!print one>\n}\n"
 	s.setDocument(uri, base)
 	s.chatSvc().detectAndHandleChat(uri)
-	s.setDocument(uri, base+"// typing")
-	s.chatSvc().detectAndHandleChat(uri)
+	// Typing after the closing marker and elsewhere must not ask again.
+	for _, text := range []string{
+		strings.Replace(base, "one>", "one> x", 1),
+		strings.Replace(base, "one>", "one> xy", 1) + "// typing",
+	} {
+		s.setDocument(uri, text)
+		s.chatSvc().detectAndHandleChat(uri)
+	}
 	close(g.release)
 	s.inflight.Wait()
 	if got := g.calls.Load(); got != 1 {
 		t.Fatalf("expected one inline request, got %d", got)
 	}
 	edits := chatEditsFromOutput(t, &out, uri)
-	if len(edits) != 2 {
-		t.Fatalf("expected marker removal + insert, got %+v", edits)
+	if len(edits) != 1 {
+		t.Fatalf("expected one edit replacing the tag, got %+v", edits)
 	}
-	if edits[0].Range.Start != (Position{Line: 3, Character: 1}) || edits[0].Range.End != (Position{Line: 3, Character: 13}) {
-		t.Fatalf("unexpected marker removal range %+v", edits[0].Range)
-	}
-	if edits[1].NewText != "fmt.Println(1)" || edits[1].Range.Start != (Position{Line: 3, Character: 13}) {
-		t.Fatalf("unexpected insert %+v", edits[1])
+	want := Range{Start: Position{Line: 3, Character: 1}, End: Position{Line: 3, Character: 13}}
+	if edits[0].Range != want || edits[0].NewText != "fmt.Println(1)" {
+		t.Fatalf("unexpected edit %+v", edits[0])
 	}
 }
 
@@ -139,17 +144,37 @@ func TestApplyInlineCompletion_FollowsShiftedLine(t *testing.T) {
 	s.out = &out
 	uri := "file:///main.go"
 	// The prompt was on line 1; a line was inserted above meanwhile.
-	s.setDocument(uri, "a\nb\n>!x>")
+	s.setDocument(uri, "a\nb\nv := >!x> // keep")
 	if !s.chatSvc().applyInlineCompletion(uri, 1, ">!x>", "y") {
 		t.Fatalf("expected edit")
 	}
 	edits := chatEditsFromOutput(t, &out, uri)
-	if len(edits) != 2 || edits[1].Range.Start.Line != 2 {
-		t.Fatalf("expected edits on line 2, got %+v", edits)
+	want := Range{Start: Position{Line: 2, Character: 5}, End: Position{Line: 2, Character: 9}}
+	if len(edits) != 1 || edits[0].Range != want {
+		t.Fatalf("expected the tag on line 2 to be replaced, got %+v", edits)
 	}
 	out.Reset()
 	if s.chatSvc().applyInlineCompletion(uri, 1, ">!gone>", "y") || out.Len() != 0 {
-		t.Fatalf("expected no edit when the prompt line is gone")
+		t.Fatalf("expected no edit when the prompt is gone")
+	}
+}
+
+func TestApplyInlineCompletion_DoubleOpenReplacesLine(t *testing.T) {
+	s := newTestServer()
+	var out bytes.Buffer
+	s.out = &out
+	uri := "file:///main.go"
+	s.setDocument(uri, "\t>>!loop>")
+	tag, ok := s.findInlineTag("\t>>!loop>")
+	if !ok || !tag.wholeLine {
+		t.Fatalf("expected a line-replacing tag, got %+v %v", tag, ok)
+	}
+	if !s.chatSvc().applyInlineCompletion(uri, 0, tag.text, "\tfor {}") {
+		t.Fatalf("expected edit")
+	}
+	edits := chatEditsFromOutput(t, &out, uri)
+	if edits[0].Range.Start.Character != 0 || edits[0].Range.End.Character != 9 {
+		t.Fatalf("expected the whole line to be replaced, got %+v", edits[0].Range)
 	}
 }
 
@@ -249,5 +274,40 @@ func TestApplyChatEdits_UTF16Positions(t *testing.T) {
 	}
 	if edits[1].Range.Start.Character != 11 {
 		t.Fatalf("unexpected insert position %+v", edits[1].Range)
+	}
+}
+
+func TestCompletion_SkipsInlinePromptInFlight(t *testing.T) {
+	s := newTestServer()
+	s.out = io.Discard
+	c := &countingLLM{}
+	s.llmClient = c
+	uri := "file:///main.go"
+	line := "\t>!print one>"
+	s.setDocument(uri, line)
+	s.chatSvc().tryBeginPrompt(inlineKey(uri, ">!print one>"))
+	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: 0, Character: len(line)}}
+	p.Context = map[string]int{"triggerKind": 1}
+	list := s.completionSvc().completeWithLLM(p, "", line, "", "", "")
+	if len(list.Items) != 0 || c.calls != 0 {
+		t.Fatalf("expected an empty result without LLM call, got %+v calls=%d", list, c.calls)
+	}
+}
+
+func TestApplyChatEdits_TextTypedAfterTrigger(t *testing.T) {
+	s := newTestServer()
+	var out bytes.Buffer
+	s.out = &out
+	uri := "file:///chat.txt"
+	s.setDocument(uri, "intro\nwhy?> and more")
+	if !s.chatSvc().applyChatEdits(uri, 0, "why?>", "> because") {
+		t.Fatalf("expected the answer to be inserted")
+	}
+	edits := chatEditsFromOutput(t, &out, uri)
+	if edits[0].Range.Start != (Position{Line: 1, Character: 4}) || edits[0].Range.End != (Position{Line: 1, Character: 5}) {
+		t.Fatalf("expected the original trigger to be removed, got %+v", edits[0].Range)
+	}
+	if edits[1].Range.Start != (Position{Line: 1, Character: 14}) {
+		t.Fatalf("expected the answer after the line, got %+v", edits[1].Range)
 	}
 }

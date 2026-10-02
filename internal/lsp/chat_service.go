@@ -90,6 +90,9 @@ func (c *chatService) prunePrompts(uri string, lines []string) {
 	present := make(map[string]struct{}, len(lines))
 	for _, ln := range lines {
 		present[promptKey(uri, ln)] = struct{}{}
+		if tag, ok := c.srv.findInlineTag(ln); ok {
+			present[inlineKey(uri, tag.text)] = struct{}{}
+		}
 	}
 	prefix := uri + "\x00"
 	for key, finished := range c.pending {
@@ -100,6 +103,14 @@ func (c *chatService) prunePrompts(uri string, lines []string) {
 			delete(c.pending, key)
 		}
 	}
+}
+
+// promptPending reports whether key is in flight or answered and unchanged.
+func (c *chatService) promptPending(key string) bool {
+	c.pendingMu.Lock()
+	defer c.pendingMu.Unlock()
+	_, ok := c.pending[key]
+	return ok
 }
 
 // promptKey identifies a prompt by document and the prompt line's text, so the
