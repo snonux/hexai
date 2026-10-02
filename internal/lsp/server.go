@@ -335,10 +335,16 @@ func (s *Server) customActions() []appconfig.CustomAction {
 }
 
 func (s *Server) requestTimeoutContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(s.baseContext(), timeout)
+}
+
+// baseContext returns the server context, or context.Background for the bare
+// Server literals used in tests.
+func (s *Server) baseContext() context.Context {
 	if s.serverCtx == nil {
-		return context.WithTimeout(context.Background(), timeout)
+		return context.Background()
 	}
-	return context.WithTimeout(s.serverCtx, timeout)
+	return s.serverCtx
 }
 
 func (s *Server) cancelRequests() {
@@ -415,15 +421,34 @@ func (s *Server) Run(ctx context.Context) error {
 			// A response from client; ignore
 			continue
 		}
-		// Track every request goroutine so Run's deferred inflight.Wait()
-		// catches them all and prevents use-after-close writes to s.out.
-		s.inflight.Add(1)
-		go func(r Request) {
-			defer s.inflight.Done()
-			s.handle(r)
-		}(req)
+		if handledInline(req.Method) {
+			s.handle(req)
+		} else {
+			// Track every request goroutine so Run's deferred inflight.Wait()
+			// catches them all and prevents use-after-close writes to s.out.
+			s.inflight.Add(1)
+			go func(r Request) {
+				defer s.inflight.Done()
+				s.handle(r)
+			}(req)
+		}
 		if s.exited.Load() {
 			return nil
 		}
 	}
+}
+
+// handledInline reports whether method must be handled on the read loop
+// rather than in its own goroutine. Document sync notifications have to be
+// applied in the order the client sent them, and before any later request
+// (completion, code action) reads the document; dispatching them
+// concurrently let a stale didChange overwrite a newer one and let requests
+// see outdated text. "exit" is handled inline so Run returns right away
+// instead of blocking on the next read.
+func handledInline(method string) bool {
+	switch method {
+	case "textDocument/didOpen", "textDocument/didChange", "textDocument/didClose", "exit":
+		return true
+	}
+	return false
 }

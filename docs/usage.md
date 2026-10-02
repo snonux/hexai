@@ -37,6 +37,13 @@ Ask a question at the end of a line and receive the answer inline.
 - It inserts a blank line, then a reply line prefixed with `> `, then one extra newline so most
   editors place the cursor on a fresh blank line after the answer.
 - If a `>` reply already exists below the question, Hexai won’t answer again.
+- Each question is sent to the LLM once. You can keep typing while the answer is on its way; it is
+  inserted below the question even if lines above it moved meanwhile.
+- Every line of the answer is prefixed with `>`, so multi-line answers stay recognizable as replies.
+- Questions may sit in a code comment, e.g. `// why is this slow?>`. Only a `/` followed by a letter
+  (such as `/reload>`) is treated as a slash command.
+- If the request fails, the editor shows a Hexai warning message instead of silently doing nothing.
+  Edit the question line (for example delete and retype the trailing `>`) to ask again.
 
 Example:
 
@@ -59,6 +66,9 @@ Hexai supports inline prompt tags you can type in code to request an action from
 
 Spaced variants (e.g., `> spaced >`) are ignored.
 
+Each inline prompt is sent once, even if you keep typing while it runs. If the prompt line was
+changed before the result arrived, the result is dropped rather than inserted at the wrong place.
+
 ## Code actions
 
 Operate on the current selection in Helix:
@@ -67,6 +77,10 @@ Operate on the current selection in Helix:
 - Resolve diagnostics: gathers only diagnostics overlapping the selection and fixes them by editing the selected code; diagnostics outside the selection are not changed.
 - Implement unit test (Go): when editing a `.go` file, adds a code action to generate a unit test for the function under the cursor. If `<file>_test.go` exists, appends a new `Test*`; otherwise creates the test file with `package` and `import "testing"`.
 - Document code: adds idiomatic documentation comments to the selected code, preserving behavior and returning only the documented code.
+
+Code actions keep the selection's leading indentation and trailing line break, so rewriting whole
+lines does not join the next line onto the result. If the LLM request fails, the editor shows a Hexai
+warning message.
 
 Instruction sources (first match wins):
 

@@ -13,7 +13,7 @@ type chatCommandResult struct {
 
 func (c *chatService) chatCommandResponse(uri string, lineIdx int, prompt string) (chatCommandResult, bool) {
 	trimmed := strings.TrimSpace(c.stripTrailingTrigger(prompt))
-	if trimmed == "" || !strings.HasPrefix(trimmed, "/") {
+	if !isSlashCommand(trimmed) {
 		return chatCommandResult{}, false
 	}
 

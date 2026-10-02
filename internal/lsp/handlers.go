@@ -101,10 +101,7 @@ func (s *Server) reply(id json.RawMessage, result any, err *RespError) {
 
 func (s *Server) completionCacheKey(p CompletionParams, above, current, below, funcCtx string, inParams bool, hasExtra bool, extraText string) string {
 	// Normalize left-of-cursor by trimming trailing spaces/tabs
-	idx := p.Position.Character
-	if idx > len(current) {
-		idx = len(current)
-	}
+	idx := utf16OffsetToByteOffset(current, p.Position.Character)
 	left := strings.TrimRight(current[:idx], " \t")
 	right := ""
 	if idx < len(current) {
@@ -225,7 +222,7 @@ func (s *Server) isTriggerEvent(p CompletionParams, current string) bool {
 func (s *Server) makeCompletionItems(cleaned string, inParams bool, current string, p CompletionParams, docStr string, detail string, sortPrefix string) []CompletionItem {
 	te, filter := computeTextEditAndFilter(cleaned, inParams, current, p)
 	rm := s.collectPromptRemovalEdits(p.TextDocument.URI)
-	label := labelForCompletion(cleaned, filter)
+	label := labelForCompletion(te.NewText, filter)
 	if strings.TrimSpace(detail) == "" {
 		detail = "Hexai LLM completion"
 	}
@@ -255,15 +252,4 @@ func containsAny(haystack string, seqs []string) bool {
 		}
 	}
 	return false
-}
-
-func (s *Server) fallbackCompletionItems(docStr string) []CompletionItem {
-	return []CompletionItem{{
-		Label:         "hexai-complete",
-		Kind:          1,
-		Detail:        "dummy completion",
-		InsertText:    "hexai",
-		SortText:      "9999",
-		Documentation: docStr,
-	}}
 }

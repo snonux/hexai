@@ -26,6 +26,7 @@ func (c *chatService) detectAndHandleChat(uri string) {
 	if d == nil || len(d.lines) == 0 {
 		return
 	}
+	c.prunePrompts(uri, d.lines)
 	suffix, prefixes, _ := s.chatConfig()
 	openStr, _, openChar, closeChar := s.inlineMarkers()
 	for i, raw := range d.lines {
@@ -39,7 +40,9 @@ func (c *chatService) detectAndHandleChat(uri string) {
 		if hasChatResponseBelow(d, i) {
 			continue
 		}
-		c.handleChatPrompt(uri, i, match)
+		if !c.handleChatPrompt(uri, i, raw, match) {
+			continue // already being answered
+		}
 		// Only handle one per change tick to avoid flooding
 		break
 	}
@@ -56,19 +59,29 @@ func (c *chatService) maybeRunInlinePrompt(uri string, lineIdx int, raw string, 
 	if !lineHasInlinePrompt(raw, openStr, openChar, closeChar) {
 		return false
 	}
-	if s.hasLLMTarget(surfaceCompletion) {
-		pos := Position{Line: lineIdx, Character: len(raw)}
-		s.inflight.Add(1)
-		go func() {
-			defer s.inflight.Done()
-			c.runInlinePrompt(uri, pos)
-		}()
+	if !s.hasLLMTarget(surfaceCompletion) {
+		return true
 	}
+	key := promptKey(uri, raw)
+	if !c.tryBeginPrompt(key) {
+		return true
+	}
+	s.inflight.Add(1)
+	go func() {
+		defer s.inflight.Done()
+		c.runInlinePrompt(uri, lineIdx, raw)
+		c.finishPrompt(key)
+	}()
 	return true
 }
 
 func parseChatPromptLine(raw string, suffix string, prefixes []string) (chatPromptLine, bool) {
 	if suffix == "" {
+		return chatPromptLine{}, false
+	}
+	if strings.HasPrefix(strings.TrimSpace(raw), ">") {
+		// Reply lines inserted by Hexai are never prompts, even when the
+		// answer text happens to end in a trigger such as "?>".
 		return chatPromptLine{}, false
 	}
 	last := findLastNonSpaceIndex(raw)
@@ -84,10 +97,20 @@ func parseChatPromptLine(raw string, suffix string, prefixes []string) (chatProm
 	if prompt == "" {
 		return chatPromptLine{}, false
 	}
-	if !strings.HasPrefix(prompt, "/") && !hasTriggerPrefix(raw, last, prefixes) {
+	if !isSlashCommand(prompt) && !hasTriggerPrefix(raw, last, prefixes) {
 		return chatPromptLine{}, false
 	}
 	return chatPromptLine{lastNonSpace: last, removeCount: removeCount, prompt: prompt}, true
+}
+
+// isSlashCommand reports whether prompt looks like a chat slash command such as
+// "/reload". A line comment ("// question") is not a command.
+func isSlashCommand(prompt string) bool {
+	if len(prompt) < 2 || prompt[0] != '/' {
+		return false
+	}
+	ch := prompt[1]
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
 }
 
 func findLastNonSpaceIndex(raw string) int {
@@ -123,144 +146,183 @@ func hasChatResponseBelow(d *document, lineIdx int) bool {
 	return false
 }
 
-func (c *chatService) handleChatPrompt(uri string, lineIdx int, match chatPromptLine) {
+// handleChatPrompt answers the chat prompt on lineIdx, either directly for a
+// slash command or by asking the LLM in the background. It returns false when
+// the same prompt is already being answered.
+func (c *chatService) handleChatPrompt(uri string, lineIdx int, raw string, match chatPromptLine) bool {
 	s := c.srv
+	key := promptKey(uri, raw)
+	if !c.tryBeginPrompt(key) {
+		return false
+	}
 	if resp, ok := c.chatCommandResponse(uri, lineIdx, match.prompt); ok {
-		msg := strings.TrimSpace(resp.message)
-		if msg != "" {
-			c.applyChatEdits(uri, lineIdx, "> "+msg)
+		if msg := strings.TrimSpace(resp.message); msg != "" {
+			c.applyChatEdits(uri, lineIdx, raw, quoteReply(msg))
 		}
-		return
+		c.finishPrompt(key)
+		return true
 	}
 	s.inflight.Add(1)
 	go func() {
 		defer s.inflight.Done()
-		c.requestChatResponse(uri, lineIdx, match)
+		c.requestChatResponse(uri, lineIdx, raw, match)
+		c.finishPrompt(key)
 	}()
+	return true
 }
 
-func (c *chatService) requestChatResponse(uri string, lineIdx int, match chatPromptLine) {
+// requestChatResponse asks the LLM to answer the prompt and inserts the reply.
+// It reports whether an edit was sent to the editor.
+func (c *chatService) requestChatResponse(uri string, lineIdx int, raw string, match chatPromptLine) bool {
 	s := c.srv
+	if !s.hasLLMTarget(surfaceChat) {
+		return false
+	}
 	ctx, cancel := s.requestTimeoutContext(25 * time.Second)
 	defer cancel()
-	pos := Position{Line: lineIdx, Character: match.lastNonSpace + 1}
+	pos := Position{Line: lineIdx, Character: byteOffsetToUTF16(raw, match.lastNonSpace+1)}
 	msgs := c.buildChatMessages(uri, pos, match.prompt)
 	spec := s.buildRequestSpec(surfaceChat)
-	if !s.hasLLMTarget(surfaceChat) {
-		return
-	}
-	modelUsed := spec.effectiveModel("")
-	logging.Logf("lsp ", "chat llm=requesting model=%s", modelUsed)
+	logging.Logf("lsp ", "chat llm=requesting model=%s", spec.effectiveModel(""))
 	text, err := s.chatWithStats(ctx, surfaceChat, spec, msgs)
 	if err != nil {
 		logging.Logf("lsp ", "chat llm error: %v", err)
-		return
+		s.notifyLLMFailure("chat", err)
+		return false
 	}
 	out := strings.TrimSpace(stripCodeFences(text))
 	if out == "" {
-		return
+		return false
 	}
-	c.applyChatEdits(uri, lineIdx, "> "+out)
+	return c.applyChatEdits(uri, lineIdx, raw, quoteReply(out))
 }
 
-// applyChatEdits removes the triggering punctuation at end of the line and
-// inserts two newlines followed by a new line with the response prefixed.
+// applyChatEdits removes the triggering punctuation at end of the prompt line
+// and inserts two newlines followed by a new line with the response prefixed.
+// It reports whether an edit was sent to the editor.
 //
-// The trigger position is recomputed from the live document line rather than
-// trusting coordinates captured when the prompt was first detected.
-// requestChatResponse runs asynchronously (a goroutine spawned in
-// handleChatPrompt), so a didChange notification may have shifted or removed
-// characters on the trigger line during the LLM round-trip. Using stale
-// captured lastNonSpace/removeCount for the delete range would remove user
-// content instead of the trigger punctuation, corrupting the line.
-// Recomputing from d.lines[lineIdx] — and skipping the edit entirely when the
-// trigger punctuation is no longer present — prevents that corruption.
-func (c *chatService) applyChatEdits(uri string, lineIdx int, response string) {
+// The response is produced asynchronously, so the document may have changed
+// during the LLM round-trip. The prompt line is therefore located again by its
+// text (see findPromptLine) and the trigger position recomputed from the live
+// line; when the prompt line is gone or no longer ends in a trigger the edit is
+// skipped rather than risk deleting user content.
+func (c *chatService) applyChatEdits(uri string, lineIdx int, raw string, response string) bool {
 	s := c.srv
 	d := s.getDocument(uri)
 	if d == nil {
-		return
+		return false
 	}
-	// Guard against a stale line index. The chat response is produced
-	// asynchronously: handleChatPrompt detects the trigger line, then a goroutine
-	// calls requestChatResponse -> applyChatEdits. In the meantime a didChange
-	// notification may have shrunk the document, so lineIdx can now point past the
-	// end of d.lines. Indexing d.lines[lineIdx] in that case panics with
-	// index-out-of-range. We bail out (skip the stale edit) rather than risk
-	// corrupting the (already-changed) document at the wrong position.
-	if lineIdx < 0 || lineIdx >= len(d.lines) {
-		logging.Logf("lsp ", "chat skip stale edit: lineIdx=%d len=%d", lineIdx, len(d.lines))
-		return
+	idx := findPromptLine(d.lines, lineIdx, raw)
+	if idx < 0 {
+		logging.Logf("lsp ", "chat skip stale edit: prompt line %d no longer present", lineIdx)
+		return false
 	}
-	// Recompute the trigger coordinates from the current line. If the line was
-	// edited during the async round-trip the trigger may have moved or vanished;
-	// only delete when the trigger punctuation is still present at the freshly
-	// computed position, otherwise we would delete user content. parseChatPromptLine
-	// revalidates the suffix (and, for non-slash prompts, the trigger prefix) at
-	// the new lastNonSpace, so a shifted/removed trigger is detected here.
+	line := d.lines[idx]
 	suffix, prefixes, _ := s.chatConfig()
-	match, ok := parseChatPromptLine(d.lines[lineIdx], suffix, prefixes)
+	match, ok := parseChatPromptLine(line, suffix, prefixes)
 	if !ok {
-		logging.Logf("lsp ", "chat skip stale edit: trigger no longer present on line %d (%q)", lineIdx, d.lines[lineIdx])
-		return
+		logging.Logf("lsp ", "chat skip stale edit: trigger no longer present on line %d (%q)", idx, line)
+		return false
 	}
-	lastNonSpace := match.lastNonSpace
-	removeCount := match.removeCount
-	// 1) Delete the trailing punctuation (1 or 2 chars)
-	delStart := Position{Line: lineIdx, Character: lastNonSpace + 1 - removeCount}
-	delEnd := Position{Line: lineIdx, Character: lastNonSpace + 1}
+	// 1) Delete the trailing trigger character.
+	delStart := Position{Line: idx, Character: byteOffsetToUTF16(line, match.lastNonSpace+1-match.removeCount)}
+	delEnd := Position{Line: idx, Character: byteOffsetToUTF16(line, match.lastNonSpace+1)}
 	// 2) Insert two newlines and the response at end-of-line, then one extra blank line
-	insPos := Position{Line: lineIdx, Character: len(d.lines[lineIdx])}
-	resp := strings.TrimRight(response, "\n") + "\n"
-	insert := "\n\n" + resp + "\n"
+	insPos := Position{Line: idx, Character: byteOffsetToUTF16(line, len(line))}
+	insert := "\n\n" + strings.TrimRight(response, "\n") + "\n\n"
 	edits := []TextEdit{
 		{Range: Range{Start: delStart, End: delEnd}, NewText: ""},
 		{Range: Range{Start: insPos, End: insPos}, NewText: insert},
 	}
 	we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
 	s.clientApplyEdit("Hexai: insert chat response", we)
+	return true
 }
 
-func (c *chatService) runInlinePrompt(uri string, pos Position) {
+// quoteReply prefixes every line of a chat reply with "> " (">" for blank
+// lines), so multi-line answers are recognized as replies by the duplicate
+// check and the chat history, and are never mistaken for new prompts.
+func quoteReply(text string) string {
+	lines := splitLines(strings.TrimRight(text, "\n"))
+	for i, ln := range lines {
+		if strings.TrimSpace(ln) == "" {
+			lines[i] = ">"
+			continue
+		}
+		lines[i] = "> " + ln
+	}
+	return strings.Join(lines, "\n")
+}
+
+// findPromptLine returns the index of the line whose text equals raw,
+// preferring lineIdx and otherwise the nearest match (lines above the prompt
+// may have been added or removed meanwhile). When no line matches, the prompt
+// line itself was edited; lineIdx is returned if still valid so callers can
+// re-validate the live line, otherwise -1.
+func findPromptLine(lines []string, lineIdx int, raw string) int {
+	for dist := 0; dist < len(lines); dist++ {
+		up, down := lineIdx-dist, lineIdx+dist
+		if up >= 0 && up < len(lines) && lines[up] == raw {
+			return up
+		}
+		if down >= 0 && down < len(lines) && lines[down] == raw {
+			return down
+		}
+		if up < 0 && down >= len(lines) {
+			break
+		}
+	}
+	if lineIdx >= 0 && lineIdx < len(lines) {
+		return lineIdx
+	}
+	return -1
+}
+
+// runInlinePrompt completes the inline prompt found on line lineIdx (with text
+// raw) and applies the result. It reports whether an edit was sent.
+func (c *chatService) runInlinePrompt(uri string, lineIdx int, raw string) bool {
 	s := c.srv
 	if !s.hasLLMTarget(surfaceCompletion) {
-		return
+		return false
 	}
-	d := s.getDocument(uri)
-	if d == nil || pos.Line < 0 || pos.Line >= len(d.lines) {
-		return
-	}
-	line := d.lines[pos.Line]
-	openStr, _, openChar, closeChar := s.inlineMarkers()
-	if !lineHasInlinePrompt(line, openStr, openChar, closeChar) {
-		return
-	}
-	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: pos.Line, Character: len(line)}}
+	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: lineIdx, Character: byteOffsetToUTF16(raw, len(raw))}}
 	p.Context = map[string]int{"triggerKind": 1}
 	above, current, below, funcCtx := s.lineContext(uri, p.Position)
+	if current != raw {
+		return false // the line changed before we got to it
+	}
 	docStr := s.completion.buildDocString(p, above, current, below, funcCtx)
 	newFunc := s.isDefiningNewFunction(uri, p.Position)
 	extra, hasExtra := s.buildAdditionalContext(newFunc, uri, p.Position)
 	items, ok, _ := s.completion.tryLLMCompletion(p, above, current, below, funcCtx, docStr, hasExtra, extra)
-	if !ok || len(items) == 0 {
-		return
+	if !ok || len(items) == 0 || items[0].TextEdit == nil {
+		s.notifyLLMFailure("inline prompt", nil)
+		return false
 	}
-	c.applyInlineCompletion(uri, items[0])
+	return c.applyInlineCompletion(uri, lineIdx, raw, items[0].TextEdit.NewText)
 }
 
-func (c *chatService) applyInlineCompletion(uri string, item CompletionItem) {
-	var edits []TextEdit
-	if len(item.AdditionalTextEdits) > 0 {
-		edits = append(edits, item.AdditionalTextEdits...)
+// applyInlineCompletion removes the inline prompt markers from the prompt line
+// and appends text at its end. Like applyChatEdits it re-locates the prompt
+// line in the live document, since the LLM call may have taken a while.
+func (c *chatService) applyInlineCompletion(uri string, lineIdx int, raw string, text string) bool {
+	s := c.srv
+	d := s.getDocument(uri)
+	if d == nil || strings.TrimSpace(text) == "" {
+		return false
 	}
-	if item.TextEdit != nil {
-		edits = append(edits, *item.TextEdit)
+	idx := findPromptLine(d.lines, lineIdx, raw)
+	if idx < 0 || d.lines[idx] != raw {
+		logging.Logf("lsp ", "inline prompt skip stale edit: prompt line %d no longer present", lineIdx)
+		return false
 	}
-	if len(edits) == 0 {
-		return
-	}
+	openStr, _, openChar, closeChar := s.inlineMarkers()
+	edits := promptRemovalEditsForLine(raw, idx, openStr, openChar, closeChar)
+	end := Position{Line: idx, Character: byteOffsetToUTF16(raw, len(raw))}
+	edits = append(edits, TextEdit{Range: Range{Start: end, End: end}, NewText: text})
 	we := WorkspaceEdit{Changes: map[string][]TextEdit{uri: edits}}
-	c.srv.clientApplyEdit("Hexai: inline prompt", we)
+	s.clientApplyEdit("Hexai: inline prompt", we)
+	return true
 }
 
 // buildChatHistory walks upwards from the current line to collect the most recent

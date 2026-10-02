@@ -2,7 +2,13 @@ package lsp
 
 import (
 	"context"
+	"sync"
+	"time"
 )
+
+// completionRequestTimeout bounds a single completion request, LLM calls
+// included.
+const completionRequestTimeout = 12 * time.Second
 
 // completionService owns the entire code-completion subsystem that used to be
 // scattered across Server. It bundles the completion cache/throttle state
@@ -16,6 +22,16 @@ import (
 type completionService struct {
 	srv *Server
 	completionState
+
+	// activeMu guards active: the cancel func of the running completion
+	// request per document URI. A newer request for the same document cancels
+	// the older one, whose result the client would discard anyway.
+	activeMu sync.Mutex
+	active   map[string]*activeCompletion
+}
+
+type activeCompletion struct {
+	cancel context.CancelFunc
 }
 
 // newCompletionService constructs the completion subsystem bound to srv.
@@ -23,6 +39,38 @@ func newCompletionService(srv *Server) *completionService {
 	return &completionService{
 		srv:             srv,
 		completionState: newCompletionState(),
+	}
+}
+
+// beginCompletion registers a completion request for uri, cancelling any
+// older request for the same document still waiting on debounce or the LLM.
+// The returned done func must be called when the request has been answered;
+// pass background=true when LLM work continues after the reply (the
+// return-first mode collecting the remaining backends), which then keeps the
+// context alive until that work's own timeout has passed.
+func (cs *completionService) beginCompletion(uri string) (context.Context, func(background bool)) {
+	ctx, cancel := context.WithCancel(cs.srv.baseContext())
+	entry := &activeCompletion{cancel: cancel}
+	cs.activeMu.Lock()
+	if cs.active == nil {
+		cs.active = make(map[string]*activeCompletion)
+	}
+	if prev := cs.active[uri]; prev != nil {
+		prev.cancel()
+	}
+	cs.active[uri] = entry
+	cs.activeMu.Unlock()
+	return ctx, func(background bool) {
+		cs.activeMu.Lock()
+		if cs.active[uri] == entry {
+			delete(cs.active, uri)
+		}
+		cs.activeMu.Unlock()
+		if background {
+			time.AfterFunc(completionRequestTimeout+time.Second, cancel)
+			return
+		}
+		cancel()
 	}
 }
 
