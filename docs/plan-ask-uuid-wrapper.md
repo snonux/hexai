@@ -47,7 +47,7 @@ The existing `project:<repo> +agent` auto-injection is preserved (later extended
 | `ask list +READY` | `task project:P +agent +READY export` |
 | `ask list +BLOCKED` | `task project:P +agent +BLOCKED export` |
 | `ask list +frontend` | `task project:P +agent +frontend export` |
-| `ask list started` | `task project:P +agent status:pending +ACTIVE export` |
+| `ask list started` | `task project:P +agent status:pending "(status:pending and +ACTIVE)" export` |
 | `ask list limit:3` | show only first 3 results |
 | `ask list +READY limit:1` | next ready task |
 

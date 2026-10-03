@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -68,9 +69,13 @@ func TestHandleWatch_DrawsStderrOnNonZero(t *testing.T) {
 	ticks := make(chan time.Time)
 	ctx, cancel := context.WithCancel(context.Background())
 	callCount := 0
+	var firstArgs []string
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		callCount++
-		if len(args) >= 2 && args[0] == startedFilter && args[1] == "export" {
+		if callCount == 1 {
+			firstArgs = append([]string(nil), args...)
+		}
+		if len(args) >= 2 && args[0] == "(status:pending and +ACTIVE)" && args[1] == "export" {
 			if callCount == 1 {
 				cancel()
 				return 1, nil
@@ -88,6 +93,9 @@ func TestHandleWatch_DrawsStderrOnNonZero(t *testing.T) {
 	}
 	if code != 1 {
 		t.Fatalf("watch code = %d, want 1", code)
+	}
+	if want := []string{"(status:pending and +ACTIVE)", "export"}; !slices.Equal(firstArgs, want) {
+		t.Fatalf("watch info args = %v, want %v", firstArgs, want)
 	}
 	if !strings.Contains(out.String(), ansiClearScreen) {
 		t.Fatalf("stdout missing clear screen: %q", out.String())

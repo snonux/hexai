@@ -537,8 +537,9 @@ func TestHandleList_TranslatesStarted(t *testing.T) {
 	if code, _ := d.Dispatch(context.Background(), []string{"list", "started", "startedx"}, nil, &stdout, &stderr); code != 0 {
 		t.Fatalf("list code = %d, want 0 (stderr %q)", code, stderr.String())
 	}
-	// started becomes +ACTIVE; the unknown startedx is dropped.
-	want := []string{"status:pending", "+ACTIVE", "export"}
+	// started becomes pending-and-active (bare +ACTIVE would also match
+	// deleted tasks); the unknown startedx is dropped.
+	want := []string{"status:pending", "(status:pending and +ACTIVE)", "export"}
 	if !slices.Equal(capturedArgs, want) {
 		t.Fatalf("args = %v, want %v", capturedArgs, want)
 	}
