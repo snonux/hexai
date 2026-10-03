@@ -44,7 +44,7 @@ func (d *Dispatcher) infoTasks(ctx context.Context, args []string, stderr io.Wri
 }
 
 func (d *Dispatcher) startedInfoTasks(ctx context.Context, stderr io.Writer) ([]TaskExport, int, error) {
-	tasks, code, err := d.exportTasks(ctx, []string{"started", "export"}, stderr)
+	tasks, code, err := d.exportTasks(ctx, []string{startedFilter, "export"}, stderr)
 	if err != nil {
 		return nil, code, err
 	}

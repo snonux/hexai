@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -522,5 +523,23 @@ func TestResolveDueWithin_MonthEndAndLocalTime(t *testing.T) {
 	}
 	if got, _ := resolveSince("1.months", time.Date(2026, 3, 31, 12, 0, 0, 0, loc)); got != "end.after:2026-02-28T12:00" {
 		t.Fatalf("since 1.months from Mar 31 = %q, want end.after:2026-02-28T12:00", got)
+	}
+}
+
+func TestHandleList_TranslatesStarted(t *testing.T) {
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		capturedArgs = args
+		_, _ = io.WriteString(stdout, "[]")
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	if code, _ := d.Dispatch(context.Background(), []string{"list", "started", "startedx"}, nil, &stdout, &stderr); code != 0 {
+		t.Fatalf("list code = %d, want 0 (stderr %q)", code, stderr.String())
+	}
+	// started becomes +ACTIVE; the unknown startedx is dropped.
+	want := []string{"status:pending", "+ACTIVE", "export"}
+	if !slices.Equal(capturedArgs, want) {
+		t.Fatalf("args = %v, want %v", capturedArgs, want)
 	}
 }

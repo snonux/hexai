@@ -27,6 +27,11 @@ func (d *Dispatcher) handleCompleted(ctx context.Context, args []string, stdout,
 	return d.handleListWithFilters(ctx, []string{"status:completed"}, args[1:], stdout, stderr)
 }
 
+// startedFilter is the taskwarrior filter for the "started" shortcut: pending
+// tasks that have been started. taskwarrior has no "started" filter word (a
+// bare "started" before export matches nothing), so it is translated.
+const startedFilter = "+ACTIVE"
+
 // dateFilterAttrs are taskwarrior date attributes usable for time-range
 // filtering. The end attribute is stamped when a task is completed.
 var dateFilterAttrs = []string{"end", "modified", "created", "due", "scheduled", "waiting", "start"}
@@ -72,6 +77,9 @@ func (d *Dispatcher) handleListWithFilters(ctx context.Context, initialFilters, 
 			continue
 		}
 		if isPassThroughFilter(arg) {
+			if arg == "started" {
+				arg = startedFilter
+			}
 			filterArgs = append(filterArgs, arg)
 		}
 	}

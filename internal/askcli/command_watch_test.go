@@ -70,7 +70,7 @@ func TestHandleWatch_DrawsStderrOnNonZero(t *testing.T) {
 	callCount := 0
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		callCount++
-		if len(args) >= 2 && args[0] == "started" && args[1] == "export" {
+		if len(args) >= 2 && args[0] == startedFilter && args[1] == "export" {
 			if callCount == 1 {
 				cancel()
 				return 1, nil

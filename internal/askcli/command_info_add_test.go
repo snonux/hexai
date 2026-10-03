@@ -226,7 +226,7 @@ func TestHandleInfo_MissingUUID(t *testing.T) {
 
 	jsonData := `[{"uuid":"started-uuid","description":"Started task","status":"pending","priority":"M","start":"2026-03-26T10:00:00Z","urgency":5.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
+		if len(args) == 2 && args[0] == startedFilter && args[1] == "export" {
 			_, _ = io.WriteString(stdout, jsonData)
 		}
 		return 0, nil
@@ -247,7 +247,7 @@ func TestHandleInfo_MissingUUID(t *testing.T) {
 
 func TestHandleInfo_MissingUUID_NoStartedTask(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
+		if len(args) == 2 && args[0] == startedFilter && args[1] == "export" {
 			_, _ = io.WriteString(stdout, "[]")
 		}
 		return 0, nil
@@ -265,7 +265,7 @@ func TestHandleInfo_MissingUUID_NoStartedTask(t *testing.T) {
 func TestHandleInfo_MissingUUID_MultipleStartedTasks(t *testing.T) {
 	jsonData := `[{"uuid":"started-1","description":"Started task 1","status":"pending","priority":"M","start":"2026-03-26T10:00:00Z","urgency":5.0,"depends":[]},{"uuid":"started-2","description":"Started task 2","status":"pending","priority":"H","start":"2026-03-26T11:00:00Z","urgency":8.0,"depends":[]}]`
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		if len(args) == 2 && args[0] == "started" && args[1] == "export" {
+		if len(args) == 2 && args[0] == startedFilter && args[1] == "export" {
 			_, _ = io.WriteString(stdout, jsonData)
 		}
 		return 0, nil
