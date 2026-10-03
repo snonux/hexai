@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHandleProjects_ListsUniqueProjects(t *testing.T) {
@@ -190,4 +191,50 @@ func taskExportJSON(tasks []TaskExport) string {
 		panic(err)
 	}
 	return string(data)
+}
+
+func TestHandleProjects_PassesDueWindowFilter(t *testing.T) {
+	var captured []string
+	d := NewDispatcher(nil)
+	d.now = func() time.Time { return time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC) }
+	d.findTaskBinary = func() (string, error) { return "task", nil }
+	d.runTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+		captured = args
+		_, _ = io.WriteString(stdout, "[]")
+		return nil
+	}
+	var stdout, stderr bytes.Buffer
+	code, err := d.Dispatch(context.Background(), []string{"projects", "+auto", "due-window:7.days"}, nil, &stdout, &stderr)
+	if err != nil || code != 0 {
+		t.Fatalf("code=%d err=%v stderr=%q", code, err, stderr.String())
+	}
+	want := "(due.none: or due.by:2026-09-05T12:00)"
+	idx := -1
+	for i, a := range captured {
+		if a == want {
+			idx = i
+		}
+	}
+	if idx < 0 || captured[len(captured)-1] != "export" || idx > len(captured)-2 {
+		t.Fatalf("expected %q before export, got %v", want, captured)
+	}
+}
+
+func TestHandleProjects_InvalidDueFilter(t *testing.T) {
+	called := false
+	d := NewDispatcher(nil)
+	// The value must be rejected before looking up taskwarrior at all.
+	d.findTaskBinary = func() (string, error) { return "", fmt.Errorf("task not installed") }
+	d.runTaskCommand = func(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+		called = true
+		return nil
+	}
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"projects", "due-within:soon"}, nil, &stdout, &stderr)
+	if code != 1 || called {
+		t.Fatalf("expected exit 1 without running task, got code=%d called=%v", code, called)
+	}
+	if !strings.Contains(stderr.String(), "invalid due value") {
+		t.Fatalf("expected invalid-due error, got %q", stderr.String())
+	}
 }

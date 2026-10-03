@@ -288,6 +288,7 @@ func TestResolveSince(t *testing.T) {
 		{value: "foo", err: true},
 		{value: "1.5.days", err: true},
 		{value: "-3.days", err: true},
+		{value: "10001.months", err: true},
 		{value: "", err: true},
 	}
 	for _, tc := range cases {
@@ -371,4 +372,155 @@ func containsArg(args []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestResolveDueWithin(t *testing.T) {
+	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC) // a Saturday
+	cases := []struct {
+		value string
+		want  string
+		err   bool
+	}{
+		{value: "today", want: "due.before:2026-08-30"},
+		{value: "this.week", want: "due.before:2026-08-31"},
+		{value: "week", want: "due.before:2026-08-31"},
+		{value: "this.month", want: "due.before:2026-09-01"},
+		{value: "month", want: "due.before:2026-09-01"},
+		{value: "6.hours", want: "due.by:2026-08-29T18:00"},
+		{value: "7.days", want: "due.by:2026-09-05T12:00"},
+		{value: "0.days", want: "due.by:2026-08-29T12:00"},
+		{value: "2.weeks", want: "due.by:2026-09-12T12:00"},
+		{value: "1.months", want: "due.by:2026-09-29T12:00"},
+		{value: "7.days.ago", err: true},
+		{value: "10000.days", want: "due.by:2054-01-14T12:00"},
+		{value: "10001.days", err: true},
+		{value: "9999999999999.hours", err: true},
+		{value: "99999999999999999999.weeks", err: true},
+		{value: "foo", err: true},
+		{value: "1.5.days", err: true},
+		{value: "-3.days", err: true},
+		{value: "", err: true},
+	}
+	for _, tc := range cases {
+		got, err := resolveDueWithin(tc.value, now)
+		if tc.err {
+			if err == nil {
+				t.Errorf("resolveDueWithin(%q) expected error, got %q", tc.value, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("resolveDueWithin(%q) unexpected error: %v", tc.value, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("resolveDueWithin(%q) = %q, want %q", tc.value, got, tc.want)
+		}
+	}
+}
+
+func TestResolveDateShortcut(t *testing.T) {
+	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		arg  string
+		want string
+		ok   bool
+		err  bool
+	}{
+		{arg: "since:7.days", want: "end.after:2026-08-22T12:00", ok: true},
+		{arg: "due-within:7.days", want: "due.by:2026-09-05T12:00", ok: true},
+		{arg: "due-window:7.days", want: "(due.none: or due.by:2026-09-05T12:00)", ok: true},
+		{arg: "due-window:today", want: "(due.none: or due.before:2026-08-30)", ok: true},
+		{arg: "due-within:bogus", ok: true, err: true},
+		{arg: "due-window:", ok: true, err: true},
+		{arg: "due:today", ok: false},
+		{arg: "due.by:now+7days", ok: false},
+		{arg: "+auto", ok: false},
+	}
+	for _, tc := range cases {
+		got, ok, err := resolveDateShortcut(tc.arg, now)
+		if ok != tc.ok || (err != nil) != tc.err {
+			t.Errorf("resolveDateShortcut(%q) ok=%v err=%v, want ok=%v err=%v", tc.arg, ok, err, tc.ok, tc.err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("resolveDateShortcut(%q) = %q, want %q", tc.arg, got, tc.want)
+		}
+	}
+}
+
+func TestHandleReady_PassesDueWindowFilter(t *testing.T) {
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		capturedArgs = args
+		_, _ = io.WriteString(stdout, "[]")
+		return 0, nil
+	}})
+	d.now = func() time.Time { return time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC) }
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"ready", "+auto", "due-window:7.days"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("ready code = %d, want 0 (stderr %q)", code, stderr.String())
+	}
+	for _, want := range []string{"+READY", "+auto", "(due.none: or due.by:2026-09-05T12:00)"} {
+		if !containsArg(capturedArgs, want) {
+			t.Fatalf("expected %q in args, got %v", want, capturedArgs)
+		}
+	}
+}
+
+func TestHandleList_InvalidDueWithin(t *testing.T) {
+	called := false
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		called = true
+		_, _ = io.WriteString(stdout, "[]")
+		return 0, nil
+	}})
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"list", "due-within:7.days.ago"}, nil, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("code = %d, want 1 for invalid due value", code)
+	}
+	if called {
+		t.Fatalf("taskwarrior must not run for an invalid due value")
+	}
+	if !strings.Contains(stderr.String(), "invalid due value") {
+		t.Fatalf("expected invalid-due error, got %q", stderr.String())
+	}
+}
+
+func TestAddMonthsClamped(t *testing.T) {
+	loc := time.FixedZone("EEST", 3*3600)
+	cases := []struct {
+		from time.Time
+		n    int
+		want time.Time
+	}{
+		{time.Date(2026, 1, 31, 9, 30, 0, 0, loc), 1, time.Date(2026, 2, 28, 9, 30, 0, 0, loc)},
+		{time.Date(2028, 1, 31, 9, 30, 0, 0, loc), 1, time.Date(2028, 2, 29, 9, 30, 0, 0, loc)},
+		{time.Date(2026, 3, 31, 0, 0, 0, 0, loc), -1, time.Date(2026, 2, 28, 0, 0, 0, 0, loc)},
+		{time.Date(2026, 12, 31, 0, 0, 0, 0, loc), 2, time.Date(2027, 2, 28, 0, 0, 0, 0, loc)},
+		{time.Date(2026, 8, 29, 12, 0, 0, 0, loc), -1, time.Date(2026, 7, 29, 12, 0, 0, 0, loc)},
+		{time.Date(2026, 8, 15, 12, 0, 0, 0, loc), 0, time.Date(2026, 8, 15, 12, 0, 0, 0, loc)},
+	}
+	for _, tc := range cases {
+		if got := addMonthsClamped(tc.from, tc.n); !got.Equal(tc.want) {
+			t.Errorf("addMonthsClamped(%v, %d) = %v, want %v", tc.from, tc.n, got, tc.want)
+		}
+	}
+}
+
+func TestResolveDueWithin_MonthEndAndLocalTime(t *testing.T) {
+	loc := time.FixedZone("EEST", 3*3600)
+	now := time.Date(2026, 1, 31, 23, 30, 0, 0, loc)
+	if got, _ := resolveDueWithin("1.months", now); got != "due.by:2026-02-28T23:30" {
+		t.Fatalf("1.months from Jan 31 = %q, want due.by:2026-02-28T23:30", got)
+	}
+	// Boundaries are formatted in now's (local) zone, as taskwarrior expects.
+	if got, _ := resolveDueWithin("today", now); got != "due.before:2026-02-01" {
+		t.Fatalf("today = %q, want due.before:2026-02-01", got)
+	}
+	if got, _ := resolveSince("1.months", time.Date(2026, 3, 31, 12, 0, 0, 0, loc)); got != "end.after:2026-02-28T12:00" {
+		t.Fatalf("since 1.months from Mar 31 = %q, want end.after:2026-02-28T12:00", got)
+	}
 }
