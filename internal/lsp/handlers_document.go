@@ -8,6 +8,7 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ func (s *Server) handleDidClose(req Request) {
 	var p DidCloseTextDocumentParams
 	if err := json.Unmarshal(req.Params, &p); err == nil {
 		s.deleteDocument(p.TextDocument.URI)
+		s.chatSvc().prunePrompts(p.TextDocument.URI, nil)
 		s.markActivity()
 	}
 }
@@ -62,12 +64,9 @@ func (s *Server) docBeforeAfter(uri string, pos Position) (string, string) {
 	if line >= len(d.lines) {
 		line = len(d.lines) - 1
 	}
-	col := pos.Character
-	if col < 0 {
-		col = 0
-	}
-	if col > len(d.lines[line]) {
-		col = len(d.lines[line])
+	col := 0
+	if pos.Character > 0 {
+		col = utf16OffsetToByteOffset(d.lines[line], pos.Character)
 	}
 	// Build before
 	var b strings.Builder
@@ -153,4 +152,32 @@ func (s *Server) deferShowDocument(uri string, sel Range) {
 		case <-ctx.Done():
 		}
 	}()
+}
+
+// clientShowMessage sends a window/showMessage notification. typ follows the
+// LSP MessageType values (1 error, 2 warning, 3 info, 4 log).
+func (s *Server) clientShowMessage(typ int, message string) {
+	b, err := json.Marshal(map[string]any{"type": typ, "message": message})
+	if err != nil {
+		logging.Logf("lsp ", "clientShowMessage: marshal error: %v", err)
+		return
+	}
+	s.writeMessage(Request{JSONRPC: "2.0", Method: "window/showMessage", Params: b})
+}
+
+// notifyLLMFailure tells the user that an asynchronous Hexai feature produced
+// nothing, so a failed request does not look like Hexai silently ignoring
+// them. Nothing is sent once the server is shutting down.
+func (s *Server) notifyLLMFailure(feature string, err error) {
+	if s.serverCtx != nil && s.serverCtx.Err() != nil {
+		return
+	}
+	if errors.Is(err, context.Canceled) {
+		return
+	}
+	msg := "Hexai: " + feature + " returned no result"
+	if err != nil {
+		msg = "Hexai: " + feature + " failed: " + err.Error()
+	}
+	s.clientShowMessage(2, msg)
 }

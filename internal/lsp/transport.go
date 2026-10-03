@@ -52,6 +52,9 @@ func (s *Server) readMessage() ([]byte, error) {
 func (s *Server) writeMessage(v any) {
 	s.outMu.Lock()
 	defer s.outMu.Unlock()
+	if s.out == nil {
+		return
+	}
 
 	data, err := json.Marshal(v)
 	if err != nil {

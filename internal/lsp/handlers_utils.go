@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/snonux/hexai/internal/appconfig"
 	"github.com/snonux/hexai/internal/chatrun"
@@ -285,33 +284,39 @@ func inParamList(current string, cursor int) bool {
 // renderTemplate performs simple {{var}} replacement in a template string.
 func renderTemplate(t string, vars map[string]string) string { return textutil.RenderTemplate(t, vars) }
 
+// computeTextEditAndFilter builds the completion TextEdit for cleaned, the text
+// to insert at the cursor. The edit replaces the already-typed word (or, inside
+// a parameter list, the typed parameters) and re-inserts it in front of
+// cleaned, so the client can filter by what was typed while accepting the
+// item yields typed text + completion. Post-processing strips any typed
+// prefix the model repeated, so cleaned never contains it already.
 func computeTextEditAndFilter(cleaned string, inParams bool, current string, p CompletionParams) (*TextEdit, string) {
-	if inParams {
-		open := strings.Index(current, "(")
-		close := strings.Index(current, ")")
-		if open >= 0 {
-			left := open + 1
-			right := len(current)
-			if close >= 0 && close >= left {
-				right = close
-			}
-			if p.Position.Character < right {
-				right = p.Position.Character
-			}
-			te := &TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: left}, End: Position{Line: p.Position.Line, Character: right}}, NewText: cleaned}
-			var filter string
-			if left >= 0 && right >= left && right <= len(current) {
-				filter = strings.TrimLeft(current[left:right], " \t")
-			}
-			return te, filter
-		}
-	}
 	cursorByte := utf16OffsetToByteOffset(current, p.Position.Character)
 	startByte := computeWordStart(current, cursorByte)
-	// TextEdit ranges use UTF-16 offsets; for ASCII identifiers byte == UTF-16.
-	te := &TextEdit{Range: Range{Start: Position{Line: p.Position.Line, Character: startByte}, End: Position{Line: p.Position.Line, Character: p.Position.Character}}, NewText: cleaned}
-	filter := strings.TrimLeft(current[startByte:cursorByte], " \t")
-	return te, filter
+	if inParams {
+		open, closeIdx := strings.Index(current, "("), strings.Index(current, ")")
+		if open >= 0 && open < cursorByte && (closeIdx < open || cursorByte <= closeIdx) {
+			startByte = open + 1
+		}
+	}
+	typed := current[startByte:cursorByte]
+	start := Position{Line: p.Position.Line, Character: byteOffsetToUTF16(current, startByte)}
+	end := Position{Line: p.Position.Line, Character: byteOffsetToUTF16(current, cursorByte)}
+	te := &TextEdit{Range: Range{Start: start, End: end}, NewText: joinTyped(typed, cleaned)}
+	return te, strings.TrimLeft(typed, " \t")
+}
+
+// joinTyped prepends the typed text to the completion, separating them with a
+// single space after typed whitespace or a comma (e.g. "a int," + "b int").
+func joinTyped(typed, cleaned string) string {
+	trimmed := strings.TrimRight(typed, " \t")
+	if trimmed == "" {
+		return typed + cleaned
+	}
+	if trimmed != typed || strings.HasSuffix(trimmed, ",") {
+		return trimmed + " " + strings.TrimLeft(cleaned, " \t")
+	}
+	return typed + cleaned
 }
 
 func computeWordStart(current string, at int) int {
@@ -341,8 +346,11 @@ func isIdentChar(ch byte) bool {
 func (s *Server) chatWithStats(ctx context.Context, surface surfaceKind, spec requestSpec, msgs []llm.Message) (string, error) {
 	sent := chatrun.SentBytes(msgs)
 	s.incSentCounters(sent)
-	// Debounce/throttle if configured (reuse completion gates)
-	s.completionSvc().waitForDebounce(ctx)
+	// Debounce/throttle if configured (reuse completion gates). Code actions
+	// are invoked explicitly, so they skip the typing debounce.
+	if surface != surfaceCodeAction {
+		s.completionSvc().waitForDebounce(ctx)
+	}
 	if !s.waitForThrottle(ctx) {
 		return "", context.Canceled
 	}
@@ -684,11 +692,14 @@ func extractRangeText(d *document, r Range) string {
 	}
 	if r.End.Line >= len(d.lines) {
 		r.End.Line = len(d.lines) - 1
-		r.End.Character = len(d.lines[r.End.Line])
+		r.End.Character = 1 << 30
 	}
 	if r.Start.Line > r.End.Line {
 		return ""
 	}
+	// LSP characters are UTF-16 code units; slice by byte offsets.
+	r.Start.Character = utf16OffsetToByteOffset(d.lines[r.Start.Line], r.Start.Character)
+	r.End.Character = utf16OffsetToByteOffset(d.lines[r.End.Line], r.End.Character)
 
 	if r.Start.Line == r.End.Line {
 		return extractSingleLineRange(d.lines[r.Start.Line], r)
@@ -759,10 +770,18 @@ func (s *Server) collectPromptRemovalEdits(uri string) []TextEdit {
 }
 
 func promptRemovalEditsForLine(line string, lineNum int, openStr string, open, close byte) []TextEdit {
+	var edits []TextEdit
 	if hasDoubleOpenTrigger(line, openStr, open, close) {
-		return []TextEdit{{Range: Range{Start: Position{Line: lineNum, Character: 0}, End: Position{Line: lineNum, Character: len(line)}}, NewText: ""}}
+		edits = []TextEdit{{Range: Range{Start: Position{Line: lineNum, Character: 0}, End: Position{Line: lineNum, Character: len(line)}}, NewText: ""}}
+	} else {
+		edits = collectSemicolonMarkers(line, lineNum, openStr, open, close)
 	}
-	return collectSemicolonMarkers(line, lineNum, openStr, open, close)
+	// The markers were located by byte offset; LSP wants UTF-16 offsets.
+	for i := range edits {
+		edits[i].Range.Start.Character = byteOffsetToUTF16(line, edits[i].Range.Start.Character)
+		edits[i].Range.End.Character = byteOffsetToUTF16(line, edits[i].Range.End.Character)
+	}
+	return edits
 }
 
 // hasDoubleOpenTrigger reports whether line contains a valid double-open trigger.
@@ -902,25 +921,6 @@ func collectSemicolonMarkers(line string, lineNum int, openStr string, open, clo
 		start = endChar
 	}
 	return edits
-}
-
-// utf16OffsetToByteOffset converts an LSP UTF-16 code-unit offset to a byte
-// offset within a Go (UTF-8) string. BMP characters (most code) are 1 UTF-16
-// unit, while supplementary characters (e.g. emoji) are 2. Returns len(s)
-// if the offset exceeds the string length.
-func utf16OffsetToByteOffset(s string, utf16Offset int) int {
-	byteIdx := 0
-	units := 0
-	for byteIdx < len(s) && units < utf16Offset {
-		r, size := utf8.DecodeRuneInString(s[byteIdx:])
-		byteIdx += size
-		if r >= 0x10000 {
-			units += 2 // surrogate pair in UTF-16
-		} else {
-			units++
-		}
-	}
-	return byteIdx
 }
 
 // --- Error handling helpers ---

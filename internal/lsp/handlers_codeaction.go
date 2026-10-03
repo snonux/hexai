@@ -415,16 +415,44 @@ func (s *Server) completeCodeAction(ca CodeAction, uri string, rng Range, sys, u
 	defer cancel()
 	messages := []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}
 	spec := s.buildRequestSpec(surfaceCodeAction)
-	if text, err := s.chatWithStats(ctx, surfaceCodeAction, spec, messages); err == nil {
-		if out := stripCodeFences(strings.TrimSpace(text)); out != "" {
-			edit := WorkspaceEdit{Changes: map[string][]TextEdit{uri: {{Range: rng, NewText: out}}}}
-			ca.Edit = &edit
-			return ca, true
-		}
-	} else {
+	text, err := s.chatWithStats(ctx, surfaceCodeAction, spec, messages)
+	if err != nil {
 		logging.Logf("lsp ", "codeAction llm error: %v", err)
+		s.notifyLLMFailure(codeActionLabel(ca), err)
+		return ca, false
 	}
-	return ca, false
+	out := stripCodeFences(strings.TrimSpace(text))
+	if out == "" {
+		s.notifyLLMFailure(codeActionLabel(ca), nil)
+		return ca, false
+	}
+	out = fitToSelection(extractRangeText(s.getDocument(uri), rng), out)
+	edit := WorkspaceEdit{Changes: map[string][]TextEdit{uri: {{Range: rng, NewText: out}}}}
+	ca.Edit = &edit
+	return ca, true
+}
+
+// codeActionLabel names a code action in user-facing messages.
+func codeActionLabel(ca CodeAction) string {
+	if label := strings.TrimSpace(strings.TrimPrefix(ca.Title, "Hexai:")); label != "" {
+		return label
+	}
+	return "code action"
+}
+
+// fitToSelection carries the selection's leading indentation and trailing
+// newline over to the LLM output, which arrives trimmed. Without this a
+// whole-line selection (ending at the start of the next line) would swallow
+// the line break and join the next line onto the rewritten code, and the
+// first rewritten line would lose its indentation.
+func fitToSelection(selection, out string) string {
+	if indent := leadingIndent(selection); indent != "" && leadingIndent(out) == "" {
+		out = indent + out
+	}
+	if strings.HasSuffix(selection, "\n") && !strings.HasSuffix(out, "\n") {
+		out += "\n"
+	}
+	return out
 }
 
 func (s *Server) handleCodeActionResolve(req Request) {
@@ -663,6 +691,9 @@ func newGoTestFileContent(path string, pkg string, testFunc string) string {
 	content.WriteString("\n\n")
 	content.WriteString("import (\n\t\"testing\"\n)\n\n")
 	content.WriteString(testFunc)
+	if !strings.HasSuffix(testFunc, "\n") {
+		content.WriteString("\n")
+	}
 	return content.String()
 }
 

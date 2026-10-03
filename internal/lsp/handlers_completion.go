@@ -72,17 +72,38 @@ func (cs *completionService) handleCompletion(req Request) {
 			cs.logCompletionContext(p, above, current, below, funcCtx)
 		}
 		if s.hasLLMTarget(surfaceCompletion) {
-			newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
-			extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
-			items, ok, incomplete := cs.tryLLMCompletion(p, above, current, below, funcCtx, docStr, has, extra)
-			if ok {
-				s.reply(req.ID, CompletionList{IsIncomplete: incomplete, Items: items}, nil)
-				return
-			}
+			s.reply(req.ID, cs.completeWithLLM(p, above, current, below, funcCtx, docStr), nil)
+			return
 		}
 	}
-	items := s.fallbackCompletionItems(docStr)
-	s.reply(req.ID, CompletionList{IsIncomplete: false, Items: items}, nil)
+	s.reply(req.ID, CompletionList{IsIncomplete: false, Items: []CompletionItem{}}, nil)
+}
+
+// completeWithLLM runs an LLM completion for p. A newer completion request
+// for the same document cancels this one; the client has moved on by then, so
+// it gets an empty incomplete list and asks again.
+func (cs *completionService) completeWithLLM(p CompletionParams, above, current, below, funcCtx, docStr string) CompletionList {
+	s := cs.srv
+	if cs.inlinePromptHandled(p.TextDocument.URI, current) {
+		// The inline prompt on this line is already being answered via
+		// didChange; another LLM call would only offer a duplicate.
+		logging.Logf("lsp ", "completion skip=inline-prompt-in-flight line=%d", p.Position.Line)
+		return CompletionList{IsIncomplete: false, Items: []CompletionItem{}}
+	}
+	newFunc := s.isDefiningNewFunction(p.TextDocument.URI, p.Position)
+	extra, has := s.buildAdditionalContext(newFunc, p.TextDocument.URI, p.Position)
+	ctx, done := cs.beginCompletion(p.TextDocument.URI)
+	items, ok, incomplete := cs.tryLLMCompletionIn(ctx, p, above, current, below, funcCtx, docStr, has, extra)
+	superseded := ctx.Err() != nil && s.baseContext().Err() == nil
+	done(ok && incomplete)
+	switch {
+	case ok:
+		return CompletionList{IsIncomplete: incomplete, Items: items}
+	case superseded:
+		return CompletionList{IsIncomplete: true, Items: []CompletionItem{}}
+	default:
+		return CompletionList{IsIncomplete: false, Items: []CompletionItem{}}
+	}
 }
 
 // extractTriggerInfo returns the LSP completion TriggerKind and TriggerCharacter
@@ -123,8 +144,14 @@ func (cs *completionService) logCompletionContext(p CompletionParams, above, cur
 }
 
 func (cs *completionService) tryLLMCompletion(p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool, bool) {
+	return cs.tryLLMCompletionIn(cs.srv.baseContext(), p, above, current, below, funcCtx, docStr, hasExtra, extraText)
+}
+
+// tryLLMCompletionIn is tryLLMCompletion bound to parent, so the caller can
+// abandon the request (e.g. when a newer completion request supersedes it).
+func (cs *completionService) tryLLMCompletionIn(parent context.Context, p CompletionParams, above, current, below, funcCtx, docStr string, hasExtra bool, extraText string) ([]CompletionItem, bool, bool) {
 	s := cs.srv
-	ctx, cancel := s.requestTimeoutContext(12 * time.Second)
+	ctx, cancel := context.WithTimeout(parent, completionRequestTimeout)
 	var cancelOnce sync.Once
 	end := func() { cancelOnce.Do(cancel) }
 
@@ -287,7 +314,7 @@ func (cs *completionService) prepareCompletionPlan(p CompletionParams, above, cu
 	if cs.shouldSuppressForChatTriggerEOL(current, p) {
 		return plan, []CompletionItem{}, true
 	}
-	plan.inParams = inParamList(current, p.Position.Character)
+	plan.inParams = inParamList(current, utf16OffsetToByteOffset(current, p.Position.Character))
 	plan.manualInvoke = parseManualInvoke(p.Context)
 	plan.cacheKey = s.completionCacheKey(p, above, current, below, funcCtx, plan.inParams, hasExtra, extraText)
 	if pending := s.takePendingCompletion(plan.cacheKey); len(pending) > 0 {

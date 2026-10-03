@@ -80,7 +80,7 @@ func TestApplyChatEdits_RecomputesTriggerAfterLineEdit(t *testing.T) {
 	s.setDocument(uri, "XXhello?>\n")
 	out.Reset()
 
-	s.chatSvc().applyChatEdits(uri, 0, "> reply")
+	s.chatSvc().applyChatEdits(uri, 0, "hello?>", "> reply")
 
 	edits := chatEditsFromOutput(t, &out, uri)
 	if len(edits) != 2 {
@@ -115,7 +115,7 @@ func TestApplyChatEdits_SkipsWhenTriggerGone(t *testing.T) {
 	s.setDocument(uri, "hello? \n")
 	out.Reset()
 
-	s.chatSvc().applyChatEdits(uri, 0, "> reply")
+	s.chatSvc().applyChatEdits(uri, 0, "hello?>", "> reply")
 
 	if out.Len() != 0 {
 		edits := chatEditsFromOutput(t, &out, uri)
@@ -139,7 +139,7 @@ func TestApplyChatEdits_SkipsWhenTriggerPrefixInvalidated(t *testing.T) {
 	s.setDocument(uri, "hellox>\n")
 	out.Reset()
 
-	s.chatSvc().applyChatEdits(uri, 0, "> reply")
+	s.chatSvc().applyChatEdits(uri, 0, "hello?>", "> reply")
 
 	if out.Len() != 0 {
 		edits := chatEditsFromOutput(t, &out, uri)
@@ -160,7 +160,7 @@ func TestApplyChatEdits_SlashCommandDeleteRange(t *testing.T) {
 	s.setDocument(uri, "/reload>\n")
 	out.Reset()
 
-	s.chatSvc().applyChatEdits(uri, 0, "> reply")
+	s.chatSvc().applyChatEdits(uri, 0, "hello?>", "> reply")
 
 	edits := chatEditsFromOutput(t, &out, uri)
 	if len(edits) != 2 {
