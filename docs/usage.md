@@ -38,7 +38,9 @@ Ask a question at the end of a line and receive the answer inline.
   editors place the cursor on a fresh blank line after the answer.
 - If a `>` reply already exists below the question, Hexai won’t answer again.
 - Each question is sent to the LLM once. You can keep typing while the answer is on its way; it is
-  inserted below the question even if lines above it moved meanwhile.
+  inserted below the question even if lines above it moved meanwhile. If you edit the question itself
+  before the answer arrives, the stale answer is dropped and the edited question is asked instead.
+- Identical questions on several lines are answered one after another.
 - Every line of the answer is prefixed with `>`, so multi-line answers stay recognizable as replies.
 - Questions may sit in a code comment, e.g. `// why is this slow?>`. Only a `/` followed by a letter
   (such as `/reload>`) is treated as a slash command.

@@ -55,49 +55,23 @@ func chatEditsFromOutput(t *testing.T, buf *bytes.Buffer, uri string) []TextEdit
 	return nil
 }
 
-// TestApplyChatEdits_RecomputesTriggerAfterLineEdit is a regression test for the
+// TestApplyChatEdits_SkipsEditedPromptLine is a regression test for the
 // stale-captured-position bug in applyChatEdits. The chat response is produced
-// asynchronously: handleChatPrompt captures the trigger position
-// (match.lastNonSpace / match.removeCount) from the ORIGINAL line, then a
-// goroutine calls applyChatEdits after the LLM round-trip. If a didChange
-// shifted characters before the trigger during the round-trip, the stale
-// coordinates pointed at user content and the delete edit removed the wrong
-// characters, corrupting the trigger line.
-//
-// The fix recomputes the trigger coordinates from the live line. This test
-// simulates the round-trip by mutating the line (inserting "XX" before the
-// trigger, shifting the suffix '>' two columns right) and then calling
-// applyChatEdits directly. It asserts the delete range covers the live '>' at
-// the shifted position, not the stale original one.
-func TestApplyChatEdits_RecomputesTriggerAfterLineEdit(t *testing.T) {
+// asynchronously, so a didChange may edit the prompt line during the LLM
+// round-trip. Stale trigger coordinates would then delete user content, and
+// re-parsing the live line would attach the old answer to the edited question
+// (which is asked separately). Here the user inserted "XX" before the prompt,
+// so applyChatEdits must emit no edit at all.
+func TestApplyChatEdits_SkipsEditedPromptLine(t *testing.T) {
 	s := newTestServer()
 	var out bytes.Buffer
 	s.out = &out
 	uri := "file:///chat.go"
-	// Original trigger line would have been "hello?>" with the '>' suffix at
-	// character index 6. During the async round-trip the user inserted "XX" at
-	// the start, shifting the trigger to character 8.
 	s.setDocument(uri, "XXhello?>\n")
 	out.Reset()
 
-	s.chatSvc().applyChatEdits(uri, 0, "hello?>", "> reply")
-
-	edits := chatEditsFromOutput(t, &out, uri)
-	if len(edits) != 2 {
-		t.Fatalf("expected 2 edits (delete+insert), got %d: %+v", len(edits), edits)
-	}
-	del := edits[0]
-	// The delete must target the live '>' at character 8, not the stale 6.
-	if got := del.Range.Start; got.Line != 0 || got.Character != 8 {
-		t.Fatalf("delete start should be char 8 (live trigger), got %+v", got)
-	}
-	if got := del.Range.End; got.Line != 0 || got.Character != 9 {
-		t.Fatalf("delete end should be char 9 (live trigger), got %+v", got)
-	}
-	// Insert goes at end of the live line (length 9 incl. trailing newline-stripped
-	// content; d.lines stores lines without the trailing newline).
-	if got := edits[1].Range.Start; got.Line != 0 || got.Character != 9 {
-		t.Fatalf("insert start should be char 9 (end of live line), got %+v", got)
+	if s.chatSvc().applyChatEdits(uri, 0, "hello?>", "> reply") || out.Len() != 0 {
+		t.Fatalf("expected no edit for an edited prompt line, got %q", out.String())
 	}
 }
 
@@ -160,7 +134,7 @@ func TestApplyChatEdits_SlashCommandDeleteRange(t *testing.T) {
 	s.setDocument(uri, "/reload>\n")
 	out.Reset()
 
-	s.chatSvc().applyChatEdits(uri, 0, "hello?>", "> reply")
+	s.chatSvc().applyChatEdits(uri, 0, "/reload>", "> reply")
 
 	edits := chatEditsFromOutput(t, &out, uri)
 	if len(edits) != 2 {

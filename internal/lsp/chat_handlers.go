@@ -26,11 +26,11 @@ func (c *chatService) detectAndHandleChat(uri string) {
 	if d == nil || len(d.lines) == 0 {
 		return
 	}
-	c.prunePrompts(uri, d.lines)
+	counts := c.promptCounts(uri, d.lines)
+	c.prunePrompts(uri, counts)
 	suffix, prefixes, _ := s.chatConfig()
-	openStr, _, openChar, closeChar := s.inlineMarkers()
 	for i, raw := range d.lines {
-		if c.maybeRunInlinePrompt(uri, i, raw, openStr, openChar, closeChar) {
+		if c.maybeRunInlinePrompt(uri, i, raw, counts) {
 			continue
 		}
 		match, ok := parseChatPromptLine(raw, suffix, prefixes)
@@ -40,7 +40,7 @@ func (c *chatService) detectAndHandleChat(uri string) {
 		if hasChatResponseBelow(d, i) {
 			continue
 		}
-		if !c.handleChatPrompt(uri, i, raw, match) {
+		if !c.handleChatPrompt(uri, i, raw, match, counts) {
 			continue // already being answered
 		}
 		// Only handle one per change tick to avoid flooding
@@ -54,19 +54,22 @@ type chatPromptLine struct {
 	prompt       string
 }
 
-func (c *chatService) maybeRunInlinePrompt(uri string, lineIdx int, raw string, openStr string, openChar byte, closeChar byte) bool {
+// maybeRunInlinePrompt starts the inline prompt on raw, if any, in the
+// background. It reports whether raw holds an inline prompt (and so is not
+// to be parsed as a chat prompt); counts is as returned by promptCounts.
+func (c *chatService) maybeRunInlinePrompt(uri string, lineIdx int, raw string, counts map[string]int) bool {
 	s := c.srv
-	if !lineHasInlinePrompt(raw, openStr, openChar, closeChar) {
+	tag, ok := s.findInlineTag(raw)
+	if !ok {
 		return false
 	}
-	tag, ok := s.findInlineTag(raw)
-	if !ok || !s.hasLLMTarget(surfaceCompletion) {
+	if !s.hasLLMTarget(surfaceCompletion) {
 		return true
 	}
 	// Key by the prompt tag rather than the whole line, so text typed after
 	// the closing marker while the model works does not start new requests.
 	key := inlineKey(uri, tag.text)
-	if !c.tryBeginPrompt(key) {
+	if !c.tryBeginPrompt(key, counts[key]) {
 		return true
 	}
 	s.inflight.Add(1)
@@ -151,11 +154,12 @@ func hasChatResponseBelow(d *document, lineIdx int) bool {
 
 // handleChatPrompt answers the chat prompt on lineIdx, either directly for a
 // slash command or by asking the LLM in the background. It returns false when
-// the same prompt is already being answered.
-func (c *chatService) handleChatPrompt(uri string, lineIdx int, raw string, match chatPromptLine) bool {
+// the same prompt is already being answered. counts is as returned by
+// promptCounts.
+func (c *chatService) handleChatPrompt(uri string, lineIdx int, raw string, match chatPromptLine, counts map[string]int) bool {
 	s := c.srv
 	key := promptKey(uri, raw)
-	if !c.tryBeginPrompt(key) {
+	if !c.tryBeginPrompt(key, counts[key]) {
 		return false
 	}
 	if resp, ok := c.chatCommandResponse(uri, lineIdx, match.prompt); ok {
@@ -266,19 +270,15 @@ func quoteReply(text string) string {
 // preferring lineIdx and otherwise the nearest match (lines above the prompt
 // may have been added or removed meanwhile). Failing that it looks for a line
 // that still starts with raw (the user kept typing after the trigger). When
-// nothing matches, the prompt line itself was edited; lineIdx is returned if
-// still valid so callers can re-validate the live line, otherwise -1.
+// nothing matches, the prompt line itself was edited and -1 is returned: the
+// answer belongs to the old question, and the edited line, if still a prompt,
+// is asked separately.
 func findPromptLine(lines []string, lineIdx int, raw string) int {
 	if idx := nearestLine(lines, lineIdx, func(ln string) bool { return ln == raw }); idx >= 0 {
 		return idx
 	}
 	if trimmed := strings.TrimRight(raw, " \t"); trimmed != "" {
-		if idx := nearestLine(lines, lineIdx, func(ln string) bool { return strings.HasPrefix(ln, trimmed) }); idx >= 0 {
-			return idx
-		}
-	}
-	if lineIdx >= 0 && lineIdx < len(lines) {
-		return lineIdx
+		return nearestLine(lines, lineIdx, func(ln string) bool { return strings.HasPrefix(ln, trimmed) })
 	}
 	return -1
 }

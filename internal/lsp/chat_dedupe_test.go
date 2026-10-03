@@ -249,8 +249,11 @@ func TestFindPromptLine(t *testing.T) {
 	if got := findPromptLine(lines, 0, "q?>"); got != 1 {
 		t.Fatalf("expected 1, got %d", got)
 	}
-	if got := findPromptLine(lines, 2, "nope"); got != 2 {
-		t.Fatalf("expected fallback to lineIdx, got %d", got)
+	if got := findPromptLine(lines, 2, "nope"); got != -1 {
+		t.Fatalf("expected -1 for an edited prompt line, got %d", got)
+	}
+	if got := findPromptLine([]string{"x", "q?> more"}, 0, "q?>"); got != 1 {
+		t.Fatalf("expected the line that still starts with the prompt, got %d", got)
 	}
 	if got := findPromptLine(lines, 9, "nope"); got != -1 {
 		t.Fatalf("expected -1, got %d", got)
@@ -285,7 +288,7 @@ func TestCompletion_SkipsInlinePromptInFlight(t *testing.T) {
 	uri := "file:///main.go"
 	line := "\t>!print one>"
 	s.setDocument(uri, line)
-	s.chatSvc().tryBeginPrompt(inlineKey(uri, ">!print one>"))
+	s.chatSvc().tryBeginPrompt(inlineKey(uri, ">!print one>"), 1)
 	p := CompletionParams{TextDocument: TextDocumentIdentifier{URI: uri}, Position: Position{Line: 0, Character: len(line)}}
 	p.Context = map[string]int{"triggerKind": 1}
 	list := s.completionSvc().completeWithLLM(p, "", line, "", "", "")
@@ -309,5 +312,83 @@ func TestApplyChatEdits_TextTypedAfterTrigger(t *testing.T) {
 	}
 	if edits[1].Range.Start != (Position{Line: 1, Character: 14}) {
 		t.Fatalf("expected the answer after the line, got %+v", edits[1].Range)
+	}
+}
+
+// TestApplyChatEdits_EditedQuestionDropsAnswer: when the question was rewritten
+// while its answer was on the way, the old answer must not be attached to the
+// new question (which is asked separately).
+func TestApplyChatEdits_EditedQuestionDropsAnswer(t *testing.T) {
+	s := newTestServer()
+	var out bytes.Buffer
+	s.out = &out
+	uri := "file:///chat.txt"
+	s.setDocument(uri, "how do I use rust?>")
+	if s.chatSvc().applyChatEdits(uri, 0, "why is go fast?>", "> go answer") {
+		t.Fatalf("expected the stale answer to be dropped")
+	}
+	if out.Len() != 0 {
+		t.Fatalf("expected no edit, got %s", out.String())
+	}
+}
+
+// TestPrunePrompts_IdenticalCopyAskedAfterFirstAnswered: identical prompt
+// lines share a key; once one copy is answered the other must be released.
+func TestPrunePrompts_IdenticalCopyAskedAfterFirstAnswered(t *testing.T) {
+	s := newTestServer()
+	c := s.chatSvc()
+	uri := "file:///chat.txt"
+	key := promptKey(uri, "why?>")
+	before := []string{"why?>", "", "why?>"}
+	if !c.tryBeginPrompt(key, c.promptCounts(uri, before)[key]) {
+		t.Fatalf("expected the first request to start")
+	}
+	c.finishPrompt(key)
+	c.prunePrompts(uri, c.promptCounts(uri, before))
+	if !c.promptPending(key) {
+		t.Fatalf("unchanged prompts must stay reserved")
+	}
+	c.prunePrompts(uri, c.promptCounts(uri, []string{"why?", "", "> because", "", "why?>"}))
+	if c.promptPending(key) {
+		t.Fatalf("the remaining copy must be released once the first was answered")
+	}
+}
+
+// TestPrunePrompts_CopyAddedWhileInFlight: a copy pasted while the request is
+// running raises the count, so answering the original releases the copy.
+func TestPrunePrompts_CopyAddedWhileInFlight(t *testing.T) {
+	s := newTestServer()
+	c := s.chatSvc()
+	uri := "file:///chat.txt"
+	key := promptKey(uri, "why?>")
+	c.tryBeginPrompt(key, 1)
+	c.prunePrompts(uri, c.promptCounts(uri, []string{"why?>", "why?>"}))
+	c.finishPrompt(key)
+	c.prunePrompts(uri, c.promptCounts(uri, []string{"why?>", "why?>"}))
+	if !c.promptPending(key) {
+		t.Fatalf("unchanged prompts must stay reserved")
+	}
+	c.prunePrompts(uri, c.promptCounts(uri, []string{"why?", "> because", "why?>"}))
+	if c.promptPending(key) {
+		t.Fatalf("expected the copy to be released")
+	}
+}
+
+// TestPrunePrompts_FailedPromptStaysReserved: a failed (finished) prompt is
+// not retried while its line is unchanged, but is after it was edited.
+func TestPrunePrompts_FailedPromptStaysReserved(t *testing.T) {
+	s := newTestServer()
+	c := s.chatSvc()
+	uri := "file:///chat.txt"
+	key := promptKey(uri, "why?>")
+	c.tryBeginPrompt(key, 1)
+	c.finishPrompt(key)
+	c.prunePrompts(uri, c.promptCounts(uri, []string{"why?>", "typing elsewhere"}))
+	if c.tryBeginPrompt(key, 1) {
+		t.Fatalf("a failed prompt must not be retried on every keystroke")
+	}
+	c.prunePrompts(uri, c.promptCounts(uri, []string{"why?"}))
+	if !c.tryBeginPrompt(key, 1) {
+		t.Fatalf("expected the prompt to be askable again after editing")
 	}
 }

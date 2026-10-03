@@ -25,7 +25,7 @@ type chatService struct {
 	// without it each keystroke typed while waiting for the model would start
 	// another request for the same prompt and insert the answer again.
 	pendingMu sync.Mutex
-	pending   map[string]bool
+	pending   map[string]*pendingPrompt
 }
 
 // newChatService constructs the chat subsystem bound to srv.
@@ -49,24 +49,35 @@ func (c *chatService) lastActivity() time.Time {
 	return c.lastInput
 }
 
-// tryBeginPrompt marks the prompt identified by key as in flight. It returns
-// false while a request for the same prompt is running, or after it finished
-// while the prompt line is still unchanged in the document.
-func (c *chatService) tryBeginPrompt(key string) bool {
+// pendingPrompt is a chat or inline prompt whose request is running or has
+// finished while its prompt line is still in the document.
+type pendingPrompt struct {
+	finished bool
+	// copies is the highest number of lines carrying this prompt seen while
+	// it was pending. Identical prompts share one key; when the count drops,
+	// one of them was answered or edited and the rest may be asked again.
+	copies int
+}
+
+// tryBeginPrompt marks the prompt identified by key as in flight; copies is
+// the number of lines currently carrying it. It returns false while a request
+// for the same prompt is running, or after it finished while the prompt lines
+// are still unchanged in the document.
+func (c *chatService) tryBeginPrompt(key string, copies int) bool {
 	c.pendingMu.Lock()
 	defer c.pendingMu.Unlock()
 	if c.pending == nil {
-		c.pending = make(map[string]bool)
+		c.pending = make(map[string]*pendingPrompt)
 	}
 	if _, busy := c.pending[key]; busy {
 		return false
 	}
-	c.pending[key] = false
+	c.pending[key] = &pendingPrompt{copies: copies}
 	return true
 }
 
 // finishPrompt ends the request started by tryBeginPrompt. The key stays
-// reserved until prunePrompts sees the prompt line change: on success the
+// reserved until prunePrompts sees a prompt line change: on success the
 // editor applies the answer asynchronously, so further didChange
 // notifications may still show the old prompt line; on failure the user has
 // been notified, and retrying on every keystroke would only repeat the error.
@@ -74,32 +85,40 @@ func (c *chatService) tryBeginPrompt(key string) bool {
 func (c *chatService) finishPrompt(key string) {
 	c.pendingMu.Lock()
 	defer c.pendingMu.Unlock()
-	if _, ok := c.pending[key]; ok {
-		c.pending[key] = true
+	if p, ok := c.pending[key]; ok {
+		p.finished = true
 	}
 }
 
-// prunePrompts releases finished prompts of uri whose prompt line no longer
-// exists in lines, so the same question can be asked again later.
-func (c *chatService) prunePrompts(uri string, lines []string) {
+// promptCounts returns, per prompt key, how many of lines carry that prompt
+// (as a chat prompt line or an inline prompt tag).
+func (c *chatService) promptCounts(uri string, lines []string) map[string]int {
+	counts := make(map[string]int, len(lines))
+	for _, ln := range lines {
+		counts[promptKey(uri, ln)]++
+		if tag, ok := c.srv.findInlineTag(ln); ok {
+			counts[inlineKey(uri, tag.text)]++
+		}
+	}
+	return counts
+}
+
+// prunePrompts releases finished prompts of uri that are carried by fewer
+// lines than before (counts as returned by promptCounts), so a prompt that
+// was answered or edited, or an identical copy of it elsewhere in the
+// document, can be asked again.
+func (c *chatService) prunePrompts(uri string, counts map[string]int) {
 	c.pendingMu.Lock()
 	defer c.pendingMu.Unlock()
-	if len(c.pending) == 0 {
-		return
-	}
-	present := make(map[string]struct{}, len(lines))
-	for _, ln := range lines {
-		present[promptKey(uri, ln)] = struct{}{}
-		if tag, ok := c.srv.findInlineTag(ln); ok {
-			present[inlineKey(uri, tag.text)] = struct{}{}
-		}
-	}
 	prefix := uri + "\x00"
-	for key, finished := range c.pending {
-		if !finished || !strings.HasPrefix(key, prefix) {
+	for key, p := range c.pending {
+		if !strings.HasPrefix(key, prefix) {
 			continue
 		}
-		if _, ok := present[key]; !ok {
+		n := counts[key]
+		if n > p.copies {
+			p.copies = n
+		} else if p.finished && n < p.copies {
 			delete(c.pending, key)
 		}
 	}
