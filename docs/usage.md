@@ -187,7 +187,7 @@ You can combine the prefixes in either order, for example `ask proj:hexai na lis
 | `ask add priority:H "description"` | Create task with priority |
 | `ask add +tag "description"` | Create task with tag |
 | `ask na add "description"` | Create a project task without the `+agent` tag |
-| `ask list` | List pending tasks only (alias-ID table) |
+| `ask list` | List pending tasks only (alias-ID table; hides tasks due more than a week out, pass `due-window:N.weeks` or another due filter to widen) |
 | `ask na list` | List pending project tasks without the `+agent` tag |
 | `ask all` | List all tasks including completed/deleted |
 | `ask list +READY` | List only ready tasks |

@@ -125,6 +125,7 @@ func TestHandleWatch_DefaultsToListAndRedrawsOnChange(t *testing.T) {
 		cancel()
 		return 0, nil
 	}})
+	d.now = fixedNow
 	d.newTicker = func(interval time.Duration) watchTicker {
 		if interval != watchInterval {
 			t.Fatalf("watch interval = %s, want %s", interval, watchInterval)
@@ -140,7 +141,7 @@ func TestHandleWatch_DefaultsToListAndRedrawsOnChange(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("watch code = %d, want 0: stderr=%s", code, stderr.String())
 	}
-	wantCalls := [][]string{{"status:pending", "export"}, {"status:pending", "export"}}
+	wantCalls := [][]string{{"status:pending", fixedDueWindow, "export"}, {"status:pending", fixedDueWindow, "export"}}
 	if !reflect.DeepEqual(calls, wantCalls) {
 		t.Fatalf("runner calls = %#v, want %#v", calls, wantCalls)
 	}

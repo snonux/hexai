@@ -10,6 +10,14 @@ import (
 	"time"
 )
 
+// fixedNow is the deterministic clock used by tests that assert exact list
+// runner args, so the default due-window filter boundary stays stable.
+func fixedNow() time.Time { return time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC) }
+
+// fixedDueWindow is the default one-week due-window filter resolved at
+// fixedNow.
+const fixedDueWindow = "(due.none: or due.by:2026-09-05T12:00)"
+
 func TestHandleList_Success(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
@@ -490,6 +498,85 @@ func TestHandleList_InvalidDueWithin(t *testing.T) {
 	}
 }
 
+func TestHasDueFilter(t *testing.T) {
+	cases := []struct {
+		arg  string
+		want bool
+	}{
+		{arg: "due:today", want: true},
+		{arg: "due.before:2026-09-05", want: true},
+		{arg: "due.none:", want: true},
+		{arg: "due-within:7.days", want: true},
+		{arg: "due-window:14.days", want: true},
+		{arg: "+READY", want: false},
+		{arg: "limit:5", want: false},
+		{arg: "scheduled:today", want: false},
+		{arg: "duration:10.minutes", want: false},
+		{arg: "", want: false},
+	}
+	for _, tc := range cases {
+		if got := hasDueFilter([]string{tc.arg}); got != tc.want {
+			t.Errorf("hasDueFilter(%q) = %v, want %v", tc.arg, got, tc.want)
+		}
+	}
+}
+
+func TestHandleList_DefaultDueWindow(t *testing.T) {
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		capturedArgs = args
+		_, _ = io.WriteString(stdout, "[]")
+		return 0, nil
+	}})
+	d.now = fixedNow
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"list"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("list code = %d, want 0", code)
+	}
+	if !containsArg(capturedArgs, fixedDueWindow) {
+		t.Fatalf("expected default one-week due window in args, got %v", capturedArgs)
+	}
+}
+
+func TestHandleList_DefaultDueWindowSkippedForExplicitDueFilter(t *testing.T) {
+	for _, filter := range []string{"due:today", "due.after:2026-01-01", "due-within:14.days", "due-window:14.days"} {
+		var capturedArgs []string
+		d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+			capturedArgs = args
+			_, _ = io.WriteString(stdout, "[]")
+			return 0, nil
+		}})
+		d.now = fixedNow
+		var stdout, stderr bytes.Buffer
+		code, _ := d.Dispatch(context.Background(), []string{"list", filter}, nil, &stdout, &stderr)
+		if code != 0 {
+			t.Fatalf("list %s code = %d, want 0 (stderr %q)", filter, code, stderr.String())
+		}
+		if containsArg(capturedArgs, fixedDueWindow) {
+			t.Fatalf("default due window should be skipped for explicit filter %q, got %v", filter, capturedArgs)
+		}
+	}
+}
+
+func TestHandleReady_NoDefaultDueWindow(t *testing.T) {
+	var capturedArgs []string
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		capturedArgs = args
+		_, _ = io.WriteString(stdout, "[]")
+		return 0, nil
+	}})
+	d.now = fixedNow
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"ready"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("ready code = %d, want 0", code)
+	}
+	if containsArg(capturedArgs, fixedDueWindow) {
+		t.Fatalf("default due window should only apply to list, got %v", capturedArgs)
+	}
+}
+
 func TestAddMonthsClamped(t *testing.T) {
 	loc := time.FixedZone("EEST", 3*3600)
 	cases := []struct {
@@ -533,13 +620,15 @@ func TestHandleList_TranslatesStarted(t *testing.T) {
 		_, _ = io.WriteString(stdout, "[]")
 		return 0, nil
 	}})
+	d.now = fixedNow
 	var stdout, stderr bytes.Buffer
 	if code, _ := d.Dispatch(context.Background(), []string{"list", "started", "startedx"}, nil, &stdout, &stderr); code != 0 {
 		t.Fatalf("list code = %d, want 0 (stderr %q)", code, stderr.String())
 	}
 	// started becomes pending-and-active (bare +ACTIVE would also match
-	// deleted tasks); the unknown startedx is dropped.
-	want := []string{"status:pending", "(status:pending and +ACTIVE)", "export"}
+	// deleted tasks); the unknown startedx is dropped; the default one-week
+	// due window is applied because no due filter was given.
+	want := []string{"status:pending", fixedDueWindow, "(status:pending and +ACTIVE)", "export"}
 	if !slices.Equal(capturedArgs, want) {
 		t.Fatalf("args = %v, want %v", capturedArgs, want)
 	}

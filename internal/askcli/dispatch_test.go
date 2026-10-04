@@ -252,6 +252,7 @@ func TestDispatcher_RealSubcommandsDoNotDefaultToAdd(t *testing.T) {
 		_, _ = io.WriteString(stdout, `[]`)
 		return 0, nil
 	}})
+	d.now = fixedNow
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(context.Background(), []string{"list", "+ready"}, nil, &stdout, &stderr)
@@ -261,7 +262,7 @@ func TestDispatcher_RealSubcommandsDoNotDefaultToAdd(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("Dispatch code = %d, want 0: stderr=%s", code, stderr.String())
 	}
-	if want := []string{"status:pending", "+ready", "export"}; !reflect.DeepEqual(gotCall, want) {
+	if want := []string{"status:pending", fixedDueWindow, "+ready", "export"}; !reflect.DeepEqual(gotCall, want) {
 		t.Fatalf("runner args = %v, want %v", gotCall, want)
 	}
 	if !strings.Contains(stdout.String(), "Description") {
@@ -375,12 +376,13 @@ func TestDispatcher_FishSubcommandRejectsExtraArgs(t *testing.T) {
 
 func TestDispatcher_DispatchPersistsJSONFlagOnDispatcher(t *testing.T) {
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
-		if strings.Join(args, " ") != "status:pending export" {
-			t.Fatalf("args = %v, want list export args", args)
+		if got, want := strings.Join(args, " "), "status:pending "+fixedDueWindow+" export"; got != want {
+			t.Fatalf("args = %v, want list export args %v", args, want)
 		}
 		_, _ = io.WriteString(stdout, `[]`)
 		return 0, nil
 	}})
+	d.now = fixedNow
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(context.Background(), []string{"--json", "list"}, nil, &stdout, &stderr)
@@ -481,6 +483,7 @@ func TestDispatcher_ProjectPrefix_PassesProjectOverride(t *testing.T) {
 		_, _ = io.WriteString(stdout, `[]`)
 		return 0, nil
 	}})
+	d.now = fixedNow
 
 	var stdout, stderr bytes.Buffer
 	code, err := d.Dispatch(context.Background(), []string{"proj:alpha", "list"}, nil, &stdout, &stderr)
@@ -493,8 +496,8 @@ func TestDispatcher_ProjectPrefix_PassesProjectOverride(t *testing.T) {
 	if gotProject != "alpha" {
 		t.Fatalf("project override = %q, want alpha", gotProject)
 	}
-	if !reflect.DeepEqual(gotArgs, []string{"status:pending", "export"}) {
-		t.Fatalf("runner args = %v, want [status:pending export]", gotArgs)
+	if !reflect.DeepEqual(gotArgs, []string{"status:pending", fixedDueWindow, "export"}) {
+		t.Fatalf("runner args = %v, want [status:pending %s export]", gotArgs, fixedDueWindow)
 	}
 }
 
@@ -511,12 +514,12 @@ func TestDispatcher_NoAgentPrefix_StripsScopePrefix(t *testing.T) {
 		{
 			name:      "na defaults to list",
 			args:      []string{"na"},
-			wantCalls: [][]string{{"status:pending", "export"}},
+			wantCalls: [][]string{{"status:pending", fixedDueWindow, "export"}},
 		},
 		{
 			name:      "na list",
 			args:      []string{"na", "list"},
-			wantCalls: [][]string{{"status:pending", "export"}},
+			wantCalls: [][]string{{"status:pending", fixedDueWindow, "export"}},
 		},
 		{
 			name:      "no-agent info",
@@ -541,7 +544,7 @@ func TestDispatcher_NoAgentPrefix_StripsScopePrefix(t *testing.T) {
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 				calls = append(calls, append([]string(nil), args...))
 				switch strings.Join(args, " ") {
-				case "status:pending export":
+				case "status:pending " + fixedDueWindow + " export":
 					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
 				case "uuid:test-uuid export":
 					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
@@ -553,6 +556,7 @@ func TestDispatcher_NoAgentPrefix_StripsScopePrefix(t *testing.T) {
 				}
 				return 0, nil
 			}})
+			d.now = fixedNow
 
 			var stdout, stderr bytes.Buffer
 			code, err := d.Dispatch(context.Background(), tc.args, nil, &stdout, &stderr)
@@ -585,7 +589,7 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 		{
 			name:      "list",
 			args:      []string{"list"},
-			wantCalls: [][]string{{"status:pending", "export"}},
+			wantCalls: [][]string{{"status:pending", fixedDueWindow, "export"}},
 		},
 		{
 			name:      "all",
@@ -695,7 +699,8 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 				calls = append(calls, append([]string(nil), args...))
 				switch strings.Join(args, " ") {
-				case "export", "status:pending export", "+READY export", "status:completed export":
+				case "export", "status:pending export", "+READY export", "status:completed export",
+					"status:pending " + fixedDueWindow + " export":
 					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
 				case "uuid:test-uuid export":
 					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
@@ -718,6 +723,7 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 				}
 				return 0, nil
 			}})
+			d.now = fixedNow
 
 			var stdout, stderr bytes.Buffer
 			code, err := d.Dispatch(context.Background(), tc.args, nil, &stdout, &stderr)

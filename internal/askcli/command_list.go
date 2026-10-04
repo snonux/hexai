@@ -11,8 +11,40 @@ import (
 	"time"
 )
 
+// defaultDueWindow is the default due-date horizon for ask list: tasks due
+// further out than this are hidden from the default listing. Tasks without a
+// due date and tasks due within the window (overdue included) stay visible.
+// An explicit due filter supplied by the user (due:, due-within:,
+// due-window:) disables the default window.
+const defaultDueWindow = "7.days"
+
+// handleList lists pending tasks. By default a one-week due window hides
+// tasks due more than a week out unless the user passes a due filter.
 func (d *Dispatcher) handleList(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	return d.handleListWithFilters(ctx, []string{"status:pending"}, args[1:], stdout, stderr)
+	filters := []string{"status:pending"}
+	if !hasDueFilter(args[1:]) {
+		filters = append(filters, d.defaultDueWindowFilter())
+	}
+	return d.handleListWithFilters(ctx, filters, args[1:], stdout, stderr)
+}
+
+// defaultDueWindowFilter resolves defaultDueWindow into a taskwarrior
+// filter matching tasks without a due date or due within the window.
+func (d *Dispatcher) defaultDueWindowFilter() string {
+	filter, _, _ := resolveDateShortcut("due-window:"+defaultDueWindow, d.now())
+	return filter
+}
+
+// hasDueFilter reports whether any user-supplied arg already constrains the
+// due date, in which case the default one-week due window is skipped.
+func hasDueFilter(args []string) bool {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "due:") || strings.HasPrefix(arg, "due.") ||
+			strings.HasPrefix(arg, "due-within:") || strings.HasPrefix(arg, "due-window:") {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *Dispatcher) handleAll(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
