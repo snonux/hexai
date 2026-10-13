@@ -278,11 +278,14 @@ func buildAnthropicChatRequest(o Options, messages []Message, defaultModel strin
 			Content: m.Content,
 		}
 	}
-	if o.Temperature != 0 {
-		req.Temperature = &o.Temperature
-	} else if defaultTemp != nil {
-		t := *defaultTemp
-		req.Temperature = &t
+	// Haiku requests must omit temperature, including configured defaults.
+	if !strings.Contains(strings.ToLower(req.Model), "haiku") {
+		if o.Temperature != 0 {
+			req.Temperature = &o.Temperature
+		} else if defaultTemp != nil {
+			t := *defaultTemp
+			req.Temperature = &t
+		}
 	}
 	if o.MaxTokens > 0 {
 		req.MaxTokens = o.MaxTokens
