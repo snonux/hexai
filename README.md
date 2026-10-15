@@ -34,11 +34,3 @@ go install github.com/snonux/hexai/cmd/hexai-tmux-action@latest
 go install github.com/snonux/hexai/cmd/hexai@latest
 go install github.com/snonux/hexai/cmd/ask@latest
 ```
-
-Continue with [installation and prerequisites](docs/guide/index.md#1-installing)
-and [your first configuration](docs/guide/index.md#2-your-first-configuration).
-The complete commented settings reference is [config.toml.example](config.toml.example).
-
-The [MCP server chapters](docs/guide/index.md#12-mcp-server-experimental-setup)
-cover the **experimental, deprecated** prompt-management server, which is not
-actively maintained.
