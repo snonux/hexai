@@ -3,7 +3,7 @@
 > **Historical plan.** This document records the original UUID-wrapper design.
 > Project scoping has since evolved: `ask` derives hierarchical Taskwarrior
 > projects from the git root plus cwd (`repo.subdir…`). See
-> [Usage — Hierarchical project names](usage.md#hierarchical-project-names).
+> [Usage — Hierarchical project names](guide/index.md#hierarchical-project-names).
 
 The user-facing CLI binary is **`ask`** (it was briefly named `do`). This document uses `ask` throughout. The Go implementation package remains `internal/askcli` in the tree below.
 

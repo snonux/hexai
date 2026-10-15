@@ -1,12 +1,5 @@
 # The Hexai guide
 
-A book about using Hexai, from your first command to an editor that completes
-code, answers questions, and changes a selection for you. Each chapter explains
-the feature, gives you something to try, and shows it running in a terminal.
-Read in order to set everything up, or jump to the tool you need.
-
-![Two models answering the same question](images/04-models.gif)
-
 ## Chapters
 
 | # | Chapter | What you will do |
@@ -23,7 +16,14 @@ Read in order to set everything up, or jump to the tool you need.
 | 10 | [Project tasks with ask](#10-project-tasks-with-ask) | Scope tasks, manage dependencies and dates, watch progress, and enable Fish completion |
 | 11 | [Files and troubleshooting](#11-files-and-troubleshooting) | Find logs and caches, diagnose failures, and run development checks |
 
+**Start here: [1. Installing →](#1-installing).**
+
 ## Following along
+
+A book about using Hexai, from your first command to an editor that completes
+code, answers questions, and changes a selection for you. Each chapter explains
+the feature, gives you something to try, and shows it running in a terminal.
+Read in order to set everything up, or jump to the tool you need.
 
 Examples use a small Go function, `Add`, and a git repository called
 `hexai-demo`. The CLI and task chapters work without an editor. Code completion,

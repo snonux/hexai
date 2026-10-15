@@ -671,5 +671,5 @@ The MCP protocol doesn't support conditional logic in templates, but you can doc
 ## See Also
 
 - [MCP Setup Guide](mcp-setup.md)
-- [hexai Configuration](configuration.md)
+- [hexai Configuration](guide/index.md#2-your-first-configuration)
 - [MCP Protocol Specification](https://modelcontextprotocol.io/)

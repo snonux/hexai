@@ -281,4 +281,4 @@ git pull
 ## Next Steps
 
 - [Creating Custom Prompts](mcp-prompts.md)
-- [hexai Configuration Guide](configuration.md)
+- [hexai Configuration Guide](guide/index.md#2-your-first-configuration)

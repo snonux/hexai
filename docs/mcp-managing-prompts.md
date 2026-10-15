@@ -333,4 +333,4 @@ rm ~/.local/hexai/data/prompts/default.jsonl
 
 - [MCP Setup Guide](mcp-setup.md)
 - [Creating Custom Prompts](mcp-prompts.md)
-- [hexai Configuration](configuration.md)
+- [hexai Configuration](guide/index.md#2-your-first-configuration)
