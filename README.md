@@ -7,10 +7,12 @@ Hexai adds AI completions, code actions, and inline chat to the
 LLM client, a tmux action menu, and `ask`, a project task CLI built on
 Taskwarrior. Other LSP editors may work, but Helix is the tested integration.
 
-**[Read the Hexai guide](docs/guide/index.md)** — install the tools, choose
-your providers, and work through every feature with animated terminal recordings.
+**[Read the Hexai guide](docs/guide/index.md)** — set up Helix, choose your
+providers, and work through every feature with animated terminal recordings.
 
-![Comparing two models and selecting a cached answer](docs/guide/images/04-models.gif)
+| AI completions in Helix | Chat and inline edits in Helix |
+|-------------------------|-------------------------------|
+| ![Requesting and accepting an AI completion in Helix](docs/guide/images/05-helix.gif) | ![Asking follow-up questions and applying an inline edit in Helix](docs/guide/images/06-chat-inline.gif) |
 
 - Complete code with one model or compare suggestions from several.
 - Ask questions inside a file, or use inline instructions to change code.
@@ -27,14 +29,14 @@ The built-in default is Ollama Cloud; the guide also covers local setup.
 With Go 1.26 or newer:
 
 ```sh
-go install github.com/snonux/hexai/cmd/hexai@latest
 go install github.com/snonux/hexai/cmd/hexai-lsp-server@latest
 go install github.com/snonux/hexai/cmd/hexai-tmux-action@latest
+go install github.com/snonux/hexai/cmd/hexai@latest
 go install github.com/snonux/hexai/cmd/ask@latest
 ```
 
-Continue with [installation and prerequisites](docs/guide/01-installing.md)
-and [your first configuration](docs/guide/02-configuration.md).
+Continue with [installation and prerequisites](docs/guide/index.md#1-installing)
+and [your first configuration](docs/guide/index.md#2-your-first-configuration).
 The complete commented settings reference is [config.toml.example](config.toml.example).
 
 The experimental MCP server is outside this guide. Its

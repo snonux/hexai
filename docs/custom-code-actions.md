@@ -2,4 +2,4 @@
 
 This page has moved into [the Hexai guide](guide/index.md).
 
-- [Your own actions and prompts](guide/08-custom-actions.md)
+- [Your own actions and prompts](guide/index.md#8-your-own-actions-and-prompts)
