@@ -14,7 +14,7 @@ done
 
 build_dir=$(mktemp -d -t hexai-guide-bin-XXXXXX)
 trap 'rm -r -- "$build_dir"' EXIT
-for binary in hexai hexai-lsp-server hexai-tmux-action ask; do
+for binary in hexai hexai-lsp-server hexai-tmux-action ask hexai-mcp-server; do
     go build -o "$build_dir/$binary" "./cmd/$binary"
 done
 

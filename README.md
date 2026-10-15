@@ -39,5 +39,6 @@ Continue with [installation and prerequisites](docs/guide/index.md#1-installing)
 and [your first configuration](docs/guide/index.md#2-your-first-configuration).
 The complete commented settings reference is [config.toml.example](config.toml.example).
 
-The experimental MCP server is outside this guide. Its
-[existing reference](docs/mcp-setup.md) remains available for archival use.
+The [MCP server chapters](docs/guide/index.md#12-mcp-server-experimental-setup)
+cover the **experimental, deprecated** prompt-management server, which is not
+actively maintained.

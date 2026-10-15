@@ -15,6 +15,10 @@
 | 9 | [Tmux status](#9-tmux-status) | Show live requests and usage statistics; set colors and width |
 | 10 | [Project tasks with ask](#10-project-tasks-with-ask) | Scope tasks, manage dependencies and dates, watch progress, and enable Fish completion |
 | 11 | [Files and troubleshooting](#11-files-and-troubleshooting) | Find logs and caches, diagnose failures, and run development checks |
+| 12 | [MCP server: experimental setup](#12-mcp-server-experimental-setup) | Install the deprecated server, configure clients, and try an isolated collection |
+| 13 | [MCP prompts and authoring](#13-mcp-prompts-and-authoring) | Use meta-prompts, write templates, manage records, and import/export JSONL |
+| 14 | [MCP protocol reference](#14-mcp-protocol-reference) | Initialize stdio sessions, discover prompts/tools, mutate records, and handle errors |
+| 15 | [MCP backups, sharing, and troubleshooting](#15-mcp-backups-sharing-and-troubleshooting) | Restore data, share collections, export commands, and diagnose the experimental server |
 
 **Start here: [1. Installing →](#1-installing).**
 
@@ -41,8 +45,9 @@ Every chapter includes commands and explanations so you can follow it without
 playing the animation. Click a GIF to open it if your viewer pauses animations.
 
 The [commented configuration file](../../config.toml.example) is the complete
-option reference. This guide covers the maintained tools; the experimental
-MCP server keeps its [separate archival documentation](../mcp-setup.md).
+option reference. Chapters 1–11 cover the maintained tools. Chapters 12–15
+cover the **experimental, deprecated MCP server**, which is not actively
+maintained; each MCP chapter retains that warning.
 
 ## 1. Installing
 
@@ -244,8 +249,9 @@ finds that root. The merge order is:
 4. Supported environment overrides.
 
 `--config` changes the global-file layer; project settings and environment
-overrides still apply. `hexai`, `hexai-lsp-server`, and `hexai-tmux-action`
-accept `--config`. `ask` manages Taskwarrior settings separately.
+overrides still apply. `hexai`, `hexai-lsp-server`, `hexai-tmux-action`, and
+the experimental `hexai-mcp-server` accept `--config`. `ask` manages Taskwarrior
+settings separately.
 
 ### Environment overrides
 
@@ -1308,7 +1314,7 @@ live in **Taskwarrior's** data directory, not Hexai's cache. Keep Taskwarrior
 backups separately from cached data.
 
 The maintained tools do not require a prompt database. The experimental MCP
-component's data files are described in its archival docs.
+component's data files are described in [MCP configuration and file locations](#mcp-configuration-and-file-locations).
 
 ### A provider does not answer
 
@@ -1404,6 +1410,764 @@ ignored generated reports under `docs/`. No generated coverage files need
 to be committed.
 
 To update the animations, follow the [recording instructions](recordings/readme.md).
+
+## 12. MCP server: experimental setup
+
+> **DEPRECATION NOTICE: `hexai-mcp-server` is experimental and not actively
+> maintained.** Its original prompt-management role has been superseded by
+> slash commands and meta-commands in the author's workflow. The code remains
+> available for possible future work, with no guarantee of stability or
+> continued support. These MCP chapters are retained as a reference.
+
+The Model Context Protocol lets a client discover prompts and tools supplied
+by a separate process. Hexai's MCP server stores reusable prompt templates,
+renders their arguments, and exposes tools to create, update, and delete
+custom prompts. Your MCP client supplies the model that uses those templates;
+the server itself does not need an LLM provider or API key.
+
+![The experimental MCP server listing, creating, rendering, updating, and deleting a prompt](images/12-mcp.gif)
+
+This recording uses the real server and a small stdio client, with a temporary
+prompt directory. It shows the actual startup warning, successful operations,
+a backup file, and a missing-prompt error. Unlike the LLM recordings, this
+interaction needs no response fixture.
+
+The request path is:
+
+```mermaid
+flowchart TD
+    Client["MCP client"] -->|JSON-RPC over stdio| Server["Prompt and tool handlers"]
+    Server --> Store["Prompt store"]
+    Store --> Builtins["Built-in templates in Go"]
+    Store --> Data["user.jsonl and backups/"]
+```
+
+### Install the experimental server separately
+
+The normal `mage build` and `mage install` targets install the four maintained
+tools from chapter 1. They do **not** install this experimental binary.
+
+```sh
+go install github.com/snonux/hexai/cmd/hexai-mcp-server@latest
+hexai-mcp-server --version
+```
+
+From a checkout, use `go build -o hexai-mcp-server ./cmd/hexai-mcp-server`,
+`go install ./cmd/hexai-mcp-server`, or the explicit `mage buildHexaiMCPServer`
+build target. The startup deprecation notice is printed to stderr, even for
+`--version`; the version itself goes to stdout.
+
+### MCP configuration and file locations
+
+MCP uses the same global/project TOML loading described in chapter 2, with
+these additional settings:
+
+```toml
+[mcp]
+prompts_dir = "~/hexai-prompts"
+slashcommand_sync = false
+# slashcommand_dir = "~/.claude/commands"
+```
+
+| Setting | Flag | Environment override |
+|---------|------|----------------------|
+| Prompt directory | `--prompts-dir` | `HEXAI_MCP_PROMPTS_DIR` |
+| Enable Markdown command export | `--slashcommand-sync` | `HEXAI_MCP_SLASHCOMMAND_SYNC` |
+| Export directory | `--slashcommand-dir` | `HEXAI_MCP_SLASHCOMMAND_DIR` |
+
+Nonempty CLI overrides take precedence over environment variables, then
+project and global TOML, then defaults. `--slashcommand-sync` enables export;
+it does not provide a separate disable override. The current merge only
+applies a true sync value: a false value in a later layer cannot undo an
+earlier true value. To disable export, remove enabled settings from every
+loaded layer and restart. Paths beginning with `~/` are expanded for prompt
+storage. An explicit absolute path avoids dependence on the client's working
+directory.
+
+The default prompt directory is `~/.local/hexai/data/prompts/`, or
+`$XDG_DATA_HOME/prompts/` when XDG_DATA_HOME is set. The server creates this
+directory and its `backups/` subdirectory. It creates `user.jsonl` when a
+custom prompt is first saved. Built-ins are compiled into the binary;
+`default.jsonl` is no longer read or required.
+
+The default log is `~/.local/hexai/state/hexai-mcp-server.log`, or
+`$XDG_STATE_HOME/state/hexai-mcp-server.log`. `--log /path/to/file` selects
+another log, and `--log ''` sends logs to stderr. `--config /path/to/file`
+selects the global-file layer as usual. `--sync-all` exports existing prompts
+and exits; see [MCP command export](#mcp-command-export).
+
+### Connect Claude Code
+
+Register a stdio server with an absolute executable path:
+
+```sh
+claude mcp add --transport stdio --scope user hexai-prompts -- \
+  "$HOME/go/bin/hexai-mcp-server"
+claude mcp list
+```
+
+Use `--scope project` to share the registration through the project's
+`.mcp.json`. User scope applies across projects and is stored in
+`~/.claude.json`. To select a different collection, pass flags after `--`:
+
+```sh
+claude mcp add --transport stdio --scope user hexai-go -- \
+  "$HOME/go/bin/hexai-mcp-server" \
+  --prompts-dir "$HOME/prompts/go" --log /tmp/hexai-go-mcp.log
+```
+
+Use `/mcp` inside Claude Code to inspect the connection and tools. Prompt
+command names are client-dependent; select a discovered MCP prompt rather
+than assuming that an unqualified `/save_prompt` belongs to Hexai. Remove
+the registration with `claude mcp remove hexai-prompts --scope user`.
+See the [Claude Code MCP reference](https://code.claude.com/docs/en/mcp) for
+client-specific scopes and prompt invocation.
+
+### Connect Cursor or another client
+
+Cursor reads global configuration from `~/.cursor/mcp.json` and project
+configuration from `.cursor/mcp.json`. Replace the executable path below with
+your installed path:
+
+```json
+{
+  "mcpServers": {
+    "hexai-prompts": {
+      "type": "stdio",
+      "command": "/absolute/path/to/hexai-mcp-server",
+      "args": ["--prompts-dir", "/absolute/path/to/hexai-prompts"],
+      "env": {}
+    }
+  }
+}
+```
+
+Reload the client connection after changing its configuration. Cursor supports
+MCP tools and prompts; see its [MCP reference](https://cursor.com/docs/mcp)
+for the current configuration UI and supported fields.
+
+Other clients need a local **stdio** server definition with the executable,
+arguments, and optional environment. Hexai's server exposes no HTTP endpoint.
+Clients that only expose tools can still manage custom prompts with
+`create_prompt`, `update_prompt`, and `delete_prompt`; using rendered prompt
+templates requires support for MCP prompts.
+
+Register separate instances with separate prompt directories for different
+collections, such as general prompts and Go prompts. Avoid simultaneous
+writers to the same collection: the store's lock coordinates one process,
+not several servers or a manual editor.
+
+### Try a disposable collection
+
+From a checkout, with `hexai-mcp-server` on PATH:
+
+```sh
+mcp_demo_dir=$(mktemp -d -t hexai-mcp-guide-XXXXXX)
+python3 docs/guide/recordings/mcp-demo.py "$mcp_demo_dir" list
+python3 docs/guide/recordings/mcp-demo.py "$mcp_demo_dir" create
+python3 docs/guide/recordings/mcp-demo.py "$mcp_demo_dir" get
+python3 docs/guide/recordings/mcp-demo.py "$mcp_demo_dir" update
+python3 docs/guide/recordings/mcp-demo.py "$mcp_demo_dir" delete
+python3 docs/guide/recordings/mcp-demo.py "$mcp_demo_dir" missing
+```
+
+The included client initializes the server before each operation and waits
+for the matching response ID. It disables command export, stores diagnostics
+in the disposable directory, and prints protocol results. The last command
+intentionally exits with status 1 to demonstrate an unknown prompt. This
+helper is recording/example tooling, not a replacement management CLI.
+
+## 13. MCP prompts and authoring
+
+> **Experimental and deprecated:** this chapter documents the unmaintained
+> MCP component. Review templates and changes before using them.
+
+A prompt is a named collection of messages, argument declarations, and
+metadata. The server returns the messages to your client; it does not run
+them through a model itself. These MCP templates are separate from the
+`[prompts.code_action]` settings used by the editor integration.
+
+### Built-in MCP meta-prompts
+
+The binary currently contains four read-only meta-prompts:
+
+| Prompt | Required arguments | Purpose |
+|--------|--------------------|---------|
+| `save_prompt` | `prompt_name`, `prompt_title` | Turn the current conversation into a reusable template |
+| `update_prompt` | `prompt_name` | Retrieve a custom prompt, discuss changes, and preview an update |
+| `delete_prompt` | `prompt_name` | Preview removal of a custom prompt and request confirmation |
+| `design_prompt` | None | Design a new template from its purpose, arguments, and metadata |
+
+The save/design flows ask about variable parts, description, tags, and message
+structure, show the complete proposed prompt, and ask the client model to
+wait for approval before saving. The update flow asks the model to retrieve
+the existing version and preview changes. The delete flow asks for explicit
+confirmation. Those are instructions to the model; the underlying mutation
+tools themselves perform a requested operation without an additional
+interactive confirmation.
+
+For example, after discussing Go reviews, select the server's `save_prompt`
+with `prompt_name="go_best_practices"` and
+`prompt_title="Go Best Practices Review"`. Discuss whether `code` is required,
+whether `focus_area` should be optional, and tags such as `go` and `review`.
+Review the JSON preview before asking the client to save it. To start from
+scratch, select `design_prompt`, describe the task, and choose its arguments.
+
+Built-ins cannot be edited, deleted, or shadowed by a custom prompt. Create
+a differently named custom copy when you want to adapt one. Old references
+to seven built-in coding prompts describe an earlier implementation; the
+four meta-prompts above are the current compiled set.
+
+### The complete prompt record
+
+A custom code-review prompt can look like this:
+
+```json
+{
+  "name": "go_best_practices",
+  "title": "Go Best Practices Review",
+  "description": "Review Go code for correctness, clarity, and error handling.",
+  "arguments": [
+    {"name": "code", "description": "Go code to review", "required": true},
+    {"name": "focus_area", "description": "Optional review focus", "required": false}
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": {
+        "type": "text",
+        "text": "Review this Go code:\n\n{{code}}\n\nFocus: {{focus_area}}"
+      }
+    }
+  ],
+  "tags": ["go", "review", "quality"],
+  "created": "2026-10-15T12:00:00Z",
+  "updated": "2026-10-15T12:00:00Z"
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `name` | Unique identifier; prefer lowercase words joined with underscores |
+| `title` | Display name |
+| `description` | A short explanation of the task and expected output |
+| `arguments` | Named variables, each with a description and a `required` boolean |
+| `messages` | Ordered `user` and `assistant` messages with text content |
+| `tags` | Categories such as language, domain, task, or difficulty |
+| `created`, `updated` | RFC 3339 timestamps supplied by the server for protocol-created records |
+
+Creation requires a nonempty name, title, and at least one message. Use stable
+names such as `review_db_schema`, `optimize_sql`, or `security_audit`, helpful
+argument names such as `error_message`, and descriptions explaining what
+will be produced. Keep tags consistent, for example `go`, `testing`, `web`,
+`database`, `review`, or `beginner`.
+
+### Template substitution and conversations
+
+Use `{{code}}` for an argument named `code`. Substitution is literal and
+case-sensitive, so `{{Code}}` is a different placeholder. Supply `""` for an
+optional argument you want blank; omitted optional placeholders remain
+literal. Required arguments must be present, though an empty string counts
+as present. There are no template conditionals or automatic default values.
+Write fallback guidance into the prompt text and pass a value explicitly.
+
+Use `\n` inside a JSON string for line breaks. A template such as
+`"Hello {{name}}! Your age is {{age}}."` becomes
+`"Hello Alice! Your age is 30."` with the corresponding string arguments.
+Several messages can establish a conversation:
+
+```json
+{
+  "messages": [
+    {"role": "user", "content": {"type": "text", "text": "What is {{topic}}?"}},
+    {"role": "assistant", "content": {"type": "text", "text": "Here is an explanation of {{topic}}."}},
+    {"role": "user", "content": {"type": "text", "text": "Apply that to this code:\n{{code}}"}}
+  ]
+}
+```
+
+Useful templates to save with the same record structure include:
+
+| Task/name | Arguments | Message template |
+|-----------|-----------|------------------|
+| SQL optimization / `optimize_sql` | `query` required | `Optimize {{query}}. Discuss indexes, query structure, and performance.` |
+| Algorithm optimization / `optimize_algorithm` | `code` required, `constraints` optional | `Optimize {{code}} under {{constraints}}. Give time/space complexity, suggestions, and an implementation.` |
+| API design / `design_endpoint` | `resource`, `operations` required | `Design REST endpoints for {{resource}} supporting {{operations}}. Include methods, bodies, status codes, and authentication.` |
+| Security review / `security_audit` | `code` required | `Audit {{code}} for vulnerabilities. Explain each issue and a correction.` |
+| Database review / `review_db_schema` | `schema` required, `db_type` optional | `Review {{schema}} for {{db_type}}, focusing on performance and correctness.` |
+
+### Create, update, and delete through the client
+
+Ask the client to use `create_prompt` with a record's name, title, arguments,
+messages, description, and tags. For example, a `tools/call` request is:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "create_prompt",
+    "arguments": {
+      "name": "api_design",
+      "title": "Design REST API",
+      "description": "Design endpoints and their request/response formats.",
+      "arguments": [{"name": "resource", "required": true}],
+      "messages": [{"role": "user", "content": {"type": "text", "text": "Design a REST API for {{resource}}."}}],
+      "tags": ["api", "rest", "design"]
+    }
+  }
+}
+```
+
+`update_prompt` identifies the record by name and accepts the fields to
+change. A nonempty arguments/messages/tags array replaces the whole array.
+**Empty strings and empty arrays are ignored by updates**, so these calls
+cannot clear a description or remove all tags. For that, edit a backed-up
+`user.jsonl` while server writers are stopped. `delete_prompt` removes only
+a custom record. [The protocol chapter](#14-mcp-protocol-reference) also
+shows the direct `prompts/create`, `prompts/update`, and `prompts/delete`
+extensions for clients that implement them.
+
+Writes through either interface take effect on the next list/get request.
+The server sends a list-change notification after successful protocol
+mutations; a client may still need to refresh its cached prompt picker.
+
+### Edit, import, export, and count JSONL records
+
+`user.jsonl` contains one **complete JSON object per physical line**. The
+pretty-printed record above explains the fields; compact it before appending.
+For these commands, set the actual collection directory first:
+
+```sh
+prompts_dir="$HOME/hexai-prompts"
+mkdir -p "$prompts_dir"
+jq -c . my-prompt.json >> "$prompts_dir/user.jsonl"
+jq -c 'select(.name == "api_design")' "$prompts_dir/user.jsonl" > api-design.json
+jq -s length "$prompts_dir/user.jsonl"
+jq -s . "$prompts_dir/user.jsonl" > /dev/null
+```
+
+The first command imports a record from a normal JSON file; the next exports
+one record by name. Check for name conflicts before importing. `jq -s length`
+counts records, and `jq -s .` checks JSON syntax. Direct writes bypass backup
+creation, timestamps, and change notifications. Stop other writers and make
+a copy first; a running server reads the file again for later list/get calls.
+
+Invalid JSON lines produce warnings and are skipped. Duplicate custom names
+are not a supported collection format. A user record with a built-in name is
+skipped in favor of the compiled template. Keep your source JSON files in git
+when you want reviewable imports and exports.
+
+### Write records with Python
+
+This example expands the path, supplies timezone-aware timestamps, and
+appends compact JSONL. Choose an unused name before running it, and stop
+other writers first. It bypasses the server's automatic backups.
+
+```python
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+path = Path("~/hexai-prompts/user.jsonl").expanduser()
+path.parent.mkdir(parents=True, exist_ok=True)
+now = datetime.now(timezone.utc).isoformat()
+prompt = {
+    "name": "security_audit",
+    "title": "Security Audit",
+    "description": "Review code for security vulnerabilities.",
+    "arguments": [{"name": "code", "description": "Code to audit", "required": True}],
+    "messages": [{"role": "user", "content": {
+        "type": "text", "text": "Audit this code:\n\n{{code}}"}}],
+    "tags": ["security", "audit"],
+    "created": now,
+    "updated": now,
+}
+with path.open("a") as stream:
+    stream.write(json.dumps(prompt) + "\n")
+```
+
+### Work with the store from Go
+
+Within this repository, `internal/promptstore` exposes `NewJSONLStore`,
+`Prompt`, `PromptArgument`, `PromptMessage`, and `MessageContent`. The store
+interface provides `List(cursor, limit)`, `Get(name)`, `Create`, `Update`,
+`Delete`, and `SearchByTags`. Tag search uses AND matching. The concrete
+`JSONLStore` also provides `ListBackups` and `RestoreBackup`.
+
+For a Go tool inside the Hexai module, an abbreviated creation example is:
+
+```go
+store, err := promptstore.NewJSONLStore(absolutePromptsDir)
+if err != nil {
+    return err
+}
+return store.Create(&promptstore.Prompt{
+    Name: "review_code",
+    Title: "Review Code",
+    Arguments: []promptstore.PromptArgument{{Name: "code", Required: true}},
+    Messages: []promptstore.PromptMessage{{
+        Role: "user",
+        Content: promptstore.MessageContent{Type: "text", Text: "Review {{code}}"},
+    }},
+})
+```
+
+This uses `github.com/snonux/hexai/internal/promptstore`, so Go's `internal`
+package rules prevent importing it from an unrelated external module.
+`NewJSONLStore` expects the resolved directory; expand `~` yourself. See
+[store types](../../internal/promptstore/types.go) and
+[store operations](../../internal/promptstore/store.go) for the full signatures.
+
+## 14. MCP protocol reference
+
+> **Experimental and deprecated:** the methods below describe this binary's
+> implemented protocol, including Hexai-specific mutation extensions.
+
+### Transport, initialization, and capabilities
+
+The server uses JSON-RPC 2.0 with **one compact JSON message per line** on
+stdin/stdout. JSON strings may contain escaped `\n`, but a message cannot
+span physical lines. There is no LSP `Content-Length` header and no HTTP
+listener to call with curl. Startup notices and diagnostics use stderr or
+the selected log, keeping stdout for protocol messages.
+
+Initialize and **wait for its response** before sending other requests.
+Handlers run concurrently, so piping several lines without waiting can race
+the handshake, and later responses can arrive out of order. Match request
+IDs and accept notifications without an ID.
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"my-client","version":"1.0"}}}
+```
+
+The supported protocol versions are `2025-11-25`, `2025-06-18`, `2025-03-26`,
+and `2024-11-05`. The server echoes a supported requested version; otherwise
+it returns its newest supported version, `2025-11-25`. Inspect the negotiated
+value in the initialization result:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-11-25",
+    "capabilities": {
+      "prompts": {"listChanged": true, "mutable": true},
+      "tools": {}
+    },
+    "serverInfo": {"name": "hexai-mcp-server", "version": "<installed-version>"}
+  }
+}
+```
+
+`mutable` is Hexai's extension capability. `prompts.listChanged` advertises
+notifications; the tool list is static, so its false `listChanged` value is
+omitted in JSON. The server accepts `notifications/initialized` (and the
+legacy `initialized`) after initialization. Resources are not advertised or
+implemented by this binary.
+
+### Discover and render prompts
+
+| Method | Parameters | Result |
+|--------|------------|--------|
+| `prompts/list` | Optional `cursor` | `prompts` metadata and optional `nextCursor` |
+| `prompts/get` | `name`, optional string-valued `arguments` map | `description` and rendered `messages` |
+
+Listing returns up to 100 records per page, sorted by name. Pass the returned
+`nextCursor` unchanged to fetch the next page, and stop when it is absent or
+empty. The listing includes names, titles, descriptions, and argument
+metadata; it does not include message bodies or tags. Retrieve a prompt to
+render its messages:
+
+```json
+{"jsonrpc":"2.0","id":2,"method":"prompts/list","params":{}}
+```
+
+```json
+{"jsonrpc":"2.0","id":3,"method":"prompts/get","params":{"name":"api_design","arguments":{"resource":"users"}}}
+```
+
+After creating the example from chapter 13, the get result contains:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "description": "Design endpoints and their request/response formats.",
+    "messages": [{"role": "user", "content": {"type": "text", "text": "Design a REST API for users."}}]
+  }
+}
+```
+
+### Discover and call management tools
+
+```json
+{"jsonrpc":"2.0","id":4,"method":"tools/list","params":{}}
+```
+
+The result contains three tools and their JSON input schemas:
+
+| Tool | Required input | Optional input |
+|------|----------------|----------------|
+| `create_prompt` | `name`, `title`, nonempty `messages` | `description`, `arguments`, `tags` |
+| `update_prompt` | `name` | Nonempty `title`, `description`, `arguments`, `messages`, `tags` |
+| `delete_prompt` | `name` | None |
+
+Each argument declaration has a name, description, and required boolean;
+each message has a role and a `content` object with `type` and `text`.
+`tools/list` has no further pages. A call nests its input under `arguments`:
+
+```json
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"update_prompt","arguments":{"name":"api_design","title":"Design a RESTful API"}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"Successfully updated prompt: api_design"}]}}
+```
+
+Successful tool results omit the false `isError` field. A failed operation,
+including an unknown tool name, normally returns a result with `isError: true`
+and explanatory text. Malformed JSON-RPC parameters can instead produce a
+protocol error. Check both forms before reporting success.
+
+### Direct prompt mutation extensions
+
+For clients implementing Hexai's extension methods, the same record fields
+are sent directly in `params`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "prompts/create",
+  "params": {
+    "name": "perf_analysis",
+    "title": "Performance Analysis",
+    "arguments": [{"name": "code", "required": true}],
+    "messages": [{"role": "user", "content": {"type": "text", "text": "Analyze performance: {{code}}"}}],
+    "tags": ["performance"]
+  }
+}
+```
+
+```json
+{"jsonrpc":"2.0","id":6,"result":{"success":true,"message":"Created prompt: perf_analysis"}}
+```
+
+```json
+{"jsonrpc":"2.0","id":7,"method":"prompts/update","params":{"name":"perf_analysis","description":"Include profiling suggestions."}}
+```
+
+```json
+{"jsonrpc":"2.0","id":8,"method":"prompts/delete","params":{"name":"perf_analysis"}}
+```
+
+Update/delete results use the same `success` and `message` structure.
+Only custom records are mutable. Updates use the nonempty-field behavior
+from chapter 13. These three methods extend MCP's standard prompt discovery
+and rendering methods; client support for them is not assumed. Prefer the
+advertised management tools when your client supports tools.
+
+After a successful create, update, or delete through either interface, the
+server sends this notification:
+
+```json
+{"jsonrpc":"2.0","method":"notifications/prompts/list_changed"}
+```
+
+### Errors and a complete client workflow
+
+A protocol error has an `error` object rather than `result`:
+
+```json
+{"jsonrpc":"2.0","id":9,"error":{"code":-32602,"message":"Missing prompt name"}}
+```
+
+| Code | Meaning in this implementation |
+|------|--------------------------------|
+| `-32700` | JSON could not be parsed |
+| `-32600` | Invalid request, including use before initialization |
+| `-32601` | Unknown method |
+| `-32602` | Invalid parameters, unknown prompt on get/update, or missing required arguments |
+| `-32603` | Store failure, including some duplicate-name and built-in protection failures on direct mutation methods |
+
+A client workflow is: initialize and check capabilities; send the initialized
+notification; list and get prompts; discover management tools; create a
+custom record; render it with arguments; update it; then delete it if needed.
+Wait for each dependent operation, handle list-change notifications, and check
+both protocol errors and tool `isError` results. Re-list to refresh a cached
+picker after changes.
+
+For a single-request startup check using a disposable directory:
+
+```sh
+mcp_demo_dir=$(mktemp -d -t hexai-mcp-handshake-XXXXXX)
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}' \
+  | hexai-mcp-server --prompts-dir "$mcp_demo_dir" --log "$mcp_demo_dir/server.log"
+```
+
+Use the [included stdio client](recordings/mcp-demo.py) for a dependent series
+of requests, rather than copying an LSP-framed request from an older example.
+The implementation references are [server capabilities](../../internal/mcp/server.go),
+[protocol types](../../internal/mcp/types.go),
+[prompt handlers](../../internal/mcp/handlers_prompt.go), and
+[tool schemas](../../internal/mcp/handlers_tool.go).
+
+## 15. MCP backups, sharing, and troubleshooting
+
+> **Experimental and deprecated:** backups are useful recovery files, not a
+> guarantee against data loss. Keep independent copies of important prompts.
+
+### Automatic MCP backups
+
+Writes through the prompt store create a complete copy of the current
+`user.jsonl` before changing it. Both management tools and direct mutation
+methods use that store. The first create has nothing to back up if the file
+does not exist yet; list/get calls do not create backups. Direct editor or
+shell writes bypass this mechanism.
+
+```text
+prompts/
+├── user.jsonl
+└── backups/
+    ├── user.jsonl.20261015-120000
+    └── user.jsonl.20261015-121000
+```
+
+Backup filenames use `user.jsonl.YYYYMMDD-HHMMSS`. The store keeps up to ten
+backup files, removing older names after saving another backup. There is no
+TOML or CLI retention setting; the limit lives in `NewJSONLStore`.
+
+Timestamps have one-second resolution, so writes in the same second can
+reuse a backup filename. Update/delete rewrite the whole data file, and
+these backups do not make those writes transactional or coordinate multiple
+server processes. A backup failure prevents the store mutation; a retention
+cleanup failure is logged as a warning after the backup succeeds.
+
+### Inspect and restore a collection
+
+Set `prompts_dir` to the collection you configured, then list backups:
+
+```sh
+prompts_dir="$HOME/hexai-prompts"
+ls -lht "$prompts_dir/backups/"
+```
+
+Before restoring, stop server writers, preserve the current file, and select
+a known backup from that listing. For example, after replacing the timestamp
+with the one you chose:
+
+```sh
+cp "$prompts_dir/user.jsonl" "$prompts_dir/user.before-restore.jsonl"
+cp "$prompts_dir/backups/user.jsonl.20261015-120000" "$prompts_dir/user.jsonl"
+jq -s . "$prompts_dir/user.jsonl" > /dev/null
+```
+
+Copy only the relevant existing file if there is no current `user.jsonl`.
+Reconnect or refresh the client picker after restoring. The next server
+read uses the restored file; a direct file copy sends no change notification.
+Restoration itself is not exposed as an MCP tool or protocol method.
+
+Repository Go tooling can type-assert the store to `*promptstore.JSONLStore`
+to call `ListBackups()` (newest names first) or `RestoreBackup(name)`. The
+latter attempts a `.pre-restore` safety copy before overwriting the user file;
+keep your own verified copy as well.
+
+### Share collections with a team
+
+Use a separate git repository for `user.jsonl` or exported individual JSON
+records. Point each server at the clone using `--prompts-dir`,
+`HEXAI_MCP_PROMPTS_DIR`, or `[mcp] prompts_dir`. For an existing team repository:
+
+```sh
+git clone https://github.com/your-team/hexai-prompts "$HOME/hexai-prompts"
+export HEXAI_MCP_PROMPTS_DIR="$HOME/hexai-prompts"
+```
+
+Review and commit `user.jsonl` after changes, push it, and have other users
+pull into their own clones. Stop local writers during a pull or merge and
+validate JSONL afterwards. File edits become visible on subsequent reads,
+but clients may cache their prompt lists. Backup files and logs can stay
+outside version control; decide separately how to retain them.
+
+For a single prompt, use the `jq` import/export commands in chapter 13.
+Earlier docs mentioned `hexai-prompt list/add/update/delete/export/backups/restore`;
+that CLI is not present in this checkout. Use MCP tools, direct JSONL handling,
+or repository Go tooling for those workflows.
+
+### MCP command export
+
+The optional slash-command sync writes Markdown files such as
+`hexai-api_design.md` into your chosen commands directory:
+
+```toml
+[mcp]
+prompts_dir = "~/hexai-prompts"
+slashcommand_sync = true
+slashcommand_dir = "~/.claude/commands"
+```
+
+A create or update through the server exports the title, description,
+argument usage, **first user message** as the template, and tags. A delete
+removes the corresponding file. Filenames use the `hexai-` prefix and a
+sanitized lowercase prompt name. Exported Markdown is an additional client
+integration; it does not replace the original multi-message JSONL record.
+
+To export existing prompts once and exit:
+
+```sh
+hexai-mcp-server --prompts-dir "$HOME/hexai-prompts" \
+  --slashcommand-dir "$HOME/.claude/commands" --sync-all
+```
+
+Backfill forces sync on, requires a commands directory, and exports up to
+1,000 prompts, including built-ins. Normal startup does not automatically
+backfill existing records. Sync failures during a mutation are logged while
+the saved prompt remains available through MCP; check both the data and the
+export log when an update appears in one place but not the other. Hand-edited
+JSONL and restores need another backfill if you also want updated Markdown.
+
+### Troubleshoot the experimental server
+
+| Symptom | Check |
+|---------|-------|
+| Binary not found | Install the separate binary; use its absolute path in client config and check PATH |
+| Permission denied | Confirm the installed file is executable and the prompt/log directories are writable |
+| Server does not connect | Use stdio, check client arguments and the MCP log, and keep stdout free of wrapper banners |
+| No built-in prompts | Check `prompts/list`; built-ins come from code, so creating `default.jsonl` will not fix discovery |
+| Custom prompt missing | Check the effective prompt directory, JSONL syntax, duplicate/built-in name conflicts, and client cache |
+| Placeholder remains literal | Match argument names exactly and provide values for optional arguments too |
+| Required argument error | Supply every declared required argument in `prompts/get` |
+| Update does not clear a field | Empty values are ignored; use a backed-up manual edit with other writers stopped |
+| API mutation succeeds but picker is stale | Handle `notifications/prompts/list_changed` or refresh/reconnect the client |
+| Export missing or stale | Enable sync, configure a writable command directory, inspect sync warnings, and backfill existing records |
+| Missing backup | A first create has no previous file; direct edits bypass backups; rapid writes can reuse a timestamp |
+
+Default diagnostics are in
+`~/.local/hexai/state/hexai-mcp-server.log`; an explicit `--log` makes them
+easier to find when a client supplies a different environment. Invalid TOML
+or an unreadable config can cause the loader to keep defaults; inspect the
+log to confirm which collection was selected. Inspect logs and exported
+prompts before sharing them because they can contain template content.
+
+For development, the MCP implementation spans `cmd/hexai-mcp-server`,
+`internal/hexaimcp`, `internal/mcp`, `internal/promptstore`, and
+`internal/slashcommands`. From a checkout:
+
+```sh
+go build ./cmd/hexai-mcp-server
+go test ./cmd/hexai-mcp-server ./internal/hexaimcp ./internal/mcp ./internal/promptstore ./internal/slashcommands
+```
+
+These tests cover protocol discovery and mutations, built-in protection,
+template arguments, store writes, backups/restoration, and command export.
+Use `mage coverage` for current project coverage rather than the historical
+percentages or binary-size claims in the former MCP pages. The optional
+[client integration runbook](../../prompts/mcp-server-integration-tests.md)
+describes additional checks against a real Claude Code session.
 
 ## Appendix: Recording the guide
 

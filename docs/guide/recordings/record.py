@@ -43,6 +43,7 @@ model = "demo-careful"
     prepare_editor(root, project)
     prepare_actions(project, config)
     prepare_fallback(project, endpoint)
+    write(project / "mcp-demo.py", Path(__file__).with_name("mcp-demo.py").read_text())
     write(root / "taskrc", f"data.location={root}/tasks\nconfirmation=no\n")
     (root / "tasks").mkdir()
     return project
