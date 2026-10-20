@@ -71,6 +71,7 @@ go install github.com/snonux/hexai/cmd/hexai@latest
 go install github.com/snonux/hexai/cmd/hexai-lsp-server@latest
 go install github.com/snonux/hexai/cmd/hexai-tmux-action@latest
 go install github.com/snonux/hexai/cmd/ask@latest
+go install github.com/snonux/hexai/cmd/nask@latest
 ```
 
 `go install` writes to `$GOBIN` when set, otherwise the `bin` directory in your
@@ -99,7 +100,7 @@ mage build
 mage install
 ```
 
-`mage build` creates `ask`, `hexai`, `hexai-lsp-server`, and
+`mage build` creates `ask`, `nask`, `hexai`, `hexai-lsp-server`, and
 `hexai-tmux-action` at the repository root. `mage install` builds and copies
 them to `$GOPATH/bin`, defaulting to `~/go/bin` when GOPATH is unset.
 It does not write Fish completion files. To keep the build in your checkout,
@@ -1164,6 +1165,11 @@ ask proj:hexai-demo na list
 ask na proj:hexai-demo list
 ```
 
+The standalone `nask` command is an alias for `ask na`. With no arguments,
+`nask` lists personal tasks; `nask add 'Read the guide'` creates one without
+the `agent` tag. It accepts the same arguments, including `proj:<name>` and
+`--json`. To enable its Fish completion, run `nask fish | source`.
+
 The prefixes can appear in either order. `ask projects` is global: it lists
 projects with pending, not-yet-started work, including hierarchical project
 names. It does not create parent names just because a child has work.
@@ -1444,7 +1450,7 @@ flowchart TD
 
 ### Install the experimental server separately
 
-The normal `mage build` and `mage install` targets install the four maintained
+The normal `mage build` and `mage install` targets install the five maintained
 tools from chapter 1. They do **not** install this experimental binary.
 
 ```sh

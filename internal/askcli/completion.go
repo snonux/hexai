@@ -47,11 +47,12 @@ func fishShellCommandName(binaryPath string) string {
 
 // FishCompletionFor returns a Fish completion script that points to the provided binary path.
 func FishCompletionFor(binaryPath string) string {
+	const binaryPlaceholder = "__HEXAI_FISH_BINARY__"
 	cmd := fishShellCommandName(binaryPath)
 	var b strings.Builder
 	writeFishPreamble(&b, cmd)
 	writeFishContextFunctions(&b)
-	writeFishTaskSelectorFunction(&b, binaryPath)
+	writeFishTaskSelectorFunction(&b, binaryPlaceholder)
 	writeFishAddDependencyModifierFunction(&b)
 	b.WriteString("complete -c ")
 	b.WriteString(cmd)
@@ -76,7 +77,12 @@ func FishCompletionFor(binaryPath string) string {
 	writeFishUUIDCompletionLine(&b, cmd, "__ask_in_uuid_context", "Task selector")
 	writeFishUUIDCompletionLine(&b, cmd, "__ask_in_dep_uuid_context", "Task selector")
 	writeFishFunctionCompletionLine(&b, cmd, "__ask_in_add_dep_modifier_context", "__ask_add_dependency_modifiers", "Task dependency")
-	return b.String()
+	script := b.String()
+	if cmd == "nask" {
+		script = strings.ReplaceAll(script, "__ask_", "__nask_")
+	}
+	// Insert the executable path after namespacing to preserve it literally.
+	return strings.ReplaceAll(script, quoteFishString(binaryPlaceholder), quoteFishString(binaryPath))
 }
 
 func writeFishPreamble(b *strings.Builder, cmd string) {

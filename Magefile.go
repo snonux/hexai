@@ -39,7 +39,7 @@ func Default() error {
 // Build builds binaries.
 func Build() error {
 	printCoverage()
-	mg.Deps(BuildAsk, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction)
+	mg.Deps(BuildAsk, BuildNask, BuildHexaiLSP, BuildHexaiCLI, BuildHexaiTmuxAction)
 	return nil
 }
 
@@ -47,6 +47,12 @@ func Build() error {
 func BuildAsk() error {
 	printCoverage()
 	return sh.RunV("go", "build", "-o", "ask", "./cmd/ask")
+}
+
+// BuildNask builds the non-agent task command alias.
+func BuildNask() error {
+	printCoverage()
+	return sh.RunV("go", "build", "-o", "nask", "./cmd/nask")
 }
 
 // BuildHexaiLSP builds the LSP server binary.
@@ -78,6 +84,9 @@ func Dev() error {
 	printCoverage()
 	mg.Deps(Test, Vet, Lint)
 	if err := sh.RunV("go", "build", "-race", "-o", "ask", "./cmd/ask"); err != nil {
+		return err
+	}
+	if err := sh.RunV("go", "build", "-race", "-o", "nask", "./cmd/nask"); err != nil {
 		return err
 	}
 	if err := sh.RunV("go", "build", "-race", "-o", "hexai-lsp-server", "./cmd/hexai-lsp-server"); err != nil {
@@ -122,6 +131,7 @@ func Install() error {
 	}
 	for _, name := range []string{
 		"ask",
+		"nask",
 		"hexai-lsp-server",
 		binaryName,
 		"hexai-tmux-action",

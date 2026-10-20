@@ -1,4 +1,4 @@
-package main
+package askcmd
 
 import (
 	"bytes"
@@ -94,6 +94,16 @@ func TestNewApp_DefaultReturnsRealDispatcher(t *testing.T) {
 	}
 	if _, ok := d.(*askcli.Dispatcher); !ok {
 		t.Fatalf("default dispatcher factory returned %T, want *askcli.Dispatcher", d)
+	}
+}
+
+func TestRunHelp(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"--help"}, nil, &stdout, &stderr); code != 0 {
+		t.Fatalf("Run = %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "ask - task management CLI") {
+		t.Fatalf("missing help output: %s", stdout.String())
 	}
 }
 

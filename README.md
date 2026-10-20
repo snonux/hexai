@@ -33,4 +33,8 @@ go install github.com/snonux/hexai/cmd/hexai-lsp-server@latest
 go install github.com/snonux/hexai/cmd/hexai-tmux-action@latest
 go install github.com/snonux/hexai/cmd/hexai@latest
 go install github.com/snonux/hexai/cmd/ask@latest
+go install github.com/snonux/hexai/cmd/nask@latest
 ```
+
+`nask` runs `ask na`: for example, `nask list` lists project tasks without
+the `agent` tag, and `nask add 'Read the guide'` creates one.

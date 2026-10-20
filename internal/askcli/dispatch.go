@@ -162,6 +162,7 @@ func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "\nScope prefixes:\n")
 	_, _ = io.WriteString(w, "  ask na <subcommand...>         Run a subcommand against project tasks without +agent\n")
 	_, _ = io.WriteString(w, "  ask no-agent <subcommand...>   Alias for ask na\n")
+	_, _ = io.WriteString(w, "  nask <subcommand...>           Standalone alias for ask na\n")
 	_, _ = io.WriteString(w, "\nSubcommands:\n")
 	_, _ = io.WriteString(w, "  ask add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print created task <id>\n")
 	_, _ = io.WriteString(w, "  ask edit                     Open $EDITOR and create a task from its content\n")
