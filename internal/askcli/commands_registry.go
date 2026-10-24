@@ -98,6 +98,13 @@ var commandRegistry = newCommandTable([]commandEntry{
 		readOnly:            true,
 	},
 	{
+		name:                "count",
+		description:         "Print the number of open project tasks (all due dates)",
+		handler:             wrapSimpleCommand((*Dispatcher).handleCount),
+		includeInCompletion: true,
+		readOnly:            true,
+	},
+	{
 		name:                "all",
 		description:         "List all tasks",
 		handler:             wrapSimpleCommand((*Dispatcher).handleAll),

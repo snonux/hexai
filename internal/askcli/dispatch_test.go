@@ -34,6 +34,9 @@ func TestDispatcher_Help(t *testing.T) {
 	if !strings.Contains(output, "ask list") {
 		t.Fatalf("help missing list subcommand: %s", output)
 	}
+	if !strings.Contains(output, "ask count") {
+		t.Fatalf("help missing count subcommand: %s", output)
+	}
 	if !strings.Contains(output, "ask all") {
 		t.Fatalf("help missing all subcommand: %s", output)
 	}

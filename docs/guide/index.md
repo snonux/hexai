@@ -1174,6 +1174,11 @@ The prefixes can appear in either order. `ask projects` is global: it lists
 projects with pending, not-yet-started work, including hierarchical project
 names. It does not create parent names just because a child has work.
 
+`ask count` prints only the number of open (pending) tasks in the current
+project and its descendants, including tasks due far in the future. It uses
+the usual `+agent` scope; use `ask na count` for tasks without `+agent`, or
+`ask proj:<name> count` to select a project explicitly.
+
 ### Find the next task
 
 ```sh
