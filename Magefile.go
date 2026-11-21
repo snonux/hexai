@@ -383,6 +383,14 @@ func CoverCheck() error {
 		prof := filepath.Join("docs", "coverage", safe+".out")
 		// Per-package run; ignore errors to allow packages without tests
 		_, _ = sh.Output("go", "test", "-covermode=count", "-coverprofile", prof, pkg)
+		if profileHasNoStatements(prof) {
+			// A package of constants or types only has nothing to cover; go tool
+			// cover reports 0.0% for it whatever its tests do, so it would fail
+			// the gate forever. A missing profile (tests that do not build) is
+			// not skipped and still counts as 0%.
+			fmt.Printf("- %s: no statements, skipped\n", pkg)
+			continue
+		}
 		// Read total
 		total, ok := totalCoveragePercent(prof)
 		if !ok {
@@ -407,6 +415,18 @@ func CoverCheck() error {
 	}
 	fmt.Println("All packages meet coverage threshold.")
 	return nil
+}
+
+// profileHasNoStatements reports whether a coverage profile exists and holds
+// only its "mode:" header, which is what go test writes for a package without
+// executable statements.
+func profileHasNoStatements(profile string) bool {
+	data, err := os.ReadFile(profile)
+	if err != nil {
+		return false
+	}
+	lines := strings.Fields(strings.TrimSpace(string(data)))
+	return len(lines) == 2 && lines[0] == "mode:"
 }
 
 func modulePathGuess() string {

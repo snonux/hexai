@@ -103,7 +103,7 @@ func projectNameFromRoot(repoRoot string) (string, error) {
 func findTaskBinary() (string, error) {
 	path, err := exec.LookPath("task")
 	if err != nil {
-		return "", fmt.Errorf("Taskwarrior binary 'task' not found in PATH; install Taskwarrior and retry")
+		return "", fmt.Errorf("task binary 'task' not found in PATH; install Taskwarrior and retry")
 	}
 	return path, nil
 }
