@@ -16,7 +16,36 @@ func fixedNow() time.Time { return time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
 
 // fixedDueWindow is the default one-week due-window filter resolved at
 // fixedNow.
-const fixedDueWindow = "(due.none: or due.by:2026-09-05T12:00)"
+const fixedDueWindow = "((due.none: or due.by:2026-09-05T12:00) or +ACTIVE)"
+
+// A started task must stay visible in the default listing whatever its due
+// date: "ask list start.any:" is how an agent finds work to resume, and a
+// started task due in three weeks used to be silently hidden by the default
+// one-week due window.
+func TestHandleList_DefaultDueWindowKeepsStartedTasks(t *testing.T) {
+	for _, args := range [][]string{{"list"}, {"list", "start.any:"}, {"list", "started"}} {
+		var capturedArgs []string
+		d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, a []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+			capturedArgs = a
+			_, _ = io.WriteString(stdout, "[]")
+			return 0, nil
+		}})
+		d.now = fixedNow
+		var stdout, stderr bytes.Buffer
+		if code, _ := d.Dispatch(context.Background(), args, nil, &stdout, &stderr); code != 0 {
+			t.Fatalf("%v code = %d, stderr = %s", args, code, stderr.String())
+		}
+		found := false
+		for _, a := range capturedArgs {
+			if strings.Contains(a, "due.by:") && strings.Contains(a, "+ACTIVE") {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("%v: default due window must be OR-ed with +ACTIVE, got %v", args, capturedArgs)
+		}
+	}
+}
 
 func TestHandleList_Success(t *testing.T) {
 	dir := t.TempDir()

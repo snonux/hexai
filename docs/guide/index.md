@@ -1276,7 +1276,7 @@ a selector opens your editor to create a new task from its contents.
 ### Due dates and completed work
 
 `ask list` normally hides tasks due more than a week away while retaining
-undated tasks. Use an explicit window to see further ahead:
+undated tasks. Use an explicit window to see further ahead: Started tasks are always listed, whatever their due date, so `ask list start.any:` never misses work in progress. `ask info` shows a task's due date.
 
 ```sh
 ask add due:2026-12-01 'Review the guide in December'

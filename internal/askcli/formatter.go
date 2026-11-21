@@ -187,6 +187,11 @@ func FormatTaskInfoLast(t TaskExport, alias string, dependencyAliases map[string
 	if t.Start != "" {
 		fmt.Fprintf(&b, "Start time:  %s\n", t.Start)
 	}
+	if t.Due != "" {
+		// Listings hide tasks due more than a week out, so the due date
+		// explains why a task is missing from "ask list".
+		fmt.Fprintf(&b, "Due:         %s\n", t.Due)
+	}
 	if len(t.Depends) > 0 {
 		fmt.Fprintf(&b, "Depends:     %s\n", formatTaskDependencies(t.Depends, dependencyAliases))
 	}

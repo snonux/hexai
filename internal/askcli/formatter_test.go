@@ -349,3 +349,15 @@ type testError struct {
 func (e *testError) Error() string {
 	return e.msg
 }
+
+func TestFormatTaskInfo_ShowsDueDate(t *testing.T) {
+	unsetTestEnv(t, "HEXAI_DEBUG")
+	task := TaskExport{UUID: "u", Description: "d", Status: "pending", Due: "20261212T000000Z"}
+	if out := FormatTaskInfo(task, "0", nil); !strings.Contains(out, "Due:         20261212T000000Z") {
+		t.Fatalf("FormatTaskInfo must show the due date: %s", out)
+	}
+	task.Due = ""
+	if out := FormatTaskInfo(task, "0", nil); strings.Contains(out, "Due:") {
+		t.Fatalf("FormatTaskInfo must omit Due when there is none: %s", out)
+	}
+}

@@ -203,7 +203,7 @@ func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "\nSubcommands:\n")
 	_, _ = io.WriteString(w, "  ask add [mods...] [depends:<id|uuid>,...] <description...> Create a new task and print created task <id>\n")
 	_, _ = io.WriteString(w, "  ask edit                     Open $EDITOR and create a task from its content\n")
-	_, _ = io.WriteString(w, "  ask list [filters]           List active tasks (default; tasks due >1.week ahead hidden, pass due-window:N.weeks to widen)\n")
+	_, _ = io.WriteString(w, "  ask list [filters]           List active tasks (default; tasks due >1.week ahead hidden unless started, pass due-window:N.weeks to widen)\n")
 	_, _ = io.WriteString(w, "  ask count                    Print only the number of open project tasks (pending; all due dates)\n")
 	_, _ = io.WriteString(w, "  ask ready                   List READY tasks (not blocked, not parked)\n")
 	_, _ = io.WriteString(w, "  ask parked                  List tasks parked until a human answers\n")

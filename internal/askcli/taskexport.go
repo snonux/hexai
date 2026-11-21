@@ -15,6 +15,7 @@ type TaskExport struct {
 	Priority    string   `json:"priority"`
 	Tags        []string `json:"tags"`
 	Start       string   `json:"start,omitempty"`
+	Due         string   `json:"due,omitempty"`
 	Urgency     float64  `json:"urgency"`
 	Depends     []string `json:"depends"`
 	Annotations []struct {

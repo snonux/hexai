@@ -13,7 +13,8 @@ import (
 
 // defaultDueWindow is the default due-date horizon for ask list: tasks due
 // further out than this are hidden from the default listing. Tasks without a
-// due date and tasks due within the window (overdue included) stay visible.
+// due date, tasks due within the window (overdue included), and started
+// tasks stay visible.
 // An explicit due filter supplied by the user (due:, due-within:,
 // due-window:) disables the default window.
 const defaultDueWindow = "7.days"
@@ -29,10 +30,14 @@ func (d *Dispatcher) handleList(ctx context.Context, args []string, stdout, stde
 }
 
 // defaultDueWindowFilter resolves defaultDueWindow into a taskwarrior
-// filter matching tasks without a due date or due within the window.
+// filter matching tasks without a due date or due within the window, plus
+// every started task whatever its due date. Started tasks are work in
+// progress: "ask list start.any:" is how an agent finds what to resume, and
+// hiding a started task because it is due in three weeks made runs skip it
+// and leave it open.
 func (d *Dispatcher) defaultDueWindowFilter() string {
 	filter, _, _ := resolveDateShortcut("due-window:"+defaultDueWindow, d.now())
-	return filter
+	return "(" + filter + " or +ACTIVE)"
 }
 
 // hasDueFilter reports whether any user-supplied arg already constrains the
