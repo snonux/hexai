@@ -164,6 +164,13 @@ func detectTaskListTerminalWidth(w io.Writer) int {
 
 // FormatTaskInfo builds a human-readable block describing a single task.
 func FormatTaskInfo(t TaskExport, alias string, dependencyAliases map[string]string) string {
+	return FormatTaskInfoLast(t, alias, dependencyAliases, 0)
+}
+
+// FormatTaskInfoLast is FormatTaskInfo limited to the newest last annotations
+// (0 means all). When annotations are hidden, the heading says how many and
+// how to see the rest, so a reader never mistakes the excerpt for the whole.
+func FormatTaskInfoLast(t TaskExport, alias string, dependencyAliases map[string]string, last int) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "ID:          %s\n", alias)
 	if debugEnabled() {
@@ -183,13 +190,27 @@ func FormatTaskInfo(t TaskExport, alias string, dependencyAliases map[string]str
 	if len(t.Depends) > 0 {
 		fmt.Fprintf(&b, "Depends:     %s\n", formatTaskDependencies(t.Depends, dependencyAliases))
 	}
-	if len(t.Annotations) > 0 {
-		_, _ = io.WriteString(&b, "Annotations:\n")
-		for _, a := range t.Annotations {
-			fmt.Fprintf(&b, "  - %s (added %s)\n", a.Description, a.Entry)
-		}
-	}
+	writeTaskAnnotations(&b, t, alias, last)
 	return b.String()
+}
+
+// writeTaskAnnotations prints the annotations, oldest first. Taskwarrior
+// exports them in entry order, so the newest last ones are the tail.
+func writeTaskAnnotations(b *strings.Builder, t TaskExport, alias string, last int) {
+	total := len(t.Annotations)
+	if total == 0 {
+		return
+	}
+	first := 0
+	if last > 0 && last < total {
+		first = total - last
+		fmt.Fprintf(b, "Annotations: (last %d of %d; ask info %s shows all)\n", last, total, alias)
+	} else {
+		_, _ = io.WriteString(b, "Annotations:\n")
+	}
+	for _, a := range t.Annotations[first:] {
+		fmt.Fprintf(b, "  - %s (added %s)\n", a.Description, a.Entry)
+	}
 }
 
 func debugEnabled() bool {

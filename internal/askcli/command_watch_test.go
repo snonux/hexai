@@ -212,7 +212,7 @@ func TestHandleWatch_ForwardsSubcommandArgs(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("watch code = %d, want 0: stderr=%s", code, stderr.String())
 	}
-	if want := []string{"+READY", "limit:2", "export"}; !reflect.DeepEqual(gotArgs, want) {
+	if want := []string{"+READY", "-" + needsHumanTag, "limit:2", "export"}; !reflect.DeepEqual(gotArgs, want) {
 		t.Fatalf("runner args = %v, want %v", gotArgs, want)
 	}
 }

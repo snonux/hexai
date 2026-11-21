@@ -85,6 +85,10 @@ func TestHandleDenotate_Success(t *testing.T) {
 }
 
 func TestHandleDenotate_NumericID(t *testing.T) {
+	// Isolated cache: with the real one, "123" can be an existing alias and
+	// would resolve instead of being rejected as a numeric Taskwarrior ID.
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		t.Fatal("runFn should not be called for numeric ID")
 		return 0, nil
@@ -139,6 +143,10 @@ func TestHandleModify_Success(t *testing.T) {
 }
 
 func TestHandleModify_NumericID(t *testing.T) {
+	// Isolated cache: with the real one, "123" can be an existing alias and
+	// would resolve instead of being rejected as a numeric Taskwarrior ID.
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		t.Fatal("runFn should not be called for numeric ID")
 		return 0, nil
@@ -318,6 +326,10 @@ func TestHandleTag_Success(t *testing.T) {
 }
 
 func TestHandleTag_NumericID(t *testing.T) {
+	// Isolated cache: with the real one, "123" can be an existing alias and
+	// would resolve instead of being rejected as a numeric Taskwarrior ID.
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		t.Fatal("runFn should not be called for numeric ID")
 		return 0, nil
@@ -421,6 +433,10 @@ func TestAllWriteHandlers_AcceptUUIDPrefix(t *testing.T) {
 }
 
 func TestRunSingleTaskCommand_ResolveErrorWritesInfoError(t *testing.T) {
+	// Isolated cache: with the real one, "123" can be an existing alias and
+	// would resolve instead of being rejected as a numeric Taskwarrior ID.
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		t.Fatal("runFn should not be called when selector resolution fails")
 		return 0, nil

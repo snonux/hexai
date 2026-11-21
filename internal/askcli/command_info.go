@@ -6,10 +6,40 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
+// infoLastPrefix is the "ask info" modifier that limits the output to the
+// newest N annotations. Long-running tasks collect dozens of annotations, and
+// an agent re-reading a task it already knows only needs the recent ones.
+const infoLastPrefix = "last:"
+
+// splitInfoLast removes a "last:<n>" modifier from the info arguments and
+// returns the remaining arguments and n (0 when the modifier is absent).
+func splitInfoLast(args []string) ([]string, int, error) {
+	rest := make([]string, 0, len(args))
+	last := 0
+	for i, arg := range args {
+		if i == 0 || !strings.HasPrefix(arg, infoLastPrefix) {
+			rest = append(rest, arg)
+			continue
+		}
+		n, err := strconv.Atoi(strings.TrimPrefix(arg, infoLastPrefix))
+		if err != nil || n < 1 {
+			return nil, 0, fmt.Errorf("%q is not valid; use last:<n> with n >= 1, e.g. ask info <id> last:3", arg)
+		}
+		last = n
+	}
+	return rest, last, nil
+}
+
 func (d *Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
+	args, last, err := splitInfoLast(args)
+	if err != nil {
+		writeInfoError(stderr, err)
+		return 1, nil
+	}
 	tasks, code, err := d.infoTasks(ctx, args, stderr)
 	if err != nil {
 		writeInfoError(stderr, err)
@@ -30,7 +60,9 @@ func (d *Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stde
 		_, _ = stdout.Write(data)
 		_, _ = io.WriteString(stdout, "\n")
 	} else {
-		_, _ = io.WriteString(stdout, FormatTaskInfo(tasks[0], displayTaskAlias(tasks[0].UUID, aliases), aliases))
+		// last: applies to the text output only; --json always carries every
+		// annotation so scripts get a stable, complete document.
+		_, _ = io.WriteString(stdout, FormatTaskInfoLast(tasks[0], displayTaskAlias(tasks[0].UUID, aliases), aliases, last))
 	}
 	return 0, nil
 }

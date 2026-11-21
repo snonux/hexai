@@ -162,6 +162,27 @@ var commandRegistry = newCommandTable([]commandEntry{
 		singleSelector:      true,
 	},
 	{
+		name:                "park",
+		description:         "Park a task that needs a human answer",
+		handler:             wrapSimpleCommand((*Dispatcher).handlePark),
+		includeInCompletion: true,
+		singleSelector:      true,
+	},
+	{
+		name:                "unpark",
+		description:         "Make a parked task READY again",
+		handler:             wrapSimpleCommand((*Dispatcher).handleUnpark),
+		includeInCompletion: true,
+		singleSelector:      true,
+	},
+	{
+		name:                "parked",
+		description:         "List tasks waiting for a human answer",
+		handler:             wrapSimpleCommand((*Dispatcher).handleParked),
+		includeInCompletion: true,
+		readOnly:            true,
+	},
+	{
 		name:                "priority",
 		description:         "Set priority",
 		handler:             wrapSimpleCommand((*Dispatcher).handlePriority),

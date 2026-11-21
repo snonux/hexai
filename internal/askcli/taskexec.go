@@ -17,6 +17,10 @@ type repoTopLevelDetector func(context.Context) (string, error)
 
 type workingDirectory func() (string, error)
 
+// projectRootDetector maps the git toplevel of the current checkout to the
+// directory whose name is the project name.
+type projectRootDetector func(ctx context.Context, gitRoot string) string
+
 type commandRunner func(context.Context, string, []string, io.Reader, io.Writer, io.Writer) error
 
 // Executor encapsulates how the ask CLI communicates with the Taskwarrior binary.
@@ -24,18 +28,22 @@ type Executor struct {
 	commandName    string
 	findBinary     binaryFinder
 	detectRepoRoot repoTopLevelDetector
-	getWorkingDir  workingDirectory
-	runCommand     commandRunner
+	// detectProjectRoot resolves linked git worktrees to the main checkout,
+	// so every worktree of a repository shares one task project.
+	detectProjectRoot projectRootDetector
+	getWorkingDir     workingDirectory
+	runCommand        commandRunner
 }
 
 // NewExecutor constructs an Executor that invokes Taskwarrior via the given command name.
 func NewExecutor(commandName string) Executor {
 	return Executor{
-		commandName:    strings.TrimSpace(commandName),
-		findBinary:     findTaskBinary,
-		detectRepoRoot: detectRepoRoot,
-		getWorkingDir:  os.Getwd,
-		runCommand:     runTaskCommand,
+		commandName:       strings.TrimSpace(commandName),
+		findBinary:        findTaskBinary,
+		detectRepoRoot:    detectRepoRoot,
+		detectProjectRoot: mainWorktreeRoot,
+		getWorkingDir:     os.Getwd,
+		runCommand:        runTaskCommand,
 	}
 }
 
@@ -46,7 +54,7 @@ func (e Executor) taskArgs(ctx context.Context, repoRoot string, args []string) 
 		if err != nil {
 			return nil, err
 		}
-		projectName, err = projectNameFromRoot(repoRoot, cwd)
+		projectName, err = projectNameFromRoots(e.projectRoot(ctx, repoRoot), repoRoot, cwd)
 		if err != nil {
 			return nil, err
 		}
@@ -118,6 +126,15 @@ func (e Executor) label() string {
 	return label
 }
 
+// projectRoot returns the directory that names the project. Like
+// workingDir, it tolerates an Executor built without normalizeExecutor.
+func (e Executor) projectRoot(ctx context.Context, repoRoot string) string {
+	if e.detectProjectRoot != nil {
+		return e.detectProjectRoot(ctx, repoRoot)
+	}
+	return mainWorktreeRoot(ctx, repoRoot)
+}
+
 func (e Executor) workingDir() (string, error) {
 	if e.getWorkingDir != nil {
 		return e.getWorkingDir()
@@ -135,6 +152,9 @@ func normalizeExecutor(e Executor) Executor {
 	if e.detectRepoRoot == nil {
 		e.detectRepoRoot = detectRepoRoot
 	}
+	if e.detectProjectRoot == nil {
+		e.detectProjectRoot = mainWorktreeRoot
+	}
 	if e.getWorkingDir == nil {
 		e.getWorkingDir = os.Getwd
 	}
@@ -151,12 +171,26 @@ func projectReadFilter(projectName string) string {
 }
 
 func projectNameFromRoot(repoRoot, cwd string) (string, error) {
+	return projectNameFromRoots(repoRoot, repoRoot, cwd)
+}
+
+// projectNameFromRoots derives <name>[.<subdir>…]: the name comes from
+// nameRoot and the subdirectory hierarchy from cwd relative to repoRoot. The
+// two roots differ in a linked git worktree, where repoRoot is the worktree
+// (cwd lives under it) and nameRoot is the main checkout that names the
+// project. Without that split an agent isolated in a worktree such as
+// repo/.claude/worktrees/agent-1234 would read and create tasks in a
+// stray "agent-1234" project and see none of the repository's tasks.
+func projectNameFromRoots(nameRoot, repoRoot, cwd string) (string, error) {
 	repoRoot = strings.TrimSpace(repoRoot)
 	if repoRoot == "" {
 		return "", fmt.Errorf("could not derive project name from git root %q", repoRoot)
 	}
 	repoRoot = canonicalPath(repoRoot)
-	projectName := filepath.Base(repoRoot)
+	if strings.TrimSpace(nameRoot) == "" {
+		nameRoot = repoRoot
+	}
+	projectName := filepath.Base(canonicalPath(strings.TrimSpace(nameRoot)))
 	if projectName == "" || projectName == "." || projectName == string(filepath.Separator) {
 		return "", fmt.Errorf("could not derive project name from git root %q", repoRoot)
 	}
@@ -207,6 +241,22 @@ func detectRepoRoot(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("git returned an empty repository root")
 	}
 	return root, nil
+}
+
+// mainWorktreeRoot returns the main checkout for gitRoot. For a linked
+// worktree, git's common directory is <main>/.git, so its parent is the main
+// checkout. Everything else keeps gitRoot: an ordinary checkout (the parent
+// of its own .git is gitRoot anyway), a submodule or bare repository (the
+// common directory is not named .git), and any git failure.
+func mainWorktreeRoot(ctx context.Context, gitRoot string) string {
+	if strings.TrimSpace(gitRoot) == "" {
+		return gitRoot
+	}
+	commonDir, err := resolveAskLockDirViaGit(ctx, gitRoot)
+	if err != nil || filepath.Base(commonDir) != ".git" {
+		return gitRoot
+	}
+	return filepath.Dir(commonDir)
 }
 
 func runTaskCommand(ctx context.Context, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {

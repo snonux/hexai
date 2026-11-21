@@ -46,6 +46,10 @@ func TestHandleDelete_Success(t *testing.T) {
 }
 
 func TestHandleDelete_NumericID(t *testing.T) {
+	// Isolated cache: with the real one, "123" can be an existing alias and
+	// would resolve instead of being rejected as a numeric Taskwarrior ID.
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		t.Fatal("runFn should not be called for numeric ID")
 		return 0, nil

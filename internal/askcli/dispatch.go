@@ -139,15 +139,28 @@ func (d *Dispatcher) rejectImplicitAdd(ctx context.Context, args []string, stder
 		}
 	}
 	if !looksLikeTaskAlias(first) {
-		return 0, false
+		return d.rejectSingleWordAdd(ctx, args, stderr)
 	}
 	resolved, tasks, _, err := d.resolveTaskSelector(ctx, first, io.Discard)
 	if err != nil || len(tasks) == 0 {
-		return 0, false
+		return d.rejectSingleWordAdd(ctx, args, stderr)
 	}
 	id := displayResolvedTaskID(resolved)
 	fmt.Fprintf(stderr, "error: %q is not a subcommand; it is task %s %q\nDid you mean: ask start %s, ask info %s, ask done %s, or ask annotate %s \"note\"?\nTo create a task with this description, use: ask add \"%s\"\n",
 		first, id, truncateDescription(tasks[0].Description, 60), id, id, id, id, strings.Join(args, " "))
+	return 1, true
+}
+
+// rejectSingleWordAdd refuses the implicit add for a lone unknown word in
+// agent scope. One word is a mistyped subcommand ("ask tasks", "ask ls",
+// "ask status"), not a task description; creating a task from it would leave
+// junk in the agent task list. Multi-word descriptions still fall through,
+// and the personal scope (ask na / nask) keeps one-word tasks such as "milk".
+func (d *Dispatcher) rejectSingleWordAdd(ctx context.Context, args []string, stderr io.Writer) (int, bool) {
+	if len(args) != 1 || strings.ContainsAny(args[0], " \t") || taskScopeFromContext(ctx) != taskScopeAgent {
+		return 0, false
+	}
+	fmt.Fprintf(stderr, "error: ask has no %q subcommand; run ask help for the list\nTo create a task with this description, use: ask add \"%s\"\n", args[0], args[0])
 	return 1, true
 }
 
@@ -168,7 +181,8 @@ func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "  ask edit                     Open $EDITOR and create a task from its content\n")
 	_, _ = io.WriteString(w, "  ask list [filters]           List active tasks (default; tasks due >1.week ahead hidden, pass due-window:N.weeks to widen)\n")
 	_, _ = io.WriteString(w, "  ask count                    Print only the number of open project tasks (pending; all due dates)\n")
-	_, _ = io.WriteString(w, "  ask ready                   List READY tasks (not blocked)\n")
+	_, _ = io.WriteString(w, "  ask ready                   List READY tasks (not blocked, not parked)\n")
+	_, _ = io.WriteString(w, "  ask parked                  List tasks parked until a human answers\n")
 	_, _ = io.WriteString(w, "  ask completed [filters]     List completed tasks\n")
 	_, _ = io.WriteString(w, "  ask all [filters]            List all tasks including completed/deleted\n")
 	_, _ = io.WriteString(w, "Filters: limit:<n>, sort:<key>, +<tag>, started, since:<value>, and date attrs\n")
@@ -176,11 +190,13 @@ func (d *Dispatcher) help(w io.Writer) (int, error) {
 	_, _ = io.WriteString(w, "  due-within:<same values, no .ago>  (due by the end of the period, overdue included)\n")
 	_, _ = io.WriteString(w, "  due-window:<same values>  (like due-within:, or no due date)\n")
 	_, _ = io.WriteString(w, "  end:, modified:, created:, due:, scheduled:, waiting:, start:  (e.g. end:today, end.after:2026-08-22)\n")
-	_, _ = io.WriteString(w, "  ask info [id|uuid]            Show task details or current started task\n")
+	_, _ = io.WriteString(w, "  ask info [id|uuid] [last:<n>] Show task details or current started task; last:<n> = only the newest n annotations\n")
 	_, _ = io.WriteString(w, "  ask annotate <id|uuid> \"note\" Add annotation to task\n")
 	_, _ = io.WriteString(w, "  ask start <id|uuid>           Start working on task\n")
-	_, _ = io.WriteString(w, "  ask stop <id|uuid>            Stop work on a task\n")
-	_, _ = io.WriteString(w, "  ask done <id|uuid>            Mark task complete\n")
+	_, _ = io.WriteString(w, "  ask stop <id|uuid> [\"note\"]   Stop work on a task; the note is recorded first (handoff)\n")
+	_, _ = io.WriteString(w, "  ask done <id|uuid> [\"note\"]   Mark task complete; the note is recorded first (summary)\n")
+	_, _ = io.WriteString(w, "  ask park <id|uuid> \"question\" Stop the task, hide it from ready, record \"Needs human: question\"\n")
+	_, _ = io.WriteString(w, "  ask unpark <id|uuid>          Make a parked task READY again\n")
 	_, _ = io.WriteString(w, "  ask priority <id|uuid> <P>    Set priority (H/M/L)\n")
 	_, _ = io.WriteString(w, "  ask tag <id|uuid> +/-<tag>    Add or remove tag\n")
 	_, _ = io.WriteString(w, "  ask dep add <id|uuid> <dep>   Add dependency\n")

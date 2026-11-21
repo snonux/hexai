@@ -52,7 +52,8 @@ func (d *Dispatcher) handleAll(ctx context.Context, args []string, stdout, stder
 }
 
 func (d *Dispatcher) handleReady(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
-	return d.handleListWithFilters(ctx, []string{"+READY"}, args[1:], stdout, stderr)
+	// Parked tasks wait for a human, so they are not READY for an agent.
+	return d.handleListWithFilters(ctx, []string{"+READY", "-" + needsHumanTag}, args[1:], stdout, stderr)
 }
 
 func (d *Dispatcher) handleCompleted(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {

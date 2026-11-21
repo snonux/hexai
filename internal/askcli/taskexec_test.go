@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -448,5 +449,87 @@ func TestExecutorRun_WorkingDirOutsideRepo_IsActionable(t *testing.T) {
 	}
 	if err == nil || !strings.Contains(err.Error(), "outside git root") {
 		t.Fatalf("expected outside-git-root error, got %v", err)
+	}
+}
+
+// initRepoWithWorktree creates repo/ with one commit and a linked worktree
+// at wt/, the layout agent harnesses use for isolated workers.
+func initRepoWithWorktree(t *testing.T) (repo, worktree string) {
+	t.Helper()
+	base := canonicalPath(t.TempDir())
+	repo = filepath.Join(base, "myproject")
+	worktree = filepath.Join(base, "worktrees", "agent-1234")
+	if err := os.MkdirAll(filepath.Join(repo, "sub"), 0o755); err != nil {
+		t.Fatalf("mkdir repo: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "sub", "f.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"add", "."},
+		{"-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "base"},
+		{"worktree", "add", "-q", "--detach", worktree},
+	} {
+		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd.Env = scrubGitOverrideEnv(os.Environ())
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	return repo, worktree
+}
+
+func TestMainWorktreeRoot(t *testing.T) {
+	repo, worktree := initRepoWithWorktree(t)
+	ctx := context.Background()
+	if got := mainWorktreeRoot(ctx, worktree); got != repo {
+		t.Fatalf("mainWorktreeRoot(linked worktree) = %q, want main checkout %q", got, repo)
+	}
+	if got := mainWorktreeRoot(ctx, repo); got != repo {
+		t.Fatalf("mainWorktreeRoot(main checkout) = %q, want %q", got, repo)
+	}
+	notGit := t.TempDir()
+	if got := mainWorktreeRoot(ctx, notGit); got != notGit {
+		t.Fatalf("mainWorktreeRoot(non-git dir) = %q, want the input back", got)
+	}
+	if got := mainWorktreeRoot(ctx, ""); got != "" {
+		t.Fatalf("mainWorktreeRoot(empty) = %q, want empty", got)
+	}
+}
+
+// A linked worktree must use the main checkout's project, including the
+// subdirectory hierarchy, so isolated agents see the repository's tasks.
+func TestExecutorTaskArgs_LinkedWorktreeUsesMainProject(t *testing.T) {
+	repo, worktree := initRepoWithWorktree(t)
+	cases := []struct{ cwd, want string }{
+		{worktree, "(project.is:myproject or project:myproject.)"},
+		{filepath.Join(worktree, "sub"), "(project.is:myproject.sub or project:myproject.sub.)"},
+		{repo, "(project.is:myproject or project:myproject.)"},
+	}
+	for _, tc := range cases {
+		root := worktree
+		if tc.cwd == repo {
+			root = repo
+		}
+		e := normalizeExecutor(Executor{
+			detectRepoRoot: func(context.Context) (string, error) { return root, nil },
+			getWorkingDir:  func() (string, error) { return tc.cwd, nil },
+		})
+		args, err := e.taskArgs(context.Background(), root, []string{"export"})
+		if err != nil {
+			t.Fatalf("taskArgs(cwd=%s): %v", tc.cwd, err)
+		}
+		if !slices.Contains(args, tc.want) {
+			t.Fatalf("taskArgs(cwd=%s) = %v, want project filter %q", tc.cwd, args, tc.want)
+		}
+	}
+}
+
+func TestProjectNameFromRoots_EmptyNameRootFallsBackToRepoRoot(t *testing.T) {
+	repo := fakeHexaiRepoDir(t)
+	got, err := projectNameFromRoots("", repo, repo)
+	if err != nil || got != filepath.Base(repo) {
+		t.Fatalf("projectNameFromRoots = %q, %v; want %q", got, err, filepath.Base(repo))
 	}
 }

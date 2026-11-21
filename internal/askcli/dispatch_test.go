@@ -602,7 +602,7 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 		{
 			name:      "ready",
 			args:      []string{"ready"},
-			wantCalls: [][]string{{"+READY", "export"}},
+			wantCalls: [][]string{{"+READY", "-" + needsHumanTag, "export"}},
 		},
 		{
 			name:      "completed",
@@ -702,7 +702,7 @@ func TestDispatcher_AllSubcommandsReachExecutor(t *testing.T) {
 			d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 				calls = append(calls, append([]string(nil), args...))
 				switch strings.Join(args, " ") {
-				case "export", "status:pending export", "+READY export", "status:completed export",
+				case "export", "status:pending export", "+READY -" + needsHumanTag + " export", "status:completed export",
 					"status:pending " + fixedDueWindow + " export":
 					_, _ = io.WriteString(stdout, taskJSONFor("test-uuid"))
 				case "uuid:test-uuid export":

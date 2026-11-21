@@ -220,6 +220,10 @@ func TestHandleDep_AliasSelectors(t *testing.T) {
 }
 
 func TestHandleDep_NumericUUID(t *testing.T) {
+	// Isolated cache: with the real one, "123" can be an existing alias and
+	// would resolve instead of being rejected as a numeric Taskwarrior ID.
+	useIsolatedTaskAliasCache(t)
+
 	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 		return 0, nil
 	}})

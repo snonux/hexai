@@ -1117,11 +1117,45 @@ ask done abc
 unambiguous. `start` and `stop` track work in progress. `done` marks it complete;
 use it after the actual work is finished.
 
+`stop` and `done` take an optional note, which is recorded as an annotation
+before the state changes. Use it for a handoff or a delivery summary, so one
+command does the work of two:
+
+```sh
+ask stop abc 'Handoff: parser test is red; next step is the empty-header case.'
+ask done abc 'Delivered: overflow check plus tests.'
+```
+
+A task with many annotations is long to read. `last:<n>` prints only the
+newest `n`, and says how many were left out:
+
+```sh
+ask info abc last:3
+```
+
 Aliases are stored in a local cache. They replace Taskwarrior numeric IDs in
 human-facing output. Selectors also accept UUIDs, and `uuid:<uuid>` forces
 UUID interpretation when a value is ambiguous. `ask info` hides raw UUIDs
 unless `HEXAI_DEBUG` is set. Use the alias shown in your output, rather than
 copying an example alias or numeric Taskwarrior ID.
+
+### Park a task that needs a person
+
+When a task cannot continue without a human decision, park it instead of
+leaving it started or stopping all work:
+
+```sh
+ask park abc 'Which port should the service listen on?'
+ask parked
+ask unpark abc
+```
+
+`park` stops the task if it was started, tags it `needshuman`, and records
+`Needs human: <question>` as an annotation. A parked task stays pending, so
+tasks that depend on it remain blocked, but `ask ready` no longer lists it and
+an agent working through the list moves on to the next task. `ask parked`
+lists the open questions. `unpark` makes the task READY again and keeps the
+question as history.
 
 ### Hierarchical project names
 
@@ -1133,6 +1167,10 @@ root, with directory separators converted to dots:
 | `~/git/hexai-demo` | `hexai-demo` |
 | `~/git/hexai-demo/docs` | `hexai-demo.docs` |
 | `~/git/hexai-demo/docs/examples` | `hexai-demo.docs.examples` |
+
+A linked git worktree (`git worktree add`) uses the project of its main
+checkout, so every worktree of a repository sees the same tasks. This matters
+for coding agents that run isolated in their own worktree.
 
 `add` stamps the exact current project. Read commands include it and its
 descendants: the repository root sees all those tasks; `docs` sees docs and

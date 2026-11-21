@@ -563,3 +563,89 @@ func TestParseAddArgs(t *testing.T) {
 		t.Fatalf("parseAddArgs should reject empty selector entries")
 	}
 }
+
+// infoLastDispatcher returns a dispatcher whose export yields one task with
+// four annotations, for the "last:<n>" tests below.
+func infoLastDispatcher(t *testing.T) *Dispatcher {
+	t.Helper()
+	unsetTestEnv(t, "HEXAI_DEBUG")
+	dir := t.TempDir()
+	now := time.Date(2026, 3, 26, 12, 0, 0, 0, time.UTC)
+	deps := testTaskAliasCacheDeps(dir, &now)
+	writeTaskAliasCacheForTest(t, taskAliasCache{
+		NextID:  1,
+		Entries: []taskAliasCacheEntry{{UUID: "test-uuid", Alias: "0", CreatedAt: now}},
+	}, deps)
+	jsonData := `[{"uuid":"test-uuid","description":"Test task","status":"pending","priority":"H","urgency":1.0,"annotations":[` +
+		`{"description":"note one","entry":"2026-03-22T10:00:00Z"},{"description":"note two","entry":"2026-03-22T11:00:00Z"},` +
+		`{"description":"note three","entry":"2026-03-22T12:00:00Z"},{"description":"note four","entry":"2026-03-22T13:00:00Z"}]}]`
+	d := NewDispatcher(&spyRunner{runFn: func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+		if len(args) > 0 && (strings.HasPrefix(args[0], "uuid:") || args[0] == startedFilter) {
+			_, _ = io.WriteString(stdout, jsonData)
+		}
+		return 0, nil
+	}})
+	d.aliasCache = deps
+	return d
+}
+
+func TestHandleInfo_LastShowsOnlyNewestAnnotations(t *testing.T) {
+	d := infoLastDispatcher(t)
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"info", "test-uuid", "last:2"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("info last:2 code = %d, stderr = %s", code, stderr.String())
+	}
+	out := stdout.String()
+	if strings.Contains(out, "note one") || strings.Contains(out, "note two") {
+		t.Fatalf("last:2 must hide the older annotations: %s", out)
+	}
+	if !strings.Contains(out, "note three") || !strings.Contains(out, "note four") {
+		t.Fatalf("last:2 must keep the two newest annotations: %s", out)
+	}
+	if !strings.Contains(out, "last 2 of 4") {
+		t.Fatalf("output must say how many annotations were hidden: %s", out)
+	}
+	if !strings.Contains(out, "Description: Test task") {
+		t.Fatalf("last:2 must still print the task header: %s", out)
+	}
+}
+
+func TestHandleInfo_LastLargerThanCountShowsAll(t *testing.T) {
+	d := infoLastDispatcher(t)
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"info", "test-uuid", "last:10"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("info last:10 code = %d, stderr = %s", code, stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "note one") || strings.Contains(out, " of 4") {
+		t.Fatalf("last:10 with 4 annotations must print all, without a truncation note: %s", out)
+	}
+}
+
+func TestHandleInfo_LastWithoutSelectorUsesStartedTask(t *testing.T) {
+	d := infoLastDispatcher(t)
+	var stdout, stderr bytes.Buffer
+	code, _ := d.Dispatch(context.Background(), []string{"info", "last:1"}, nil, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("info last:1 code = %d, stderr = %s", code, stderr.String())
+	}
+	if out := stdout.String(); strings.Contains(out, "note three") || !strings.Contains(out, "note four") {
+		t.Fatalf("last:1 must print only the newest annotation: %s", out)
+	}
+}
+
+func TestHandleInfo_LastRejectsInvalidValues(t *testing.T) {
+	for _, bad := range []string{"last:0", "last:-1", "last:x", "last:"} {
+		d := infoLastDispatcher(t)
+		var stdout, stderr bytes.Buffer
+		code, _ := d.Dispatch(context.Background(), []string{"info", "test-uuid", bad}, nil, &stdout, &stderr)
+		if code == 0 {
+			t.Fatalf("info %s must fail, stdout = %s", bad, stdout.String())
+		}
+		if !strings.Contains(stderr.String(), "last:") {
+			t.Fatalf("info %s must explain the valid form, stderr = %s", bad, stderr.String())
+		}
+	}
+}
