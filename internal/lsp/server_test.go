@@ -127,7 +127,10 @@ func TestRunCancelsServerContextOnParentCancel(t *testing.T) {
 	// Unblock the read so Run can return.
 	_ = pw.Close()
 	select {
-	case <-done:
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run returned error after input closed: %v", err)
+		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run did not return after input closed")
 	}
@@ -137,7 +140,8 @@ func TestRunCancelsServerContextOnParentCancel(t *testing.T) {
 // no-op stop function and never cancels the server.
 func TestWatchParentContextNilIsNoOp(t *testing.T) {
 	srv := NewServer(bytes.NewReader(nil), &bytes.Buffer{}, log.New(io.Discard, "", 0), ServerOptions{})
-	stop := srv.watchParentContext(nil)
+	var nilCtx context.Context // deliberately nil: the no-op path is under test
+	stop := srv.watchParentContext(nilCtx)
 	stop()
 	if srv.serverCtx.Err() != nil {
 		t.Fatalf("server context should remain active for nil parent ctx")

@@ -79,7 +79,9 @@ func TestHandleUrgency_PassesCorrectArgs(t *testing.T) {
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
-	d.Dispatch(context.Background(), []string{"urgency"}, nil, &stdout, &stderr)
+	if _, err := d.Dispatch(context.Background(), []string{"urgency"}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
 	if len(capturedArgs) != 1 || capturedArgs[0] != "export" {
 		t.Fatalf("capturedArgs = %v, want [export]", capturedArgs)
 	}

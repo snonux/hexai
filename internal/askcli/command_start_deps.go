@@ -15,7 +15,7 @@ func (d *Dispatcher) verifyDependenciesCompletedForStart(ctx context.Context, ta
 	}
 	aliases, err := d.aliasCache.withDefaults().ensureTaskAliasesForUUIDs(task.Depends)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 		return 1
 	}
 	var incomplete []string
@@ -26,7 +26,7 @@ func (d *Dispatcher) verifyDependenciesCompletedForStart(ctx context.Context, ta
 			return code
 		}
 		if len(depTasks) == 0 {
-			fmt.Fprintf(stderr, "error: dependency task not found (%s)\n", displayTaskAlias(depUUID, aliases))
+			_, _ = fmt.Fprintf(stderr, "error: dependency task not found (%s)\n", displayTaskAlias(depUUID, aliases))
 			return 1
 		}
 		status := strings.ToLower(strings.TrimSpace(depTasks[0].Status))
@@ -36,7 +36,7 @@ func (d *Dispatcher) verifyDependenciesCompletedForStart(ctx context.Context, ta
 		}
 	}
 	if len(incomplete) > 0 {
-		fmt.Fprintf(stderr, "error: cannot start until all dependencies are completed; incomplete: %s\n",
+		_, _ = fmt.Fprintf(stderr, "error: cannot start until all dependencies are completed; incomplete: %s\n",
 			strings.Join(incomplete, ", "))
 		return 1
 	}

@@ -383,7 +383,9 @@ func TestHandleAdd_MultipleWords(t *testing.T) {
 		_, _ = io.WriteString(stdout, "Created task test-uuid.")
 	}))
 	var stdout, stderr bytes.Buffer
-	d.Dispatch(context.Background(), []string{"add", "Multi", "word", "description"}, nil, &stdout, &stderr)
+	if _, err := d.Dispatch(context.Background(), []string{"add", "Multi", "word", "description"}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
 	// args[0]="add", args[1]="rc.verbose=nothing", args[2]="rc.verbose=new-uuid"
 	if len(capturedArgs) < 4 || capturedArgs[0] != "add" || capturedArgs[1] != "rc.verbose=nothing" || capturedArgs[2] != "rc.verbose=new-uuid" {
 		t.Fatalf("capturedArgs = %v, want [add, rc.verbose=nothing, rc.verbose=new-uuid, ...]", capturedArgs)

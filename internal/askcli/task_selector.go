@@ -52,10 +52,6 @@ func normalizeTaskSelectorInput(selector string) (string, bool, error) {
 	return normalized, selector == normalized, nil
 }
 
-func resolveTaskSelectorFromCache(selector string, allowAlias bool) (resolvedTaskSelector, error) {
-	return defaultTaskAliasCacheDeps().resolveTaskSelectorFromCache(selector, allowAlias)
-}
-
 func (d taskAliasCacheDeps) resolveTaskSelectorFromCache(selector string, allowAlias bool) (resolvedTaskSelector, error) {
 	d = d.withDefaults()
 	resolved := resolvedTaskSelector{Input: selector, UUID: selector}

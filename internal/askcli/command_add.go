@@ -58,7 +58,7 @@ func (d *Dispatcher) createTask(ctx context.Context, modifiers []string, descrip
 	// displayed identifier falls back to the UUID when no alias is available.
 	aliases, aliasErr := d.aliasCache.withDefaults().ensureTaskAliasesForUUIDs([]string{uuid})
 	if aliasErr != nil {
-		fmt.Fprintf(stderr, "warning: failed to assign task alias: %v\n", aliasErr)
+		_, _ = fmt.Fprintf(stderr, "warning: failed to assign task alias: %v\n", aliasErr)
 		aliases = nil
 	}
 	_, _ = io.WriteString(stdout, FormatCreatedTask(displayTaskAlias(uuid, aliases)))

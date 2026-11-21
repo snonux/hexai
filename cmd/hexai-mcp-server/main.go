@@ -82,11 +82,11 @@ func runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runMainWithDeps(args []string, stdin io.Reader, stdout, stderr io.Writer, deps mcpDeps) int {
-	fmt.Fprint(stderr, deprecationWarning)
+	_, _ = fmt.Fprint(stderr, deprecationWarning)
 
 	defaultLog, err := defaultLogPath()
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 
@@ -117,7 +117,7 @@ func runMainWithDeps(args []string, stdin io.Reader, stdout, stderr io.Writer, d
 	defer stop()
 
 	if err := runWithDeps(ctx, opts, stdin, stdout, stderr, deps); err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1
 	}
 	return 0
@@ -132,7 +132,7 @@ func run(ctx context.Context, opts mcpOptions, stdin io.Reader, stdout, stderr i
 
 func runWithDeps(ctx context.Context, opts mcpOptions, stdin io.Reader, stdout, stderr io.Writer, deps mcpDeps) error {
 	if opts.showVersion {
-		fmt.Fprintln(stdout, internal.Version)
+		_, _ = fmt.Fprintln(stdout, internal.Version)
 		return nil
 	}
 

@@ -34,7 +34,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 func (a *app) runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	code, err := a.newDispatcher().Dispatch(context.Background(), args, stdin, stdout, stderr)
 	if err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 	}
 	return code
 }

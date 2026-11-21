@@ -346,7 +346,9 @@ func TestDispatcher_CompleteAliasesSubcommand(t *testing.T) {
 func TestDispatcher_LongHelp(t *testing.T) {
 	d := NewDispatcher(nil)
 	var stdout bytes.Buffer
-	d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard)
+	if _, err := d.Dispatch(context.Background(), []string{"help"}, nil, &stdout, io.Discard); err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
 	output := stdout.String()
 	for _, sub := range []string{"add", "list", "all", "ready", "completed", "info", "annotate", "start", "stop", "done", "priority", "tag", "dep", "urgency", "watch", "projects", "modify", "denotate", "delete", "fish"} {
 		if !strings.Contains(output, "ask "+sub) {

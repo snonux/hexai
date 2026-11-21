@@ -105,7 +105,7 @@ func (d *Dispatcher) handleListWithFilters(ctx context.Context, initialFilters, 
 	for _, arg := range extraArgs {
 		if filter, ok, err := resolveDateShortcut(arg, d.now()); ok {
 			if err != nil {
-				fmt.Fprintf(stderr, "error: %v\n", err)
+				_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 				return 1, nil
 			}
 			filterArgs = append(filterArgs, filter)
@@ -126,7 +126,7 @@ func (d *Dispatcher) handleListWithFilters(ctx context.Context, initialFilters, 
 	}
 	tasks, err := ParseTaskExport(&outBuf)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
 		return 1, nil
 	}
 	sort.Slice(tasks, func(i, j int) bool {

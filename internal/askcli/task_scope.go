@@ -81,10 +81,6 @@ func isTaskProjectPrefix(arg string) bool {
 	return strings.HasPrefix(arg, "proj:")
 }
 
-func trimTaskScopePrefix(args []string) []string {
-	return trimTaskPrefixes(args)
-}
-
 func trimTaskPrefixes(args []string) []string {
 	_, _, _, remaining := parseTaskPrefixes(args)
 	return remaining

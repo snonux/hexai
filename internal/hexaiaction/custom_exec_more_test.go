@@ -2,6 +2,7 @@ package hexaiaction
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -22,9 +23,10 @@ func TestExecuteAction_Custom_DoesNotMutateProvidedSelection(t *testing.T) {
 	cfg := appconfig.Load(context.Background(), nil)
 	parts := InputParts{Selection: "code"}
 	selectedCustom := &appconfig.CustomAction{ID: "x", Title: "X", Instruction: "Do it"}
+	before := *selectedCustom
 	_, _ = executeAction(context.Background(), ActionCustom, parts, &cfg, fakeDoer{"OK"}, nil, selectedCustom)
-	if selectedCustom == nil {
-		t.Fatalf("expected provided selectedCustom to remain local state")
+	if !reflect.DeepEqual(*selectedCustom, before) {
+		t.Fatalf("executeAction mutated the provided selection: got %+v, want %+v", *selectedCustom, before)
 	}
 }
 

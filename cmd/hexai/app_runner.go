@@ -47,7 +47,7 @@ func (r appRunner) run(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		return 2
 	}
 	if parsed.showVersion {
-		fmt.Fprintln(stdout, internal.Version)
+		_, _ = fmt.Fprintln(stdout, internal.Version)
 		return 0
 	}
 	ctx := buildCLIContext(parsed)

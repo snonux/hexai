@@ -15,7 +15,7 @@ type taskCommandRunner func(context.Context, string, []string, io.Reader, io.Wri
 func (d *Dispatcher) handleProjects(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	cmdArgs, err := d.projectsExportArgs(ctx, args[1:])
 	if err != nil {
-		fmt.Fprintf(stderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 1, nil
 	}
 	taskPath, err := d.projectTaskBinary()()
@@ -29,7 +29,7 @@ func (d *Dispatcher) handleProjects(ctx context.Context, args []string, stdout, 
 	}
 	tasks, err := ParseTaskExport(&outBuf)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
 		return 1, nil
 	}
 	return d.writeProjects(unstartedProjects(tasks), stdout, stderr)
@@ -79,7 +79,7 @@ func (d *Dispatcher) writeProjects(projects []string, stdout, stderr io.Writer) 
 	if d.jsonOutput {
 		data, err := json.Marshal(projects)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: failed to marshal JSON: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: failed to marshal JSON: %v\n", err)
 			return 1, nil
 		}
 		_, _ = stdout.Write(data)

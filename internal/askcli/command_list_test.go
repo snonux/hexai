@@ -88,7 +88,9 @@ func TestHandleList_SortedByPriority(t *testing.T) {
 	}})
 	d.aliasCache = deps
 	var stdout bytes.Buffer
-	d.Dispatch(context.Background(), []string{"list"}, nil, &stdout, &bytes.Buffer{})
+	if _, err := d.Dispatch(context.Background(), []string{"list"}, nil, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
 	output := stdout.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	taskLine1 := lines[2]
@@ -228,7 +230,9 @@ func TestHandleList_PassesFilters(t *testing.T) {
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
-	d.Dispatch(context.Background(), []string{"list", "+READY", "limit:5", "sort:priority-"}, nil, &stdout, &stderr)
+	if _, err := d.Dispatch(context.Background(), []string{"list", "+READY", "limit:5", "sort:priority-"}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
 	if len(capturedArgs) < 2 {
 		t.Fatalf("expected export args, got %v", capturedArgs)
 	}
@@ -362,7 +366,9 @@ func TestHandleCompleted_DropsNonDateFilters(t *testing.T) {
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
-	d.Dispatch(context.Background(), []string{"completed", "status:pending", "foo:bar", "end:7.days"}, nil, &stdout, &stderr)
+	if _, err := d.Dispatch(context.Background(), []string{"completed", "status:pending", "foo:bar", "end:7.days"}, nil, &stdout, &stderr); err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
 	if containsArg(capturedArgs, "status:pending") {
 		t.Fatalf("status:pending should not be forwarded, got %v", capturedArgs)
 	}

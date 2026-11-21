@@ -17,7 +17,7 @@ func (d *Dispatcher) handleUrgency(ctx context.Context, args []string, stdout, s
 	}
 	tasks, err := ParseTaskExport(&outBuf)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
 		return 1, nil
 	}
 	sort.Slice(tasks, func(i, j int) bool {

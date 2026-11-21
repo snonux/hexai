@@ -369,7 +369,7 @@ func TestSetupLogger(t *testing.T) {
 
 		// Close the file
 		if f, ok := logger.Writer().(*os.File); ok && f != os.Stderr {
-			f.Close()
+			_ = f.Close()
 		}
 	})
 
@@ -390,7 +390,7 @@ func TestSetupLogger(t *testing.T) {
 
 		// Close the file
 		if f, ok := logger.Writer().(*os.File); ok && f != os.Stderr {
-			f.Close()
+			_ = f.Close()
 		}
 	})
 }
@@ -573,9 +573,7 @@ func TestSetupLogger_WhitespacePath(t *testing.T) {
 // TestGetPromptsDir_XDGDataHome verifies getPromptsDir uses XDG_DATA_HOME
 // when set (covers the branch where XDG_DATA_HOME is non-empty).
 func TestGetPromptsDir_XDGDataHome(t *testing.T) {
-	oldXDG := os.Getenv("XDG_DATA_HOME")
-	defer os.Setenv("XDG_DATA_HOME", oldXDG)
-	os.Setenv("XDG_DATA_HOME", "/custom/xdg/data")
+	t.Setenv("XDG_DATA_HOME", "/custom/xdg/data")
 
 	cfg := appconfig.App{}
 	result, err := getPromptsDir(cfg)
@@ -781,9 +779,7 @@ func TestRunBackfill_NoCmdDir(t *testing.T) {
 	}
 
 	// Unset env var that could set the slash command dir
-	oldEnv := os.Getenv("HEXAI_MCP_SLASHCOMMAND_DIR")
-	defer os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", oldEnv)
-	os.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", "")
+	t.Setenv("HEXAI_MCP_SLASHCOMMAND_DIR", "")
 
 	err := RunBackfill(context.Background(), logPath, emptyCfgPath, MCPOverrides{})
 	if err == nil {

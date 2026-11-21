@@ -46,7 +46,7 @@ func (a *app) runMain(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 		tmuxTarget: *tmuxTarget, tmuxPopupWidth: *tmuxPopupWidth, tmuxPopupHeight: *tmuxPopupHeight,
 	}
 	if err := a.run(opts, stdin, stdout, stderr); err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
 	return 0

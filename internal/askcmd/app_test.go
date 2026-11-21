@@ -16,7 +16,7 @@ func TestMain_WiresDispatcher(t *testing.T) {
 	d := askcli.NewDispatcher(&spyRunner{
 		runFn: func(_ context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 			gotArgs = append([]string(nil), args...)
-			io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Test","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`)
+			_, _ = io.WriteString(stdout, `[{"uuid":"test-uuid","description":"Test","status":"pending","priority":"H","tags":["cli"],"urgency":15.0,"depends":[]}]`)
 			return 0, nil
 		},
 	})

@@ -88,7 +88,7 @@ func runWithFactoryLoadOptions(
 	}
 	defer func() {
 		if f, ok := logger.Writer().(*os.File); ok && f != os.Stderr {
-			f.Close()
+			_ = f.Close()
 		}
 	}()
 
@@ -245,7 +245,7 @@ func RunBackfill(ctx context.Context, logPath, configPath string, overrides MCPO
 	}
 	defer func() {
 		if f, ok := logger.Writer().(*os.File); ok && f != os.Stderr {
-			f.Close()
+			_ = f.Close()
 		}
 	}()
 

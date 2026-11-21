@@ -180,15 +180,11 @@ func (s *Server) ApplyOptions(opts ServerOptions) {
 }
 
 func (s *Server) currentLLMClient() llm.Client {
-	return s.llmClientRegistry.current()
+	return s.current()
 }
 
 func newClientForProvider(cfg appconfig.App, provider, modelOverride string) (llm.Client, error) {
 	return llmutils.NewClientFromAppForProvider(cfg, provider, modelOverride)
-}
-
-func (s *Server) clientFor(spec requestSpec) llm.Client {
-	return s.llmClientRegistry.clientFor(spec, s.currentConfig(), newClientForProvider)
 }
 
 func (s *Server) currentConfig() appconfig.App {

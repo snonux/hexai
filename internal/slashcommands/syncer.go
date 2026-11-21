@@ -156,8 +156,8 @@ func (s *Syncer) atomicWrite(path string, data []byte) error {
 	// Clean up temp file on error
 	defer func() {
 		if tmpFile != nil {
-			tmpFile.Close()
-			os.Remove(tmpPath)
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpPath)
 		}
 	}()
 

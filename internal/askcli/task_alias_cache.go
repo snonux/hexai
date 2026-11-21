@@ -72,10 +72,6 @@ type taskAliasCacheEntry struct {
 	LastAccessedAt time.Time `json:"last_accessed_at"`
 }
 
-func ensureTaskAliases(tasks []TaskExport) (map[string]string, error) {
-	return defaultTaskAliasCacheDeps().ensureTaskAliases(tasks)
-}
-
 func (d taskAliasCacheDeps) ensureTaskAliases(tasks []TaskExport) (map[string]string, error) {
 	d = d.withDefaults()
 	path, err := d.taskAliasCachePath()
@@ -115,10 +111,6 @@ func (d taskAliasCacheDeps) ensureTaskAliases(tasks []TaskExport) (map[string]st
 		return nil, err
 	}
 	return aliases, nil
-}
-
-func ensureTaskAliasesForUUIDs(uuids []string) (map[string]string, error) {
-	return defaultTaskAliasCacheDeps().ensureTaskAliasesForUUIDs(uuids)
 }
 
 func (d taskAliasCacheDeps) ensureTaskAliasesForUUIDs(uuids []string) (map[string]string, error) {
@@ -189,10 +181,6 @@ func acquireTaskAliasCacheLock(dir string) (func() error, error) {
 		cerr := f.Close()
 		return errors.Join(rerr, cerr)
 	}, nil
-}
-
-func taskAliasCachePath() (string, error) {
-	return defaultTaskAliasCacheDeps().taskAliasCachePath()
 }
 
 func (d taskAliasCacheDeps) taskAliasCachePath() (string, error) {

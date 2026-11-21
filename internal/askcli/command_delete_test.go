@@ -110,7 +110,9 @@ func TestHandleDelete_PassesCorrectArgs(t *testing.T) {
 		return 0, nil
 	}})
 	var stdout, stderr bytes.Buffer
-	d.Dispatch(context.Background(), []string{"delete", "my-uuid"}, &bytes.Buffer{}, &stdout, &stderr)
+	if _, err := d.Dispatch(context.Background(), []string{"delete", "my-uuid"}, &bytes.Buffer{}, &stdout, &stderr); err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
 	if len(capturedArgs) != 2 || capturedArgs[0] != "uuid:my-uuid" || capturedArgs[1] != "delete" {
 		t.Fatalf("capturedArgs = %v, want [uuid:my-uuid, delete]", capturedArgs)
 	}

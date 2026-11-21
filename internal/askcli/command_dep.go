@@ -20,7 +20,7 @@ func (d *Dispatcher) handleDep(ctx context.Context, args []string, stdout, stder
 	case "list":
 		return d.handleDepList(ctx, args, stdout, stderr)
 	default:
-		fmt.Fprintf(stderr, "error: ask dep: unknown operation %q (use add, rm, or list)\n", op)
+		_, _ = fmt.Fprintf(stderr, "error: ask dep: unknown operation %q (use add, rm, or list)\n", op)
 		return 1, nil
 	}
 }
@@ -77,7 +77,7 @@ func (d *Dispatcher) handleDepList(ctx context.Context, args []string, stdout, s
 	} else {
 		aliases, err := d.aliasCache.withDefaults().ensureTaskAliasesForUUIDs(task.Depends)
 		if err != nil {
-			fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 			return 1, nil
 		}
 		ids := make([]string, 0, len(task.Depends))

@@ -373,7 +373,9 @@ func TestAllWriteHandlers_PassCorrectArgs(t *testing.T) {
 				return 0, nil
 			}})
 			var stdout, stderr bytes.Buffer
-			d.Dispatch(context.Background(), tc.args, &bytes.Buffer{}, &stdout, &stderr)
+			if _, err := d.Dispatch(context.Background(), tc.args, &bytes.Buffer{}, &stdout, &stderr); err != nil {
+				t.Fatalf("Dispatch: %v", err)
+			}
 			if len(capturedArgs) != len(tc.wantArgs) {
 				t.Fatalf("capturedArgs = %v, want %v", capturedArgs, tc.wantArgs)
 			}
@@ -419,7 +421,9 @@ func TestAllWriteHandlers_AcceptUUIDPrefix(t *testing.T) {
 				return 0, nil
 			}})
 			var stdout, stderr bytes.Buffer
-			d.Dispatch(context.Background(), tc.args, &bytes.Buffer{}, &stdout, &stderr)
+			if _, err := d.Dispatch(context.Background(), tc.args, &bytes.Buffer{}, &stdout, &stderr); err != nil {
+				t.Fatalf("Dispatch: %v", err)
+			}
 			if len(capturedArgs) != len(tc.wantArgs) {
 				t.Fatalf("capturedArgs = %v, want %v", capturedArgs, tc.wantArgs)
 			}

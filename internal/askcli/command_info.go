@@ -48,13 +48,13 @@ func (d *Dispatcher) handleInfo(ctx context.Context, args []string, stdout, stde
 	allUUIDs := append([]string{tasks[0].UUID}, tasks[0].Depends...)
 	aliases, err := d.aliasCache.withDefaults().ensureTaskAliasesForUUIDs(allUUIDs)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: failed to load task aliases: %v\n", err)
 		return 1, nil
 	}
 	if d.jsonOutput {
 		data, err := json.Marshal(withTaskIDs(tasks, aliases))
 		if err != nil {
-			fmt.Fprintf(stderr, "error: failed to marshal JSON: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: failed to marshal JSON: %v\n", err)
 			return 1, nil
 		}
 		_, _ = stdout.Write(data)
@@ -112,5 +112,5 @@ func writeInfoError(stderr io.Writer, err error) {
 		_, _ = io.WriteString(stderr, msg+"\n")
 		return
 	}
-	fmt.Fprintf(stderr, "error: %v\n", err)
+	_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 }

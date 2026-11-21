@@ -48,6 +48,12 @@ func overrideEnv(key, value string) func() {
 	}
 }
 
+// nilContext is a deliberately nil context.Context. The production helpers
+// (WithCLI*, *FromContext) document and implement nil-context tolerance, and
+// tests exercise that branch through this variable rather than a literal nil,
+// which staticcheck SA1012 flags in call arguments.
+var nilContext context.Context
+
 // setStdin sets os.Stdin from a string and returns a restore func and reader.
 func setStdin(t *testing.T, content string) (func(), *os.File) {
 	t.Helper()

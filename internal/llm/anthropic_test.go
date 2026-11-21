@@ -55,7 +55,7 @@ func TestAnthropicChat_Success(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -96,7 +96,7 @@ func TestAnthropicChat_APIError(t *testing.T) {
 				Message: "Invalid API key",
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -124,7 +124,7 @@ func TestAnthropicChat_EmptyResponse(t *testing.T) {
 			}{},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -143,7 +143,9 @@ func TestAnthropicChat_EmptyResponse(t *testing.T) {
 func TestAnthropicChat_WithTemperature(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req anthropicChatRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Errorf("decode request body: %v", err)
+		}
 		if req.Temperature == nil || *req.Temperature != 0.5 {
 			t.Fatalf("expected temperature 0.5, got %v", req.Temperature)
 		}
@@ -159,7 +161,7 @@ func TestAnthropicChat_WithTemperature(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -185,7 +187,7 @@ func TestAnthropicStream_Success(t *testing.T) {
 			`data: {"type":"message_stop"}`,
 		}
 		for _, event := range streamEvents {
-			io.WriteString(w, event+"\n")
+			_, _ = io.WriteString(w, event+"\n")
 		}
 	}))
 	defer srv.Close()

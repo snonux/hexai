@@ -139,7 +139,7 @@ func (d *Dispatcher) redirectInfoVerb(ctx context.Context, args []string, stderr
 		return nil, false
 	}
 	id := displayResolvedTaskID(resolved)
-	fmt.Fprintf(stderr, "note: ask has no %q subcommand; showing ask info %s\n", args[0], id)
+	_, _ = fmt.Fprintf(stderr, "note: ask has no %q subcommand; showing ask info %s\n", args[0], id)
 	return append([]string{"info", args[1]}, args[2:]...), true
 }
 
@@ -157,7 +157,7 @@ func (d *Dispatcher) rejectImplicitAdd(ctx context.Context, args []string, stder
 	if implicitAddInfoVerbs[first] && len(args) >= 2 {
 		second := args[1]
 		if IsNumericID(second) {
-			fmt.Fprintf(stderr, "error: ask has no %q subcommand; numeric Taskwarrior IDs are not accepted\nFind the alias with ask list, then use e.g. ask info <alias>.\nTo create a task with this description, use: ask add \"%s\"\n",
+			_, _ = fmt.Fprintf(stderr, "error: ask has no %q subcommand; numeric Taskwarrior IDs are not accepted\nFind the alias with ask list, then use e.g. ask info <alias>.\nTo create a task with this description, use: ask add \"%s\"\n",
 				first, strings.Join(args, " "))
 			return 1, true
 		}
@@ -170,7 +170,7 @@ func (d *Dispatcher) rejectImplicitAdd(ctx context.Context, args []string, stder
 		return d.rejectSingleWordAdd(ctx, args, stderr)
 	}
 	id := displayResolvedTaskID(resolved)
-	fmt.Fprintf(stderr, "error: %q is not a subcommand; it is task %s %q\nDid you mean: ask start %s, ask info %s, ask done %s, or ask annotate %s \"note\"?\nTo create a task with this description, use: ask add \"%s\"\n",
+	_, _ = fmt.Fprintf(stderr, "error: %q is not a subcommand; it is task %s %q\nDid you mean: ask start %s, ask info %s, ask done %s, or ask annotate %s \"note\"?\nTo create a task with this description, use: ask add \"%s\"\n",
 		first, id, truncateDescription(tasks[0].Description, 60), id, id, id, id, strings.Join(args, " "))
 	return 1, true
 }
@@ -184,7 +184,7 @@ func (d *Dispatcher) rejectSingleWordAdd(ctx context.Context, args []string, std
 	if len(args) != 1 || strings.ContainsAny(args[0], " \t") || taskScopeFromContext(ctx) != taskScopeAgent {
 		return 0, false
 	}
-	fmt.Fprintf(stderr, "error: ask has no %q subcommand; run ask help for the list\nTo create a task with this description, use: ask add \"%s\"\n", args[0], args[0])
+	_, _ = fmt.Fprintf(stderr, "error: ask has no %q subcommand; run ask help for the list\nTo create a task with this description, use: ask add \"%s\"\n", args[0], args[0])
 	return 1, true
 }
 
@@ -237,6 +237,6 @@ func (d *Dispatcher) help(w io.Writer) (int, error) {
 }
 
 func (d *Dispatcher) unknownCommand(w io.Writer, subcommand string) (int, error) {
-	fmt.Fprintf(w, "ask: unknown subcommand %q\n", subcommand)
+	_, _ = fmt.Fprintf(w, "ask: unknown subcommand %q\n", subcommand)
 	return 1, nil
 }

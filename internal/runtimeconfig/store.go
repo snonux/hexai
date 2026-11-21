@@ -220,7 +220,7 @@ func stringifyValue(v reflect.Value) string {
 			return strings.Join(parts, "|")
 		}
 		return fmt.Sprint(v.Interface())
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if v.IsNil() {
 			return "(unset)"
 		}

@@ -350,10 +350,10 @@ func (cs *completionService) runCompletionForSpec(ctx context.Context, plan comp
 			return items, true
 		}
 	}
-	if items, ok := cs.tryProviderNativeCompletion(ctx, plan, spec, client, sortPrefix); ok {
+	if items, ok := cs.tryProviderNativeCompletion(ctx, plan, spec, sortPrefix); ok {
 		return items, true
 	}
-	if items, ok := cs.executeChatCompletion(ctx, plan, spec, client, sortPrefix); ok {
+	if items, ok := cs.executeChatCompletion(ctx, plan, spec, sortPrefix); ok {
 		return items, true
 	}
 	// If the primary route (native and generic) was unavailable, allow a
@@ -366,14 +366,14 @@ func (cs *completionService) runCompletionForSpec(ctx context.Context, plan comp
 			options:       spec.options,
 			index:         spec.index,
 		}
-		if items, ok := cs.tryProviderNativeCompletion(ctx, plan, fallback, client, sortPrefix); ok {
+		if items, ok := cs.tryProviderNativeCompletion(ctx, plan, fallback, sortPrefix); ok {
 			return items, true
 		}
 	}
 	return nil, false
 }
 
-func (cs *completionService) executeChatCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
+func (cs *completionService) executeChatCompletion(ctx context.Context, plan completionPlan, spec requestSpec, sortPrefix string) ([]CompletionItem, bool) {
 	s := cs.srv
 	messages := cs.buildCompletionMessages(plan.inlinePrompt, plan.hasExtra, plan.extraText, plan.inParams, plan.params, plan.above, plan.current, plan.below, plan.funcCtx)
 	sentSize := chatrun.SentBytes(messages)
@@ -386,7 +386,7 @@ func (cs *completionService) executeChatCompletion(ctx context.Context, plan com
 		return nil, false
 	}
 	text := result.Text
-	client = result.Target.Client
+	client := result.Target.Client
 	logFallback(surfaceCompletion, spec, result.Target, "route-fallback")
 	providerName := result.Target.Name
 	if providerName == "" {
@@ -501,15 +501,6 @@ func (cs *completionService) prefixHeuristicAllows(inlinePrompt bool, current st
 	return j-start >= min
 }
 
-// buildNativeCompletionCacheKey constructs the per-provider cache key for native completions.
-func buildNativeCompletionCacheKey(planCacheKey, provider, modelUsed string, clientName string) string {
-	providerKey := provider
-	if providerKey == "" {
-		providerKey = llmutils.CanonicalProvider(clientName)
-	}
-	return planCacheKey + "|" + providerKey + ":" + modelUsed
-}
-
 func completionTargetCacheKey(planCacheKey, provider, model string) string {
 	return planCacheKey + "|" + provider + ":" + model
 }
@@ -546,7 +537,7 @@ func (cs *completionService) postProcessNativeCompletion(raw, current string, ch
 }
 
 // tryProviderNativeCompletion attempts provider-native completion and returns items when successful.
-func (cs *completionService) tryProviderNativeCompletion(ctx context.Context, plan completionPlan, spec requestSpec, client llm.Client, sortPrefix string) ([]CompletionItem, bool) {
+func (cs *completionService) tryProviderNativeCompletion(ctx context.Context, plan completionPlan, spec requestSpec, sortPrefix string) ([]CompletionItem, bool) {
 	s := cs.srv
 	targets := s.targetsFor(spec)
 	if len(targets) == 0 {
@@ -557,7 +548,7 @@ func (cs *completionService) tryProviderNativeCompletion(ctx context.Context, pl
 	if _, ok := targets[0].Client.(llm.CodeCompleter); !ok {
 		return nil, false
 	}
-	client = targets[0].Client
+	client := targets[0].Client
 	current := plan.current
 	p := plan.params
 	before, after := s.docBeforeAfter(p.TextDocument.URI, p.Position)

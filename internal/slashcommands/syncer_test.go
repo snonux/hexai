@@ -68,11 +68,8 @@ func TestNewSyncer_CreatesDirectory(t *testing.T) {
 
 func TestNewSyncer_ExpandsHomeDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
-	home := os.Getenv("HOME")
-
 	// Set temporary HOME for test
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", home)
+	t.Setenv("HOME", tmpDir)
 
 	cfg := appconfig.App{
 		FeatureConfig: appconfig.FeatureConfig{MCPConfig: appconfig.MCPConfig{

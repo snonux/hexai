@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,30 +27,6 @@ func lockProcessLabel() string {
 		return b
 	}
 	return "ask"
-}
-
-func readLockHolderPID(f *os.File) int {
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return 0
-	}
-	var buf [64]byte
-	n, err := f.Read(buf[:])
-	if err != nil && !errors.Is(err, io.EOF) {
-		return 0
-	}
-	line := strings.TrimSpace(string(buf[:n]))
-	if line == "" {
-		return 0
-	}
-	end := strings.IndexAny(line, "\n\r \t")
-	if end >= 0 {
-		line = line[:end]
-	}
-	pid, err := strconv.Atoi(line)
-	if err != nil || pid <= 0 {
-		return 0
-	}
-	return pid
 }
 
 func writeLockMetadata(f *os.File, pid int, comm string) error {
@@ -91,7 +66,9 @@ func waitOrAcquireAskLockFD(
 			_ = f.Close()
 			return nil, fmt.Errorf("ask lock: %w", err)
 		}
-		noteStaleLockHolder(f, comm)
+		// Keep waiting even if the holder looks stale: removing a contended lock file
+		// can split ownership across different inodes and break serialization
+		// guarantees; contention is resolved only by waiting for the flock release.
 		if err := waitAskLockRetry(ctx, f); err != nil {
 			return nil, err
 		}
@@ -109,15 +86,6 @@ func finishAskLockAcquire(f *os.File, comm string) (func() error, error) {
 		cErr := f.Close()
 		return errors.Join(uErr, cErr)
 	}, nil
-}
-
-func noteStaleLockHolder(f *os.File, comm string) {
-	pid := readLockHolderPID(f)
-	// Keep waiting even if metadata appears stale: removing a contended lock file can
-	// split ownership across different inodes and break serialization guarantees.
-	if pid > 0 && lockHolderIsStale(pid, comm) {
-		// Intentional no-op: contention is resolved only by waiting for flock release.
-	}
 }
 
 // waitAskLockRetry parks until the retry interval elapses or ctx is cancelled.

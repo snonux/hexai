@@ -5,7 +5,6 @@ package lsp
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -151,7 +150,7 @@ func (s *Server) clientForTarget(provider, model string) llm.Client {
 			return client
 		}
 	}
-	return s.llmClientRegistry.clientFor(requestSpec{provider: provider, entry: appconfig.SurfaceConfig{Model: model}, fallbackModel: model}, s.currentConfig(), newClientForProvider)
+	return s.clientFor(requestSpec{provider: provider, entry: appconfig.SurfaceConfig{Model: model}, fallbackModel: model}, s.currentConfig(), newClientForProvider)
 }
 
 func (s *Server) hasLLMTarget(surface surfaceKind) bool {
@@ -548,17 +547,6 @@ func prepareInlineTagParsing(openStr string, open, close byte) (byte, []string) 
 	return openChar, doubleOpenSequences(openStr, openChar, close)
 }
 
-// handleDoubleSequence checks for and handles double-open sequences.
-// Returns (doubleHit, adjustedContentStart).
-func handleDoubleSequence(line string, markerPos int, doubleSeqs []string, contentStart int, openStr string) (bool, int) {
-	for _, seq := range doubleSeqs {
-		if strings.HasPrefix(line[markerPos:], seq) {
-			return true, contentStart + len(seq) - len(openStr)
-		}
-	}
-	return false, contentStart
-}
-
 // isBareDoubleSemicolon reports whether the line contains a standalone
 // double-semicolon marker with no inline content (";;" possibly with only
 // whitespace after it). It explicitly excludes the valid form ";;text;".
@@ -921,31 +909,4 @@ func collectSemicolonMarkers(line string, lineNum int, openStr string, open, clo
 		start = endChar
 	}
 	return edits
-}
-
-// --- Error handling helpers ---
-
-// fileOpenError formats an error for file opening failures.
-// Wraps the original error with path context.
-func fileOpenError(path string, err error) error {
-	return fmt.Errorf("cannot open %s: %w", path, err)
-}
-
-// ensureDirectory creates a directory if it doesn't exist.
-// Returns an error if directory creation fails.
-func ensureDirectory(path string) error {
-	return os.MkdirAll(path, 0o755)
-}
-
-// directoryCreateError formats an error for directory creation failures.
-func directoryCreateError(path string, err error) error {
-	return fmt.Errorf("cannot create %s: %w", path, err)
-}
-
-// requireLLMClient checks if LLM client is available, returning an error if not.
-func requireLLMClient(client llm.Client) error {
-	if client == nil {
-		return fmt.Errorf("llm client unavailable")
-	}
-	return nil
 }

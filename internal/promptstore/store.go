@@ -101,8 +101,8 @@ func (s *JSONLStore) List(cursor string, limit int) ([]Prompt, string, error) {
 	// Handle pagination
 	startIdx := 0
 	if cursor != "" {
-		// Simple cursor: index as string
-		fmt.Sscanf(cursor, "%d", &startIdx)
+		// Simple cursor: index as string; a malformed cursor leaves startIdx at 0.
+		_, _ = fmt.Sscanf(cursor, "%d", &startIdx)
 	}
 
 	if startIdx >= len(allPrompts) {
@@ -535,7 +535,8 @@ func (s *JSONLStore) RestoreBackup(backupName string) error {
 		timestamp := time.Now().Format("20060102-150405")
 		safetyBackup := filepath.Join(s.dataDir, "backups", fmt.Sprintf("user.jsonl.%s.pre-restore", timestamp))
 		currentData, _ := s.readFileFn(userPath)
-		s.writeFileFn(safetyBackup, currentData, 0o644)
+		// The safety backup is best-effort: a failed backup must not block the restore.
+		_ = s.writeFileFn(safetyBackup, currentData, 0o644)
 	}
 
 	// Restore from backup

@@ -152,7 +152,7 @@ func TestWithCLIConfigPath_And_ConfigPathFromContext(t *testing.T) {
 	}
 
 	// Nil context for WithCLIConfigPath creates a background context.
-	ctx = WithCLIConfigPath(nil, "/path")
+	ctx = WithCLIConfigPath(nilContext, "/path")
 	if got := configPathFromContext(ctx); got != "/path" {
 		t.Fatalf("configPathFromContext = %q, want /path", got)
 	}
@@ -163,7 +163,7 @@ func TestWithCLIConfigPath_And_ConfigPathFromContext(t *testing.T) {
 	}
 
 	// Nil context returns empty string.
-	if got := configPathFromContext(nil); got != "" {
+	if got := configPathFromContext(nilContext); got != "" {
 		t.Fatalf("configPathFromContext on nil = %q, want empty", got)
 	}
 }
@@ -407,7 +407,7 @@ func TestRunCLIJobs_MultiJob_WritesOutputs(t *testing.T) {
 }
 
 func TestWithCLISelection_NilContext(t *testing.T) {
-	ctx := WithCLISelection(nil, []int{1, 2})
+	ctx := WithCLISelection(nilContext, []int{1, 2})
 	got := selectionFromContext(ctx)
 	if len(got) != 2 || got[0] != 1 || got[1] != 2 {
 		t.Fatalf("unexpected selection: %v", got)
@@ -531,7 +531,7 @@ func TestRunChatRequest_Streamer(t *testing.T) {
 }
 
 func TestSelectionFromContext_Nil(t *testing.T) {
-	if got := selectionFromContext(nil); got != nil {
+	if got := selectionFromContext(nilContext); got != nil {
 		t.Fatalf("expected nil, got %v", got)
 	}
 }

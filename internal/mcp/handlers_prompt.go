@@ -21,7 +21,7 @@ func (s *Server) handlePromptsList(req Request) {
 	s.mu.RUnlock()
 
 	var params ListPromptsRequest
-	if req.Params != nil && len(req.Params) > 0 {
+	if len(req.Params) > 0 {
 		if err := json.Unmarshal(req.Params, &params); err != nil {
 			s.sendError(req.ID, ErrCodeInvalidParams, "Invalid prompts/list params")
 			return

@@ -61,17 +61,6 @@ type anthropicChatResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// Streaming event types
-type anthropicStreamStart struct {
-	Type    string `json:"type"`
-	Message struct {
-		ID    string `json:"id"`
-		Type  string `json:"type"`
-		Role  string `json:"role"`
-		Model string `json:"model"`
-	} `json:"message"`
-}
-
 type anthropicStreamDelta struct {
 	Type  string `json:"type"`
 	Delta struct {
@@ -273,10 +262,7 @@ func buildAnthropicChatRequest(o Options, messages []Message, defaultModel strin
 	}
 	req.Messages = make([]anthropicMessage, len(nonSystemMessages))
 	for i, m := range nonSystemMessages {
-		req.Messages[i] = anthropicMessage{
-			Role:    m.Role,
-			Content: m.Content,
-		}
+		req.Messages[i] = anthropicMessage(m)
 	}
 	// Haiku requests must omit temperature, including configured defaults.
 	if !strings.Contains(strings.ToLower(req.Model), "haiku") {

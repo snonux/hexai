@@ -10,7 +10,7 @@ import (
 func (d *Dispatcher) handleFish(ctx context.Context, args []string, stdout, stderr io.Writer) (int, error) {
 	_ = ctx
 	if len(args) != 1 {
-		fmt.Fprintln(stderr, "usage: ask fish")
+		_, _ = fmt.Fprintln(stderr, "usage: ask fish")
 		return 1, nil
 	}
 	binaryPath, err := os.Executable()

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 )
 
 // completionDescriptionMaxLen is the maximum number of characters of a task
@@ -33,12 +32,12 @@ func (d *Dispatcher) completeTaskSelectors(ctx context.Context, args []string, s
 	}
 	tasks, err := ParseTaskExport(&outBuf)
 	if err != nil {
-		fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: failed to parse task data: %v\n", err)
 		return 1, nil
 	}
 	aliases, err := d.aliasCache.withDefaults().ensureTaskAliases(tasks)
 	if err != nil {
-		fmt.Fprintf(stderr, "warning: failed to update task alias cache: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "warning: failed to update task alias cache: %v\n", err)
 		aliases = nil
 	}
 	// Each line is "selector\tdescription" so fish shell can show the task
@@ -111,13 +110,4 @@ func taskCompletionSelectors(tasks []TaskExport, aliases map[string]string) []st
 		selectors = append(selectors, task.UUID)
 	}
 	return selectors
-}
-
-// completionItemSelector extracts the selector (before the tab) from a
-// tab-separated completion item returned by taskCompletionItems.
-func completionItemSelector(item string) string {
-	if idx := strings.IndexByte(item, '\t'); idx >= 0 {
-		return item[:idx]
-	}
-	return item
 }
