@@ -1126,6 +1126,11 @@ ask stop abc 'Handoff: parser test is red; next step is the empty-header case.'
 ask done abc 'Delivered: overflow check plus tests.'
 ```
 
+There is no `show`, `view`, `get`, `notes`, `annotations`, `task` or `status`
+subcommand. Agents type them often, so when one of these words is followed by
+an existing task alias, `ask` prints the task as `ask info` would and names
+the real subcommand in a note on stderr.
+
 A task with many annotations is long to read. `last:<n>` prints only the
 newest `n`, and says how many were left out:
 

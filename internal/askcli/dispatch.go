@@ -86,6 +86,9 @@ func (d *Dispatcher) dispatchCommand(ctx context.Context, args []string, stdin i
 	subcommand := args[0]
 	entry, ok := commandRegistry.get(subcommand)
 	if !ok {
+		if infoArgs, redirected := d.redirectInfoVerb(ctx, args, stderr); redirected {
+			return d.dispatchCommand(ctx, infoArgs, stdin, stdout, stderr)
+		}
 		if code, refused := d.rejectImplicitAdd(ctx, args, stderr); refused {
 			return code, nil
 		}
@@ -104,19 +107,48 @@ func (d *Dispatcher) dispatchCommand(ctx context.Context, args []string, stdin i
 // followed by a task-like selector, the implicit-add fallback is refused so
 // botched invocations cannot silently create junk tasks.
 var implicitAddInfoVerbs = map[string]bool{
-	"display": true,
-	"get":     true,
-	"open":    true,
-	"print":   true,
-	"show":    true,
-	"view":    true,
+	"annotations": true,
+	"describe":    true,
+	"details":     true,
+	"display":     true,
+	"get":         true,
+	"note":        true,
+	"notes":       true,
+	"open":        true,
+	"print":       true,
+	"read":        true,
+	"show":        true,
+	"status":      true,
+	"task":        true,
+	"tasks":       true,
+	"view":        true,
+}
+
+// redirectInfoVerb turns "ask show <id>" (and the other implicitAddInfoVerbs)
+// into "ask info <id>" when <id> is an existing task. Session history showed
+// agents typing these several hundred times; each refusal cost a failed call
+// and a retry although the intent was never in doubt. A note on stderr names
+// the real subcommand, and trailing modifiers such as last:<n> are kept.
+// Anything else falls through to rejectImplicitAdd unchanged.
+func (d *Dispatcher) redirectInfoVerb(ctx context.Context, args []string, stderr io.Writer) ([]string, bool) {
+	if len(args) < 2 || !implicitAddInfoVerbs[args[0]] || !looksLikeTaskAlias(args[1]) {
+		return nil, false
+	}
+	resolved, tasks, _, err := d.resolveTaskSelector(ctx, args[1], io.Discard)
+	if err != nil || len(tasks) == 0 {
+		return nil, false
+	}
+	id := displayResolvedTaskID(resolved)
+	fmt.Fprintf(stderr, "note: ask has no %q subcommand; showing ask info %s\n", args[0], id)
+	return append([]string{"info", args[1]}, args[2:]...), true
 }
 
 // rejectImplicitAdd reports whether the implicit-add fallback for an unknown
 // first word must be refused instead of creating a task. It refuses when the
 // first word resolves to an existing task (e.g. "ask gd1 start" meant
 // "ask start gd1") or when it is a misused info verb followed by a numeric
-// taskwarrior ID or an existing task selector (e.g. "ask show 361").
+// taskwarrior ID (e.g. "ask show 361"). An info verb followed by an existing
+// task alias never gets here: redirectInfoVerb has already shown that task.
 // Refusing keeps agent syntax mistakes from landing in the task list as junk
 // tasks while ordinary descriptions (e.g. "fix the bug") still fall through
 // to the implicit add.
@@ -128,14 +160,6 @@ func (d *Dispatcher) rejectImplicitAdd(ctx context.Context, args []string, stder
 			fmt.Fprintf(stderr, "error: ask has no %q subcommand; numeric Taskwarrior IDs are not accepted\nFind the alias with ask list, then use e.g. ask info <alias>.\nTo create a task with this description, use: ask add \"%s\"\n",
 				first, strings.Join(args, " "))
 			return 1, true
-		}
-		if looksLikeTaskAlias(second) {
-			if resolved, tasks, _, err := d.resolveTaskSelector(ctx, second, io.Discard); err == nil && len(tasks) > 0 {
-				id := displayResolvedTaskID(resolved)
-				fmt.Fprintf(stderr, "error: ask has no %q subcommand; use ask info %s to show task %s %q\nTo create a task with this description, use: ask add \"%s\"\n",
-					first, id, id, truncateDescription(tasks[0].Description, 60), strings.Join(args, " "))
-				return 1, true
-			}
 		}
 	}
 	if !looksLikeTaskAlias(first) {

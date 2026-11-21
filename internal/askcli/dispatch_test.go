@@ -212,22 +212,40 @@ func TestDispatcher_RejectsImplicitAddForInfoVerbs(t *testing.T) {
 	})
 
 	t.Run("existing task selector", func(t *testing.T) {
-		calls = nil
-		var stdout, stderr bytes.Buffer
-		code, err := newDispatcher().Dispatch(context.Background(), []string{"show", "gd1"}, nil, &stdout, &stderr)
-		if err != nil {
-			t.Fatalf("Dispatch returned error: %v", err)
-		}
-		if code != 1 {
-			t.Fatalf("Dispatch code = %d, want 1: stderr=%s", code, stderr.String())
-		}
-		for _, call := range calls {
-			if call[0] == "add" {
-				t.Fatalf("implicit add was executed: %v", call)
+		// Agents type "ask show <id>" (and notes, task, get, status, ...) far
+		// more often than any other mistake. The intent is unambiguous when
+		// the selector is an existing task, so ask shows the task and names
+		// the real subcommand instead of costing the agent a failed call.
+		for _, verb := range []string{"show", "view", "get", "notes", "annotations", "task", "tasks", "status"} {
+			calls = nil
+			var stdout, stderr bytes.Buffer
+			code, err := newDispatcher().Dispatch(context.Background(), []string{verb, "gd1"}, nil, &stdout, &stderr)
+			if err != nil {
+				t.Fatalf("Dispatch(%s gd1) returned error: %v", verb, err)
+			}
+			if code != 0 {
+				t.Fatalf("Dispatch(%s gd1) code = %d, want 0: stderr=%s", verb, code, stderr.String())
+			}
+			for _, call := range calls {
+				if call[0] == "add" {
+					t.Fatalf("ask %s gd1 executed an implicit add: %v", verb, call)
+				}
+			}
+			if !strings.Contains(stdout.String(), "Description: Start the engine") {
+				t.Fatalf("ask %s gd1 stdout = %q, want the task info", verb, stdout.String())
+			}
+			if !strings.Contains(stderr.String(), "ask info gd1") {
+				t.Fatalf("ask %s gd1 stderr = %q, want a note naming ask info gd1", verb, stderr.String())
 			}
 		}
-		if !strings.Contains(stderr.String(), "ask info gd1") {
-			t.Fatalf("stderr = %q, want ask info gd1 hint", stderr.String())
+	})
+
+	t.Run("existing task selector keeps modifiers", func(t *testing.T) {
+		calls = nil
+		var stdout, stderr bytes.Buffer
+		code, _ := newDispatcher().Dispatch(context.Background(), []string{"show", "gd1", "last:1"}, nil, &stdout, &stderr)
+		if code != 0 || !strings.Contains(stdout.String(), "Description: Start the engine") {
+			t.Fatalf("ask show gd1 last:1 code = %d, stdout = %q, stderr = %q", code, stdout.String(), stderr.String())
 		}
 	})
 
