@@ -10,21 +10,42 @@ import (
 	"github.com/snonux/hexai/internal/llm"
 )
 
+// TestMain isolates the whole package from the developer's real environment:
+// XDG_CACHE_HOME and XDG_CONFIG_HOME point at throwaway directories, so neither
+// the response cache nor ~/.config/hexai/config.toml (which can name a different
+// provider/model than the tests expect) leaks into any test. Tests that need a
+// specific config still override XDG_CONFIG_HOME with t.Setenv.
 func TestMain(m *testing.M) {
 	cacheDir, err := os.MkdirTemp("", "hexai-cli-cache-*")
 	if err != nil {
 		panic(err)
 	}
-	oldCacheHome := os.Getenv("XDG_CACHE_HOME")
-	_ = os.Setenv("XDG_CACHE_HOME", cacheDir)
-	code := m.Run()
-	if oldCacheHome == "" {
-		_ = os.Unsetenv("XDG_CACHE_HOME")
-	} else {
-		_ = os.Setenv("XDG_CACHE_HOME", oldCacheHome)
+	configDir, err := os.MkdirTemp("", "hexai-cli-config-*")
+	if err != nil {
+		panic(err)
 	}
+	restoreCache := overrideEnv("XDG_CACHE_HOME", cacheDir)
+	restoreConfig := overrideEnv("XDG_CONFIG_HOME", configDir)
+	code := m.Run()
+	restoreCache()
+	restoreConfig()
 	_ = os.RemoveAll(cacheDir)
+	_ = os.RemoveAll(configDir)
 	os.Exit(code)
+}
+
+// overrideEnv sets key to value and returns a func that restores the previous
+// state (unsetting the variable if it was not set before).
+func overrideEnv(key, value string) func() {
+	old, had := os.LookupEnv(key)
+	_ = os.Setenv(key, value)
+	return func() {
+		if had {
+			_ = os.Setenv(key, old)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+	}
 }
 
 // setStdin sets os.Stdin from a string and returns a restore func and reader.
